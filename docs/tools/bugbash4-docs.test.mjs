@@ -52,3 +52,8 @@ test("published editor setup exposes the shipped server controls", () => {
   }
   for (const part of ["VibeLang: Restart Language Server", "VibeLang: Show Language Server Output", '"messages"', '"verbose"']) assert.ok(text.includes(part), part)
 })
+
+test("scaffolder options include both aliases for help and version", () => {
+  const text = read("packages/create-vibelang/README.md")
+  for (const flag of ["-h", "--help", "-v", "--version"]) assert.ok(text.includes(`\`${flag}\``), flag)
+})

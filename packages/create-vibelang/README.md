@@ -18,6 +18,8 @@ directory and never runs `git init`.
 
 | Option | Effect |
 | --- | --- |
+| `-h`, `--help` | Print usage and exit without creating a project. |
+| `-v`, `--version` | Print the scaffolder version and exit. |
 | `--no-install` | Copy the app without installing dependencies. |
 | `--no-git` | Accepted for compatibility with `bun create`; nothing changes. |
 
