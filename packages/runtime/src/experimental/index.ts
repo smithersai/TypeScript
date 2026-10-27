@@ -1,11 +1,14 @@
 /**
  * The `Experimental` namespace (D313): VibeLang's additions where Effect
- * lacks an API, one module per Effect module it extends, each named after it.
- * A `.vibe` file sees the namespace without an import. Each module has its
- * own service key; the layers are in `vibelang-runtime/experimental/
- * platform-node`, `-bun` and `-browser`.
+ * lacks an API, in Effect's style, until Effect ships it. One module per
+ * service, named after the Effect module it extends (`FileSystem`, `Crypto`)
+ * or as Effect would name it (`Process`). A `.vibe` file sees the namespace
+ * without an import. Each module has its own service key; the layers are in
+ * `vibelang-runtime/experimental/platform-node`, `-bun` and `-browser`.
  *
+ * @experimental
  * @since 0.0.11
  */
 export * as Crypto from "./Crypto.js"
 export * as FileSystem from "./FileSystem.js"
+export * as Process from "./Process.js"

@@ -1,0 +1,26 @@
+// expect-result: {"pid":true,"platform":true,"running":true,"missing":"NotFound","refused":"BadArgument","fake":"win32"}
+import { NodeProcess } from "vibelang-runtime/experimental/platform-node"
+import { layerTest, Process } from "vibelang-runtime/experimental/Process"
+
+function observe() {
+  const pid = Process.pid()
+  return {
+    pid: pid > 0,
+    platform: typeof Process.platform() === "string",
+    running: Process.isRunning(pid),
+    missing: Process.kill(4194000) catch (e) => e.reason._tag,
+    refused: Process.isRunning(0) catch (e) => e.reason._tag,
+  }
+}
+
+function fakePlatform() {
+  provide layerTest({ platform: Effect.succeed("win32") }) {
+    return Process.platform()
+  }
+}
+
+export function main() {
+  provide NodeProcess.layer {
+    return { ...observe(), fake: fakePlatform() }
+  }
+}

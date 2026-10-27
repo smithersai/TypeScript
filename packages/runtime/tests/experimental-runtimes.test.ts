@@ -13,7 +13,7 @@ import { spawnSync } from "node:child_process"
 import { chmodSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Effect, Redacted } from "effect"
-import { Crypto, FileSystem } from "vibelang-runtime/experimental"
+import { Crypto, FileSystem, Process } from "vibelang-runtime/experimental"
 import { ${platform === "node" ? "NodeServices" : "BunServices"} as Services } from "vibelang-runtime/experimental/platform-${platform}"
 const dir = ${JSON.stringify(dir)}
 writeFileSync(join(dir, "target"), "")
@@ -36,7 +36,8 @@ const program = Effect.gen(function*() {
   const mac = hex(yield* crypto.hmac("SHA-256", Redacted.make(new TextEncoder().encode("Jefe")), new TextEncoder().encode("what do ya want for nothing?")))
   const seed = Buffer.from("302e020100300506032b657004220420" + "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60", "hex")
   const signature = hex(yield* crypto.sign("Ed25519", Redacted.make(new Uint8Array(seed)), new Uint8Array()))
-  return { link, denied, fifo: fifo.type, mode: (statSync(join(dir, "moved")).mode & 0o777).toString(8), mac, signature }
+  const pid = (yield* (yield* Process.Process).pid) === process.pid
+  return { link, denied, fifo: fifo.type, mode: (statSync(join(dir, "moved")).mode & 0o777).toString(8), mac, signature, pid }
 })
 console.log(JSON.stringify(await Effect.runPromise(Effect.provide(program, Services.layer))))
 `
@@ -56,7 +57,8 @@ for (const [platform, command] of [["node", "node"], ["bun", process.execPath]] 
           fifo: "FIFO",
           mode: "600",
           mac: "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843",
-          signature: "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b"
+          signature: "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b",
+          pid: true
         })
         expect(result.exitCode).toBe(0)
       } finally {

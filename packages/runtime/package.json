@@ -50,6 +50,11 @@
       "import": "./dist/experimental/FileSystem.js",
       "default": "./dist/experimental/FileSystem.js"
     },
+    "./experimental/Process": {
+      "types": "./dist/experimental/Process.d.ts",
+      "import": "./dist/experimental/Process.js",
+      "default": "./dist/experimental/Process.js"
+    },
     "./experimental/platform-browser": {
       "types": "./dist/experimental/platform-browser/index.d.ts",
       "import": "./dist/experimental/platform-browser/index.js",
