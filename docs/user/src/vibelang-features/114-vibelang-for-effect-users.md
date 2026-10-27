@@ -89,6 +89,8 @@ Node runs the JavaScript output; importing the `.vibe` source directly with Node
 | `Effect.catchTag(program, "Missing", recover)` | `try { ... } catch (e) { return match (e) { when Missing: ...; default: throw e; } }` |
 | `Effect.catch(program, (e) => recover(e))` | `program catch (e) => recover(e)` |
 | `Effect.orElseSucceed(program, () => value)` | `program catch value` |
+| `Effect.result(program)` (Effect 3: `Effect.either(program)`) | `Effect.result(program())` captures one program's typed failure as a `Result`; match `Result.Success(let value)` or `Result.Failure(let error)`. |
+| `Effect.exit(program)` | `exit(program())` captures its full outcome; match `Exit.Success(let value)` or `Exit.Failure(let cause)`. |
 | `Effect.ensuring(program, cleanup)` | `try` / `finally` |
 | `Effect.scoped` with `Effect.acquireRelease` | Acquire with `using` in the block that owns the resource; see the [pending-interruption limitation and holder](../resource-management/030-scope.md#known-limitation-pending-interruption-and-javascript-disposables) |
 | `Effect.forkScoped(program)` | `fork work()` for a child owned by the enclosing block; `fork { ... }` forks a block |
@@ -107,6 +109,8 @@ Node runs the JavaScript output; importing the `.vibe` source directly with Node
 | `Stream.fromIterable` or a generator-based source | A producer: `function*` with `yield value` |
 
 `await.allSettled` captures typed failures as `Result.fail` and never fails with a typed error. Defects and interruption propagate exactly as in `Effect.all` with `mode: "result"` (D258).
+
+`Effect.result(program())` captures typed failures only. Defects and interruption propagate. `exit(program())` instead captures the full cause in `Exit.Failure`, including defects and interruption.
 
 Use Effect's operators for retries, timeouts, concurrency, and Stream transformations. Statements replace operators that only sequence ordinary work.
 
