@@ -10533,7 +10533,10 @@ func (c *Checker) inferFromAnnotatedParametersAndReturn(sig *Signature, context 
 // all identical ignoring their return type, the result is same signature but with return type as
 // union type of return types from these signatures
 func (c *Checker) getContextualSignature(node *ast.Node) *Signature {
-	t := c.getApparentTypeOfContextualType(node, ContextFlagsSignature)
+	return c.getContextualSignatureFromType(node, c.getApparentTypeOfContextualType(node, ContextFlagsSignature))
+}
+
+func (c *Checker) getContextualSignatureFromType(node *ast.Node, t *Type) *Signature {
 	if t == nil {
 		return nil
 	}
@@ -30399,10 +30402,21 @@ func (c *Checker) getContextualIterationType(kind IterationTypeKind, functionDec
 }
 
 func (c *Checker) getContextualReturnType(functionDecl *ast.Node, contextFlags ContextFlags) *Type {
-	return c.applyContextualReturnTypeHooks(functionDecl, c.getContextualReturnTypeWorker(functionDecl, contextFlags))
+	// Share this query's lookup, including nil, with the extension fallback.
+	// Keeping it local avoids retaining results across inference contexts.
+	var contextual *Type
+	lookedUp := false
+	getContextual := func() *Type {
+		if !lookedUp {
+			contextual = c.getContextualType(functionDecl, ContextFlagsSignature)
+			lookedUp = true
+		}
+		return contextual
+	}
+	return c.applyContextualReturnTypeHooksWithContext(functionDecl, c.getContextualReturnTypeWorker(functionDecl, contextFlags, getContextual), getContextual)
 }
 
-func (c *Checker) getContextualReturnTypeWorker(functionDecl *ast.Node, contextFlags ContextFlags) *Type {
+func (c *Checker) getContextualReturnTypeWorker(functionDecl *ast.Node, contextFlags ContextFlags, getContextual func() *Type) *Type {
 	// If the containing function has a return type annotation, is a constructor, or is a get accessor whose
 	// corresponding set accessor has a type annotation, return statements in the function are contextually typed
 	returnType := c.getReturnTypeFromAnnotation(functionDecl)
@@ -30411,7 +30425,13 @@ func (c *Checker) getContextualReturnTypeWorker(functionDecl *ast.Node, contextF
 	}
 	// Otherwise, if the containing function is contextually typed by a function type with exactly one call signature
 	// and that call signature is non-generic, return statements are contextually typed by the return type of the signature
-	signature := c.getContextualSignatureForFunctionLikeDeclaration(functionDecl)
+	var signature *Signature
+	if ast.IsFunctionExpressionOrArrowFunction(functionDecl) {
+		apparent := c.getApparentContextualType(functionDecl, getContextual(), ContextFlagsSignature)
+		signature = c.getContextualSignatureFromType(functionDecl, apparent)
+	} else if ast.IsObjectLiteralMethod(functionDecl) {
+		signature = c.getContextualSignature(functionDecl)
+	}
 	if signature != nil && !c.isResolvingReturnTypeOfSignature(signature) {
 		returnType := c.getReturnTypeOfSignature(signature)
 		functionFlags := ast.GetFunctionFlags(functionDecl)
@@ -31434,6 +31454,10 @@ func (c *Checker) getApparentTypeOfContextualType(node *ast.Node, contextFlags C
 	} else {
 		contextualType = c.getContextualType(node, contextFlags)
 	}
+	return c.getApparentContextualType(node, contextualType, contextFlags)
+}
+
+func (c *Checker) getApparentContextualType(node *ast.Node, contextualType *Type, contextFlags ContextFlags) *Type {
 	instantiatedType := c.instantiateContextualType(contextualType, node, contextFlags)
 	if instantiatedType != nil && !(contextFlags&ContextFlagsNoConstraints != 0 && instantiatedType.flags&TypeFlagsTypeVariable != 0) {
 		apparentType := c.mapTypeEx(instantiatedType, func(t *Type) *Type {

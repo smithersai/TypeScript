@@ -521,7 +521,7 @@ func requiredParameterCount(fn *ast.Node) int {
 // (a) => Effect<B, E, R> returns a B. A program expected as Effect<A, E, R>
 // has no contextual signature, so its body is typed by A, as the object a
 // Layer.effect program returns is typed by the service's shape.
-func contextualReturnType(c *checker.Checker, fn *ast.Node, t *checker.Type) *checker.Type {
+func contextualReturnType(c *checker.Checker, fn *ast.Node, t *checker.Type, getContextual func() *checker.Type) *checker.Type {
 	if !isLowerable(fn) {
 		return t
 	}
@@ -529,7 +529,7 @@ func contextualReturnType(c *checker.Checker, fn *ast.Node, t *checker.Type) *ch
 		if !isLambda(fn) || requiredParameterCount(fn) != 0 {
 			return nil
 		}
-		if contextual := c.GetContextualType(fn, checker.ContextFlagsSignature); contextual != nil && len(c.GetSignaturesOfType(contextual, checker.SignatureKindCall)) == 0 {
+		if contextual := getContextual(); contextual != nil && len(c.GetSignaturesOfType(contextual, checker.SignatureKindCall)) == 0 {
 			return successType(c, contextual)
 		}
 		return nil

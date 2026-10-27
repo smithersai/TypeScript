@@ -27,7 +27,7 @@ func init() {
 // The expression's contextual type is a value where the expression runs (D24)
 // and a program where it is held (D147, D269); what fn returns is the value,
 // the program's success type.
-func catchOperandReturnType(c *checker.Checker, fn *ast.Node, t *checker.Type) *checker.Type {
+func catchOperandReturnType(c *checker.Checker, fn *ast.Node, t *checker.Type, _ func() *checker.Type) *checker.Type {
 	if fn == nil || !ast.IsFunctionExpressionOrArrowFunction(fn) {
 		return t
 	}

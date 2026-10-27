@@ -129,8 +129,9 @@ func (c *Checker) NewFunctionTypeWithReturnType(symbol *ast.Symbol, signature *S
 
 // ContextualReturnTypeHook can replace t, the contextual type of what fn
 // returns, which return statements, an arrow function's expression body, and
-// the inference of fn's return type see. t may be nil.
-type ContextualReturnTypeHook func(c *Checker, fn *ast.Node, t *Type) *Type
+// the inference of fn's return type see. t may be nil. contextual lazily
+// supplies the function's contextual type, shared with the signature lookup.
+type ContextualReturnTypeHook func(c *Checker, fn *ast.Node, t *Type, contextual func() *Type) *Type
 
 var contextualReturnTypeHooks []ContextualReturnTypeHook
 
@@ -142,8 +143,12 @@ func RegisterContextualReturnTypeHook(hook ContextualReturnTypeHook) {
 }
 
 func (c *Checker) applyContextualReturnTypeHooks(fn *ast.Node, t *Type) *Type {
+	return c.applyContextualReturnTypeHooksWithContext(fn, t, func() *Type { return c.getContextualType(fn, ContextFlagsSignature) })
+}
+
+func (c *Checker) applyContextualReturnTypeHooksWithContext(fn *ast.Node, t *Type, contextual func() *Type) *Type {
 	for _, hook := range contextualReturnTypeHooks {
-		t = hook(c, fn, t)
+		t = hook(c, fn, t, contextual)
 	}
 	return t
 }
