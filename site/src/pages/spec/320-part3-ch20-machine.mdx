@@ -31,7 +31,7 @@ In the machine's terms, Effect supplies two things: the representation (frames o
 | Term | Definition | Representation on Effect 4 |
 | --- | --- | --- |
 | Computation | One run of code. It returns a value, fails with an expected error, dies with a defect, is interrupted, or performs an operation. Every function body is a computation. | Primitives evaluated by a fiber |
-| Program | A cold, reusable description of a computation. Constructing it runs nothing. Each run creates a new execution with fresh frames. | An `Effect` value; in source, a function with no arguments (Chapter 13) |
+| Program | A cold, reusable description of a computation. Constructing it runs nothing. Each run creates a new execution with fresh frames. | An `Effect` value; in source, `() =>` or another form that delays (Chapter 13) |
 | Fiber | One execution: a frame stack, a Context, an interruptibility flag, a pending interruption, and child fibers. | `FiberImpl`, `internal/effect.ts:487-743` [Effect] |
 | Frame | A piece of the rest of the computation: an activation waiting for a callee, or a boundary that acts when control leaves it. | An object on `fiber._stack` with success, failure, and ensure hooks, `internal/core.ts:31-61` [Effect] |
 | Operation | A request a computation makes of its environment: a service method, a control operation, or a runtime request such as "wait for this callback". | A Context key |
@@ -83,7 +83,7 @@ These rules are the specification. Within one rule, changes to K, Γ, ι, π, an
 | call | `f(v)` that may suspend | Push `Ret(caller, pc)`; run the body of `f`. |
 | return | `return v` meets `Ret(g, pc)` | Pop it; continue `g` at `pc` with `v`. |
 | | meets `Restore(Γ′)` or `Mask(ι′)` | Pop it; restore Γ or ι; keep returning `v`. |
-| | meets `Final(fin)` | Pop it; run `fin(Success v)` with ι = false; keep returning `v`, or fail with `fin`'s failure. |
+| | meets `Final(fin)` | Pop it; run `fin(Success v)` with ι = false; keep returning `v`, or fail with `fin`'s failure. A jump out of a region (`return`, `break`, `continue`) is a return of its completion record, so it meets `Final` the same way. |
 | | meets `Prompt(H, Γₒ, ιₒ)` | Pop it; Γ, ι := Γₒ, ιₒ; continue with `H.onReturn(v)`. |
 | | meets `Clause(k)` with `v` a tail-resume request for `k` | Pop it; perform `resume(k, x)` or `resumeWith(k, p)` as the request says. Any other `v` passes through. |
 | | meets `Owner(k)` | Pop it; if `k` is suspended and owned here, abandon `k` first; keep returning `v`. |
@@ -97,15 +97,17 @@ These rules are the specification. Within one rule, changes to K, Γ, ι, π, an
 | throw | `throw e` | Fail with `Fail(e)`. |
 | fail | failure meets `Ret` | Discard the frame. |
 | | meets `Catch(h)`, the cause has a `Fail`, no `Die` and no abandonment, not interrupting | Continue with `h(e)`, where `e` is the first failure; the other reasons are dropped, as `Effect.catch` drops them (D306). A cause with a `Die` passes through with each `Fail` made a `Die` (D305, K16d); one without a `Fail`, or carrying an abandonment, passes through intact (K14a-K14d). |
-| | meets `Final(fin)` | Run `fin(Failure c)` with ι = false; keep failing with `c` plus `fin`'s failures, each `Fail` made a `Die` when a `Die` is among them (D305). |
+| | meets `Final(fin)` | Run `fin(Failure c)` with ι = false; keep failing with `c ⊕ f`, where `f` is `fin`'s failure: `c`'s reasons, then `f`'s, each `Fail` made a `Die` when a `Die` is among them (D305, Chapter 17). |
 | | meets `Restore`, `Mask`, `Prompt`, `Clause` | Restore state; keep failing. |
 | | meets `Owner(k)` | Abandon `k` first if it is owned here and suspended; keep failing with `c` plus any cleanup failure, combined as at `Final` (D305, K16a). |
 | interrupt | request `r` from another fiber | π := π ⊕ r. If ι and parked: fail with π now. If ι and running: fail with π at the next step. If not ι: fail when a `Mask` frame restores ι = true. While π ≠ ∅ and ι, unwinding skips `Catch` frames. |
 | wait (root) | `suspend(register)` | Park the fiber with K intact. `register` receives a one-shot resumer. |
 | wake | `resumer.resume(v)` | Run the fiber with `v`: synchronously while the wake depth is under budget, otherwise on the scheduler (Chapter 24). |
-| fork | `fork(p)` | New fiber ⟨[], Γ, true, ∅, ∅⟩ runs `p`. Its owner is the innermost block region (`fork`), the caller's Scope (`Effect.forkScoped`), the parent fiber (`Effect.forkChild`), or nothing (`Effect.forkDetach`). No prompt crosses. |
+| fork | `fork(p)` | New fiber ⟨[], Γ, true, ∅, ∅⟩ runs `p`. Its owner is the innermost block region (`fork`; an arrow function's expression body is a block, D353), the caller's Scope (`Effect.forkScoped`), the parent fiber (`Effect.forkChild`), or nothing (`Effect.forkDetach`). No prompt crosses. |
 
 The interruption rows describe Effect 4 as it is (`internal/effect.ts:558-579`, `internal/core.ts:600-631`) [Effect]. The prompt, owner, clause, collector, fiber-exit, capture, resume, abandon, and transfer rows are the kernel (`packages/runtime/src/kernel/kernel.ts`) [Kernel].
+
+**Every lowering answers to these rules.** The rules define the Exit of every program. The frame lowering of Chapter 26 follows them step by step. Any other lowering, such as a function compiled to plain JavaScript (Chapter 15), runs as one step of the machine, since nothing in it can park or capture, and must end with the Exit these rules give: the same value, or the same reasons in the same order (Chapter 17's Exit rule). Where JavaScript's own `finally` or `IteratorClose` would replace or drop a failure, the lowering uses the runtime's combining forms instead.
 
 **Tail position is structural.** A resume is in tail position when `Owner(k)` (with `Clause(k)` above it) is on top of the stack when it runs. In a generator clause, `return yield* resume(k, v)` runs with the clause's own frame above them, so it is not a tail resume, and a producer looping that way keeps every element's clause frames until the loop ends (`tests/generator-tail-resume.test.ts`: 3,002 frames at 1,000 elements). The compiler therefore emits `return tailResume(k, v)`: the clause's generator finishes first, and `Clause(k)` performs the resume (K11a). Inside a `try`, `catch`, `finally`, or `using` region of the clause, the compiler emits `yield* resume(…)` instead, because the region's cleanup must run after the resumed computation (K11d).
 

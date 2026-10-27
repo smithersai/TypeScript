@@ -41,7 +41,7 @@ Every feature in Parts I and II is a rule over that one machine:
 - `using` and `finally` are finalizer frames.
 - `fork` starts a new root that inherits the Context but no handlers.
 - `handle` is a prompt, and a control operation captures the frames above it.
-- A function compiles to plain JavaScript only when the compiler proves it cannot reach a pause or a capture.
+- A function compiles to plain JavaScript only when the compiler proves it cannot reach a pause or a capture, and its plain code ends with the Exit its frames would (Chapter 17).
 
 #### Why not lower to `Effect.gen` first
 
@@ -58,7 +58,7 @@ General delimited control therefore needs new frame kinds (`Prompt` and `Owner` 
 
 > Does the language make Effect's continuation runtime its foundation, with everything else derived from that model?
 
-**Claim** [falsifiable]. Every feature is a rule over the machine in [Chapter 20](/spec/320-part3-ch20-machine#20-the-machine), which has three continuation mechanisms: frames, root capture, and prompt capture. Effect provides frames and root capture; the kernel provides prompt capture. The claim is false if any feature needs a mechanism outside the machine: a second scheduler, a second Context, a JavaScript `try` the machine cannot see, or a calling convention that skips frames where a pause or capture is reachable. Plain JavaScript calls (Chapter 15) skip frames only where the compiler proves no such point is reachable, which is the frame invariant (Chapter 26) applied, not an exception to it.
+**Claim** [falsifiable]. Every feature is a rule over the machine in [Chapter 20](/spec/320-part3-ch20-machine#20-the-machine), which has three continuation mechanisms: frames, root capture, and prompt capture. Effect provides frames and root capture; the kernel provides prompt capture. The claim is false if any feature needs a mechanism outside the machine: a second scheduler, a second Context, a JavaScript `try` the machine cannot see, or a calling convention that skips frames where a pause or capture is reachable. Plain JavaScript calls (Chapter 15) skip frames only where the compiler proves no such point is reachable, which is the frame invariant (Chapter 26) applied, not an exception to it, and only where the plain code ends with the same Exit as the frames, which is Chapter 17's Exit rule.
 
 | Feature | Mechanism in the machine | Captures | Evidence |
 | --- | --- | --- | --- |

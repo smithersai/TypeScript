@@ -53,7 +53,32 @@ function reviewedCheckout(cartId: string) {
 
 While the reviewer decides, the cart's hold stays reserved and `checkout` waits at its call, as during any slow service call. A clause that ends by resuming, like this one, costs no stack: the compiler ends the clause before it continues the program (Chapter 26), so a handler that resumes a million times runs in constant space.
 
-The try block and the clauses are code of the enclosing function (D132): a `return` in either returns from the function, and `break` and `continue` leave its loops. A clause can work after `resume`, which returns when the try block finishes; when the clause then ends, the statement ends as the block did, so the block's `return` takes effect after the clause, as a pending `return` waits for a `finally` block. That `resume` returns the value the statement ends with, so its type covers what the try block and each clause return, and `undefined` when the block, or a clause that has not resumed, ends another way (D97). A statement answers every operation of each control it names (EK2108). Catch clauses and a `finally` block may follow its handle clauses and cover both the block and the clauses.
+The try block and the clauses are code of the enclosing function (D132): a `return` in either returns from the function, and `break` and `continue` leave its loops. A clause can work after `resume`, which returns when the try block finishes; when the clause then ends, the statement ends as the block did, so the block's `return` takes effect after the clause, as a pending `return` waits for a `finally` block. That `resume` returns the value the statement ends with; its type is the handler's answer type (below). A statement answers every operation of each control it names (EK2108). Catch clauses and a `finally` block may follow its handle clauses and cover both the block and the clauses.
+
+#### Answer types
+
+A handler is deep: a resumed program runs until it ends or reaches the handler again, and whatever the handled code ends with there is what `resume` returns. Every `resume` of one handler therefore has one type, the handler's **answer type** H: the type of every value the handled code can end with (D351). The compiler checks every value against that one H, never against a narrower type, so a `resume` never delivers a value outside its type. This is the typing rule of Eff and OCaml 5, where a continuation's result is the handler's answer type.
+
+For a handle statement, the compiler computes H in one step, without a fixpoint. H is the type of what the try block and each clause return, plus `undefined` when the block, or a clause that has not resumed, ends another way; a clause's return computed from a non-tail `resume`'s result is left out, because its type depends on H. The compiler then checks each return it left out against H. If every one is within H, H is sound. If one is not, the program is EK2119, an error: the type that clause's `resume` was given would not cover the value. Write the enclosing function's success type; then H is the written type, plus `undefined` under the same condition, and every return of the try block and the clauses is checked against it:
+
+```ts [VibeLang]
+control Step { next(): void!! }
+
+function run(): number | string!! {
+  try {
+    Step.next()
+    Step.next()
+    return 1
+  } handle Step.next() {
+    const n = resume()                   // n: number | string
+    return typeof n === "number" ? n.toFixed(1) : "done"
+  }
+}
+```
+
+Here the try block always returns and the clause always resumes before it returns, so `undefined` is not added. Without `: number | string!!`, H would be `number`, the try block's return, since the clause's return is computed from a non-tail `resume`'s result and left out; yet the inner clause's string return is what the outer clause's `resume` receives. The compiler reports EK2119 rather than give `n` a type its value can leave; a clause that called `n.toFixed(1)` unguarded would otherwise fail at run time with a `TypeError`.
+
+For the `handle` function below, TypeScript fixes H before it checks the clauses, so H is the program's result type, or `never` with `onReturn`. A clause that reads a non-tail `resume`'s result while a clause or `onReturn` can produce a value outside H is EK2110. Read such results in a handle statement, whose H can be written.
 
 The statement is short for `handle`, a function that runs a program and returns its result. Each clause receives `k`, the rest of the program from the point of the call, and `resume(k, value)` continues it:
 
@@ -137,7 +162,7 @@ it.effect("checkout charges when approved") {
 
 `try { … } handle Control.operation(parameters) { … }` handles the operations of the controls its clauses name, the first control's handler innermost. In a clause, `resume(value)`, `resumeWith(() => …)`, and `abandon()`, the three calls below without `k`, act on the clause's continuation; `resume()` continues an operation whose result is `void`. The compiler writes the statement as a call of `handle` whose program and clauses return the statement's completion: a `return`, `break`, or `continue`, or normal completion (Chapter 26).
 
-`handle(program, Operations, clauses, onReturn?)` runs `program` with a handler for `Operations`; the optional `onReturn` transforms the program's own result before `handle` returns it. In a clause, `k` has type `Continuation<V, E, H>`: `V` is what the call receives, `E` the operation's declared errors, which only `resumeWith` may raise, and `H` the result type of the whole `handle`. `resume(k, v)` returns an `H`: the handler is deep, so the resumed program runs until it reaches the handler again, where `onReturn`, or a later clause that does not resume, produces the value. TypeScript fixes `H` before it checks the clauses, so `H` is the program's own result type, or `never` with `onReturn` (D97); a clause that reads a non-tail `resume`'s result where the handle can produce a value outside `H` is EK2110. A handle statement types that result itself, as above: a clause's return computed from it stays out of its type, and EK2119 warns when that return does not fit. Three operations take `k`:
+`handle(program, Operations, clauses, onReturn?)` runs `program` with a handler for `Operations`; the optional `onReturn` transforms the program's own result before `handle` returns it. In a clause, `k` has type `Continuation<V, E, H>`: `V` is what the call receives, `E` the operation's declared errors, which only `resumeWith` may raise, and `H` the answer type. `resume(k, v)` returns an `H`: the handler is deep, so the resumed program runs until it reaches the handler again, where `onReturn`, or a later clause that does not resume, produces the value. As above, `H` is the program's own result type, or `never` with `onReturn`, and EK2110 rejects a clause that reads a non-tail `resume`'s result where the handle can produce a value outside `H`. Three operations take `k`:
 
 | Call | Meaning |
 | --- | --- |
@@ -152,6 +177,7 @@ The standard library uses a fourth operation, `transfer`, which hands a continua
 - **Continue at most once.** Calling `resume(k, …)` twice is an error at the second call; nothing in the program runs twice.
 - **Not continuing cleans up.** If the handler returns, fails, or is interrupted without resuming, the program's `using` and `finally` blocks run before `handle` returns.
 - **`k` stays inside the clause.** You cannot store `k`, return it, or capture it in a closure that outlives the clause. A handle statement's clause never names its continuation: it calls `resume`, `resumeWith`, and `abandon` in its own code, not in a function nested in it.
+- **One answer type.** Every `resume` of a handler has the handler's answer type, and every value the handled code can end with is checked against it (EK2110, EK2119).
 - **Handlers belong to a fiber.** A program forked onto another fiber cannot reach a handler on this one; the next section shows the check.
 - **Cleanup code handles its own operations.** A `finally` block or `using` release that performs a control operation must handle it inside itself, so a handler elsewhere cannot cut cleanup short.
 
@@ -194,7 +220,7 @@ error EK4202: retryApproval is a TypeScript function whose requirements include 
   Write retryApproval in VibeLang, where the compiler sees every fork, or handle Approval inside it.
 ```
 
-VibeLang functions in other packages are not affected: their declarations carry the compiler's metadata, and the compiler checked their bodies when it built them.
+A VibeLang function counts as VibeLang here only when its `.vibe` source is part of the compilation, so the compiler has seen every fork in its body. A function known only from a declaration file, VibeLang's own emitted `.d.ts` included, is TypeScript code to this check, and EK4202 applies to it: a declaration states a contract, not what the body does (D352).
 
 #### In Effect today
 

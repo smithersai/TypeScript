@@ -24,11 +24,13 @@ export declare const displayName:
   (id: string) => Effect.Effect<string, UserNotFound, Users>
 ```
 
-#### One obligation
+Compiled code owes five obligations, each a rule of this chapter: the frame invariant; observational equivalence of every optimization and rewrite to the frame lowering; the pattern evaluation order; ECMAScript module semantics; and the declaration ABI (Chapter 27). Chapter 13's rules for evaluation order (E), lexical context (L), and names (H) apply to every lowering here; rule E11 binds every compiled form to the observations defined below. The last section states what the static guarantees assume.
+
+#### The frame invariant
 
 > **Frame invariant** [Rule]. At every point where a computation can capture or park, everything needed to continue it lives in frames on the fiber's `_stack`. No JavaScript activation of compiled or foreign code sits between the run loop and that point.
 
-Capture moves `_stack` frames; it cannot move a JavaScript activation. An activation between the run loop and a perform site would be lost on capture or force re-execution. Everything else in this chapter follows from that one rule.
+Capture moves `_stack` frames; it cannot move a JavaScript activation. An activation between the run loop and a perform site would be lost on capture or force re-execution. The lowering in the rest of this chapter follows from this rule.
 
 #### What a function compiles to
 
@@ -85,8 +87,8 @@ export const profile = Effect.fnUntraced(function* (raw: string) {
 | `finally { }` | `Final(fin)` | `Effect.onExit`, never `Effect.ensuring`, whose cleanup must have E = `never` (D46) |
 | `throw e` | Fail | `return yield* Effect.fail(e)`: the `return` keeps TypeScript's narrowing after the `throw` |
 | A block that declares `using` or calls `fork` | A Scope region: `Final` closes it | `Effect.scopedWith` |
-| `using x = acquire()` | Registers in the block's Scope | `Scope.provide(acquire(), scope)` |
-| `fork(() => p())` | A child owned by the block's Scope | `Effect.forkIn(p(), scope)` |
+| `using x = e` | A scoped acquisition registers its own release in the block's Scope; any other value's one disposal is registered there (D342) | `Scope.provide(e, scope)`; the runtime's disposal registration |
+| `fork p()`, in a block or an arrow's expression body (D353) | A child owned by the block's Scope | `Effect.forkIn(p(), scope)` |
 | A provider override | `Restore(Γ′)` | `Effect.provideService` / `Effect.provide` |
 | Masks | `Mask(ι′)` | `Effect.uninterruptible`, `Effect.interruptible` |
 | `handle(...)` | `Prompt` | The runtime's `handle` |
@@ -112,7 +114,7 @@ export const openAndLog = Effect.fnUntraced(function* (url: string) {
 })
 ```
 
-`Effect.scopedWith` creates the region's Scope without providing it, so `Database.connect` still sees the caller's `Scope`, and only the `using` acquisition receives the region's. Acquisition is masked or interruptible as the resource's `acquireRelease` says; `using` adds no policy (D25). `using` on a TypeScript `Disposable` registers a finalizer that calls `[Symbol.dispose]()` [Rule].
+`Effect.scopedWith` creates the region's Scope without providing it, so `Database.connect` still sees the caller's `Scope`, and only the `using` acquisition receives the region's. A scoped acquisition is masked or interruptible as its `acquireRelease` says, and `using` adds no policy and no disposal to it (D25, D342). For any other initializer, `using` holds interruption off from the initializer's start until it registers one finalizer, which calls the disposal method it read once at registration, `[Symbol.asyncDispose]` first, with the value as `this` [Rule] (D342, D343).
 
 Block-owned fibers use the same Scope:
 
@@ -135,7 +137,7 @@ A clause compiles like any function, with one rule for its last step (D18). When
 
 #### Producers
 
-A producer body may pause, so it cannot run synchronously inside JavaScript's `next()`. An explicit JavaScript iterator annotation keeps the native generator form (D271, D296, Chapter 8). Otherwise, VibeLang defines the producer by the machine [Rule]:
+A producer body may pause, so it cannot run synchronously inside JavaScript's `next()`. Every `function*` is a producer (D370; a JavaScript generator is a generator method, a `module` declaration, or a `.ts` file, Chapter 8), and VibeLang defines it by the machine [Rule]:
 
 - Calling a `function*` runs none of its body. The result is a **producer**: a cold program that performs the built-in control operation `Yield<T>` once per element.
 - `yield v` performs `Yield<T>`.
@@ -167,19 +169,83 @@ Evidence [Kernel]:
 
 If a producer's own loop iterated another producer, abandoning the outer one would reach the inner loop's owner frame and abandon the inner producer too, finalizers included (O01).
 
-**The `Stream` adapter** [Rule, D26]. Where a `Stream` is expected, or across the TypeScript boundary, a producer becomes a `Stream` that runs the producer on a fiber of its own, under internal iteration, and hands over one element per pull through a zero-capacity handoff: the clause completes the pending pull and waits for the next one before it resumes the producer. A buffer of one element, as the prototype compiler used (`Stream.callback` with `bufferSize: 1`), lets the producer run one element ahead, which D26 forbids. Closing the stream interrupts the producer's fiber, which abandons the producer and runs its finalizers. `for...of` over a `Stream` needs no adapter: it opens a Scope region, takes the stream's pull with `Stream.toPull`, and loops over chunks until the pull signals the end. G12 is the experiment that confirms the adapter. A `for...of` over any other iterable whose body can pause, other than an array or a string, runs through the same runtime loop, which calls the iterator's `return()` when the loop exits before the end: a jump, a failure, or an interruption. JavaScript's own `for...of` would do it for a jump only, since Effect abandons the generator without calling `return()` (Chapter 24).
+**The `Stream` adapter** [Rule, D26]. Where a `Stream` is expected, or across the TypeScript boundary, a producer becomes a `Stream` that runs the producer on a fiber of its own, under internal iteration, and hands over one element per pull through a zero-capacity handoff: the clause completes the pending pull and waits for the next one before it resumes the producer. A buffer of one element, as the prototype compiler used (`Stream.callback` with `bufferSize: 1`), lets the producer run one element ahead, which D26 forbids. Closing the stream interrupts the producer's fiber, which abandons the producer and runs its finalizers. Because the producer runs on the adapter's fiber, a control operation it performs, other than its own `Yield`, cannot reach a handler around the stream's consumer: converting a producer whose R holds one to a `Stream` is EK4201, at the conversion (Chapter 9). `for...of` over a `Stream` needs no adapter: it opens a Scope region, takes the stream's pull with `Stream.toPull`, and loops over chunks until the pull signals the end. G12 is the experiment that confirms the adapter. A `for...of` over any other iterable closes the iterator it opened on every exit before the end: a jump, a failure in the body, its head, a default, or a destructuring, or an interruption, and a failing `return()` is combined with the exit (D356). JavaScript's own loop is emitted only where it does exactly that (D371); otherwise the loop runs through the same runtime loop, since Effect abandons a generator without calling `return()` (Chapter 24).
 
 #### Trusted calls
 
 A call to a trusted function that lists expected failures compiles to a plain call wrapped in a JavaScript `try` with no pause point inside, which the frame invariant allows:
 
 ```ts [Generated TypeScript]
-// const slug = slugify(meta.title), where slugify carries @throws {InvalidSlug}
-let slug: string
+// const meta = JSON.parse(text), whose trusted contract lists SyntaxError
+let meta: any
 try {
-  slug = slugify(meta.title)
+  meta = JSON.parse(text)
 } catch (e) {
-  if (e instanceof InvalidSlug) return yield* Effect.fail(e)    // an expected failure
+  if (e instanceof SyntaxError) return yield* Effect.fail(e)    // an expected failure
   throw e                                                       // a defect, as in any generator body (F4)
 }
 ```
+
+#### Observations and equivalence
+
+One observation model judges every optimization the compiler makes and every rewrite a tool makes to source [Rule] (D372). Two programs are observationally equivalent when, run from the same Context, inputs, and outside world, they produce the same observations:
+
+1. **The exit.** The same success value, or a Cause with the same reasons, Fail, Die, and Interrupt, in the same order (Chapter 17).
+2. **Effects outside the program.** The same calls into code the compiler does not see, with the same arguments, in the same order, the same number of times: foreign functions, service members, control operations, and getters, proxy traps, iterator steps, and custom matchers.
+3. **Bindings.** Every source reference reads the binding it resolves to in the source, with the source's `this`, `arguments`, `new.target`, `super`, and self-binding (Chapter 13, rules L and H).
+4. **Lifetimes.** Each resource is acquired and released, and each fiber started and interrupted, by the same owner, in the same order relative to the other observations (Chapters 6, 7, 21).
+5. **Suspension points.** Every point where the language lets another fiber run or an interruption arrive (Chapters 13 and 15) is still there.
+
+Not observations: how many run-loop operations a program takes, and so where Effect's scheduler yields for fairness (every 2,048 operations); the shape and names of generated code; time; memory. A program must not depend on them.
+
+- **Optimizations.** An optimization is valid only if the optimized program is observationally equivalent to the frame lowering of this chapter on every input, its exit included (D341): the plain-JavaScript path (Chapter 15), the single-result thunk (D274), the tail resume, and an untested last arm (below). That a channel is `never`, or that a match is exhaustive, proves none of the observations by itself (settled decision 4).
+- **Concurrency.** Where a program interleaves with other fibers, equivalence means that every set of observations the optimized program can produce, the original can produce too, with every suspension point kept.
+- **Rewrites.** A quick fix, `vibelang --fix`, an automatic refactor, and the formatter produce a program observationally equivalent to the original, with the same types, or they are not applied (Chapter 28).
+
+G10 compiles a corpus both ways and compares these observations (Chapter 30).
+
+#### Patterns
+
+A `match` or an `is` evaluates in one order, which every lowering keeps [Rule] (D328, D367, D368):
+
+1. **The subject** is evaluated once, before any arm (D214).
+2. **Arms** are tried in order. Within an arm the pattern is tested left to right, depth first; a test runs only after the tests before it in that arm succeeded, and the arm's guard runs only after its pattern matched.
+3. **Reads are shared.** Within one `match` or `is`, each property of each value is read at most once, and an iterator is advanced at most once per element, as the TC39 proposal caches them; a read happens when a test first needs it. A subpattern's subject, such as `value` in `when { value: 1 and let n }`, is that one read value, so its test and its binding see the same value.
+4. **Matcher expressions**, such as `registry.State.Waiting` or a custom matcher's object, are evaluated when their arm's test is reached, in arm order.
+5. **Names resolve by scope.** A name in a pattern resolves as any reference does (Chapter 13, rule H4). `Option.Some`, `Exit.Failure`, `Result.Success` and their siblings, the primitive classes `String`, `Number`, `Boolean`, `BigInt` and `Symbol`, and a data type's variants have their built-in tests only when the name resolves to that declaration, under any import alias. A local `Option` or `Number` shadows them, and the pattern then uses the local value as an ordinary matcher (D213).
+6. **A test is omitted only when it is inert.** An exhaustive match runs its last arm without testing it (D294) only when every operand of the test is a literal or a data type's variant named through its declaration, and every read is a data value's tag or a literal-typed field: reads that run no code. Any other test still evaluates its matcher expression and its reads, and a test that then fails is a defect (`$assertMatch`), as D346 requires of the untested arm. Branch coverage is never a reason to omit a test.
+7. **Temporaries are fresh.** Every name the lowering introduces obeys Chapter 13's rule H, so a source binding named `$match1` keeps its value inside an arm.
+
+#### Modules
+
+A `.vibe` file is an ECMAScript module, and so is each `module` declaration in it [Rule] (D364, D365):
+
+1. **Live bindings.** An import, a re-export, or a namespace import reads the exporting binding's current value at each use, so every importer sees an assignment to an exported `let`. A generated companion, such as a plain function's direct variant (D268), is read through the same binding at each use.
+2. **Evaluation order.** A file's dependencies, its module declarations among them, are evaluated in the order of its import declarations, then its own body, as ECMAScript's module evaluation orders them. A module declaration the file never imports, or imports only types from, is not evaluated. Temporal dead zones, cycles, and a body's top-level `await` behave as ECMAScript specifies.
+3. **Declarations keep their kind.** An `export function` is hoisted as a function declaration, wherever the lowering puts its body; listings in this specification that write `export const f = …` show the body's shape, not the binding's kind.
+4. **Names.** A module declaration's name is case-sensitive, as every binding is. A body's declarations keep their source names, so a direct `eval` in the body sees them.
+5. **Specifiers.** A relative specifier that names a `.vibe` or `.ts` source is written with the output's `.js` name in JavaScript and declarations (D31, D63, D298): in a static import or export, `import type`, an import type such as `typeof import("./user.vibe")`, and a dynamic `import()` whose specifier is a string literal. Only the extension changes, and the path is spelled as the emitted loader reads it: a file path for `require`, an escaped URL for an ES module `import`. A computed dynamic specifier is not rewritten and must name an output file.
+
+An implementation that cannot keep one of these properties for some construct rejects the construct with EK4408; it never substitutes a snapshot of an export or moves a module's evaluation.
+
+#### What the guarantees assume
+
+VibeLang's static guarantees hold for checked VibeLang code, relative to a trusted base [Rule] (D373). The guarantees:
+
+- Every Fail reason that leaves a function has a type in that function's E (D355); E bounds neither defects nor interruption.
+- A program's R includes every service it can look up, so a program run with its R provided does not fail with `Service not found`.
+- A function with a plain return annotation never fails with an expected failure and needs no service (D282).
+- `Scope` in R records an obligation to release; it does not prove that a resource is unused after its release.
+- A control operation is handled on the fiber that performs it, or the runtime fails with `HandlerNotOnThisFiber` (P10).
+
+What they assume, the trusted base:
+
+1. **The implementation:** the compiler, `vibelang-runtime`, and `effect@4.0.6`.
+2. **TypeScript's type system, where VibeLang uses it unchanged:** `any`, type assertions, non-null assertions, and TypeScript's documented unsound rules, such as bivariant method parameters, can make any guarantee false without a diagnostic.
+3. **Foreign declarations:** an `Effect<A, E, R>` that a `.ts` or `.d.ts` file declares, and a `Context.Service` it declares, are trusted to describe what the implementation does.
+4. **Trust declarations:** Effect's packages and the values they return (D22, D121), the built-ins' shipped contracts (D101), `trustedPackages` (D261), `trusted(impl, [Errors])` (D249), and the deprecated `@vibelang trusted` and `@throws` tags (D23). A wrong one classifies an exception wrongly, as an expected failure or as a defect, and the guarantee about E then follows the declaration, not the code.
+5. **Escapes:** a hatch's TypeScript (D148), a `module` declaration's body (D283), and `.ts` files are outside the checks.
+6. **Callbacks and fibers:** a library calls a callback only as its type says, and the fiber-behavior table says which combinators run an argument on another fiber (Chapter 16); the runtime check stands behind the table (P10).
+7. **Declarations without bodies:** a VibeLang package consumed through its `.d.ts` files is checked as foreign code, since a declaration cannot prove what a body does (Chapter 27), except that a declaration's plain call signature (D384) is trusted to name a function that compiles to plain JavaScript.
+
+This is the one list of the trusted base; Chapters 10 and 17 cite it.
