@@ -136,6 +136,13 @@ for (const manager of ["npm", "bun", "pnpm", "yarn"]) {
     assert.deepEqual(JSON.parse(readFileSync(join(directory, "install.json"), "utf8")), {
       argv: ["install"], cwd: realpathSync(join(directory, "app")), ready: true
     })
+    const readme = readFileSync(join(directory, "app/README.md"), "utf8")
+    assert.ok(readme.includes(`${manager} run start`))
+    assert.ok(readme.includes(`${manager} install`))
+    const add = manager === "npm" ? "npm install" : `${manager} add`
+    assert.ok(readme.includes(`${add} vibelang-runtime@latest`))
+    assert.ok(readme.includes(`${add} ${manager === "yarn" ? "--dev" : "--save-dev"} vibelang@latest vibelang-vite@latest`))
+    if (manager !== "bun") assert.doesNotMatch(readme, /bun (?:run|install|add)/)
     assert.match(result.stdout, new RegExp(`Installing dependencies with ${manager}`))
     assert.match(result.stdout, new RegExp(`${manager} run test`))
     assert.doesNotMatch(result.stdout, new RegExp(`cd app\\n  ${manager} install`))

@@ -60,6 +60,15 @@ const manager = packageManager()
 // next steps below do, so an agent's first command is one this machine has.
 const agentsPath = join(directory, "AGENTS.md")
 if (existsSync(agentsPath)) writeFileSync(agentsPath, readFileSync(agentsPath, "utf8").replaceAll("bun run ", `${manager} run `))
+const readmePath = join(directory, "README.md")
+if (existsSync(readmePath)) {
+  const add = manager === "npm" ? "npm install" : `${manager} add`
+  writeFileSync(readmePath, readFileSync(readmePath, "utf8")
+    .replaceAll("bun run ", `${manager} run `)
+    .replaceAll("bun install", `${manager} install`)
+    .replaceAll("bun add -d ", `${add} ${manager === "yarn" ? "--dev" : "--save-dev"} `)
+    .replaceAll("bun add ", `${add} `))
+}
 console.log(`Created ${target} with VibeLang ${own.version}.`)
 if (install) {
   console.log(`Installing dependencies with ${manager}...`)
