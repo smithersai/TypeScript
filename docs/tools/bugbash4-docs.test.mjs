@@ -17,3 +17,10 @@ test("both Bun loader entry points disclose the observed watch limit and dev alt
     assert.match(text, /bun run dev/)
   }
 })
+
+test("Bun test instructions install and enable declarations before running Effects", () => {
+  for (const path of ["packages/compiler/README.md", "docs/user/src/setup/vibelang-cli.md"]) {
+    const text = read(path)
+    for (const part of ["bun add -d @types/bun", '"types": ["bun"]', '[test]', 'preload = ["vibelang/bun"]', 'from "bun:test"', "Effect.runSync(greeting("]) assert.ok(text.includes(part), part)
+  }
+})

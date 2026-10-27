@@ -170,3 +170,39 @@ Set up the editor: [VS Code and Cursor](/setup/vscode), [Neovim](/setup/neovim),
 ### Bun runtime watch limitation
 
 With Bun 1.4.1, `bun --watch --preload vibelang/bun` does not reliably restart after a `.vibe` save. The preload compiles once per process and does not invalidate that result during watch. For development, use the starter's `npm run dev` or `bun run dev`: its compiler watch and Node process rebuild and restart the app.
+
+### Bun test types
+
+Install Bun's declarations before adding a `.test.ts` suite to the project:
+
+```sh
+bun add -d @types/bun
+```
+
+In the tsconfig that includes the tests, add `"bun"` to `compilerOptions.types` (the starter sets `types: []`):
+
+```json
+{ "compilerOptions": { "types": ["bun"] } }
+```
+
+Keep any existing type names in that array. The preload checks the whole project, including tests selected by `include`, even when running a different entry point. In `bunfig.toml`:
+
+```toml
+[test]
+preload = ["vibelang/bun"]
+```
+
+For a module exporting `greeting(name)` as an Effect, create `src/greeting.test.ts`:
+
+```ts
+// TypeScript (.ts)
+import { expect, test } from "bun:test"
+import { Effect } from "effect"
+import { greeting } from "./greeting.vibe"
+
+test("greeting", () => {
+  expect(Effect.runSync(greeting("Bun"))).toBe("Hello, Bun!")
+})
+```
+
+Run `bun test`. Use `Effect.runPromise` in an async test when the Effect is asynchronous; provide any required services before running it.
