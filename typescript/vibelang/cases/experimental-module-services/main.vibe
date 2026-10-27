@@ -1,0 +1,51 @@
+// D311 reaches the experimental services (D313) too: with no import,
+// Experimental.Process.pid() calls the Process service, as
+// Experimental.Process.Process.pid() does, Experimental.Process() is the
+// implementation, and the type Experimental.Process is the service. The
+// module's exports keep their meaning: Experimental.Process.layerTest.
+import { NodeServices } from "vibelang-runtime/experimental/platform-node"
+
+function hex(bytes: Uint8Array) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
+}
+
+function facts() {
+  const pid = Experimental.Process.pid()
+  return {
+    same: pid === Experimental.Process.Process.pid(),
+    positive: pid > 0,
+    running: Experimental.Process.isRunning(pid),
+    host: typeof Experimental.Process.hostname() === "string",
+  }
+}
+
+export function alive(process: Experimental.Process, pid: number) {
+  return process.isRunning(pid)
+}
+
+export function faked() {
+  provide Experimental.Process.layerTest({ platform: Effect.succeed("win32") }) {
+    return Experimental.Process.platform()
+  }
+}
+
+export function mac(key: Redacted<Uint8Array>, data: Uint8Array) {
+  return Experimental.Crypto.hmac("SHA-256", key, data)
+}
+
+export function executable(path: string) {
+  return Experimental.FileSystem.access(path, { executable: true })
+}
+
+export function lock(name: string) {
+  return Experimental.Locks.hold(name)
+}
+
+// expect-result: {"same":true,"positive":true,"running":true,"host":true,"alive":true,"faked":"win32","mac":"5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"}
+export function main() {
+  provide NodeServices.layer {
+    const key = Redacted.make(new TextEncoder().encode("Jefe"))
+    const digest = mac(key, new TextEncoder().encode("what do ya want for nothing?"))
+    return { ...facts(), alive: alive(Experimental.Process(), Experimental.Process.pid()), faked: faked(), mac: hex(digest) }
+  }
+}

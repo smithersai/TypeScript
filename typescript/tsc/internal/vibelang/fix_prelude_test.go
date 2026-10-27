@@ -17,7 +17,9 @@ import (
 // writes M.M as M where a module's name names its export, keeping what the
 // program means: a use the module's name cannot stand for keeps the key,
 // and an import a JavaScript global would take the place of stays. A second
-// run finds nothing to fix.
+// run finds nothing to fix. The experimental services (D313) shorten the
+// same way: Experimental.Process.Process.hostname() becomes
+// Experimental.Process.hostname().
 func TestFixPreludeRewrites(t *testing.T) {
 	source := `import { FileSystem } from "effect/FileSystem"
 import * as Path from "effect/Path"
@@ -34,6 +36,8 @@ export const two = Arr.take([1, 2, 3], 2)
 export function implementation() {
   return [FileSystem(), Path.Path()]
 }
+export const host = () => Experimental.Process.Process.hostname()
+export const running = (process: Experimental.Process.Process, pid: number) => process.isRunning(pid)
 `
 	want := `import { Array as Arr } from "effect"
 
@@ -46,6 +50,8 @@ export const two = Arr.take([1, 2, 3], 2)
 export function implementation() {
   return [FileSystem(), Path()]
 }
+export const host = () => Experimental.Process.hostname()
+export const running = (process: Experimental.Process, pid: number) => process.isRunning(pid)
 `
 	_, file, _, _ := editorProgram(t, source)
 	dir := filepath.Dir(file.FileName().AsString())
@@ -66,12 +72,12 @@ export function implementation() {
 		}
 		t.Fatalf("--fix wrote\n%s\nwant\n%s\nrefused %+v", got, want, result.Refused)
 	}
-	if fixed.Rewrites[preludeImportLabel] != 5 || fixed.Rewrites[preludeKeyLabel] != 3 {
-		t.Errorf("rewrites %v; want 5 imports and 3 module exports", fixed.Rewrites)
+	if fixed.Rewrites[preludeImportLabel] != 5 || fixed.Rewrites[preludeKeyLabel] != 5 {
+		t.Errorf("rewrites %v; want 5 imports and 5 module exports", fixed.Rewrites)
 	}
 	var report strings.Builder
 	result.Report(&report, func(name tspath.RootedFilePath) string { return filepath.Base(name.AsString()) })
-	if !strings.Contains(report.String(), "main.vibe: 8 fixes (prelude import ×5, module export ×3)") {
+	if !strings.Contains(report.String(), "main.vibe: 10 fixes (prelude import ×5, module export ×5)") {
 		t.Errorf("report:\n%s", report.String())
 	}
 	if err := os.WriteFile(file.FileName().AsString(), []byte(want), 0o600); err != nil {

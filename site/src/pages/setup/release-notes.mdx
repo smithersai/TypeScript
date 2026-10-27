@@ -51,10 +51,11 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
   Effect's from one implementation.
 - `vibelang-runtime` lists `@effect/platform-node`, `@effect/platform-bun` and
   `@effect/platform-browser` 4.0.6 as optional peer dependencies.
-- EK4402 names the experimental service instead of a hatch: `FileSystem`
-  for `X_OK` and `O_NONBLOCK`, `Crypto` for HMAC and signatures, `Process`
-  for `os.hostname()`, `process.pid`, `process.kill` and the other calls it
-  replaces, and `Locks` for `navigator.locks`. It names Effect's own
+- EK4402 names the experimental service instead of a hatch, with no import:
+  `Experimental.FileSystem` for `X_OK` and `O_NONBLOCK`, `Experimental.Crypto`
+  for HMAC and signatures, `Experimental.Process` for `os.hostname()`,
+  `process.pid`, `process.kill` and the other calls it replaces, and
+  `Experimental.Locks` for `navigator.locks`. It names Effect's own
   `FileSystem.lstat` for `lstat` and `UserDirectories.home()` for
   `os.homedir()`.
 
@@ -78,7 +79,9 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
   implementation, and a member the module lacks reads the export, as
   `FileSystem.of` does. The module's own exports win, so `Option.some` and
   `FileSystem.layerNoop` keep their meaning and `Option.Option<A>` still
-  compiles. The same holds after `import { Prompt } from "effect/ai"`. In a
+  compiles. The same holds after `import { Prompt } from "effect/ai"`, and
+  for the experimental services: `Experimental.Process.hostname()`
+  calls the `Process` service with no import. In a
   type, the DOM's `Cache`, `Console`, `Crypto`, `FileSystem`, `Scheduler`,
   `Transferable` and `Worker` lose their bare names; alias one in a `.ts`
   file to use it.

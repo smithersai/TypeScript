@@ -300,3 +300,40 @@ func findNode(root *ast.Node, match func(*ast.Node) bool) *ast.Node {
 	root.ForEachChild(visit)
 	return found
 }
+
+// D311 reaches the experimental services (D313) in the editor too:
+// completions after Experimental.Process. list the module's exports and the
+// service's members, and hover and go to definition on
+// Experimental.Process.hostname reach the service's declaration.
+func TestEditorExperimentalServices(t *testing.T) {
+	source := "export function host() {\n  return Experimental.Process.hostname()\n}\n"
+	program, file, _, converters := editorProgram(t, source)
+	service := ls.NewLanguageService(nil, program, fixHost{program: program, converters: converters}, file.FileName().AsString())
+	for _, d := range program.GetSemanticDiagnostics(t.Context(), file) {
+		if d.Category() == diagnostics.CategoryError {
+			t.Fatalf("source: %s", d.String())
+		}
+	}
+	c, done := program.GetTypeCheckerForFile(t.Context(), file)
+	access := findNode(file.AsNode(), func(n *ast.Node) bool {
+		return ast.IsPropertyAccessExpression(n) && n.Name().Text() == "hostname"
+	})
+	members := map[string]bool{}
+	for _, symbol := range c.GetPropertiesOfType(serviceMemberCompletions(c, access.Expression(), c.GetTypeAtLocation(access.Expression()))) {
+		members[symbol.Name()] = true
+	}
+	done()
+	for _, name := range []string{"hostname", "pid", "isRunning", "kill", "layerTest"} {
+		if !members[name] {
+			t.Errorf("completions after Experimental.Process. lack %s", name)
+		}
+	}
+	uri := lsconv.FileNameToDocumentURI(file.FileName())
+	if text := hoverText(t, service, uri, positionOf(source, "hostname", 1)); !strings.Contains(text, "hostname") {
+		t.Errorf("hover on hostname = %q", text)
+	}
+	uris := definitionURIs(t, service, uri, positionOf(source, "hostname", 1))
+	if len(uris) == 0 || !strings.HasSuffix(uris[0], "/experimental/Process.d.ts") {
+		t.Errorf("definition of Experimental.Process.hostname = %v, want vibelang-runtime's experimental/Process.d.ts", uris)
+	}
+}
