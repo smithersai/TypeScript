@@ -1,0 +1,2 @@
+// expect: TS1359
+export function f(await: number) { return 1 }

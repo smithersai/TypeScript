@@ -6069,6 +6069,10 @@ func (p *Parser) parseBindingIdentifier() *ast.Node {
 }
 
 func (p *Parser) parseBindingIdentifierWithDiagnostic(privateIdentifierDiagnosticMessage *diagnostics.Message) *ast.Node {
+	// VibeLang emits modules, where await cannot be a binding even in a plain function.
+	if p.isVibeLangFile() && p.token == ast.KindAwaitKeyword {
+		p.parseErrorAtCurrentToken(diagnostics.Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here, "await")
+	}
 	saveHasAwaitIdentifier := p.statementHasAwaitIdentifier
 	id := p.createIdentifierWithDiagnostic(p.isBindingIdentifier(), nil /*diagnosticMessage*/, privateIdentifierDiagnosticMessage)
 	p.statementHasAwaitIdentifier = saveHasAwaitIdentifier
