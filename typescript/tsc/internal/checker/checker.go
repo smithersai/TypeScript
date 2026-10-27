@@ -1809,7 +1809,11 @@ func (c *Checker) getSuggestedLibForNonExistentName(name string) string {
 }
 
 func (c *Checker) getSuggestedSymbolForNonexistentSymbol(location *ast.Node, outerName string, meaning ast.SymbolFlags) *ast.Symbol {
-	return c.resolveNameForSymbolSuggestion(location, outerName, meaning, nil /*nameNotFoundMessage*/, false /*isUse*/, false /*excludeGlobals*/)
+	symbol := c.resolveNameForSymbolSuggestion(location, outerName, meaning, nil /*nameNotFoundMessage*/, false /*isUse*/, false /*excludeGlobals*/)
+	if symbol != nil && !c.spellingSuggestionAllowed(location, symbol) {
+		return nil // the globals' own search found a name a filter hook removes (extensions.go)
+	}
+	return symbol
 }
 
 var primitiveTypeAliasSuggestions = sync.OnceValue(func() map[string]*ast.Symbol {

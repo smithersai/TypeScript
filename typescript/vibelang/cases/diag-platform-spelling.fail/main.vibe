@@ -1,0 +1,17 @@
+// expect: TS2304 TS2552
+// Process is not in scope: VibeLang's experimental Process service is
+// Experimental.Process (D313). TypeScript would suggest Node's process,
+// which EK4402 bans in .vibe code, so the error suggests no global and a
+// note names Experimental.Process.hostname(). A hatch's TypeScript may use
+// process, so a misspelling there still suggests it.
+export function host() {
+  return Process.hostname()
+}
+
+export function pid() {
+  return sync(() => proces.pid)
+}
+
+export function exclusive() {
+  return Locks.hold("a")
+}

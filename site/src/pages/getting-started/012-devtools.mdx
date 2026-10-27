@@ -362,6 +362,7 @@ Library debugging concepts still apply; VibeLang's call execution, service decla
 | EK4835 | The catchTag/catchTags fix omits the default arm when its handlers cover every failure in E. Partial handlers keep the rethrow. |
 | TS2709, TS2707, TS2351 (`Message`, `Command`, `new Worker(…)`) | The name is Effect's module, in scope without an import. The note names the module; declare or import your own of that name. For a DOM name Effect takes, such as `Worker`, the note says how to reach the DOM's: `globalThis.Worker` in a hatch, or its type aliased in a `.ts` file. |
 | TS2339 (`Number.sum`, `Array.make`) | JavaScript's or the web's global wins over Effect's module of that name, so the note names Effect's module and its import under another name: `import { Number as EffectNumber } from "effect"`. A member of Effect's type of a DOM name, such as `w.postMessage` on Effect's `Worker`, gets the DOM's alias instead. |
+| TS2304, TS2552 (`Process`, `Locks`) | An experimental service is in scope only as a member of `Experimental`; the note writes your call that way, such as `Experimental.Process.hostname()`. A misspelled name never suggests a platform global that EK4402 bans, such as `process`; inside a hatch or a `module` block, where TypeScript's meaning holds, it may. |
 | TS2304 (`Model`, `Prompt`) | Two of effect's subpath packages have a module of this name, so neither is in scope. The note names both imports; write the one you mean, such as `import { Model } from "effect/schema"`. |
 
 ---

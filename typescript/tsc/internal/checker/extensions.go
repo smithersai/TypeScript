@@ -230,10 +230,37 @@ func RegisterSpellingCandidatesHook(hook SpellingCandidatesHook) {
 	spellingCandidatesHooks = append(spellingCandidatesHooks, hook)
 }
 
+// SpellingSuggestionFilterHook reports whether a "Did you mean" suggestion
+// (TS2552) at location may offer candidate. A language that removes names
+// from scope, as VibeLang removes Node's globals, keeps them out of its
+// suggestions. It runs for every candidate, so it must be cheap.
+type SpellingSuggestionFilterHook func(c *Checker, location *ast.Node, candidate *ast.Symbol) bool
+
+var spellingSuggestionFilterHooks []SpellingSuggestionFilterHook
+
+// RegisterSpellingSuggestionFilterHook adds hook to every checker. Call it
+// only from the init function of an in-tree package that tsc/cmd/tsc
+// imports; registration is not synchronized.
+func RegisterSpellingSuggestionFilterHook(hook SpellingSuggestionFilterHook) {
+	spellingSuggestionFilterHooks = append(spellingSuggestionFilterHooks, hook)
+}
+
+// spellingSuggestionAllowed reports whether every filter hook lets a
+// suggestion at location offer candidate.
+func (c *Checker) spellingSuggestionAllowed(location *ast.Node, candidate *ast.Symbol) bool {
+	for _, hook := range spellingSuggestionFilterHooks {
+		if !hook(c, location, candidate) {
+			return false
+		}
+	}
+	return true
+}
+
 // suggestBeforeGlobals is the suggestion resolver's step before the global
-// scope: the closest of the hooks' candidates and the globals, so that a
-// supplied name competes with a global one by distance. It returns nil when
-// no hook offers a candidate, and the globals are searched as usual.
+// scope: the closest of the hooks' candidates and the globals that the
+// filter hooks allow, so that a supplied name competes with a global one by
+// distance. It returns nil when no hook offers a candidate, and the globals
+// are searched as usual.
 func (c *Checker) suggestBeforeGlobals(location *ast.Node, name string, meaning ast.SymbolFlags) *ast.Symbol {
 	var candidates []*ast.Symbol
 	for _, hook := range spellingCandidatesHooks {
@@ -242,7 +269,15 @@ func (c *Checker) suggestBeforeGlobals(location *ast.Node, name string, meaning 
 	if len(candidates) == 0 {
 		return nil
 	}
-	return c.getSpellingSuggestionForName(name, core.ConcatenateSeq(slices.Values(candidates), maps.Values(c.globals)), meaning)
+	symbols := core.ConcatenateSeq(slices.Values(candidates), maps.Values(c.globals))
+	allowed := func(yield func(*ast.Symbol) bool) {
+		for symbol := range symbols {
+			if c.spellingSuggestionAllowed(location, symbol) && !yield(symbol) {
+				return
+			}
+		}
+	}
+	return c.getSpellingSuggestionForName(name, allowed, meaning)
 }
 
 func (c *Checker) resolveBeforeGlobals(location *ast.Node, name string, meaning ast.SymbolFlags) *ast.Symbol {
