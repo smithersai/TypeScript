@@ -41,6 +41,7 @@ const ReviewedDispatch = Dispatch.pipe(Schema.decode({
 const ReviewedStandard = Schema.toStandardSchemaV1(ReviewedDispatch)
 
 function validateDispatch(input: unknown) {
+  // try's first argument is plain TypeScript, not VibeLang.
   return try(async (standard, input) => await standard["~standard"].validate(input), (cause) => new ValidationBoundaryError({ cause }), ReviewedStandard, input)
 }
 
@@ -69,6 +70,7 @@ const BrokenLabel = Schema.String.pipe(Schema.decode({
 const BrokenStandard = Schema.toStandardSchemaV1(BrokenLabel)
 
 function inspectBrokenValidation() {
+  // try's first argument is plain TypeScript, not VibeLang.
   return try(async (standard) => await standard["~standard"].validate("crate"), BrokenStandard)
 }
 ```

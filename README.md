@@ -30,7 +30,7 @@ Call your own `.ts` functions and npm packages through `try`, `trusted`, or `"tr
 
 ```vibe
 import { parseSettings } from "./settings.ts"
-function settings(text: string) { return try((text) => parseSettings(text), text) }
+function settings(text: string) { return try((text) => parseSettings(text), text) } // try's first argument is plain TypeScript, not VibeLang.
 ```
 
 Use Effect services for platform, clock and randomness APIs, such as `Console`, `Clock` and `Random`. The compiler reports unwrapped foreign calls as `EK4401`, platform calls as `EK4402`, and uncontrolled time or randomness reads as `EK4403` ([diagnostics](https://vibelang.sh/getting-started/012-devtools#diagnostics-completions-and-refactors)).

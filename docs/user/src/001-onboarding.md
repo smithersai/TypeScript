@@ -66,6 +66,7 @@ error TodoFailed { cause: unknown }
 
 function getTodo(id: number) {
   return try(async (id, signal) => {
+    // Plain TypeScript inside this hatch, not VibeLang.
     const response = await fetch(`https://jsonplaceholder.typicode.com/todos/${id}`, { signal })
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     return await response.text()

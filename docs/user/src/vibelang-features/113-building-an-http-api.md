@@ -73,6 +73,7 @@ import { NodeHttpServer } from "@effect/platform-node"
 import { App } from "./routes.vibe"
 
 module node {
+  // Plain TypeScript inside this module, not VibeLang.
   export { createServer } from "node:http"
 }
 import { createServer } from node

@@ -114,6 +114,7 @@ while acquisition is waiting. Each path closes the handle exactly once:
 ```vibe
 // run: Console.log(JSON.stringify({ succeeds: run("succeed"), fails: run("fail"), dies: run("die"), pending: pending() }))
 module files {
+  // Plain TypeScript inside this module, not VibeLang.
   export function open(events: string[]) {
     let closed = false
     events.push("open")
@@ -132,7 +133,9 @@ error Bad {}
 
 function acquire(events: string[]) {
   return Effect.acquireRelease(
+    // sync's first argument is plain TypeScript, not VibeLang.
     () => ({ value: sync((log: string[]) => open(log), events) }),
+    // sync's first argument is plain TypeScript, not VibeLang.
     (holder) => sync((h) => h.value[Symbol.dispose](), holder)
   )
 }
@@ -164,8 +167,10 @@ function pending() {
       () => {
         Deferred.succeed(entered, undefined)
         Deferred.await(gate)
+        // sync's first argument is plain TypeScript, not VibeLang.
         return { value: sync((log: string[]) => open(log), events) }
       },
+      // sync's first argument is plain TypeScript, not VibeLang.
       (holder) => sync((h) => h.value[Symbol.dispose](), holder)
     )
     events.push("never runs")

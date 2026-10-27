@@ -241,6 +241,7 @@ Where a row says to escape, write the TypeScript in a `module` block, whose body
 
 ```vibe
 module dom {
+  // Plain TypeScript inside this module, not VibeLang.
   export function title(): string {
     return document.title
   }
@@ -248,6 +249,7 @@ module dom {
 import { title } from dom
 
 function pageTitle() {
+  // sync's first argument is plain TypeScript, not VibeLang.
   return sync(() => title())
 }
 ```
@@ -258,6 +260,7 @@ A `.vibe` file that needs a Node.js value, such as the `createServer` that `Node
 // fragment
 // The snippet checker installs no @types/node, which declares node:http.
 module node {
+  // Plain TypeScript inside this module, not VibeLang.
   import { createServer } from "node:http"
   export const server = createServer
 }

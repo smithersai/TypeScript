@@ -52,6 +52,7 @@ Platform work goes through Effect's services, not through a wrapper of your own.
 ```vibe
 // run: Console.log(freeBlocks(".") > 0)
 module fs {
+  // Plain TypeScript inside this module, not VibeLang.
   export { statfsSync } from "node:fs"
 }
 import { statfsSync } from fs
@@ -61,6 +62,7 @@ error StatFailed {
 }
 
 function freeBlocks(path: string) {
+  // try's first argument is plain TypeScript, not VibeLang.
   return try((path) => statfsSync(path).bavail,
     (cause) => new StatFailed({ cause }), path)
 }
@@ -102,6 +104,7 @@ error SigningFailed {
 
 function sign(secret: string, text: string) {
   return try(async (secret, text) => {
+    // Plain TypeScript inside this hatch, not VibeLang.
     const encoder = new TextEncoder()
     const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
     return await crypto.subtle.sign("HMAC", key, encoder.encode(text))
@@ -128,6 +131,7 @@ type Source = {
 
 function nextReading(source: Source) {
   return callback((source, resume: Resume<number, Error>) => {
+    // Plain TypeScript inside this hatch, not VibeLang.
     return source.read((n) => resume(n), (error) => resume.fail(error))
   }, source)
 }
@@ -158,6 +162,7 @@ module; enabling its types does not permit platform calls in VibeLang code.
 // types: node
 // run: Console.log(linked("."))
 module links {
+  // Plain TypeScript inside this module, not VibeLang.
   import { lstatSync } from "node:fs"
 
   export function isSymbolicLink(path: string): boolean {
@@ -172,6 +177,7 @@ module links {
 import { isSymbolicLink } from links
 
 function linked(path: string) {
+  // sync's first argument is plain TypeScript, not VibeLang.
   return sync((path) => isSymbolicLink(path), path)
 }
 // Output: false

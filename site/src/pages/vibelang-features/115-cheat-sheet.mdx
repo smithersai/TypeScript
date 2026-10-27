@@ -1016,6 +1016,7 @@ Use ordinary `catch` to map a built-in’s expected failure; reserve hatches for
 
 ```vibe [VibeLang]
 module node {
+  // Plain TypeScript inside this module, not VibeLang.
   export { uptime } from "node:os"
   export { statfs } from "node:fs/promises"
   export { EventEmitter } from "node:events"
@@ -1025,15 +1026,20 @@ import { EventEmitter, statfs, uptime } from node
 error BadJson { error: unknown }
 
 function hatches(text: string, path: string, ticker: EventEmitter) {
+  // sync's first argument is plain TypeScript, not VibeLang.
   const up = sync(uptime())
   const parsed = JSON.parse(text) catch (error) => throw new BadJson({ error })
+  // sync's first argument is plain TypeScript, not VibeLang.
   const key = sync(async () => crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, false, ["sign"]))
+  // try's first argument is plain TypeScript, not VibeLang.
   const free = try(async (path) => (await statfs(path)).bavail, path)
   const tick = callback((ticker, resume: Resume<number, never>) => {
+    // Plain TypeScript inside this hatch, not VibeLang.
     const listener = (n: number) => resume(n)
     ticker.once("tick", listener)
     return () => ticker.off("tick", listener)
   }, ticker)
+  // sync's first argument is plain TypeScript, not VibeLang.
   const name = sync(async (greet) => runPromise(greet("1")), greetUser)
   return { up, parsed, key, free, tick, name }
 }
@@ -1065,6 +1071,7 @@ const name = await Effect.runPromise(greetUser("1"))
 
 ```vibe [VibeLang]
 module links {
+  // Plain TypeScript inside this module, not VibeLang.
   import { lstatSync } from "node:fs"
   export function isSymbolicLink(path: string): boolean {
     try {
@@ -1077,6 +1084,7 @@ module links {
 
 import { isSymbolicLink } from links
 
+// sync's first argument is plain TypeScript, not VibeLang.
 const linked = (path: string) => sync((p) => isSymbolicLink(p), path)
 // Output: false
 ```

@@ -905,6 +905,7 @@ const name = await Effect.runPromise(greetUser("1"))
 ```vibe es
 // run: provide Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]) { const ticker = sync(() => { const ticker = new EventEmitter(); ticker.on("newListener", () => queueMicrotask(() => ticker.emit("tick", 7))); return ticker }); const value = hatches('{"ok":true}', ".", ticker); Console.log(JSON.stringify({ ...value, up: typeof value.up, key: value.key.type, free: typeof value.free })) }
 module node {
+  // Plain TypeScript inside this module, not VibeLang.
   export { uptime } from "node:os"
   export { statfs } from "node:fs/promises"
   export { EventEmitter } from "node:events"
@@ -914,15 +915,20 @@ import { EventEmitter, statfs, uptime } from node
 error BadJson { error: unknown }
 
 function hatches(text: string, path: string, ticker: EventEmitter) {
+  // sync's first argument is plain TypeScript, not VibeLang.
   const up = sync(uptime())
   const parsed = JSON.parse(text) catch (error) => throw new BadJson({ error })
+  // sync's first argument is plain TypeScript, not VibeLang.
   const key = sync(async () => crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, false, ["sign"]))
+  // try's first argument is plain TypeScript, not VibeLang.
   const free = try(async (path) => (await statfs(path)).bavail, path)
   const tick = callback((ticker, resume: Resume<number, never>) => {
+    // Plain TypeScript inside this hatch, not VibeLang.
     const listener = (n: number) => resume(n)
     ticker.once("tick", listener)
     return () => ticker.off("tick", listener)
   }, ticker)
+  // sync's first argument is plain TypeScript, not VibeLang.
   const name = sync(async (greet) => runPromise(greet("1")), greetUser)
   return { up, parsed, key, free, tick, name }
 }
@@ -951,6 +957,7 @@ const linked = (path: string) => Effect.sync(() => isSymbolicLink(path))
 ```vibe es
 // run: Console.log(linked("."))
 module links {
+  // Plain TypeScript inside this module, not VibeLang.
   import { lstatSync } from "node:fs"
   export function isSymbolicLink(path: string): boolean {
     try {
@@ -963,6 +970,7 @@ module links {
 
 import { isSymbolicLink } from links
 
+// sync's first argument is plain TypeScript, not VibeLang.
 const linked = (path: string) => sync((p) => isSymbolicLink(p), path)
 // Output: false
 ```
