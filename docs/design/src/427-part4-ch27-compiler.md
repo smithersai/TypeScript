@@ -156,7 +156,7 @@ against it may rely on [Rule] (D366).
    a file's top level.
 6. **Hygienic.** A name that declaration emit adds, such as a key's base
    constant or a prelude import's alias (D123), is fresh against every name
-   the file declares or imports (Chapter 13's hygiene law).
+   the file declares or imports (Chapter 13, rule H6).
 
 A round-trip suite holds the compiler to rule 1: it compiles a stock
 TypeScript consumer and a VibeLang consumer of each case's emitted

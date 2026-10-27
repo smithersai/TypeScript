@@ -20,7 +20,7 @@ export declare const displayName:
   (id: string) => Effect.Effect<string, UserNotFound, Users>
 ```
 
-Compiled code owes five obligations, each a rule of this chapter: the frame invariant; observational equivalence of every optimization and rewrite to the frame lowering; the pattern evaluation order; ECMAScript module semantics; and the declaration ABI (Chapter 27). Chapter 13's hygiene, evaluation-order, and lexical-context laws apply to every lowering here. The last section states what the static guarantees assume.
+Compiled code owes five obligations, each a rule of this chapter: the frame invariant; observational equivalence of every optimization and rewrite to the frame lowering; the pattern evaluation order; ECMAScript module semantics; and the declaration ABI (Chapter 27). Chapter 13's rules for evaluation order (E), lexical context (L), and names (H) apply to every lowering here; rule E11 binds every compiled form to the observations defined below. The last section states what the static guarantees assume.
 
 #### The frame invariant
 
@@ -188,7 +188,7 @@ One observation model judges every optimization the compiler makes and every rew
 
 1. **The exit.** The same success value, or a Cause with the same reasons, Fail, Die, and Interrupt, in the same order (Chapter 17).
 2. **Effects outside the program.** The same calls into code the compiler does not see, with the same arguments, in the same order, the same number of times: foreign functions, service members, control operations, and getters, proxy traps, iterator steps, and custom matchers.
-3. **Bindings.** Every source reference reads the binding it resolves to in the source, with the source's `this`, `arguments`, `new.target`, `super`, and self-binding (Chapter 13).
+3. **Bindings.** Every source reference reads the binding it resolves to in the source, with the source's `this`, `arguments`, `new.target`, `super`, and self-binding (Chapter 13, rules L and H).
 4. **Lifetimes.** Each resource is acquired and released, and each fiber started and interrupted, by the same owner, in the same order relative to the other observations (Chapters 6, 7, 21).
 5. **Suspension points.** Every point where the language lets another fiber run or an interruption arrive (Chapters 13 and 15) is still there.
 
@@ -202,15 +202,15 @@ G10 compiles a corpus both ways and compares these observations (Chapter 30).
 
 #### Patterns
 
-A `match` or an `is` evaluates in one order, which every lowering keeps [Rule] (D367, D368):
+A `match` or an `is` evaluates in one order, which every lowering keeps [Rule] (D328, D367, D368):
 
 1. **The subject** is evaluated once, before any arm (D214).
 2. **Arms** are tried in order. Within an arm the pattern is tested left to right, depth first; a test runs only after the tests before it in that arm succeeded, and the arm's guard runs only after its pattern matched.
 3. **Reads are shared.** Within one `match` or `is`, each property of each value is read at most once, and an iterator is advanced at most once per element, as the TC39 proposal caches them; a read happens when a test first needs it. A subpattern's subject, such as `value` in `when { value: 1 and let n }`, is that one read value, so its test and its binding see the same value.
 4. **Matcher expressions**, such as `registry.State.Waiting` or a custom matcher's object, are evaluated when their arm's test is reached, in arm order.
-5. **Names resolve by scope.** A name in a pattern resolves as any reference does. `Option.Some`, `Exit.Failure`, `Result.Success` and their siblings, the primitive classes `String`, `Number`, `Boolean`, `BigInt` and `Symbol`, and a data type's variants have their built-in tests only when the name resolves to that declaration, under any import alias. A local `Option` or `Number` shadows them, and the pattern then uses the local value as an ordinary matcher (D213).
+5. **Names resolve by scope.** A name in a pattern resolves as any reference does (Chapter 13, rule H4). `Option.Some`, `Exit.Failure`, `Result.Success` and their siblings, the primitive classes `String`, `Number`, `Boolean`, `BigInt` and `Symbol`, and a data type's variants have their built-in tests only when the name resolves to that declaration, under any import alias. A local `Option` or `Number` shadows them, and the pattern then uses the local value as an ordinary matcher (D213).
 6. **A test is omitted only when it is inert.** An exhaustive match runs its last arm without testing it (D294) only when every operand of the test is a literal or a data type's variant named through its declaration, and every read is a data value's tag or a literal-typed field: reads that run no code. Any other test still evaluates its matcher expression and its reads, and a test that then fails is a defect (`$assertMatch`), as D346 requires of the untested arm. Branch coverage is never a reason to omit a test.
-7. **Temporaries are fresh.** Every name the lowering introduces obeys Chapter 13's hygiene law, so a source binding named `$match1` keeps its value inside an arm.
+7. **Temporaries are fresh.** Every name the lowering introduces obeys Chapter 13's rule H, so a source binding named `$match1` keeps its value inside an arm.
 
 #### Modules
 
