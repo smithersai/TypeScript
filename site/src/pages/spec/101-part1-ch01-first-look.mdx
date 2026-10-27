@@ -92,7 +92,7 @@ Every `.vibe` file has this prelude in scope, so the program above needs no impo
 | Every other export of `effect`'s root | `Console`, `Option`, `Stream`, `Schedule`, `Duration`, and the rest, plus `flow` and `identity` (D146) |
 | Every module of `effect`'s subpath packages | `HttpRouter`, `ChildProcess`, `TestClock`, `Hex`, and the rest, from `effect/http`, `effect/process`, `effect/testing`, `effect/encoding`, and the other subpaths (D310) |
 
-`Experimental` is also in scope. It holds the platform services Effect lacks (D313, Chapter 11). The keyword forms, `fork x`, `join x`, `provide L { … }`, the mask blocks `uninterruptible`, `restore`, and `interruptible` (D180), and the await operations, are syntax, not names: no import or local declaration changes them (Chapter 13, rule H5).
+`Experimental` is also in scope. It holds the platform services Effect lacks (D313, Chapter 11). The keyword forms, `fork x`, `join x`, `provide L { … }`, the mask blocks `uninterruptible`, `restore`, and `interruptible` (D180), and the await operations, are syntax, not names: no import or local declaration changes them. Only the parenthesized `fork(x)` and `join(x)` follow a binding: a `fork` or `join` the program declares or imports, other than the prelude's own, makes them ordinary calls (Chapter 13, rule H5, D391).
 
 A module's name also names its export of the same name, where the module has no meaning of its own (D311): the type `Option<number>` is `Option.Option<number>`, `FileSystem.readFileString(path)` calls the `FileSystem.FileSystem` service, and `FileSystem()` is its implementation. The module's own exports, such as `Option.some` and `FileSystem.layerNoop`, win.
 

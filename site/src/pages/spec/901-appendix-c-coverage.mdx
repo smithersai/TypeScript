@@ -208,7 +208,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | `Effect.zip` with `concurrent: true` | Changed | Programs as functions |
 | `race`, `raceFirst`, `raceAll` | Changed | Programs as functions; each has its own exit rule (Chapter 7) |
 | `forkChild`, `forkDetach`, `forkScoped`, `forkIn` | Changed | Programs as functions |
-| Background work owned by a block | Changed | `fork heartbeat()` (D19, D166) |
+| Background work owned by a block | Changed | `fork heartbeat()`, owned by the function body, loop iteration, or region around it (D19, D166, D408) |
 | `Fiber.join`, `joinAll` | Changed | `join fiber` and `join [a, b]` (D225) |
 | `Fiber.await`, `interrupt`, `interruptAll` | Unchanged | The same calls, or `fiber.await()` and `fiber.interrupt()` |
 | Interruption isn't an error | Changed | `catch` never sees it; `finally` and `using` always run |
@@ -246,14 +246,14 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | `fromEffect`, `fromEffectRepeat` | Changed | Programs as functions |
 | `unfold`, `paginate` | Unchanged | VibeLang callbacks |
 | `Stream.callback`, `fromQueue`, `fromPubSub`, `fromEventListener` | Unchanged | The same calls; inner JavaScript callbacks can't pause (EK4301) |
-| Operators (`map`, `filter`, `mapEffect`, `merge`, `buffer`, `debounce`, `groupedWithin`) | Unchanged | The same calls; a producer converts to a `Stream` (D26) |
+| Operators (`map`, `filter`, `mapEffect`, `merge`, `buffer`, `debounce`, `groupedWithin`) | Unchanged | The same calls; a producer is a `Stream` (D402) |
 | `runCollect`, `runForEach`, `runFold`, `runDrain`, `run` | Unchanged | Calls that run the stream |
 | `Stream.toPull` | Changed | `for...of` over a `Stream` (D26) |
 | `Stream.catch`, `retry`, `timeout` | Unchanged | The same calls; `try`/`catch` applies to the call that runs a stream |
 | `Stream.scoped` | Unchanged | `Stream.scoped(stream)`: it takes a Stream |
 | `Stream.ensuring` | Changed | `Stream.ensuring(stream, () => cleanup())`: the finalizer is a program |
 | `Stream.partition`, `broadcastN` | Changed | `using`, because they need a Scope |
-| Producers and streams together | Changed | A producer is a `Stream` wherever one is expected (D26) |
+| Producers and streams together | Changed | A producer is a `Stream` value: `for...of` runs it on the loop's fiber, and any other consumer through the adapter (D402) |
 | `Stream.toAsyncIterable` | Unchanged | From TypeScript, with `for await` |
 
 #### C15. Sinks
@@ -262,7 +262,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | --- | --- | --- |
 | Sinks (`sum`, `count`, `collect`, `head`, `drain`) | Unchanged | `Stream.run(stream, Sink.sum)` |
 | `Sink.fold`, `foldUntil`, `forEach` | Unchanged | VibeLang callbacks; pure ones pass as plain functions (D9) |
-| A producer into a sink | Changed | The producer converts to a `Stream` (D26) |
+| A producer into a sink | Changed | The producer is a `Stream`: `Stream.run(lines(path), sink)` (D402) |
 
 #### C16. Testing
 

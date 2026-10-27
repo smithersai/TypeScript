@@ -103,7 +103,7 @@ These rules are the specification. Within one rule, changes to K, Γ, ι, π, an
 | interrupt | request `r` from another fiber | π := π ⊕ r. If ι and parked: fail with π now. If ι and running: fail with π at the next step. If not ι: fail when a `Mask` frame restores ι = true. While π ≠ ∅ and ι, unwinding skips `Catch` frames. |
 | wait (root) | `suspend(register)` | Park the fiber with K intact. `register` receives a one-shot resumer. |
 | wake | `resumer.resume(v)` | Run the fiber with `v`: synchronously while the wake depth is under budget, otherwise on the scheduler (Chapter 24). |
-| fork | `fork(p)` | New fiber ⟨[], Γ, true, ∅, ∅⟩ runs `p`. Its owner is the innermost block region (`fork`; an arrow function's expression body is a block, D353), the caller's Scope (`Effect.forkScoped`), the parent fiber (`Effect.forkChild`), or nothing (`Effect.forkDetach`). No prompt crosses. |
+| fork | `fork(p)` | New fiber ⟨[], Γ, true, ∅, ∅⟩ runs `p`. Its owner is the innermost region the source names around the `fork`: a function body, an arrow function's expression body included, one loop iteration, a `try`, `catch`, or `finally` block, a block that declares `using`, or a `provide` or mask block (D353, D408); or the caller's Scope (`Effect.forkScoped`), the parent fiber (`Effect.forkChild`), or nothing (`Effect.forkDetach`). No prompt crosses. |
 
 The interruption rows describe Effect 4 as it is (`internal/effect.ts:558-579`, `internal/core.ts:600-631`) [Effect]. The prompt, owner, clause, collector, fiber-exit, capture, resume, abandon, and transfer rows are the kernel (`packages/runtime/src/kernel/kernel.ts`) [Kernel].
 

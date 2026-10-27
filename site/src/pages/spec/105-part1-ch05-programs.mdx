@@ -17,7 +17,7 @@ job()                                   // runs it
 job()                                   // runs it again, from scratch
 ```
 
-This is what a TypeScript developer expects from a call: `syncInventory(store)` does its work, and `() => syncInventory(store)` does not. No parameter type, annotation, or overload changes that (Chapter 13). An `Effect` value from TypeScript is a program too, and calling it runs it (`Clock.currentTimeMillis()`). A value whose type extends `Effect` with structure of its own, such as a `Config` or an `Exit`, is data until you call it.
+This is what a TypeScript developer expects from a call: `syncInventory(store)` does its work, and `() => syncInventory(store)` does not. No parameter type, annotation, or order of overloads changes that (Chapter 13). An `Effect` value from TypeScript is a program too, and calling it runs it (`Clock.currentTimeMillis()`). A value whose type extends `Effect`, such as a `Config` or an `Exit`, is data until you call it.
 
 Effect's combinators take programs, so pass them a function:
 
@@ -68,9 +68,9 @@ const rows = items |> Arr.filter(%, isActive) |> Arr.map(%, toRow)
 const total = loadOrder(id) |> sumLines(%.lines) |> addTax(%, region)
 ```
 
-`items |> Arr.filter(%, isActive) |> Arr.map(%, toRow)` is `Arr.map(Arr.filter(items, isActive), toRow)`. In the second line `loadOrder(id)` runs, `%` is the order it returns, and `sumLines` and `addTax` run with values. A pipe is a sequence of expressions in reading order: each stage is an ordinary expression, and each call in it follows Chapter 13's rules. A stage whose callee is itself a call, `x |> f(args)(%)`, types and lowers as `x.pipe(f(args))` does (D272).
+`items |> Arr.filter(%, isActive) |> Arr.map(%, toRow)` is `Arr.map(Arr.filter(items, isActive), toRow)`. In the second line `loadOrder(id)` runs, `%` is the order it returns, and `sumLines` and `addTax` run with values. A pipe is a sequence of expressions in reading order: each stage is an ordinary expression, and each call in it follows Chapter 13's rules. A stage whose callee is itself a call, `x |> f(args)(%)`, is that call: after `x`, `f(args)` is evaluated, and its result is called with the topic, under rule R like any call (D418). One thing is borrowed from `x.pipe(f(args))`, for types only: `f(args)` is checked with the stage's parameter as its contextual type, so a data-last function such as `Schema.decodeUnknown(Person)` infers its type arguments from `x` (D272). The stage never reads a `pipe` member of `x`.
 
-The topic is never a program, whatever parameter it fills. `fetchUser(id) |> retry(%, policy)` runs `fetchUser(id)` once and passes the user, which is EK1018; write the program as a function, `retry(() => fetchUser(id), policy)`, or as a block, as above. A pipe's body must use `%` (EK1006). The pipe has its body's type; to keep a pipe as a program, wrap it: `const total = () => loadOrder(id) |> sumLines(%.lines)`.
+The topic is never a program, whatever parameter it fills. `fetchUser(id) |> retry(%, policy)` runs `fetchUser(id)` once and passes the user, which is EK1018; write the program as a function: `retry(() => fetchUser(id), policy)`. A pipe's body must use `%` (EK1006). The pipe has its body's type; to keep a pipe as a program, wrap it: `const total = () => loadOrder(id) |> sumLines(%.lines)`.
 
 Most pipes you write today disappear:
 
@@ -81,8 +81,9 @@ Most pipes you write today disappear:
 | `Effect.orElseSucceed`, `Effect.orElse` | `x catch fallback` (D236) |
 | `Effect.ensuring` | `finally` |
 | `Effect.provide`, `Effect.provideService` | `provide layer { … }` (D172), or the same functions given `() => …` |
-| `Effect.retry`, `Effect.timeout`, `Effect.withSpan`, `Effect.cached` | the same functions, given `() => …` or a block, as above |
-| `Effect.catchCause`, `Effect.failCause`, `Effect.onExit` | `match (exit(…))`, `throw cause`, `finally (exit)` (D217, D177, D178) |
+| `Effect.retry`, `Effect.timeout`, `Effect.withSpan`, `Effect.cached` | the same functions, given `() => …` |
+| `Effect.catchCause`, `Effect.onExit` | `match (exit(…))`, `finally (exit)` (D217, D178) |
+| `Effect.failCause` | the same function: `Effect.failCause(cause)` runs where it stands and fails with every reason (D406) |
 | `Effect.uninterruptibleMask`, `Effect.interruptible` | `uninterruptible { … restore { … } }`, `interruptible { … }` (D180) |
 
 On a cause that also holds a defect, neither Effect's typed recovery operators nor `try`/`catch` recovers (D305). Chapter 17 lists each operator's behavior. A catch expression recovers as `try`/`catch` does.

@@ -26,8 +26,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | The skill and the [cheat sheet](/vibelang-features/115-cheat-sheet) | 14,705 |
 | The skill and the user guide (134 pages) | 241,395 |
 | The user guide alone | 236,282 |
-| The specification (33 chapters) | 145,028 |
-| The decision log, `docs/design/DECISIONS.md` | 92,744 |
+| The specification (33 chapters) | 157,859 |
+| The decision log, `docs/design/DECISIONS.md` | 100,495 |
 
 ## Effect TypeScript beside VibeLang
 
@@ -276,43 +276,43 @@ Each row is one [cheat sheet](/vibelang-features/115-cheat-sheet) entry: its Eff
 
 | Page | Tokens |
 | --- | ---: |
-| [Introduction](/spec/000-intro) | 1,708 |
-| **Part I. The language by example** | **42,990** |
-| [1. A first look](/spec/101-part1-ch01-first-look) | 2,093 |
-| [2. Functions and calls](/spec/102-part1-ch02-functions) | 1,788 |
-| [3. Errors: the E channel](/spec/103-part1-ch03-errors) | 4,469 |
-| [4. Dependency injection: the R channel](/spec/104-part1-ch04-di) | 6,258 |
-| [5. Programs as values: retry, timeout, and pipe](/spec/105-part1-ch05-programs) | 3,346 |
-| [6. Resources](/spec/106-part1-ch06-resources) | 2,621 |
-| [7. Concurrency](/spec/107-part1-ch07-concurrency) | 3,476 |
-| [8. Producers: streams of values](/spec/108-part1-ch08-producers) | 1,490 |
-| [9. Handlers: defining your own effects](/spec/109-part1-ch09-handlers) | 3,143 |
-| [10. Working with TypeScript](/spec/110-part1-ch10-typescript) | 5,409 |
-| [11. The standard library](/spec/111-part1-ch11-stdlib) | 5,419 |
-| [12. Questions Effect users ask](/spec/112-part1-ch12-faq) | 3,478 |
-| **Part II. The rules** | **23,915** |
-| [13. What a call means](/spec/213-part2-ch13-calls) | 11,267 |
-| [14. Contracts and inference](/spec/214-part2-ch14-contracts) | 3,595 |
-| [15. Which functions compile to plain JavaScript](/spec/215-part2-ch15-direct) | 2,550 |
-| [16. Callbacks and higher-order functions](/spec/216-part2-ch16-callbacks) | 1,520 |
-| [17. Failures, defects, interruption, and cleanup](/spec/217-part2-ch17-failures) | 4,983 |
-| **Part III. The runtime** | **24,382** |
+| [Introduction](/spec/000-intro) | 1,755 |
+| **Part I. The language by example** | **45,822** |
+| [1. A first look](/spec/101-part1-ch01-first-look) | 2,141 |
+| [2. Functions and calls](/spec/102-part1-ch02-functions) | 1,860 |
+| [3. Errors: the E channel](/spec/103-part1-ch03-errors) | 4,730 |
+| [4. Dependency injection: the R channel](/spec/104-part1-ch04-di) | 6,318 |
+| [5. Programs as values: retry, timeout, and pipe](/spec/105-part1-ch05-programs) | 3,438 |
+| [6. Resources](/spec/106-part1-ch06-resources) | 3,014 |
+| [7. Concurrency](/spec/107-part1-ch07-concurrency) | 4,069 |
+| [8. Producers: streams of values](/spec/108-part1-ch08-producers) | 1,856 |
+| [9. Handlers: defining your own effects](/spec/109-part1-ch09-handlers) | 3,228 |
+| [10. Working with TypeScript](/spec/110-part1-ch10-typescript) | 6,237 |
+| [11. The standard library](/spec/111-part1-ch11-stdlib) | 5,442 |
+| [12. Questions Effect users ask](/spec/112-part1-ch12-faq) | 3,489 |
+| **Part II. The rules** | **25,868** |
+| [13. What a call means](/spec/213-part2-ch13-calls) | 12,796 |
+| [14. Contracts and inference](/spec/214-part2-ch14-contracts) | 3,720 |
+| [15. Which functions compile to plain JavaScript](/spec/215-part2-ch15-direct) | 2,701 |
+| [16. Callbacks and higher-order functions](/spec/216-part2-ch16-callbacks) | 1,653 |
+| [17. Failures, defects, interruption, and cleanup](/spec/217-part2-ch17-failures) | 4,998 |
+| **Part III. The runtime** | **24,981** |
 | [18. Why a continuation runtime](/spec/318-part3-ch18-why) | 2,226 |
 | [19. The checkout trace, step by step](/spec/319-part3-ch19-trace) | 1,583 |
-| [20. The machine](/spec/320-part3-ch20-machine) | 3,634 |
-| [21. One-shot ownership and races](/spec/321-part3-ch21-ownership) | 1,926 |
+| [20. The machine](/spec/320-part3-ch20-machine) | 3,677 |
+| [21. One-shot ownership and races](/spec/321-part3-ch21-ownership) | 1,935 |
 | [22. What resume restores](/spec/322-part3-ch22-restore) | 1,478 |
-| [23. Boundaries and finalization](/spec/323-part3-ch23-boundaries) | 1,932 |
-| [24. What Effect provides and what the kernel adds](/spec/324-part3-ch24-effect) | 4,231 |
+| [23. Boundaries and finalization](/spec/323-part3-ch23-boundaries) | 2,028 |
+| [24. What Effect provides and what the kernel adds](/spec/324-part3-ch24-effect) | 4,269 |
 | [25. Implementation strategies and costs](/spec/325-part3-ch25-strategies) | 1,946 |
-| [26. What compiled code must guarantee](/spec/326-part3-ch26-compiled) | 5,426 |
-| **Part IV. The compiler** | **15,493** |
-| [27. Compiler architecture](/spec/427-part4-ch27-compiler) | 2,841 |
-| [28. Tooling](/spec/428-part4-ch28-tooling) | 12,652 |
-| **Part V. Decisions** | **21,673** |
-| [29. Decisions](/spec/529-part5-ch29-decisions) | 18,420 |
-| [30. Risks and experiments](/spec/530-part5-ch30-risks) | 3,253 |
-| **Appendices** | **14,867** |
-| [A. Evidence index and B. Prior art](/spec/900-appendices) | 6,439 |
-| [C. Every Effect feature in VibeLang](/spec/901-appendix-c-coverage) | 8,428 |
-| **All 33 pages** | **145,028** |
+| [26. What compiled code must guarantee](/spec/326-part3-ch26-compiled) | 5,839 |
+| **Part IV. The compiler** | **16,699** |
+| [27. Compiler architecture](/spec/427-part4-ch27-compiler) | 3,159 |
+| [28. Tooling](/spec/428-part4-ch28-tooling) | 13,540 |
+| **Part V. Decisions** | **24,088** |
+| [29. Decisions](/spec/529-part5-ch29-decisions) | 19,931 |
+| [30. Risks and experiments](/spec/530-part5-ch30-risks) | 4,157 |
+| **Appendices** | **18,646** |
+| [A. Evidence index and B. Prior art](/spec/900-appendices) | 10,177 |
+| [C. Every Effect feature in VibeLang](/spec/901-appendix-c-coverage) | 8,469 |
+| **All 33 pages** | **157,859** |
