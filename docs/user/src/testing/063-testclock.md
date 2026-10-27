@@ -1,6 +1,6 @@
 # TestClock
 
-`TestClock` replaces live time with time your test controls, so you can check sleeps, timeouts, recurring work, and clock reads without waiting for wall-clock time. It comes from `effect/testing` and needs no import (D310).
+`TestClock` replaces live time with time your test controls, so you can check sleeps, timeouts, recurring work, and clock reads without waiting for wall-clock time. It comes from `effect/testing` and needs no import.
 
 ## Configure the test runner
 

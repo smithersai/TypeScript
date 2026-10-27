@@ -26,7 +26,7 @@ function runRegisteredWork() {
 
 `Effect.addFinalizer` attaches cleanup to the current scope, not the function's return. `Scope` is in the prelude: it names the module, and in a contract it means `Scope.Scope`, so no import is needed. `Effect.scoped` creates a scope, runs the program, and closes the scope with its outcome: the finalizer receives a success exit on success, and a failure exit on typed failure, a defect, or interruption.
 
-Finalizers run in reverse registration order by default, with interruption deferred during release. Their typed error channel must be `never`, so handle expected cleanup failures inside the callback. A defect during release stays in the resulting cause, and an expected failure beside it becomes a defect (D305).
+Finalizers run in reverse registration order by default, with interruption deferred during release. Their typed error channel must be `never`, so handle expected cleanup failures inside the callback. A defect during release stays in the resulting cause, and an expected failure beside it becomes a defect.
 
 ## Opening and closing scopes explicitly
 
@@ -94,7 +94,7 @@ delivered as the mask ends, before `using` registers the release, so
 [`scopes-using-pending-interrupt` case](https://github.com/smithersai/vibelang/tree/main/typescript/vibelang/cases/scopes-using-pending-interrupt)
 records `["acquired"]` instead of `["acquired","disposed"]`. This is the
 acquisition-to-registration window, not an interruption during the resource's
-later use. `using` itself does not mask acquisition (D25).
+later use. `using` itself does not mask acquisition.
 
 Wrap acquisition and cleanup together with `Effect.acquireRelease`, keeping its
 default protected acquisition. For a JavaScript Disposable, acquire a plain
@@ -105,7 +105,7 @@ resource. Release is registered before pending interruption is delivered.
 
 Returning the Disposable itself from `acquireRelease` and also disposing it in
 the release callback closes it twice on normal exit: `using` adds its own
-`Symbol.dispose` call (D94). The holder avoids this under the current runtime
+`Symbol.dispose` call. The holder avoids this under the current runtime
 rules, including for a resource whose second close throws.
 
 This example checks success, typed failure, defect, and interruption requested

@@ -29,7 +29,7 @@ function countLabel(raw: number) {
 Count unavailable
 ```
 
-`Effect.match` applies synchronous value callbacks, which can't perform Effect operations; one that only formats text is eligible for plain JavaScript compilation. A cause without an expected failure propagates. A cause with a defect propagates too, its expected failures as defects (D305). From an expected failure beside an interruption, Effect selects the failure and discards the interruption, as ordinary catch does (D306).
+`Effect.match` applies synchronous value callbacks, which can't perform Effect operations; one that only formats text is eligible for plain JavaScript compilation. A cause without an expected failure propagates. A cause with a defect propagates too, its expected failures as defects. From an expected failure beside an interruption, Effect selects the failure and discards the interruption, as ordinary catch does.
 
 ## Choosing effectful branches
 
@@ -103,4 +103,4 @@ function discardBoundaryOutcome() {
 // Output:
 ```
 
-`ignore` discards the success value and typed failures; causes without an expected failure propagate, and so do causes with a defect (D305), but an expected failure beside an interruption is consumed with it. `ignoreCause` consumes the full failure cause, even one with no expected failure; use it only where losing both diagnostics and cancellation is deliberate.
+`ignore` discards the success value and typed failures; causes without an expected failure propagate, and so do causes with a defect, but an expected failure beside an interruption is consumed with it. `ignoreCause` consumes the full failure cause, even one with no expected failure; use it only where losing both diagnostics and cancellation is deliberate.

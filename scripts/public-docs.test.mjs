@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { readFileSync, readdirSync } from "node:fs"
 import { test } from "node:test"
 
 const root = new URL("../", import.meta.url)
@@ -47,4 +47,18 @@ test("the upgrade table names every DOM type that loses its bare name", () => {
   for (const name of ["Cache", "Console", "Crypto", "FileSystem", "Scheduler", "Transferable", "Worker"]) {
     assert.ok(row.includes("`" + name + "`"), name)
   }
+})
+
+test("public guides explain rules without internal decision identifiers", () => {
+  const directory = new URL("docs/user/src/", root)
+  for (const name of readdirSync(directory, { recursive: true })) {
+    if (!String(name).endsWith(".md") || /(?:114-vibelang-for-effect-users|118-experimental-platform-apis)\.md$/.test(String(name))) continue
+    let page = read("docs/user/src/" + name).replace(/<!--[\s\S]*?-->/g, "")
+    if (name === "setup/release-notes.md") {
+      page = page.split("## 0.0.10")[0].split("\n").filter(line => !line.includes("provisional, pending")).join("\n")
+    }
+    assert.doesNotMatch(page, /\bD\d+\b/, String(name))
+  }
+  const script = read("scripts/rename-to-vibelang.mjs")
+  assert.doesNotMatch(script, /by any lane|Smithers-Ops vault/)
 })

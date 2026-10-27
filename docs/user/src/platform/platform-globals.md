@@ -184,7 +184,7 @@ function browser() {
 }
 ```
 
-VibeLang's experimental services fill what Effect lacks (D313), provided by `NodeServices.layer` from `vibelang-runtime/experimental/platform-node` or Bun's, and `Locks` by `BrowserServices.layer` from `vibelang-runtime/experimental/platform-browser`; [Experimental platform APIs](../vibelang-features/118-experimental-platform-apis.md) has the details:
+VibeLang's experimental services fill what Effect lacks, provided by `NodeServices.layer` from `vibelang-runtime/experimental/platform-node` or Bun's, and `Locks` by `BrowserServices.layer` from `vibelang-runtime/experimental/platform-browser`; [Experimental platform APIs](../vibelang-features/118-experimental-platform-apis.md) has the details:
 
 ```vibe
 function experimental(path: string, pid: number, killSignal: ChildProcess.Signal, name: string, key: Redacted<Uint8Array>, privateKey: Redacted<Uint8Array>, publicKey: Uint8Array, signature: Uint8Array, data: Uint8Array) {

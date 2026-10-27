@@ -60,7 +60,7 @@ Use this contract only when validation already established the invariant; if use
 
 `E = never` promises that no expected failure escapes, not that bugs or cancellation can't occur. A boundary that must examine those uses `Effect.exit`, `Effect.catchDefect`, or `Effect.catchCause`.
 
-Precisely, `E` describes every expected failure a cause holds: a defect turns the expected failures beside it into defects (D305), and catch recovers a failure beside an interruption (D306).
+Precisely, `E` describes every expected failure a cause holds: a defect turns the expected failures beside it into defects, and catch recovers a failure beside an interruption.
 
 ## Coming from Effect
 

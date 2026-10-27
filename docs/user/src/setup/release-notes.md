@@ -105,7 +105,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 ### Experimental platform APIs
 
-- `Experimental`, in scope in every `.vibe` file, holds what Effect lacks (D313).
+- `Experimental`, in scope in every `.vibe` file, holds what Effect lacks.
   Each service has its own key; it is experimental and goes when Effect ships
   the API. See
   [Experimental platform APIs](../vibelang-features/118-experimental-platform-apis.md).
@@ -141,7 +141,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 ### Prelude
 
 - Every module of `effect`'s subpath packages is in scope without an import,
-  as the root's modules are (D310): `HttpRouter`, `HttpClient`,
+  as the root's modules are: `HttpRouter`, `HttpClient`,
   `ChildProcess`, `ChildProcessSpawner`, `TestClock`, `Hex`, `SqlClient` and
   the rest. Imports you already have keep working and shadow the global. Where
   two names meet, a JavaScript or shared web global wins (`Headers`,
@@ -152,14 +152,14 @@ Effect 4.0.6 defect-precedence and interruption migration.
   [Effect's modules](../getting-started/008-importing-effect.md) lists every
   collision.
 - A module's name also names its export of the same name, wherever the module
-  has no meaning of its own (D311), a deliberate change from TypeScript: the
+  has no meaning of its own, a deliberate change from TypeScript: the
   type `Option<number>` is `Option.Option<number>`, `FileSystem.readFileString(path)`
   calls the `FileSystem` service with no import, `FileSystem()` is its
   implementation, and a member the module lacks reads the export, as
   `FileSystem.of` does. The module's own exports win, so `Option.some` and
   `FileSystem.layerNoop` keep their meaning and `Option.Option<A>` still
   compiles. The same holds after `import { Prompt } from "effect/ai"`, and
-  for the experimental services (D313): `Experimental.Process.hostname()`
+  for the experimental services: `Experimental.Process.hostname()`
   calls the `Process` service with no import. In a
   type, the DOM's `Cache`, `Console`, `Crypto`, `FileSystem`, `Scheduler`,
   `Transferable` and `Worker` lose their bare names; alias one in a `.ts`
@@ -173,7 +173,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 ### Platform code
 
 - Node.js reaches a `.vibe` file only through Effect's services or by
-  escaping to TypeScript (D310). Node's globals (`process`, `Buffer`,
+  escaping to TypeScript. Node's globals (`process`, `Buffer`,
   `require`, `__dirname`, ...) and the web's globals that do I/O or read the
   clock or randomness (`fetch`, timers, `console`, `crypto`, `performance`,
   `localStorage`, ...) are no longer in scope in `.vibe`, holding one as a

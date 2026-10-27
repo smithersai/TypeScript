@@ -34,7 +34,7 @@ Reading saved title
 Saved issue
 ```
 
-The cache is read only if the primary computation fails. The fallback's errors become `title`'s; handling the primary doesn't handle them. Ordinary catch propagates defects and interruption. A typed failure beside a defect propagates as a defect (D305), and one beside an interruption is handled (D306).
+The cache is read only if the primary computation fails. The fallback's errors become `title`'s; handling the primary doesn't handle them. Ordinary catch propagates defects and interruption. A typed failure beside a defect propagates as a defect, and one beside an interruption is handled.
 
 ```vibe
 // run: Console.log(titleInline())
@@ -51,7 +51,7 @@ Saved issue
 
 `x catch fallback` is the expression form and recovers exactly what the statement does: the left side runs inside the catch, and the fallback runs only after an expected failure. `catch` binds looser than `??` and `||` and tighter than `? :`, so `a ?? b catch c` applies the default inside the catch.
 
-`Effect.catch(() => latestTitle(), () => cachedTitle())` also works, with the same rule as source catch: it leaves a cause with a defect alone (D305) and recovers an expected failure beside an interruption, dropping the interruption (D306). When interruption must propagate intact, match on `exit(...)`. `Effect.catchTag`, `Effect.catchIf`, and `Effect.catchFilter` also select domain failures, under Effect's own recovery policy.
+`Effect.catch(() => latestTitle(), () => cachedTitle())` also works, with the same rule as source catch: it leaves a cause with a defect alone and recovers an expected failure beside an interruption, dropping the interruption. When interruption must propagate intact, match on `exit(...)`. `Effect.catchTag`, `Effect.catchIf`, and `Effect.catchFilter` also select domain failures, under Effect's own recovery policy.
 
 ## Supplying a default success
 
@@ -84,7 +84,7 @@ function lookup(): Lookup!! {
 {"_tag":"Offline"}
 ```
 
-Both sides of a catch expression take the expression's contextual type, as both branches of a conditional do (D293). Here that is `Lookup`, so each `_tag` stays a literal and the result checks as a `Lookup`. Without a contextual type, each side keeps its own type and the value is their union.
+Both sides of a catch expression take the expression's contextual type, as both branches of a conditional do. Here that is `Lookup`, so each `_tag` stays a literal and the result checks as a `Lookup`. Without a contextual type, each side keeps its own type and the value is their union.
 
 ## Trying alternatives until one succeeds
 
@@ -104,7 +104,7 @@ Reading saved title
 Saved issue
 ```
 
-`firstSuccessOf` tries programs one at a time in priority order and stops on success; if all fail with expected errors, it reports the last error. A cause without an expected failure stops the search, and so does one with a defect (D305); an expected failure beside an interruption activates the next alternative. An empty iterable is a defect: pass at least one.
+`firstSuccessOf` tries programs one at a time in priority order and stops on success; if all fail with expected errors, it reports the last error. A cause without an expected failure stops the search, and so does one with a defect; an expected failure beside an interruption activates the next alternative. An empty iterable is a defect: pass at least one.
 
 A chain of catch expressions also tries alternatives in order, because `catch` associates to the left: `latestTitle() catch cachedTitle() catch "Untitled issue"` tries the cache after the primary fails and the title after the cache fails. Unlike `firstSuccessOf`, it stops at a mixed cause, as every source catch does.
 

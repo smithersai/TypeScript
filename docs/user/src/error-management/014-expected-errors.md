@@ -32,7 +32,7 @@ InvalidCode
 
 In Effect functions, trusted built-ins can add expected failures too: `JSON.parse` adds `SyntaxError`. A plain TypeScript function needs the `try` hatch or a wrapper made with `trusted(implementation, [ErrorClass])` in a `.ts` or `.vibe` module, importing `trusted` from `vibelang-runtime`: instances of listed classes join `E`; unlisted exceptions are defects. The older `/** @vibelang trusted */` and `@throws` declaration tags still work; calls that rely on tagged expected failures get migration warning EK4406. Effect's own packages are trusted, so calls such as `Option.isNone` need no boundary.
 
-`throw` is a typed failure everywhere outside a hatch, and `catch` receives typed failures only (D282). A function with a plain return annotation is plain JavaScript because it never fails and needs nothing. It may throw what its own `catch` handles, and it still returns a value:
+`throw` is a typed failure everywhere outside a hatch, and `catch` receives typed failures only. A function with a plain return annotation is plain JavaScript because it never fails and needs nothing. It may throw what its own `catch` handles, and it still returns a value:
 
 ```vibe
 // run: Console.log(quantityOr("3", 0)); Console.log(quantityOr("x", 0))
@@ -167,7 +167,7 @@ Fountain pen
 No item
 ```
 
-`Effect.result` moves `E` into the success channel as `Result<A, E>`. `Effect.option` gives `Some` on success and discards a typed error as `None`; use it only when every domain failure means absence. Causes with no expected failure still propagate, and so do causes with a defect, their expected failures as defects (D305); both consume an expected failure beside an interruption, as ordinary catch does (D306). Match on `exit(...)` when interruption must always propagate intact.
+`Effect.result` moves `E` into the success channel as `Result<A, E>`. `Effect.option` gives `Some` on success and discards a typed error as `None`; use it only when every domain failure means absence. Causes with no expected failure still propagate, and so do causes with a defect, their expected failures as defects; both consume an expected failure beside an interruption, as ordinary catch does. Match on `exit(...)` when interruption must always propagate intact.
 
 ## Recovering all failures
 
@@ -207,7 +207,7 @@ Unavailable (ItemMissing)
 
 After an expression, `x catch (error) => handler` runs `x` and passes an expected failure to the handler, as `Effect.catch` does, with the statement's guard: defects and interruption pass through. `x catch fallback` evaluates the fallback instead, as `Effect.orElseSucceed` does; see [Fallback](016-fallback.md).
 
-`Effect.catch(() => findItem(input), handler)` also recovers expected failures, with the same rule as source catch (D305, D306). `Effect.catchEager` has the same policy and can recover immediately when given an already computed `Exit`.
+`Effect.catch(() => findItem(input), handler)` also recovers expected failures, with the same rule as source catch. `Effect.catchEager` has the same policy and can recover immediately when given an already computed `Exit`.
 
 ## Recovering selected failures
 
@@ -366,9 +366,9 @@ true
 Normalized PEN
 ```
 
-An `error` declaration is a named class (D278). The keyword supplies its base and its tag; every other class feature keeps its TypeScript meaning: `abstract`, `extends` another error, `implements`, a constructor that calls `super`, methods, accessors, `override`, and static and private members. A field is a property written with a type and no initializer, and as in a class body, `;` or a new line ends it: a comma between fields is EK1013, whose quick fix writes `;`. A field is readonly, and the constructor takes it: a declaration without a constructor takes its fields as one object, and a constructor passes them to `super`.
+An `error` declaration is a named class. The keyword supplies its base and its tag; every other class feature keeps its TypeScript meaning: `abstract`, `extends` another error, `implements`, a constructor that calls `super`, methods, accessors, `override`, and static and private members. A field is a property written with a type and no initializer, and as in a class body, `;` or a new line ends it: a comma between fields is EK1013, whose quick fix writes `;`. A field is readonly, and the constructor takes it: a declaration without a constructor takes its fields as one object, and a constructor passes them to `super`.
 
-Every error class is tagged with its own bare name, a subclass included, so `catchTag("Missing")` and `catchTags` route each subclass, while `is AppError` and a `when AppError:` arm match the whole family by class. Because a value of the base's type may be a subclass, the base of a family declares its tag type with a `_tag` field, `_tag: string`, and `catchTag("AppError")` then matches only instances of the base itself (D304). An `abstract error` has that tag type without the field. A subclass whose base keeps the literal tag `"AppError"`, a `_tag` field whose type leaves out its error's own name, or an error that extends a class that is not an error, is EK2117. A subclass that declares fields and no constructor takes its base's fields and its own, as `new Missing({ code, path })` does; when the base's constructor takes other arguments, the subclass writes a constructor that calls `super` and sets its fields (EK2118).
+Every error class is tagged with its own bare name, a subclass included, so `catchTag("Missing")` and `catchTags` route each subclass, while `is AppError` and a `when AppError:` arm match the whole family by class. Because a value of the base's type may be a subclass, the base of a family declares its tag type with a `_tag` field, `_tag: string`, and `catchTag("AppError")` then matches only instances of the base itself. An `abstract error` has that tag type without the field. A subclass whose base keeps the literal tag `"AppError"`, a `_tag` field whose type leaves out its error's own name, or an error that extends a class that is not an error, is EK2117. A subclass that declares fields and no constructor takes its base's fields and its own, as `new Missing({ code, path })` does; when the base's constructor takes other arguments, the subclass writes a constructor that calls `super` and sets its fields (EK2118).
 
 ## Errors that encode
 
@@ -386,7 +386,7 @@ schema error NotStored extends StoreError { attempts: number }
 true
 ```
 
-`schema error` declares an error whose fields are schemas, so it encodes and decodes (D279). It is short for `class StoreError extends Schema.TaggedError<StoreError>()("StoreError", { key: Schema.String })`: each field's type maps to a schema as a `schema` declaration's fields do, and a field whose type has no schema, such as a function, is EK2109, which names the field. The class rules above apply. A subclass extends another schema error with `Base.extend`, so its schema holds the base's fields and its own, and its own tag. A family's base schema accepts its subclasses: it encodes each instance with its class's schema and decodes by tag (D304). Use `error` for a failure nothing encodes.
+`schema error` declares an error whose fields are schemas, so it encodes and decodes. It is short for `class StoreError extends Schema.TaggedError<StoreError>()("StoreError", { key: Schema.String })`: each field's type maps to a schema as a `schema` declaration's fields do, and a field whose type has no schema, such as a function, is EK2109, which names the field. The class rules above apply. A subclass extends another schema error with `Base.extend`, so its schema holds the base's fields and its own, and its own tag. A family's base schema accepts its subclasses: it encodes each instance with its class's schema and decodes by tag. Use `error` for a failure nothing encodes.
 
 ## Coming from Effect
 

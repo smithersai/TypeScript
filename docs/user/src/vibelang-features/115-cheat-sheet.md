@@ -30,7 +30,7 @@ function release(version: string) {
 
 ## Types
 
-**Effect types** (D127, D309). An empty slot is `never`. Omitted dependencies are inferred from a function's body, and are `never` elsewhere. `Effect<A, E, R>` is accepted too.
+**Effect types**. An empty slot is `never`. Omitted dependencies are inferred from a function's body, and are `never` elsewhere. `Effect<A, E, R>` is accepted too.
 
 ```ts effect
 // fragment
@@ -54,7 +54,7 @@ function hello(id: string): string!NotFound {
 
 ## Declarations
 
-**Errors** (D126).
+**Errors**.
 
 ```ts effect
 import { Data } from "effect"
@@ -68,7 +68,7 @@ error Missing { id: string }
 error Timeout
 ```
 
-**Errors are classes** (D278, D304). Constructors, methods, accessors, statics, `abstract`, `implements` and `extends` keep their TypeScript meaning, and each subclass is tagged with its own name. A family's base declares `_tag: string` so its subclasses' tags fit. Effect has no subclass with its own tag, so the Effect tab writes the tag by hand.
+**Errors are classes**. Constructors, methods, accessors, statics, `abstract`, `implements` and `extends` keep their TypeScript meaning, and each subclass is tagged with its own name. A family's base declares `_tag: string` so its subclasses' tags fit. Effect has no subclass with its own tag, so the Effect tab writes the tag by hand.
 
 ```ts effect
 import { Data } from "effect"
@@ -103,7 +103,7 @@ error Refused extends Failure
 // Output: ["invalid x","Refused"]
 ```
 
-**Errors that encode** (D279). Fields map to schemas as a `schema` declaration's do.
+**Errors that encode**. Fields map to schemas as a `schema` declaration's do.
 
 ```ts effect
 import { Schema } from "effect"
@@ -115,7 +115,7 @@ class Stored extends Schema.TaggedError<Stored>()("Stored", { key: Schema.String
 schema error Stored { key: string; attempts?: number }
 ```
 
-**Services** (D128, D223). Members have no bodies; value members are readonly.
+**Services**. Members have no bodies; value members are readonly.
 
 ```ts effect
 // fragment
@@ -132,7 +132,7 @@ service Users {
 }
 ```
 
-**Services of any shape** (D281). The shape is any type: an interface, a primitive, a function type. A body is optional and holds only static members.
+**Services of any shape**. The shape is any type: an interface, a primitive, a function type. A body is optional and holds only static members.
 
 ```ts effect
 import { Context, Effect } from "effect"
@@ -152,7 +152,7 @@ service Search: SearchApi
 service Prefix: string
 ```
 
-**Control operations** (D128, D223). Effect has none; the VibeLang long form tab shows the expanded spelling.
+**Control operations**. Effect has none; the VibeLang long form tab shows the expanded spelling.
 
 ```vibe long
 abstract class Review extends Control {
@@ -166,7 +166,7 @@ control Review {
 }
 ```
 
-**Layers** (D221). A layer is Effect's own call: the block after `Layer.effect(Users)` is its effect (block params, D188), runs once when the layer builds, and returns members typed by the service. Without setup, write `Layer.succeed(Users, { ... })`.
+**Layers**. A layer is Effect's own call: the block after `Layer.effect(Users)` is its effect (block params), runs once when the layer builds, and returns members typed by the service. Without setup, write `Layer.succeed(Users, { ... })`.
 
 ```ts effect
 // fragment
@@ -189,7 +189,7 @@ const UsersLive = Layer.effect(Users) {
 // Output: eu
 ```
 
-**Schemas** (D133). One declaration gives the schema and its type.
+**Schemas**. One declaration gives the schema and its type.
 
 ```ts effect
 import { Schema } from "effect"
@@ -212,7 +212,7 @@ schema Account {
 // Output: {"id":"1","role":"admin"}
 ```
 
-**Schema aliases** (D280). A schema of any type the struct form maps, and the type, under one name.
+**Schema aliases**. A schema of any type the struct form maps, and the type, under one name.
 
 ```ts effect
 import { Schema } from "effect"
@@ -228,7 +228,7 @@ schema Role = "admin" | "member"
 // Output: false
 ```
 
-**Data types** (D307). A tagged union: Effect's `Data.TaggedEnum` type and its `Data.taggedEnum` constructors under one name. A variant without fields is a bare name.
+**Data types**. A tagged union: Effect's `Data.TaggedEnum` type and its `Data.taggedEnum` constructors under one name. A variant without fields is a bare name.
 
 ```ts effect
 import { Data } from "effect"
@@ -249,7 +249,7 @@ data Delivery {
 // Output: [{"_tag":"Waiting"},{"tracking":"parcel-8","_tag":"Sent"}]
 ```
 
-**Readonly by default** (D134). Write `mutable` for a member you assign.
+**Readonly by default**. Write `mutable` for a member you assign.
 
 ```ts effect
 interface Cart { readonly id: string; items: Array<string> }
@@ -287,7 +287,7 @@ function greetUser(id: string) {
 
 `Effect.fn("name")(body)` adds a named tracing span; a bare function declaration uses `Effect.fnUntraced` by default and loses it. Keep the span with `function f(...) { return withSpan("name") { ... } }`, or `const f = (...) => withSpan("name") { ... }` for an object field or arrow. Put the function's work inside the `withSpan` block; its return value, failures, and requirements flow through.
 
-**Programs passed by name** (D147). A call runs where it stands, and is passed as a program where a parameter expects one.
+**Programs passed by name**. A call runs where it stands, and is passed as a program where a parameter expects one.
 
 ```ts effect
 // fragment
@@ -304,7 +304,7 @@ function fastest() {
 // Output: Ada
 ```
 
-**Providing layers** (D130). `return` inside the block returns from the function.
+**Providing layers**. `return` inside the block returns from the function.
 
 ```ts effect
 // fragment
@@ -324,7 +324,7 @@ function program() {
 // Output: {"id":"1","name":"Ada"}
 ```
 
-**Providing one service** (D173, D174). `provide Key = value` provides one implementation without a layer; layers and services mix in one list, and an effect module such as `Random` stands for its key, `Random.Random`.
+**Providing one service**. `provide Key = value` provides one implementation without a layer; layers and services mix in one list, and an effect module such as `Random` stands for its key, `Random.Random`.
 
 ```ts effect
 import { Effect, Logger, Random } from "effect"
@@ -348,7 +348,7 @@ function roll(): number!! {
 // Output: 4
 ```
 
-**Catching by tag** (D216). Catch the failure and `match` on it. A match naming every failure needs no rethrow; `default: throw e` passes on the rest.
+**Catching by tag**. Catch the failure and `match` on it. A match naming every failure needs no rethrow; `default: throw e` passes on the rest.
 
 ```ts effect
 // fragment
@@ -372,7 +372,7 @@ function describe(id: string) {
 // Output: ["Ada","no user missing"]
 ```
 
-**Falling back in an expression** (D236). `x catch fallback` runs the fallback only after an expected failure; defects and interrupts pass through. Both sides take the expression's contextual type, as a conditional's branches do (D293).
+**Falling back in an expression**. `x catch fallback` runs the fallback only after an expected failure; defects and interrupts pass through. Both sides take the expression's contextual type, as a conditional's branches do.
 
 ```ts effect
 // fragment
@@ -390,7 +390,7 @@ function nameOrGuest(id: string) {
 // Output: ["Ada","guest"]
 ```
 
-**Catching in an expression** (D236). `x catch (e) => …` passes the failure to a handler, which can `match` on it; a match naming every failure removes them all.
+**Catching in an expression**. `x catch (e) => …` passes the failure to a handler, which can `match` on it; a match naming every failure removes them all.
 
 ```ts effect
 // fragment
@@ -410,7 +410,7 @@ function nameOrReason(id: string) {
 // Output: ["Ada","no user missing"]
 ```
 
-**Handling control operations** (D132). Effect has none; the VibeLang long form tab shows the expanded spelling.
+**Handling control operations**. Effect has none; the VibeLang long form tab shows the expanded spelling.
 
 ```vibe long
 // run: Console.log(auto("v1"))
@@ -436,7 +436,7 @@ function auto(version: string) {
 // Output: released v1
 ```
 
-**Entry point** (D135, D312). An exported `main` runs when Node starts its module, not when a test imports it; `import "vibelang/platform/node"` in its file gives it the platform layer it needs.
+**Entry point**. An exported `main` runs when Node starts its module, not when a test imports it; `import "vibelang/platform/node"` in its file gives it the platform layer it needs.
 
 ```ts effect
 // fragment
@@ -456,7 +456,7 @@ export function main() {
 
 ## Causes, exits, and interruption
 
-**Catch every cause** (D217). `match` on `exit(…)`: a `Failure` exit's cause also holds defects and interrupts.
+**Catch every cause**. `match` on `exit(…)`: a `Failure` exit's cause also holds defects and interrupts.
 
 ```ts effect
 // fragment
@@ -478,7 +478,7 @@ function safe(id: string) {
 // Output: true
 ```
 
-**Rethrow a cause** (D177). `throw` with a `Cause` fails with every reason it holds.
+**Rethrow a cause**. `throw` with a `Cause` fails with every reason it holds.
 
 ```ts effect
 // fragment
@@ -500,7 +500,7 @@ function logged() {
 // Output: {"id":"1","name":"Ada"}
 ```
 
-**Run on every exit** (D178). The block runs without interruption; a success carries no value.
+**Run on every exit**. The block runs without interruption; a success carries no value.
 
 ```ts effect
 // fragment
@@ -522,7 +522,7 @@ function tracked() {
 // Output: Ada
 ```
 
-**Exit, yield, and interrupt** (D179). `exit` takes its program by name.
+**Exit, yield, and interrupt**. `exit` takes its program by name.
 
 ```ts effect
 // fragment
@@ -542,7 +542,7 @@ function outcome() {
 // Output: Success
 ```
 
-**Interruption** (D180). In the blocks, `return` and `break` keep their meaning in the function; `uninterruptible(program)` also works.
+**Interruption**. In the blocks, `return` and `break` keep their meaning in the function; `uninterruptible(program)` also works.
 
 ```ts effect
 // fragment
@@ -577,9 +577,9 @@ function cancellable() {
 
 ## Calls
 
-A tagged template is a call of its tag (D267). If `sql` returns an Effect, the statement ``sql`CREATE TABLE example (id TEXT)` `` runs it, and ``const rows = sql`SELECT * FROM example` `` gets its success value. Plain tags keep JavaScript behavior. Discarding a structured Effect subtype, such as SQL Statement, is EK4301: call the result explicitly, or annotate the tag as returning `Effect<A, E, R>`. A program parameter takes an Effectful template by name, as it takes a call (D147).
+A tagged template is a call of its tag. If `sql` returns an Effect, the statement ``sql`CREATE TABLE example (id TEXT)` `` runs it, and ``const rows = sql`SELECT * FROM example` `` gets its success value. Plain tags keep JavaScript behavior. Discarding a structured Effect subtype, such as SQL Statement, is EK4301: call the result explicitly, or annotate the tag as returning `Effect<A, E, R>`. A program parameter takes an Effectful template by name, as it takes a call.
 
-**No imports from `effect` or its subpath packages** (D146, D310).
+**No imports from `effect` or its subpath packages**.
 
 ```ts effect
 import { Console } from "effect"
@@ -596,7 +596,7 @@ function ready() {
 // Output: 7265616479
 ```
 
-**A module's name names its export of that name** (D311): its service, or its type.
+**A module's name names its export of that name**: its service, or its type.
 
 ```ts effect
 import { Effect } from "effect"
@@ -618,7 +618,7 @@ function size(path: string) {
 // Output: 5
 ```
 
-**Common functions without the `Effect.` prefix** (D151): `sleep`, `log`, `retry`, `repeat`, `timeout`, `race`, `all`, `forEach`, `die`, `withSpan`, and the `log` levels.
+**Common functions without the `Effect.` prefix**: `sleep`, `log`, `retry`, `repeat`, `timeout`, `race`, `all`, `forEach`, `die`, `withSpan`, and the `log` levels.
 
 ```ts effect
 // fragment
@@ -637,7 +637,7 @@ function patient() {
 // Output: {"id":"1","name":"Ada"}
 ```
 
-**Methods on Effect's data types** (D152).
+**Methods on Effect's data types**.
 
 ```ts effect
 import { Stream } from "effect"
@@ -658,7 +658,7 @@ function hot() {
 
 A method is a data-first overload: its first parameter is named `self`, ends in `OrOptions`, or is another supported receiver parameter, such as the one in `Cause.findErrorOption(input)`.
 
-**The pipe operator** (D154). `%` is the value on the left; where it lands in a program parameter, the left side is passed as a program.
+**The pipe operator**. `%` is the value on the left; where it lands in a program parameter, the left side is passed as a program.
 
 ```ts effect
 // fragment
@@ -678,7 +678,7 @@ function piped() {
 
 ## TC39 forms
 
-**Throw in an expression** (D186, [throw expressions](https://github.com/tc39/proposal-throw-expressions)).
+**Throw in an expression** ([throw expressions](https://github.com/tc39/proposal-throw-expressions)).
 
 ```ts effect
 // fragment
@@ -695,9 +695,9 @@ function findUser(users: Map<string, User>, id: string) {
 // Output: Failure
 ```
 
-In expression position, `throw` takes a unary operand (D186), so it binds more tightly than `===`, `??`, and `?:`: `throw failure.code === "unknown" ? a : b` would throw only `failure.code`. EK1010 refuses an unparenthesized throw expression on the left of a binary operator (except comma), as the condition of `?:`, or before `as` or `satisfies`. To throw the selected value, write `throw (failure.code === "unknown" ? a : b)`, or in a catch handler `load() catch (failure) => throw (cond ? a : b)`. Right-hand forms such as `value ?? throw e` and `ok ? value : throw e` stay legal, unless an operator follows: `value ?? throw e ? a : b` is `(value ?? throw e) ? a : b`, also EK1010. A **throw statement** still takes the whole expression: `throw cond ? a : b;` at the start of a statement throws the selected value, as in TypeScript.
+In expression position, `throw` takes a unary operand, so it binds more tightly than `===`, `??`, and `?:`: `throw failure.code === "unknown" ? a : b` would throw only `failure.code`. EK1010 refuses an unparenthesized throw expression on the left of a binary operator (except comma), as the condition of `?:`, or before `as` or `satisfies`. To throw the selected value, write `throw (failure.code === "unknown" ? a : b)`, or in a catch handler `load() catch (failure) => throw (cond ? a : b)`. Right-hand forms such as `value ?? throw e` and `ok ? value : throw e` stay legal, unless an operator follows: `value ?? throw e ? a : b` is `(value ?? throw e) ? a : b`, also EK1010. A **throw statement** still takes the whole expression: `throw cond ? a : b;` at the start of a statement throws the selected value, as in TypeScript.
 
-**Blocks as values** (D187, [do expressions](https://github.com/tc39/proposal-do-expressions)). The value is the last statement's.
+**Blocks as values** ([do expressions](https://github.com/tc39/proposal-do-expressions)). The value is the last statement's.
 
 ```ts effect
 // fragment
@@ -718,7 +718,7 @@ function label(id: string) {
 // Output: short
 ```
 
-**Blocks after calls** (D188, [block params](https://github.com/samuelgoto/proposal-block-params)). The block is the call's program; it needs `return` for a value.
+**Blocks after calls** ([block params](https://github.com/samuelgoto/proposal-block-params)). The block is the call's program; it needs `return` for a value.
 
 ```ts effect
 // fragment
@@ -765,7 +765,7 @@ it.live("finds a user") {
 
 From the TC39 [pattern matching](https://github.com/tc39/proposal-pattern-matching) proposal (stage 1). See [Pattern matching with match and is](116-match-and-is.md).
 
-**Match a value** (D206, D209). `match` is exhaustive: without `default`, a match that misses a case of a finite union is EK4701, as with `Match.exhaustive`. Leave out the second arm below and the compiler reports `This match does not handle every case of "draft" | "published": "published" is left.`
+**Match a value**. `match` is exhaustive: without `default`, a match that misses a case of a finite union is EK4701, as with `Match.exhaustive`. Leave out the second arm below and the compiler reports `This match does not handle every case of "draft" | "published": "published" is left.`
 
 ```ts effect
 import { Match } from "effect"
@@ -789,7 +789,7 @@ function phaseLabel(phase: "draft" | "published") {
 // Output: ["Draft","Published"]
 ```
 
-**Match errors by class** (D215). An `error` class is a pattern; `and { let id }` binds a property.
+**Match errors by class**. An `error` class is a pattern; `and { let id }` binds a property.
 
 ```ts effect
 // fragment
@@ -812,7 +812,7 @@ function describeFailure(failure: NotFound | Timeout) {
 // Output: ["no user 7","retry"]
 ```
 
-**Match a data type's variants** (D307). A variant tests the tag; braces bind the fields they list.
+**Match a data type's variants**. A variant tests the tag; braces bind the fields they list.
 
 ```ts effect
 // fragment
@@ -833,7 +833,7 @@ function deliveryLabel(delivery: Delivery) {
 // Output: ["waiting","sent parcel-8"]
 ```
 
-**Option, Exit, and Result** (D208). Arms can run Effect functions.
+**Option, Exit, and Result**. Arms can run Effect functions.
 
 ```ts effect
 // fragment
@@ -860,7 +860,7 @@ function failed(outcome: Exit.Exit<User, NotFound>) {
 // Output: false
 ```
 
-**Test and bind** (D211). Bindings in an `is` work in an `if` or `while` condition.
+**Test and bind**. Bindings in an `is` work in an `if` or `while` condition.
 
 ```ts effect
 // fragment
@@ -880,11 +880,11 @@ function firstFailure(outcome: Exit.Exit<User, NotFound>) {
 
 ## Escape hatches
 
-**Plain, self-contained TypeScript inside `sync`, `try`, and `callback`** (D148, D229-D232). A throw in `sync` is a defect; in `try` it is an expected failure. Async bodies are `Effect.promise` and `Effect.tryPromise`. A hatch's function reads `.vibe` values only as inputs, the arguments after it, which fill its first parameters; `try`'s error mapper stays second (EK4405). `runPromise` leads back in from a hatch's body or a `.ts` file.
+**Plain, self-contained TypeScript inside `sync`, `try`, and `callback`**. A throw in `sync` is a defect; in `try` it is an expected failure. Async bodies are `Effect.promise` and `Effect.tryPromise`. A hatch's function reads `.vibe` values only as inputs, the arguments after it, which fill its first parameters; `try`'s error mapper stays second (EK4405). `runPromise` leads back in from a hatch's body or a `.ts` file.
 
-**Built-in exceptions (D101).** In an Effect function, `JSON.parse(text)` has a shipped contract: its `SyntaxError` is an expected failure that joins E and reaches `catch`. `decodeURI` and `decodeURIComponent` list `URIError`. Other built-ins' exceptions are defects. In a plain function `JSON.parse` is a JavaScript call, unless a `try` of that function whose `catch` handles the `SyntaxError` encloses it (D282); an exception that escapes into an Effect caller becomes a defect. Inside TypeScript's `Effect.gen`, by contrast, a plain `JSON.parse` throw is a defect.
+**Built-in exceptions.** In an Effect function, `JSON.parse(text)` has a shipped contract: its `SyntaxError` is an expected failure that joins E and reaches `catch`. `decodeURI` and `decodeURIComponent` list `URIError`. Other built-ins' exceptions are defects. In a plain function `JSON.parse` is a JavaScript call, unless a `try` of that function whose `catch` handles the `SyntaxError` encloses it; an exception that escapes into an Effect caller becomes a defect. Inside TypeScript's `Effect.gen`, by contrast, a plain `JSON.parse` throw is a defect.
 
-Use ordinary `catch` to map a built-in’s expected failure; reserve hatches for foreign libraries and for platform operations that Effect has no service for. A platform API that Effect covers is a service call, not a hatch: EK4402 names the service and its layer. A `.vibe` file imports no Node.js value directly (D310), so a `module` block imports what a hatch runs.
+Use ordinary `catch` to map a built-in’s expected failure; reserve hatches for foreign libraries and for platform operations that Effect has no service for. A platform API that Effect covers is a service call, not a hatch: EK4402 names the service and its layer. A `.vibe` file imports no Node.js value directly, so a `module` block imports what a hatch runs.
 
 ```ts effect
 // fragment
@@ -930,7 +930,7 @@ function hatches(text: string, path: string, ticker: EventEmitter) {
 // Output: {"up":"number","parsed":{"ok":true},"key":"secret","free":"number","tick":7,"name":"Ada"}
 ```
 
-**TypeScript modules inline** (D283, [module declarations](https://github.com/tc39/proposal-module-declarations)). A module's body is TypeScript, compiled as a `.ts` file would be, so JavaScript's `throw` and `catch` and `async` keep their meaning there. It is self-contained: it imports what it needs, and the file reaches it only through imports.
+**TypeScript modules inline** ([module declarations](https://github.com/tc39/proposal-module-declarations)). A module's body is TypeScript, compiled as a `.ts` file would be, so JavaScript's `throw` and `catch` and `async` keep their meaning there. It is self-contained: it imports what it needs, and the file reaches it only through imports.
 
 ```ts effect
 // fragment
@@ -969,7 +969,7 @@ const linked = (path: string) => sync((p) => isSymbolicLink(p), path)
 
 ## Fibers
 
-**Fork and join** (D166, D225). A fiber belongs to the block that forks it. `join [a, b]` joins several and interrupts the rest on a failure.
+**Fork and join**. A fiber belongs to the block that forks it. `join [a, b]` joins several and interrupts the rest on a failure.
 
 ```ts effect
 // fragment
@@ -988,7 +988,7 @@ function both() {
 // Output: [{"id":"1","name":"Ada"},1]
 ```
 
-**Wait for several** (D196). `await.all` behaves like `Promise.all`: it starts each element in its own fiber, keeps the shape, and a failure interrupts the rest.
+**Wait for several**. `await.all` behaves like `Promise.all`: it starts each element in its own fiber, keeps the shape, and a failure interrupts the rest.
 
 ```ts effect
 // fragment
@@ -1006,7 +1006,7 @@ function many() {
 // Output: {"user":{"id":"1","name":"Ada"},"orders":1,"pair":{"user":{"id":"1","name":"Ada"},"orders":1}}
 ```
 
-**First success, expected outcomes** (D196, D258). `await.any` waits for the first success. `await.allSettled` returns successes and typed failures as `Result` values, not JavaScript's settlement objects, and never fails with a typed error. Defects and interruption propagate exactly as in `Effect.all` with `mode: "result"`; a cause with no typed failure still propagates. To make every cause data, wrap each element in `exit(...)`.
+**First success, expected outcomes**. `await.any` waits for the first success. `await.allSettled` returns successes and typed failures as `Result` values, not JavaScript's settlement objects, and never fails with a typed error. Defects and interruption propagate exactly as in `Effect.all` with `mode: "result"`; a cause with no typed failure still propagates. To make every cause data, wrap each element in `exit(...)`.
 
 ```ts effect
 // fragment
@@ -1027,7 +1027,7 @@ function outcomes() {
 // Output: true
 ```
 
-**Fork a block** (D166). The loop stops when the enclosing block exits.
+**Fork a block**. The loop stops when the enclosing block exits.
 
 ```ts effect
 // fragment
@@ -1051,7 +1051,7 @@ function withHeartbeat() {
 // Output: Ada
 ```
 
-**Detached and scoped fibers** (D170).
+**Detached and scoped fibers**.
 
 ```ts effect
 // fragment
@@ -1072,7 +1072,7 @@ function background() {
 // Output: true
 ```
 
-**Wait for a Deferred** (D227). `await` waits for promises in JavaScript, so a Deferred uses its method.
+**Wait for a Deferred**. `await` waits for promises in JavaScript, so a Deferred uses its method.
 
 ```ts effect
 // fragment
@@ -1091,7 +1091,7 @@ function signal() {
 // Output: go
 ```
 
-**Race** (D196, D197). `await.race` behaves like `Promise.race`: the first to finish wins, success or failure, and the rest are interrupted. It replaced `select` (EK4607); poll with `Queue.poll` and an `if`.
+**Race**. `await.race` behaves like `Promise.race`: the first to finish wins, success or failure, and the rest are interrupted. It replaced `select` (EK4607); poll with `Queue.poll` and an `if`.
 
 ```ts effect
 // fragment
@@ -1117,7 +1117,7 @@ function next() {
 // Output: ran build
 ```
 
-**A concurrent loop** (D169). At most `n` items run at once, and all finish before the loop ends.
+**A concurrent loop**. At most `n` items run at once, and all finish before the loop ends.
 
 ```ts effect
 // fragment

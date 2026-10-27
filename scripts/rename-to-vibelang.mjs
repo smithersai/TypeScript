@@ -18,8 +18,8 @@
 // "Smithers" (the orchestrator), EffectScript, Effect, and the EK diagnostic
 // codes are different words and are never touched.
 //
-// Re-run it on any tree: on the newest main at landing time, and by any lane on
-// its own stack. A second run finds nothing to change. After rewriting, it
+// Re-run it on any tree: on the newest main before merging, or on your
+// own branch. A second run finds nothing to change. After rewriting, it
 // gofmts the Go files it changed and reruns two generators whose output a
 // regex cannot reproduce: the forms table, whose digests cover the runtime's
 // sources, and the projector's stock goldens, whose imports sort by module
@@ -93,7 +93,7 @@ export const KEEP = [
     pattern: /smithers\.sh\/effeck\/effeck(?![\w-])|(?<![\w.-]\/)(?<![\w-])effeck\\?\/effeck(?![\w-])/g,
   },
   {
-    why: "paths in the Smithers-Ops vault, which renames its own files",
+    why: "paths in an external notes directory, whose owner renames its files",
     pattern: /Smithers-Ops\/[^\s)`'"]*/g,
   },
   {

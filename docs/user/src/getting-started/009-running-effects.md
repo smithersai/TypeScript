@@ -4,7 +4,7 @@ Runners start a program at an application boundary. Inside a running VibeLang fu
 
 Call a runner at module top level, or in a plain callback registered there with a TypeScript function, such as a `describe` body or framework route handler. A runner inside code a fiber runs is EK1005; call the program or use `fork` instead. Tests in `.vibe` use `it.effect` from `@effect/vitest`; Promise-style tests stay in `.ts`.
 
-An explicitly Effect-typed top-level `const` stores a cold program (D262):
+An explicitly Effect-typed top-level `const` stores a cold program:
 
 ```vibe
 export const migrate: Effect.Effect<void, never, never> = Effect.suspend(() => {
@@ -119,7 +119,7 @@ export function main() {
 // Output: application started
 ```
 
-When node starts a module that exports a `main` without parameters, the platform runner runs it, so shutdown follows platform conventions; without `@effect/platform-node` installed, the compiler uses the runtime's copy of that runner. When the file names its platform, `import "vibelang/platform/node"`, and `main` needs that platform's services, such as `FileSystem`, the runner gets the platform's bundle too: `Effect.provide(main(), NodeServices.layer)` (D312). To pass options or layers, call a runner at the top level yourself; the module then runs only that. Supply the application layer once around `main`: a runner needs all application requirements satisfied. For several framework entry points sharing services, use [ManagedRuntime](../036-runtime.md).
+When node starts a module that exports a `main` without parameters, the platform runner runs it, so shutdown follows platform conventions; without `@effect/platform-node` installed, the compiler uses the runtime's copy of that runner. When the file names its platform, `import "vibelang/platform/node"`, and `main` needs that platform's services, such as `FileSystem`, the runner gets the platform's bundle too: `Effect.provide(main(), NodeServices.layer)`. To pass options or layers, call a runner at the top level yourself; the module then runs only that. Supply the application layer once around `main`: a runner needs all application requirements satisfied. For several framework entry points sharing services, use [ManagedRuntime](../036-runtime.md).
 
 | Runner | Result |
 | --- | --- |

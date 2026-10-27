@@ -20,7 +20,7 @@ start
 true
 ```
 
-`Effect.die` terminates the computation with a defect, preferably an `Error` with a useful message so diagnostics include its stack. A JavaScript exception no contract lists is also a defect. An explicit `throw` in an Effect function, even `throw new Error(...)`, is a typed failure; it is a typed failure in a plain-annotated function too, where it may not escape: a plain function never fails (D282). Only a hatch's TypeScript keeps JavaScript's `throw`.
+`Effect.die` terminates the computation with a defect, preferably an `Error` with a useful message so diagnostics include its stack. A JavaScript exception no contract lists is also a defect. An explicit `throw` in an Effect function, even `throw new Error(...)`, is a typed failure; it is a typed failure in a plain-annotated function too, where it may not escape: a plain function never fails. Only a hatch's TypeScript keeps JavaScript's `throw`.
 
 ```vibe
 // run: Console.log(firstLabel(["one"])); Console.log(firstLabel([]))
@@ -38,7 +38,7 @@ one
 No label
 ```
 
-`Option.getOrThrow` and `Schema.decodeUnknownSync` are trusted calls whose exceptions are defects, which ordinary catch doesn't see. A catch whose try block has E = `never` gets warning EK2004 by default; defects pass through it. When callers need recovery, use a typed form: `Effect.fromOption`, as above, or `Schema.decodeUnknownEffect`. A JavaScript catch inside `Effect.gen` sees synchronous exceptions; an Effect catch in `.vibe` follows the expected-failure contract. A plain function's catch follows the same contract (D282).
+`Option.getOrThrow` and `Schema.decodeUnknownSync` are trusted calls whose exceptions are defects, which ordinary catch doesn't see. A catch whose try block has E = `never` gets warning EK2004 by default; defects pass through it. When callers need recovery, use a typed form: `Effect.fromOption`, as above, or `Schema.decodeUnknownEffect`. A JavaScript catch inside `Effect.gen` sees synchronous exceptions; an Effect catch in `.vibe` follows the expected-failure contract. A plain function's catch follows the same contract.
 
 ## Promoting typed failures to defects
 
@@ -113,7 +113,7 @@ Decoder disabled after an invariant failure
 disabled
 ```
 
-`catchDefect` selects the first defect and runs recovery; a cause with no defect propagates. A typed failure beside a defect is a defect by then (D305), so the handler receives that failure's error, and recovery consumes the other reasons too; use `catchCause` when every reason must inform the decision. Reraise defects you don't recognize. Effect `try`/`catch` never intercepts a defect, even one that is an instance of a domain error class.
+`catchDefect` selects the first defect and runs recovery; a cause with no defect propagates. A typed failure beside a defect is a defect by then, so the handler receives that failure's error, and recovery consumes the other reasons too; use `catchCause` when every reason must inform the decision. Reraise defects you don't recognize. Effect `try`/`catch` never intercepts a defect, even one that is an instance of a domain error class.
 
 ## Recovering a complete cause
 

@@ -14,7 +14,7 @@ function pathSeparator() {
 // Output: /
 ```
 
-`Path` is the prelude's module, and its name also names the module's service (D311). `Path()` returns the implementation from the current environment, whose `sep` is a value, and `Path.join(...)` calls one of its methods. The module's own exports, such as `Path.layer`, keep their meaning, and the key itself is `Path.Path`.
+`Path` is the prelude's module, and its name also names the module's service. `Path()` returns the implementation from the current environment, whose `sep` is a value, and `Path.join(...)` calls one of its methods. The module's own exports, such as `Path.layer`, keep their meaning, and the key itself is `Path.Path`.
 
 ## Manipulating paths portably
 
@@ -39,7 +39,7 @@ function describeReport() {
 // Output: {"joined":"reports/weekly.txt","normalized":"reports/weekly.txt","base":"weekly.txt","directory":"reports","extension":".txt","absolute":false,"rebuilt":"reports/weekly.txt"}
 ```
 
-Most `Path` methods are plain synchronous TypeScript functions. Effect's own packages are trusted, so call them directly; an exception escaping into Effect code is a defect, which Effect catch doesn't handle. A plain function's catch doesn't see it either (D282); recover it with the `try` hatch. Calling a member through the module's name, as in `Path.join("reports", "weekly.txt")`, looks up the service and adds `Path` to R even though the member returns a string.
+Most `Path` methods are plain synchronous TypeScript functions. Effect's own packages are trusted, so call them directly; an exception escaping into Effect code is a defect, which Effect catch doesn't handle. A plain function's catch doesn't see it either; recover it with the `try` hatch. Calling a member through the module's name, as in `Path.join("reports", "weekly.txt")`, looks up the service and adds `Path` to R even though the member returns a string.
 
 | Operation | Result |
 | --- | --- |
@@ -78,7 +78,7 @@ export function main() {
 // Output: reports/weekly.txt
 ```
 
-`import "vibelang/platform/node"` makes the entry provide the Node service bundle, which supplies host path behavior, to `main` (D312); `"vibelang/platform/bun"` provides Bun's, `BunServices.layer`. The module's `Path.layer` supplies the built-in POSIX implementation, for programs that use POSIX paths on purpose, deterministic tests included: `provide Path.layer { ... }` inside `main` wins over the bundle.
+`import "vibelang/platform/node"` makes the entry provide the Node service bundle, which supplies host path behavior, to `main`; `"vibelang/platform/bun"` provides Bun's, `BunServices.layer`. The module's `Path.layer` supplies the built-in POSIX implementation, for programs that use POSIX paths on purpose, deterministic tests included: `provide Path.layer { ... }` inside `main` wins over the bundle.
 
 ## Coming from Effect
 

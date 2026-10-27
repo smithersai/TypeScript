@@ -14,7 +14,7 @@ function dimensions() {
 // Output: {"columns":80,"rows":24}
 ```
 
-The module's name `Terminal` also names its service (D311), so `Terminal()` returns the implementation; the key itself is `Terminal.Terminal`. `columns`, `rows`, and `readLine` are Effect values: call them to run them. `display` is an Effect-returning method and runs on an ordinary call.
+The module's name `Terminal` also names its service, so `Terminal()` returns the implementation; the key itself is `Terminal.Terminal`. `columns`, `rows`, and `readLine` are Effect values: call them to run them. `display` is an Effect-returning method and runs on an ordinary call.
 
 ## Writing standard output
 

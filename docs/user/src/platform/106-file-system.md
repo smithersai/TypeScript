@@ -12,7 +12,7 @@ function readSettings() {
 // Output: {"theme":"dark"}
 ```
 
-`FileSystem` is the prelude's module, and its name also names the module's service (D311): `FileSystem.readFileString(path)` calls the service's operation, adding `FileSystem` to R, and `FileSystem()` returns the implementation. `readFileString` returns text or fails with an expected `PlatformError`. The module's own exports, such as `FileSystem.layerNoop`, keep their meaning, and the key itself is `FileSystem.FileSystem`.
+`FileSystem` is the prelude's module, and its name also names the module's service: `FileSystem.readFileString(path)` calls the service's operation, adding `FileSystem` to R, and `FileSystem()` returns the implementation. `readFileString` returns text or fails with an expected `PlatformError`. The module's own exports, such as `FileSystem.layerNoop`, keep their meaning, and the key itself is `FileSystem.FileSystem`.
 
 ## Performing file operations
 
@@ -76,7 +76,7 @@ export function main() {
 // Output: Project notes
 ```
 
-`NodeFileSystem.layer` supplies only the file system; `import "vibelang/platform/node"` instead makes the entry supply the whole Node platform bundle, `NodeServices.layer`, and `"vibelang/platform/bun"` Bun's, `BunServices.layer` (D312). Application functions need only `FileSystem`, not an adapter package.
+`NodeFileSystem.layer` supplies only the file system; `import "vibelang/platform/node"` instead makes the entry supply the whole Node platform bundle, `NodeServices.layer`, and `"vibelang/platform/bun"` Bun's, `BunServices.layer`. Application functions need only `FileSystem`, not an adapter package.
 
 ## Replacing behavior in tests
 
