@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": [
+      "esnext"
+    ],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "types": [],
+    "skipLibCheck": true,
+    "outDir": "out",
+    "paths": {
+      "vibelang-runtime/experimental/platform-bun": [
+        "./stubs/runtime/platform-bun.d.ts"
+      ]
+    }
+  },
+  "include": [
+    "*.vibe"
+  ]
+}

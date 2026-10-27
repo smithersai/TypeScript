@@ -1,0 +1,9 @@
+// expect:
+// The experimental runtime bundle can see a private platform dependency.
+// That does not install the named platform for this entry.
+import "vibelang/platform/bun"
+import { FileSystem } from "effect/FileSystem"
+
+export function main() {
+  Console.log(FileSystem.readFileString("config.json"))
+}

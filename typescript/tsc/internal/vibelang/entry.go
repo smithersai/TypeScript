@@ -206,7 +206,10 @@ func planEntry(c *checker.Checker, file *ast.SourceFile) *entryPlan {
 // main needs a service that only that one provides.
 func entryBundles(c *checker.Checker, file *ast.SourceFile, main *ast.Node) ([]platformBundle, *checker.Type) {
 	platform := namedPlatform(file)
-	if platform == nil {
+	if platform == nil || resolvedModuleFile(c, file, platform.effect.module) == nil {
+		// The platform must resolve from the entry itself. Its experimental
+		// bundle may see a private platform dependency that the entry cannot
+		// import; that does not install the named platform for this project.
 		return nil, nil
 	}
 	needed := neededServices(c, main)

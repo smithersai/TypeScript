@@ -31,6 +31,11 @@ fs.mkdirSync("out", { recursive: true })
 fs.writeFileSync("out/main.js", 'console.log("wrong " + ' + JSON.stringify(scenario) + '); console.error("runtime stderr"); process.exit(7)')
 `, { mode: 0o755 })
   fs.writeFileSync(path.join(root, "package.json"), '{"type":"module"}')
+  fs.mkdirSync(path.join(root, "runtime/dist"), { recursive: true })
+  fs.writeFileSync(path.join(root, "runtime/package.json"), JSON.stringify({
+    name: "vibelang-runtime", type: "module", files: ["dist"], exports: "./dist/index.js",
+  }))
+  fs.writeFileSync(path.join(root, "runtime/dist/index.js"), 'export const name = "runtime"\n')
   for (const name of ["compile", "runtime"]) {
     const at = path.join(dir, "cases", name)
     fs.mkdirSync(path.join(at, "expected"), { recursive: true })
@@ -118,4 +123,35 @@ fs.writeFileSync("out/main.js", 'import { name } from "@scope/platform"; console
   assert.equal(result.status, 0, result.stdout + result.stderr)
   assert.match(result.stdout, /^ok {6}stubbed$/m)
   assert.equal(fs.realpathSync(path.join(at, "node_modules/@scope/platform")), fs.realpathSync(path.join(at, "stubs/platform")))
+})
+
+test("runtime files use the case's peers without exposing development dependencies", (t) => {
+  const { root, harness, compiler } = fixture(t)
+  const runtime = path.join(root, "runtime")
+  fs.mkdirSync(path.join(runtime, "node_modules/@scope/platform"), { recursive: true })
+  fs.writeFileSync(path.join(runtime, "node_modules/@scope/platform/package.json"), '{"type":"module","exports":"./index.js"}')
+  fs.writeFileSync(path.join(runtime, "node_modules/@scope/platform/index.js"), 'export const name = "development"')
+  fs.writeFileSync(path.join(runtime, "dist/index.js"), 'export { name } from "@scope/platform"')
+  fs.writeFileSync(compiler, `#!/usr/bin/env node
+import fs from "node:fs"
+fs.mkdirSync("out", { recursive: true })
+fs.writeFileSync("out/main.js", 'import { name } from "vibelang-runtime"; console.log(name)')
+`, { mode: 0o755 })
+  const at = path.join(root, "vibelang/cases/stubbed")
+  fs.mkdirSync(path.join(at, "expected"), { recursive: true })
+  fs.mkdirSync(path.join(at, "stubs/platform"), { recursive: true })
+  fs.writeFileSync(path.join(at, "tsconfig.json"), "{}")
+  fs.writeFileSync(path.join(at, "expected/stdout.txt"), "the project's peer\n")
+  fs.writeFileSync(path.join(at, "stubs/platform/package.json"), '{"name":"@scope/platform","type":"module","exports":"./index.js"}')
+  fs.writeFileSync(path.join(at, "stubs/platform/index.js"), 'export const name = "the project\'s peer"')
+  const env = { ...process.env, EFFECT_NODE_MODULES: path.join(root, "modules"), VIBELANG_RUNTIME: runtime }
+  const invoke = () => spawnSync(process.execPath, [harness, "stubbed"], { env, encoding: "utf8", timeout: 10_000 })
+  let result = invoke()
+  assert.equal(result.status, 0, result.stdout + result.stderr)
+  assert.ok(!fs.existsSync(path.join(at, "node_modules/vibelang-runtime/node_modules/@scope/platform")))
+  // A rerun sees rebuilt files, rather than a stale copy of dist.
+  fs.writeFileSync(path.join(runtime, "dist/index.js"), 'export const name = "rebuilt"')
+  fs.writeFileSync(path.join(at, "expected/stdout.txt"), "rebuilt\n")
+  result = invoke()
+  assert.equal(result.status, 0, result.stdout + result.stderr)
 })

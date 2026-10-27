@@ -183,12 +183,50 @@ func copyCompilerFixture(t *testing.T, fixture, root string) string {
 	if err := os.MkdirAll(filepath.Join(dir, "node_modules"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	// Use the runtime's own Effect installation so declarations do not name
-	// a second copy through vibelang-runtime/node_modules/effect.
-	for pkg, target := range map[string]string{"effect": "packages/runtime/node_modules/effect", "vibelang-runtime": "packages/runtime"} {
-		if err := os.Symlink(filepath.Join(root, filepath.FromSlash(target)), filepath.Join(dir, "node_modules", pkg)); err != nil {
+	// Copy the runtime's published files, as the smoke harness does. Linking
+	// its checkout would resolve optional peers through its development
+	// node_modules instead of the fixture's. The runtime has only peers.
+	runtime := filepath.Join(root, "packages/runtime")
+	manifest, err := os.ReadFile(filepath.Join(runtime, "package.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pkg struct {
+		Files []string `json:"files"`
+	}
+	if err := json.Unmarshal(manifest, &pkg); err != nil {
+		t.Fatal(err)
+	}
+	installed := filepath.Join(dir, "node_modules/vibelang-runtime")
+	if err := os.MkdirAll(installed, 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range append([]string{"package.json"}, pkg.Files...) {
+		source, target := filepath.Join(runtime, name), filepath.Join(installed, name)
+		info, err := os.Stat(source)
+		if os.IsNotExist(err) {
+			continue // npm also omits missing files, such as an optional LICENSE.
+		}
+		if err != nil {
 			t.Fatal(err)
 		}
+		if info.IsDir() {
+			if err := os.CopyFS(target, os.DirFS(source)); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			data, err := os.ReadFile(source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(target, data, 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	// Both the fixture and its installed runtime resolve the same Effect.
+	if err := os.Symlink(filepath.Join(runtime, "node_modules/effect"), filepath.Join(dir, "node_modules/effect")); err != nil {
+		t.Fatal(err)
 	}
 	// A directory under the fixture's stubs/ with a package.json stands in
 	// for the package it names, as the smoke harness links it.
@@ -210,6 +248,42 @@ func copyCompilerFixture(t *testing.T, fixture, root string) string {
 		}
 		if err := os.Symlink(filepath.Join(dir, "stubs", stub.Name()), at); err != nil {
 			t.Fatal(err)
+		}
+	}
+	// Link only real dependencies that this fixture explicitly declares,
+	// after stubs so a package-layout fixture can substitute its own package.
+	if manifest, err := os.ReadFile(filepath.Join(dir, "package.json")); err == nil {
+		var pkg struct {
+			Dependencies map[string]string `json:"dependencies"`
+		}
+		if err := json.Unmarshal(manifest, &pkg); err != nil {
+			t.Fatal(err)
+		}
+		for name := range pkg.Dependencies {
+			at := filepath.Join(dir, "node_modules", filepath.FromSlash(name))
+			if _, err := os.Stat(at); err == nil {
+				continue
+			}
+			var target string
+			for _, modules := range []string{os.Getenv("EFFECT_NODE_MODULES"), filepath.Join(runtime, "node_modules")} {
+				if modules == "" {
+					continue
+				}
+				candidate := filepath.Join(modules, filepath.FromSlash(name))
+				if _, err := os.Stat(candidate); err == nil {
+					target = candidate
+					break
+				}
+			}
+			if target == "" {
+				t.Fatalf("fixture dependency %s is missing from EFFECT_NODE_MODULES and packages/runtime/node_modules", name)
+			}
+			if err := os.MkdirAll(filepath.Dir(at), 0755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(target, at); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 	return dir
@@ -250,4 +324,34 @@ func compilerDiagnosticLine(t *testing.T, dir string, d *ast.Diagnostic) string 
 	}
 	line, column := scanner.GetECMALineAndUTF16CharacterOfPosition(origin, d.Pos())
 	return fmt.Sprintf("%s(%d,%d): %s", filepath.ToSlash(file), line+1, column+1, message)
+}
+
+// The compiler fixtures must see the runtime as an installed package. A
+// symlink to its checkout would expose private development dependencies and
+// resolve optional peers there instead of in the fixture's node_modules.
+func TestCompilerFixtureRuntimeIsolation(t *testing.T) {
+	root := t.TempDir()
+	fixture := filepath.Join(root, "fixture")
+	runtime := filepath.Join(root, "packages/runtime")
+	for name, text := range map[string]string{
+		filepath.Join(fixture, "tsconfig.json"):                                  "{}",
+		filepath.Join(runtime, "package.json"):                                   `{"name":"vibelang-runtime","files":["dist"]}`,
+		filepath.Join(runtime, "dist/index.d.ts"):                                "export declare const installed: true",
+		filepath.Join(runtime, "node_modules/@effect/platform-bun/package.json"): `{"name":"@effect/platform-bun"}`,
+	} {
+		if err := os.MkdirAll(filepath.Dir(name), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(name, []byte(text), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dir := copyCompilerFixture(t, fixture, root)
+	installed := filepath.Join(dir, "node_modules/vibelang-runtime")
+	if _, err := os.Stat(filepath.Join(installed, "dist/index.d.ts")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(installed, "node_modules/@effect/platform-bun")); !os.IsNotExist(err) {
+		t.Fatalf("runtime development dependency leaked into fixture: %v", err)
+	}
 }

@@ -1,0 +1,2 @@
+main needs FileSystem, which nothing provides when the host starts this module.
+import "vibelang/platform/bun" names @effect/platform-bun, which is not installed.

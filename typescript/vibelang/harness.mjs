@@ -37,7 +37,8 @@
 // and separate stdout/stderr tails. Reruns preserve earlier logs.
 //
 // Each case gets node_modules/effect from $EFFECT_NODE_MODULES and
-// node_modules/vibelang-runtime from $VIBELANG_RUNTIME. A directory under the
+// node_modules/vibelang-runtime from $VIBELANG_RUNTIME's published files,
+// without its development dependencies. Its peers resolve in the case. A directory under the
 // case's stubs/ with a package.json stands in for the package it names: the
 // case's node_modules links it under that name, so the compiler and Node
 // resolve the package there, as they would an installed one.
@@ -106,11 +107,21 @@ function link(target, at) {
 
 function linkNodeModules(dir) {
   const modules = path.join(dir, "node_modules")
-  const stat = fs.lstatSync(modules, { throwIfNoEntry: false })
-  if (stat && !stat.isDirectory()) fs.unlinkSync(modules) // an older smoke.sh linked the whole directory
+  // Rebuild this install on reruns so removed dependencies cannot linger.
+  fs.rmSync(modules, { recursive: true, force: true })
   fs.mkdirSync(modules, { recursive: true })
   link(path.join(effectModules, "effect"), path.join(modules, "effect"))
-  link(runtimeDir, path.join(modules, "vibelang-runtime"))
+  // Copy the published files, rather than linking the checkout: realpath
+  // resolution through a link exposes the runtime's development dependencies
+  // and hides the case's optional platform peers. The runtime has only peers,
+  // so it needs no private production node_modules.
+  const runtime = path.join(modules, "vibelang-runtime")
+  const manifest = JSON.parse(fs.readFileSync(path.join(runtimeDir, "package.json"), "utf8"))
+  fs.mkdirSync(runtime, { recursive: true })
+  for (const file of ["package.json", ...manifest.files]) {
+    const source = path.join(runtimeDir, file)
+    if (fs.existsSync(source)) fs.cpSync(source, path.join(runtime, file), { recursive: true, dereference: true })
+  }
   const stubs = path.join(dir, "stubs")
   for (const stub of fs.existsSync(stubs) ? fs.readdirSync(stubs) : []) {
     const manifest = path.join(stubs, stub, "package.json")
@@ -118,6 +129,21 @@ function linkNodeModules(dir) {
     const at = path.join(modules, JSON.parse(fs.readFileSync(manifest, "utf8")).name)
     fs.mkdirSync(path.dirname(at), { recursive: true })
     link(path.join(stubs, stub), at)
+  }
+  // Cases that exercise real platform code declare its package themselves.
+  // Stubs above take precedence; the remaining dependencies come from the
+  // pinned test installations, never from implicit runtime dependency access.
+  const manifestFile = path.join(dir, "package.json")
+  const dependencies = fs.existsSync(manifestFile) ? JSON.parse(fs.readFileSync(manifestFile, "utf8")).dependencies : {}
+  for (const name of Object.keys(dependencies ?? {})) {
+    const at = path.join(modules, name)
+    if (fs.existsSync(at)) continue
+    const source = [effectModules, path.join(runtimeDir, "node_modules")]
+      .map((base) => path.join(base, name))
+      .find((candidate) => fs.existsSync(candidate))
+    if (!source) throw new Error(`case dependency ${name} is missing from EFFECT_NODE_MODULES and VIBELANG_RUNTIME/node_modules`)
+    fs.mkdirSync(path.dirname(at), { recursive: true })
+    link(source, at)
   }
 }
 
