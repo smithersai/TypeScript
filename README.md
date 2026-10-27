@@ -114,7 +114,7 @@ npm run start
 npm run test
 ```
 
-With Bun (optional):
+With Bun as the package manager (optional; the app runs on Node):
 
 ```sh
 bun create vibelang@latest my-app
@@ -122,6 +122,8 @@ cd my-app
 bun run start
 bun run test
 ```
+
+The starter's `start` script runs Node and uses `@effect/platform-node`, even when Bun installs its dependencies. To use Bun as the runtime, see [Run sources with Bun](docs/user/src/setup/vibelang-cli.md#run-sources-with-bun).
 
 You need Node 26 or later. If you use Bun, use Bun 1.4 or later. Bun is optional. `npm run start` prints:
 
@@ -178,4 +180,4 @@ Report a bug with a minimal reproduction, or propose an idea, in [Issues](https:
 
 [MIT](LICENSE), except the TypeScript fork in [`typescript/`](typescript/) and the compiler packages built from it, `vibelang` and `vibelang-<platform>`, which use the [Apache License 2.0](typescript/LICENSE.txt) and keep its [notices](typescript/NOTICE.txt).
 
-<sub>1,993 tokens (o200k_base, js-tiktoken 1.0.21), counted by the [docs flow](.smithers/flows/docs/flow.ts).</sub>
+<sub>2,058 tokens (o200k_base, js-tiktoken 1.0.21), counted by the [docs flow](.smithers/flows/docs/flow.ts).</sub>

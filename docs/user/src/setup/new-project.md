@@ -10,11 +10,13 @@ Choose a new directory name or an empty directory. With npm, run:
 npm create vibelang@latest my-app
 ```
 
-With Bun (optional), run:
+With Bun as the package manager (optional; the app runs on Node), run:
 
 ```sh
 bun create vibelang@latest my-app
 ```
+
+The starter's `start` script runs Node and uses `@effect/platform-node`, even when Bun installs its dependencies. To use Bun as the runtime, see [Run sources with Bun](vibelang-cli.md#run-sources-with-bun).
 
 The starter prints:
 

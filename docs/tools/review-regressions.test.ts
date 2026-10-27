@@ -39,3 +39,11 @@ test("the contributor compiler-semantics command installs runtime dependencies f
   const row = read("CONTRIBUTING.md").split("\n").find(line => line.startsWith("| Compiler semantics |")) || ""
   expect(row).toMatch(/cd packages\/runtime && bun install.*cd typescript && sh vibelang\/smoke\.sh/)
 })
+
+test("Bun starter instructions distinguish package manager and Node runtime", () => {
+  for (const path of ["README.md", "docs/user/src/setup/new-project.md"]) {
+    const page = read(path)
+    expect(page).toMatch(/Bun as the package manager[^\n]*app[^\n]*Node/)
+    expect(page).toMatch(/\]\([^)]*vibelang-cli(?:\.md)?#run-sources-with-bun\)/)
+  }
+})

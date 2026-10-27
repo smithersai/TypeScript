@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,002 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,416 |
-| The skill and the user guide (134 pages) | 236,075 |
-| The user guide alone | 231,073 |
+| The skill and the user guide (134 pages) | 236,136 |
+| The user guide alone | 231,134 |
 | The specification (33 chapters) | 108,815 |
 | The decision log, `docs/design/DECISIONS.md` | 70,804 |
 
@@ -110,8 +110,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | --- | ---: |
 | [Set up VibeLang](../setup.md) | 1,826 |
 | [Known limitations](../setup/known-limitations.md) | 476 |
-| **Start a project** | **1,650** |
-| [New project](../setup/new-project.md) | 482 |
+| **Start a project** | **1,711** |
+| [New project](../setup/new-project.md) | 543 |
 | [Existing project](../setup/existing-project.md) | 1,168 |
 | **Build and test** | **3,415** |
 | [vibelang CLI](../setup/vibelang-cli.md) | 2,249 |
@@ -129,7 +129,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Other editors](../setup/other-editors.md) | 327 |
 | **Upgrade** | **17,571** |
 | [Release notes](../setup/release-notes.md) | 17,571 |
-| **All 15 pages** | **36,008** |
+| **All 15 pages** | **36,069** |
 
 ### Guides
 
