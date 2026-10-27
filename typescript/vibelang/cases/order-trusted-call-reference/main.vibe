@@ -1,0 +1,62 @@
+// expect-result: {"getter":[7,["getter","argument"]],"replaced":[7,["first"]],"rebound":[7,["first"]]}
+// A call whose function has expected failures (JSON.parse's SyntaxError)
+// reads that function before it evaluates the arguments, as JavaScript does,
+// also when an argument runs an Effect (chapter 13): the getter runs first,
+// and an argument that replaces the function does not change the one called.
+function getter() {
+  const trace: string[] = []
+  const codec = {
+    get parse(): typeof JSON.parse {
+      trace.push("getter")
+      return JSON.parse
+    }
+  }
+  function input() {
+    Effect.yieldNow()
+    trace.push("argument")
+    return "7"
+  }
+  const value: number = codec.parse(input())
+  return [value, trace]
+}
+
+function replaced() {
+  const trace: string[] = []
+  let current: typeof JSON.parse = (text: string): any => {
+    trace.push("first")
+    return 7
+  }
+  const codec = { get parse(): typeof JSON.parse { return current } }
+  function input() {
+    Effect.yieldNow()
+    current = (text: string): any => {
+      trace.push("replacement")
+      return 107
+    }
+    return "7"
+  }
+  const value: number = codec.parse(input())
+  return [value, trace]
+}
+
+function rebound() {
+  const trace: string[] = []
+  let parse: typeof JSON.parse = (text: string): any => {
+    trace.push("first")
+    return 7
+  }
+  function input() {
+    Effect.yieldNow()
+    parse = (text: string): any => {
+      trace.push("replacement")
+      return 107
+    }
+    return "7"
+  }
+  const value: number = parse(input())
+  return [value, trace]
+}
+
+export function main() {
+  return { getter: getter(), replaced: replaced(), rebound: rebound() }
+}

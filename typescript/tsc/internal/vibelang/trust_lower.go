@@ -72,6 +72,7 @@ func (p *plan) planTrustedCalls(c *checker.Checker, a *analyzer, file *ast.Sourc
 					refs = append(refs, ref)
 				}
 				p.trusted[call] = refs
+				p.noteStable(c, ast.GetInvokedExpression(call)) // a callee the thunk may read last (trustedThunk)
 				return false
 			})
 		}
@@ -252,8 +253,11 @@ func (tx *lowering) classArray(node *ast.Node) *ast.Node {
 
 // trustedThunk returns a function with no parameters that makes node's call:
 // `() => f(x)`. When the visited call's operands yield, which a function
-// without `*` cannot, the operands are evaluated first, in order, and passed
-// in: `((receiver, args) => () => receiver.m(...args))(yield* r(), [yield* x()])`.
+// without `*` cannot, the generator evaluates them first, in JavaScript's
+// order (chapter 13): the receiver, the function read from it, then the
+// arguments. The thunk calls that function with the receiver as this:
+//
+//	((receiver_1, method_1, args_1) => () => method_1.call(receiver_1, ...args_1))(receiver_2 = r, receiver_2.m, [yield* x()])
 func (tx *lowering) trustedThunk(node *ast.Node) *ast.Node {
 	f := tx.Factory()
 	call := tx.Visitor().VisitEachChild(node)
@@ -267,22 +271,33 @@ func (tx *lowering) trustedThunk(node *ast.Node) *ast.Node {
 		values = append(values, value)
 		return parameter
 	}
-	callee := call.Expression()
-	optional := ast.IsOptionalChain(callee)
-	switch {
-	case ast.IsPropertyAccessExpression(callee) && !optional:
-		callee = f.UpdatePropertyAccessExpression(callee.AsPropertyAccessExpression(), hoist("receiver", callee.Expression()), nil /*questionDotToken*/, callee.Name(), ast.NodeFlagsNone)
-	case ast.IsElementAccessExpression(callee) && !optional:
-		access := callee.AsElementAccessExpression()
-		receiver := hoist("receiver", access.Expression)
-		callee = f.UpdateElementAccessExpression(access, receiver, nil /*questionDotToken*/, hoist("key", access.ArgumentExpression), ast.NodeFlagsNone)
-	case optional, ast.IsIdentifier(callee):
-		// An optional chain stays inside the thunk, which keeps its this; so does a name.
-	default:
-		callee = hoist("callee", callee)
+	callee := ast.GetInvokedExpression(call)
+	if writesQuestionDot(call) {
+		// An optional chain whose operands yield is tested before the call
+		// (chains_lower.go). Any other stays inside the thunk, which keeps its this.
+		arguments := hoist("args", f.NewArrayLiteralExpression(f.NewNodeList(call.Arguments()), false /*multiLine*/))
+		inner := f.NewCallExpression(callee, call.QuestionDotToken(), nil /*typeArguments*/, f.NewNodeList([]*ast.Node{f.NewSpreadElement(arguments)}), ast.NodeFlagsNone)
+		outer := f.NewParenthesizedExpression(tx.generated(tx.arrow(parameters, tx.generated(tx.arrow(nil, inner)))))
+		return f.NewCallExpression(outer, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList(values), ast.NodeFlagsNone)
 	}
-	arguments := hoist("args", f.NewArrayLiteralExpression(f.NewNodeList(call.Arguments()), false /*multiLine*/))
-	inner := f.NewCallExpression(callee, call.QuestionDotToken(), nil /*typeArguments*/, f.NewNodeList([]*ast.Node{f.NewSpreadElement(arguments)}), ast.NodeFlagsNone)
+	var receiver, function *ast.Node
+	switch {
+	case (ast.IsPropertyAccessExpression(callee) || ast.IsElementAccessExpression(callee)) && callee.Expression().Kind != ast.KindSuperKeyword:
+		saved := f.NewUniqueName("receiver")
+		tx.EmitContext().AddVariableDeclaration(saved)
+		receiver = hoist("receiver", f.NewAssignmentExpression(saved, callee.Expression()))
+		if ast.IsPropertyAccessExpression(callee) {
+			function = hoist("method", f.NewPropertyAccessExpression(saved, nil /*questionDotToken*/, callee.Name(), ast.NodeFlagsNone))
+		} else {
+			function = hoist("method", f.NewElementAccessExpression(saved, nil /*questionDotToken*/, callee.AsElementAccessExpression().ArgumentExpression, ast.NodeFlagsNone))
+		}
+	case ast.IsIdentifier(callee) && tx.plan.stable[ast.GetInvokedExpression(node)]:
+		function = callee // a name no operand can assign is read in the thunk
+	default:
+		function = hoist("callee", callee)
+	}
+	arguments := []*ast.Node{f.NewSpreadElement(hoist("args", f.NewArrayLiteralExpression(f.NewNodeList(call.Arguments()), false /*multiLine*/)))}
+	inner := tx.invokeGuarded(function, receiver, arguments)
 	outer := f.NewParenthesizedExpression(tx.generated(tx.arrow(parameters, tx.generated(tx.arrow(nil, inner)))))
 	return f.NewCallExpression(outer, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList(values), ast.NodeFlagsNone)
 }
