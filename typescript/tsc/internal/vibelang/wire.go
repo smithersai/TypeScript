@@ -464,7 +464,7 @@ func checkProgram(c *checker.Checker, program *ast.Node, accepted *checker.Type,
 	}
 	var names, paths []string
 	for _, service := range unionMembers(needed) {
-		if accepted != nil && c.IsTypeAssignableTo(service, accepted) {
+		if site == runnerEntry && provides(c, accepted, service) || site != runnerEntry && accepted != nil && c.IsTypeAssignableTo(service, accepted) {
 			continue
 		}
 		if service.Flags()&(checker.TypeFlagsUnknown|checker.TypeFlagsAny) != 0 {

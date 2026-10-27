@@ -1,0 +1,10 @@
+// expect: EK3205
+// A main that provides only Effect's bundle still needs the experimental
+// Crypto, and EK3205 says so.
+import { NodeServices } from "@effect/platform-node"
+
+export function main() {
+  provide NodeServices.layer {
+    Console.log(Experimental.Crypto.hmac("SHA-256", Redacted.make(new Uint8Array([1])), new Uint8Array([2])).length)
+  }
+}

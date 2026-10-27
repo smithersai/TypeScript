@@ -264,7 +264,7 @@ Where Effect has no API for a platform call that programs need, VibeLang adds on
 | `process.kill(pid, signal)` | `Experimental.Process.kill(pid, { killSignal })`, `Experimental.Process.isRunning(pid)` |
 | `navigator.locks.request` | `using held = Experimental.Locks.hold(name)` |
 
-As for Effect's modules (D311), the module's name names its service: `Experimental.Process.pid()` calls the `Process` service, whose key is `Experimental.Process.Process`, with no import.
+As for Effect's modules (D311), the module's name names its service: `Experimental.Process.pid()` calls the `Process` service, whose key is `Experimental.Process.Process`, with no import. The experimental `FileSystem` and `Crypto` keys are class services, as Effect declares them: the type `Experimental.FileSystem` is the requirement, and `Experimental.FileSystem.Service`, a superset of Effect's interface, its implementation. The requirement is not Effect's `FileSystem`, so Effect's layer, whose key differs at run time, does not provide it.
 
 ```ts [VibeLang]
 function canRun(path: string) {

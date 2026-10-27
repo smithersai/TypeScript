@@ -15,10 +15,10 @@ const utf8 = (text: string) => new TextEncoder().encode(text)
 const secret = (text: string) => Redacted.make(hex(text))
 const tampered = (bytes: Uint8Array) => bytes.map((byte, i) => (i === 0 ? byte ^ 1 : byte))
 
-const run = <A, E>(layer: Layer.Layer<Crypto.Crypto>, program: (crypto: Crypto.Crypto) => Effect.Effect<A, E>) =>
+const run = <A, E>(layer: Layer.Layer<Crypto.Crypto>, program: (crypto: Crypto.Service) => Effect.Effect<A, E>) =>
   Effect.runPromise(Effect.provide(Effect.flatMap(Effect.service(Crypto.Crypto), program), layer))
 
-const failure = <A>(layer: Layer.Layer<Crypto.Crypto>, program: (crypto: Crypto.Crypto) => Effect.Effect<A, PlatformError.PlatformError>) =>
+const failure = <A>(layer: Layer.Layer<Crypto.Crypto>, program: (crypto: Crypto.Service) => Effect.Effect<A, PlatformError.PlatformError>) =>
   run(layer, (crypto) => Effect.flip(program(crypto)))
 
 // RFC 4231, section 4: HMAC-SHA-256 test cases 1-4, 6 and 7 (case 5 truncates).
@@ -90,11 +90,11 @@ for (const [name, layer] of layers) {
 
   test(`${name}: a key of the wrong kind fails with BadArgument that names no key bytes`, async () => {
     const cases = [
-      ["hmac", "the key is not a raw key for HMAC", (crypto: Crypto.Crypto) => crypto.hmac("SHA-256", Redacted.make(new Uint8Array()), utf8("data"))],
-      ["sign", "the key is not a PKCS#8 private key for Ed25519", (crypto: Crypto.Crypto) => crypto.sign("Ed25519", Redacted.make(hex(p256.privateKey)), utf8("data"))],
-      ["sign", "the key is not a PKCS#8 private key for ECDSA", (crypto: Crypto.Crypto) => crypto.sign("ECDSA-P256-SHA256", Redacted.make(hex(ed25519.publicKey)), utf8("data"))],
-      ["verify", "the key is not an SPKI public key for ECDSA", (crypto: Crypto.Crypto) => crypto.verify("ECDSA-P256-SHA256", hex(ed25519.publicKey), new Uint8Array(64), utf8("data"))],
-      ["verify", "the key is not an SPKI public key for Ed25519", (crypto: Crypto.Crypto) => crypto.verify("Ed25519", utf8("not a key"), new Uint8Array(64), utf8("data"))]
+      ["hmac", "the key is not a raw key for HMAC", (crypto: Crypto.Service) => crypto.hmac("SHA-256", Redacted.make(new Uint8Array()), utf8("data"))],
+      ["sign", "the key is not a PKCS#8 private key for Ed25519", (crypto: Crypto.Service) => crypto.sign("Ed25519", Redacted.make(hex(p256.privateKey)), utf8("data"))],
+      ["sign", "the key is not a PKCS#8 private key for ECDSA", (crypto: Crypto.Service) => crypto.sign("ECDSA-P256-SHA256", Redacted.make(hex(ed25519.publicKey)), utf8("data"))],
+      ["verify", "the key is not an SPKI public key for ECDSA", (crypto: Crypto.Service) => crypto.verify("ECDSA-P256-SHA256", hex(ed25519.publicKey), new Uint8Array(64), utf8("data"))],
+      ["verify", "the key is not an SPKI public key for Ed25519", (crypto: Crypto.Service) => crypto.verify("Ed25519", utf8("not a key"), new Uint8Array(64), utf8("data"))]
     ] as const
     for (const [method, description, program] of cases) {
       const error = await failure(layer, program)
@@ -129,7 +129,7 @@ test("a secret key stays redacted when printed", () => {
 test("without WebCrypto, hmac, sign and verify fail with Unknown", async () => {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, "crypto")!
   Object.defineProperty(globalThis, "crypto", { value: undefined, configurable: true, writable: true })
-  let crypto: Crypto.Crypto
+  let crypto: Crypto.Service
   try {
     crypto = Crypto.make(EffectCrypto.make({ randomBytes: (size) => new Uint8Array(size), digest: () => Effect.succeed(new Uint8Array()) }))
   } finally {
@@ -137,9 +137,9 @@ test("without WebCrypto, hmac, sign and verify fail with Unknown", async () => {
   }
   const layer = Layer.succeed(Crypto.Crypto, crypto)
   for (const [method, program] of [
-    ["hmac", (crypto: Crypto.Crypto) => crypto.hmac("SHA-256", secret("0b"), utf8("data"))],
-    ["sign", (crypto: Crypto.Crypto) => crypto.sign("Ed25519", Redacted.make(hex(ed25519.privateKey)), utf8("data"))],
-    ["verify", (crypto: Crypto.Crypto) => crypto.verify("Ed25519", hex(ed25519.publicKey), new Uint8Array(64), utf8("data"))]
+    ["hmac", (crypto: Crypto.Service) => crypto.hmac("SHA-256", secret("0b"), utf8("data"))],
+    ["sign", (crypto: Crypto.Service) => crypto.sign("Ed25519", Redacted.make(hex(ed25519.privateKey)), utf8("data"))],
+    ["verify", (crypto: Crypto.Service) => crypto.verify("Ed25519", hex(ed25519.publicKey), new Uint8Array(64), utf8("data"))]
   ] as const) {
     const error = await failure(layer, program)
     expect(error.reason._tag).toBe("Unknown")

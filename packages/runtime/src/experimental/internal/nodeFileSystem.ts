@@ -142,7 +142,7 @@ const makeFileInfo = (method: string) =>
 
 // == access
 
-const access = (fileSystem: EffectFileSystem.FileSystem): FileSystem.FileSystem["access"] => {
+const access = (fileSystem: EffectFileSystem.FileSystem): FileSystem.Service["access"] => {
   const nodeAccess = Effect.effectify(NFS.access, handleErrnoException("access"), handleBadArgument("access"))
   return (path, options) => {
     if (options?.executable !== true) {
@@ -203,7 +203,7 @@ const supported = (host: Host, flag: "O_NOFOLLOW" | "O_NONBLOCK"): number | unde
   return host.platform === "win32" || typeof bits !== "number" || bits === 0 ? undefined : bits
 }
 
-const open = (fileSystem: EffectFileSystem.FileSystem, host: Host): FileSystem.FileSystem["open"] => {
+const open = (fileSystem: EffectFileSystem.FileSystem, host: Host): FileSystem.Service["open"] => {
   const nodeOpen = Effect.effectify(NFS.open, handleErrnoException("open"), handleBadArgument("open"))
   const nodeClose = Effect.effectify(NFS.close, handleErrnoException("open"), handleBadArgument("open"))
   return (path, options) => {
@@ -424,7 +424,7 @@ const makeFile = (() => {
  * Extends Effect's Node FileSystem with the experimental members. `host`
  * defaults to this process's platform and `node:fs` constants.
  */
-export const extend = (fileSystem: EffectFileSystem.FileSystem, host: Host = nodeHost): FileSystem.FileSystem =>
+export const extend = (fileSystem: EffectFileSystem.FileSystem, host: Host = nodeHost): FileSystem.Service =>
   FileSystem.make(fileSystem, { access: access(fileSystem), open: open(fileSystem, host) })
 
 /** Provides the experimental FileSystem from Effect's FileSystem in context. */

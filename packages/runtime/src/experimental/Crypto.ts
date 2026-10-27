@@ -2,7 +2,8 @@
  * Experimental: Effect's `Crypto` service plus `hmac`, `sign` and `verify`
  * (D313).
  *
- * The service has its own key and a superset of Effect's interface. One
+ * The service has its own key and identity, and its implementation,
+ * `Service`, is a superset of Effect's interface. One
  * WebCrypto implementation (`crypto.subtle`, which Node, Bun, Deno, browsers
  * and Workers all have) serves every platform; the layers in
  * `vibelang-runtime/experimental/platform-node`, `-bun` and `-browser`
@@ -29,11 +30,11 @@ import * as Redacted from "effect/Redacted"
 export type SignatureAlgorithm = "ECDSA-P256-SHA256" | "Ed25519"
 
 /**
- * Effect's `Crypto` plus `hmac`, `sign` and `verify`.
+ * The implementation: Effect's `Crypto` plus `hmac`, `sign` and `verify`.
  *
  * @since 0.0.11
  */
-export interface Crypto extends EffectCrypto.Crypto {
+export interface Service extends EffectCrypto.Crypto {
   /**
    * Computes the HMAC of `data` under `key`, the raw secret bytes.
    */
@@ -67,13 +68,15 @@ export interface Crypto extends EffectCrypto.Crypto {
 }
 
 /**
- * The service key, distinct from Effect's `Crypto.Crypto`.
+ * The service key, declared as Effect declares a class service: the type
+ * `Crypto` is the requirement, whose identity is its key, distinct from
+ * Effect's `Crypto.Crypto`, and `Service` is the implementation. `Service`
+ * extends Effect's interface and `Crypto` does not, so a layer of Effect's
+ * `Crypto` never satisfies a requirement for this one.
  *
  * @since 0.0.11
  */
-export const Crypto: Context.Service<Crypto, Crypto> = /* @__PURE__ */ Context.Service(
-  "vibelang/experimental/Crypto"
-)
+export class Crypto extends /* @__PURE__ */ Context.Service<Crypto, Service>()("vibelang/experimental/Crypto") {}
 
 const signatureAlgorithms = {
   "ECDSA-P256-SHA256": { key: { name: "ECDSA", namedCurve: "P-256" }, sign: { name: "ECDSA", hash: "SHA-256" } },
@@ -134,7 +137,7 @@ const importKey = (
  *
  * @since 0.0.11
  */
-export const make = (crypto: EffectCrypto.Crypto): Crypto => {
+export const make = (crypto: EffectCrypto.Crypto): Service => {
   const subtle: SubtleCrypto | undefined = globalThis.crypto?.subtle
   return Crypto.of({
     ...crypto,
@@ -167,7 +170,7 @@ export const make = (crypto: EffectCrypto.Crypto): Crypto => {
  *
  * @since 0.0.11
  */
-export const layerTest = (crypto: Partial<Crypto> = {}): Layer.Layer<Crypto | EffectCrypto.Crypto> => {
+export const layerTest = (crypto: Partial<Service> = {}): Layer.Layer<Crypto | EffectCrypto.Crypto> => {
   const test = Crypto.of({
     ...make(EffectCrypto.make({
       randomBytes: (size) => new Uint8Array(size),

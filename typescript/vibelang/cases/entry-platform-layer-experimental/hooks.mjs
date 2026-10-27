@@ -1,6 +1,7 @@
 import { registerHooks } from "node:module"
 
 const stubs = {
+  "vibelang-runtime/experimental/Extended": "./stubs/experimental/Extended.js",
   "vibelang-runtime/experimental/Process": "./stubs/experimental/Process.js",
   "vibelang-runtime/experimental/platform-node": "./stubs/experimental/platform-node/index.js",
 }

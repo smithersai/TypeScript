@@ -429,6 +429,11 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   - `Experimental.Locks` holds Web Locks with `hold`, `tryHold` and `query`.
     Node.js's `NodeLocks.layer` locks only within one process; Bun has no
     layer.
+- The experimental `FileSystem` and `Crypto` keys are class services, as
+  Effect declares them. Their implementations, `Experimental.FileSystem.Service`
+  and `Experimental.Crypto.Service`, are supersets of Effect's interfaces, but
+  the services are not Effect's: a layer of Effect's `FileSystem` or `Crypto`
+  does not provide them.
 - `vibelang-runtime/experimental/platform-node`, `-bun` and `-browser` hold
   the layers. `NodeServices.layer` and `BunServices.layer` there are the
   platform bundles plus `FileSystem`, `Crypto` and `Process`, and

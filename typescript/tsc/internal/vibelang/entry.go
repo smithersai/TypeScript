@@ -248,9 +248,23 @@ func neededServices(c *checker.Checker, main *ast.Node) []*checker.Type {
 	return unionMembers(needed)
 }
 
-// provides reports whether service is one of services, which may be nil.
+// provides reports whether service is one of services, which may be nil: a
+// member of services that service is assignable to and that is assignable to
+// service. A layer provides a service by its key, so a service whose type
+// only extends a bundle's is not that service: an implementation of Effect's
+// FileSystem with more members, under a key of its own, is not provided by a
+// layer of Effect's FileSystem, though Effect's types, which exclude by
+// assignability, would let it pass (D313).
 func provides(c *checker.Checker, services *checker.Type, service *checker.Type) bool {
-	return services != nil && c.IsTypeAssignableTo(service, services)
+	if services == nil {
+		return false
+	}
+	for _, member := range unionMembers(services) {
+		if c.IsTypeAssignableTo(service, member) && c.IsTypeAssignableTo(member, service) {
+			return true
+		}
+	}
+	return false
 }
 
 // platformNote returns what EK3205 adds at file's main, which needs the

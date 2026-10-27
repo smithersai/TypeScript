@@ -1,4 +1,6 @@
 // Compile a consumer of the experimental services against the package exports and emitted .d.ts files.
+import * as EffectBrowserCrypto from "@effect/platform-browser/BrowserCrypto"
+import * as EffectNodeServices from "@effect/platform-node/NodeServices"
 import * as Effect from "effect/Effect"
 import type * as Layer from "effect/Layer"
 import type * as Option from "effect/Option"
@@ -35,3 +37,14 @@ const lockLayers: ReadonlyArray<Layer.Layer<Locks.Locks>> = [BrowserLocks.layer,
 const overLockManager: Locks.Locks = Locks.make(navigator.locks)
 const sameLocksKey: typeof Locks.Locks = LocksModule
 void [pid, platform, memory, killed, running, failing, processLayers, sameKey, held, tried, snapshot, lost, lockLayers, overLockManager, sameLocksKey]
+
+// Process and Locks have identities of their own: no layer of Effect's
+// provides them, so their requirements stay.
+type Requirements<T> = T extends Effect.Effect<infer _A, infer _E, infer R> ? R : never
+type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false
+const both = Effect.andThen(pid, held)
+const leftByNode = Effect.provide(both, EffectNodeServices.layer)
+const leftByBrowser = Effect.provide(both, EffectBrowserCrypto.layer)
+const leftNode: Same<Requirements<typeof leftByNode>, Process.Process | Locks.Locks | Scope.Scope> = true
+const leftBrowser: Same<Requirements<typeof leftByBrowser>, Process.Process | Locks.Locks | Scope.Scope> = true
+void [leftNode, leftBrowser]

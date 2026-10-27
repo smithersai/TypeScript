@@ -22,10 +22,10 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-const run = <A, E>(layer: Layer.Layer<FileSystem.FileSystem>, program: (fs: FileSystem.FileSystem) => Effect.Effect<A, E, Scope>) =>
+const run = <A, E>(layer: Layer.Layer<FileSystem.FileSystem>, program: (fs: FileSystem.Service) => Effect.Effect<A, E, Scope>) =>
   Effect.runPromise(Effect.scoped(Effect.provide(Effect.flatMap(Effect.service(FileSystem.FileSystem), program), layer)))
 
-const failure = <A>(layer: Layer.Layer<FileSystem.FileSystem>, program: (fs: FileSystem.FileSystem) => Effect.Effect<A, PlatformError.PlatformError, Scope>) =>
+const failure = <A>(layer: Layer.Layer<FileSystem.FileSystem>, program: (fs: FileSystem.Service) => Effect.Effect<A, PlatformError.PlatformError, Scope>) =>
   run(layer, (fs) => Effect.flip(program(fs)))
 
 const mkfifo = (path: string) => {

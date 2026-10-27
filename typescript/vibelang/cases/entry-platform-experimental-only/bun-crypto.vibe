@@ -1,0 +1,11 @@
+// A main that needs only the experimental Crypto (D313) gets the experimental
+// bundle from its platform import (D312): the experimental service has its
+// own identity, so Effect's NodeServices.layer does not count as providing it.
+import "vibelang/platform/bun"
+import { hex } from "./hex.vibe"
+
+export function main() {
+  const key = Redacted.make(new TextEncoder().encode("Jefe"))
+  const mac = Experimental.Crypto.hmac("SHA-256", key, new TextEncoder().encode("what do ya want for nothing?"))
+  Console.log(`bun crypto ${hex(mac)}`)
+}

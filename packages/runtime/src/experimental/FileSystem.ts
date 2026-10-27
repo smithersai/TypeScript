@@ -3,7 +3,8 @@
  * `executable`, `open` with `nonBlocking`, and `File.chmod` (D313). Effect
  * 4.0.6 has `lstat` itself.
  *
- * The service has its own key and a superset of Effect's interface. The
+ * The service has its own key and identity, and its implementation,
+ * `Service`, is a superset of Effect's interface. The
  * layers in `vibelang-runtime/experimental/platform-node` and `-bun` provide
  * it and Effect's `FileSystem` from one implementation: Effect's own, plus the
  * three additions. Browsers have no file system layer, as in Effect. When
@@ -33,12 +34,13 @@ export interface File extends EffectFileSystem.File {
 }
 
 /**
- * Effect's `FileSystem` plus `access(path, { executable })`,
- * `open(path, { nonBlocking })` and `File.chmod`.
+ * The implementation: Effect's `FileSystem` plus
+ * `access(path, { executable })`, `open(path, { nonBlocking })` and
+ * `File.chmod`.
  *
  * @since 0.0.11
  */
-export interface FileSystem extends EffectFileSystem.FileSystem {
+export interface Service extends EffectFileSystem.FileSystem {
   /**
    * Checks whether a file can be accessed. `executable` also checks that the
    * caller may run it (`X_OK`); on Windows it checks only that the file
@@ -73,13 +75,17 @@ export interface FileSystem extends EffectFileSystem.FileSystem {
 }
 
 /**
- * The service key, distinct from Effect's `FileSystem.FileSystem`.
+ * The service key, declared as Effect declares a class service: the type
+ * `FileSystem` is the requirement, whose identity is its key, distinct from
+ * Effect's `FileSystem.FileSystem`, and `Service` is the implementation.
+ * `Service` extends Effect's interface and `FileSystem` does not, so a layer
+ * of Effect's `FileSystem` never satisfies a requirement for this one.
  *
  * @since 0.0.11
  */
-export const FileSystem: Context.Service<FileSystem, FileSystem> = /* @__PURE__ */ Context.Service(
-  "vibelang/experimental/FileSystem"
-)
+export class FileSystem
+  extends /* @__PURE__ */ Context.Service<FileSystem, Service>()("vibelang/experimental/FileSystem")
+{}
 
 /**
  * Extends an Effect `FileSystem` with a platform's implementation of the
@@ -89,8 +95,8 @@ export const FileSystem: Context.Service<FileSystem, FileSystem> = /* @__PURE__ 
  */
 export const make = (
   fileSystem: EffectFileSystem.FileSystem,
-  impl: Pick<FileSystem, "access" | "open">
-): FileSystem => FileSystem.of({ ...fileSystem, ...impl })
+  impl: Pick<Service, "access" | "open">
+): Service => FileSystem.of({ ...fileSystem, ...impl })
 
 const notFound = (method: string, path: string) =>
   PlatformError.systemError({
@@ -107,7 +113,7 @@ const notFound = (method: string, path: string) =>
  *
  * @since 0.0.11
  */
-export const makeNoop = (fileSystem: Partial<FileSystem>): FileSystem => {
+export const makeNoop = (fileSystem: Partial<Service>): Service => {
   const { open, ...rest } = fileSystem
   const noop = EffectFileSystem.makeNoop(rest)
   return make(noop, {
@@ -123,7 +129,7 @@ export const makeNoop = (fileSystem: Partial<FileSystem>): FileSystem => {
  * @since 0.0.11
  */
 export const layerNoop = (
-  fileSystem: Partial<FileSystem>
+  fileSystem: Partial<Service>
 ): Layer.Layer<FileSystem | EffectFileSystem.FileSystem> => {
   const noop = makeNoop(fileSystem)
   return Layer.mergeAll(Layer.succeed(FileSystem, noop), Layer.succeed(EffectFileSystem.FileSystem, noop))

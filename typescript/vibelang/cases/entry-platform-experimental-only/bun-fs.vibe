@@ -1,0 +1,7 @@
+// A main that needs only the experimental FileSystem (D313).
+import "vibelang/platform/bun"
+
+export function main() {
+  Experimental.FileSystem.access("package.json", { executable: false })
+  Console.log("bun fs accessible")
+}

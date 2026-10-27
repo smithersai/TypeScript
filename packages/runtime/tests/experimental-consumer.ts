@@ -1,5 +1,6 @@
 // Compile a consumer of the experimental exports (D313) against the emitted .d.ts files.
 import * as EffectCrypto from "effect/Crypto"
+import * as EffectNodeServices from "@effect/platform-node/NodeServices"
 import * as Effect from "effect/Effect"
 import * as EffectFileSystem from "effect/FileSystem"
 import type * as Layer from "effect/Layer"
@@ -19,12 +20,12 @@ const sameFileSystem: typeof FileSystemModule = Experimental.FileSystem
 const sameCrypto: typeof CryptoModule = Crypto
 void [sameFileSystem, sameCrypto]
 
-// The experimental services are supersets of Effect's.
-const asEffectFileSystem = (fs: FileSystem.FileSystem): EffectFileSystem.FileSystem => fs
+// The experimental implementations are supersets of Effect's.
+const asEffectFileSystem = (fs: FileSystem.Service): EffectFileSystem.FileSystem => fs
 const asEffectFile = (file: FileSystem.File): EffectFileSystem.File => file
-const asEffectCrypto = (crypto: Crypto.Crypto): EffectCrypto.Crypto => crypto
+const asEffectCrypto = (crypto: Crypto.Service): EffectCrypto.Crypto => crypto
 // @ts-expect-error Effect's service lacks the experimental members.
-const notExperimental = (fs: EffectFileSystem.FileSystem): FileSystem.FileSystem => fs
+const notExperimental = (fs: EffectFileSystem.FileSystem): FileSystem.Service => fs
 void [asEffectFileSystem, asEffectFile, asEffectCrypto, notExperimental]
 
 const program = Effect.gen(function*() {
@@ -56,3 +57,11 @@ const cryptoLayers: ReadonlyArray<Layer.Layer<Crypto.Crypto | EffectCrypto.Crypt
 const bundles: ReadonlyArray<Layer.Layer<NodeServices.NodeServices | BunServices.BunServices>> = [NodeServices.layer, BunServices.layer]
 const run: Effect.Effect<readonly [EffectFileSystem.File.Info, boolean], PlatformError.PlatformError> = Effect.scoped(Effect.provide(program, NodeServices.layer))
 void [layers, cryptoLayers, bundles, run]
+
+// The experimental requirements have identities of their own: Effect's
+// bundle provides Effect's FileSystem and Crypto, which leaves them.
+type Requirements<T> = T extends Effect.Effect<infer _A, infer _E, infer R> ? R : never
+type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false
+const leftByEffect = Effect.provide(program, EffectNodeServices.layer)
+const left: Same<Requirements<typeof leftByEffect>, FileSystem.FileSystem | Crypto.Crypto | Scope.Scope> = true
+void left
