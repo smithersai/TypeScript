@@ -1,6 +1,7 @@
 import { Cause, Effect, Exit, Scope } from "effect"
 import * as K from "./kernel/kernel.js"
 import { $direct } from "./fastcalls.js"
+import { holdingInterruption } from "./resources.js"
 
 export const $normal = { kind: "normal" } as const
 
@@ -43,29 +44,39 @@ export const $region = <A, E, R>(body: (scope: Scope.Scope) => Effect.Effect<A, 
 
 /**
  * `using x = acquire()`: only this acquisition sees the block's Scope (D14,
- * Codex R8). The acquisition keeps the interruptibility its own
- * `acquireRelease` gives it (D25), so it runs under `restore`, with a Scope
- * of its own inside the block's. Once its value reaches `$using`, the block's
- * release of it is registered with interruption masked: `[Symbol.dispose]()`
- * for a Disposable from either kind of acquisition (D94), and an awaited
+ * Codex R8), through a Scope of its own inside the block's. Once its value
+ * arrives, the block's release of it is registered: `[Symbol.dispose]()` for
+ * a Disposable from either kind of acquisition (D94), and an awaited
  * `[Symbol.asyncDispose]()` for an AsyncDisposable without `Symbol.dispose`
  * whose acquisition registered no release of its own. A resource that
  * releases itself, such as an `acquireRelease`, is never released again
  * asynchronously.
  *
- * An interruption that arrives while the acquisition is masked is delivered
- * as that mask ends, inside `restore`. When the mask ends the acquisition,
- * the value never reaches `$using` and the block does not release it (the
- * pending case scopes-using-pending-interrupt; D25's note of 2026-10-23).
+ * Unless `hold` is false, interruption is held off from the start of the
+ * initializer until that release is registered, so an interruption that
+ * arrives while the initializer runs lands after it, and the block releases
+ * the value (D425, scopes-using-pending-interrupt). An acquisition with
+ * `{ interruptible: true }` inside the initializer still runs its acquire
+ * step with the interruptibility the code around the `using` had (D401,
+ * resources.ts). The compiler passes `hold: false` when the value's type
+ * admits only primitives, `null`, and `undefined`, which `using` never
+ * releases; then the acquisition's own policy alone decides (D25). The
+ * content mapper, which reads no types, passes no options.
  */
-export const $using = <A, E, R>(scope: Scope.Scope, acquire: Effect.Effect<A, E, R>): Effect.Effect<A, E, Exclude<R, Scope.Scope>> =>
-  Effect.uninterruptibleMask((restore) => {
+export const $using = <A, E, R>(
+  scope: Scope.Scope,
+  acquire: Effect.Effect<A, E, R>,
+  options?: { readonly hold?: boolean }
+): Effect.Effect<A, E, Exclude<R, Scope.Scope>> => {
+  const take = () => {
     const own = Scope.forkUnsafe(scope)
-    return Effect.tap(restore(Scope.provide(acquire, own)), (value: unknown) => {
+    return Effect.tap(Scope.provide(acquire, own), (value: unknown) => {
       const release = disposal(value, own.state._tag !== "Empty")
       return release === undefined ? Effect.void : Scope.addFinalizer(scope, release)
     })
-  })
+  }
+  return options?.hold === false ? Effect.suspend(take) : holdingInterruption(take)
+}
 
 /**
  * The block's release of a `using` value, or undefined when it has none:

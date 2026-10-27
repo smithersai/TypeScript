@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, Scope } from "effect"
 import {
   $catchExpression, $catchCause, $failureOf, $finallyExit, $fork,
-  $isFailure, $noFailure, $provideService, $region, $service, $using,
+  $isFailure, $noFailure, $provideService, $region, $service, $using, acquireRelease,
   interrupt, interruptible, restore, uninterruptible, wire, yieldNow
 } from "vibelang-runtime"
 
@@ -91,19 +91,18 @@ test("a region closes children before earlier using resources", async () => {
 })
 
 for (const masked of [true, false]) {
-  // Masked: the interruption stays pending while acquireRelease's mask is on
-  // and is delivered as that mask ends, inside $using's restore and before
-  // the value reaches $using, so Symbol.dispose is never registered; the
-  // resource's own release still runs. Registering inside that mask needs
-  // $using to mask the acquisition, and then the interruptible case would
-  // wait for its gate (D25). Open; see D25's note of 2026-10-23.
-  const check = masked ? test.skip : test
-  check(`using ${masked ? "masked (pending interrupt preempts Disposable registration)" : "interruptible"} acquisition handles cancellation without leaking`, async () => {
+  // $using holds interruption off around the initializer (D425). Masked: the
+  // interruption waits for the acquisition and lands after the Disposable's
+  // release is registered, so both releases run. Interruptible: the
+  // runtime's acquireRelease runs its acquire step with the interruptibility
+  // the code around the using had (D401), so the interruption reaches the
+  // wait, and nothing is acquired.
+  test(`using ${masked ? "masked" : "interruptible"} acquisition handles cancellation without leaking`, async () => {
     const events: string[] = []
     await Effect.runPromise(Effect.gen(function*() {
       const entered = yield* Deferred.make<void>()
       const gate = yield* Deferred.make<void>()
-      const acquire = Effect.acquireRelease(Effect.gen(function*() {
+      const acquire = acquireRelease(Effect.gen(function*() {
         yield* Deferred.succeed(entered, undefined)
         yield* Deferred.await(gate)
         events.push("acquired")
@@ -120,6 +119,92 @@ for (const masked of [true, false]) {
       expect(Exit.isFailure(exit) && exit.cause.reasons.some(Cause.isInterruptReason)).toBe(true)
     }))
     expect(events).toEqual(masked ? ["acquired", "disposed", "released"] : [])
+  })
+}
+
+// D425: an interruption that arrives while a held initializer runs, in its
+// own mask or in a wait, lands after the value's release is registered, and
+// the value is disposed (scopes-using-pending-interrupt).
+for (const ending of ["in its own mask", "in a wait"]) {
+  test(`using registers the disposal of an initializer interrupted ${ending} before the interruption lands`, async () => {
+    const events: string[] = []
+    await Effect.runPromise(Effect.gen(function*() {
+      const entered = yield* Deferred.make<void>()
+      const gate = yield* Deferred.make<void>()
+      const open = Effect.gen(function*() {
+        yield* Deferred.succeed(entered, undefined)
+        yield* Deferred.await(gate)
+        events.push("acquired")
+        return { [Symbol.dispose]() { events.push("disposed") } }
+      })
+      const initializer = ending === "in its own mask" ? Effect.uninterruptible(open) : open
+      const child = yield* Effect.forkChild($region(scope => Effect.andThen($using(scope, initializer, { hold: true }), Effect.sync(() => { events.push("body") }))))
+      yield* Deferred.await(entered)
+      child.interruptUnsafe(98765)
+      expect(child.pollUnsafe()).toBeUndefined()
+      yield* Deferred.succeed(gate, undefined)
+      const exit = yield* Fiber.await(child)
+      expect(Exit.isFailure(exit) && exit.cause.reasons.some(Cause.isInterruptReason)).toBe(true)
+    }))
+    expect(events).toEqual(["acquired", "disposed"])
+  })
+}
+
+// hold: false, for a value that can only be a primitive: the initializer's
+// own policy decides, so the interruption reaches its wait (D25).
+test("using with hold: false leaves an initializer's wait interruptible", async () => {
+  const events: string[] = []
+  await Effect.runPromise(Effect.gen(function*() {
+    const entered = yield* Deferred.make<void>()
+    const initializer = Effect.andThen(Deferred.succeed(entered, undefined), Effect.andThen(Effect.never, Effect.sync(() => events.push("acquired"))))
+    const child = yield* Effect.forkChild($region(scope => $using(scope, initializer, { hold: false })))
+    yield* Deferred.await(entered)
+    yield* Fiber.interrupt(child)
+  }))
+  expect(events).toEqual([])
+})
+
+// The hold ends when the owner is settled: the block's body stays interruptible.
+test("using leaves the block's body interruptible", async () => {
+  const events: string[] = []
+  await Effect.runPromise(Effect.gen(function*() {
+    const entered = yield* Deferred.make<void>()
+    const child = yield* Effect.forkChild($region(scope => Effect.gen(function*() {
+      yield* $using(scope, Effect.sync(() => ({ [Symbol.dispose]() { events.push("disposed") } })), { hold: true })
+      yield* Deferred.succeed(entered, undefined)
+      return yield* Effect.never
+    })))
+    yield* Deferred.await(entered)
+    yield* Fiber.interrupt(child)
+  }))
+  expect(events).toEqual(["disposed"])
+})
+
+// D401: a mask written inside the initializer masks an interruptible acquire
+// step there, as it does outside using; a nested using's acquisition keeps
+// the interruptibility of the code around the outer using.
+for (const inner of ["uninterruptible", "nested using"]) {
+  test(`an interruptible acquisition inside ${inner} in a using initializer is ${inner === "uninterruptible" ? "masked" : "cancelled"} as outside using`, async () => {
+    const events: string[] = []
+    await Effect.runPromise(Effect.gen(function*() {
+      const entered = yield* Deferred.make<void>()
+      const gate = yield* Deferred.make<void>()
+      const acquire = acquireRelease(Effect.gen(function*() {
+        yield* Deferred.succeed(entered, undefined)
+        yield* Deferred.await(gate)
+        events.push("acquired")
+        return { name: "socket" }
+      }), () => Effect.sync(() => { events.push("released") }), { interruptible: true })
+      const initializer = inner === "uninterruptible"
+        ? uninterruptible(acquire)
+        : $region(scope => $using(scope, acquire, { hold: true }))
+      const child = yield* Effect.forkChild($region(scope => $using(scope, initializer, { hold: true })))
+      yield* Deferred.await(entered)
+      child.interruptUnsafe(98765)
+      yield* Deferred.succeed(gate, undefined)
+      yield* Fiber.await(child)
+    }))
+    expect(events).toEqual(inner === "uninterruptible" ? ["acquired", "released"] : [])
   })
 }
 

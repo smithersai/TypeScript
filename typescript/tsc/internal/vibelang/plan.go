@@ -154,6 +154,7 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 					p.noteStable(c, layer.node) // a layer a spread lists (wire.go)
 				}
 			}
+			p.planAcquisitionReference(c, node)
 			p.planExhaustiveMatch(c, node) // D294 (match_lower.go)
 			p.planVariantTest(c, node)     // D307 (data_lower.go)
 			node.ForEachChild(visit)

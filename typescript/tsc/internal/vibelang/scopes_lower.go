@@ -2,6 +2,7 @@ package vibelang
 
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 // scopePlan records the Scope regions of one file (scopes.go).
@@ -12,10 +13,13 @@ type scopePlan struct {
 	usings      map[*ast.Node]bool      // using statements in those blocks
 	forks       map[*ast.Node]*ast.Node // fork calls, mapped to the region that owns the fiber (ownerRegion)
 	usingLoops  map[*ast.Node]bool      // for (using x of values) statements, and for (using x = v; ...) statements under their labels
+	usingHolds  map[*ast.Node]bool      // using declarations whose value may be an object, around whose initializer using holds interruption off (D425)
+	recording   map[*ast.Node]string    // references to Effect's acquireRelease or acquireDisposable, which denote the runtime's (D401)
+	renamed     map[string]bool         // local names that an import gives acquireRelease or acquireDisposable, or nil before the file's imports are read
 }
 
 func newScopePlan() scopePlan {
-	return scopePlan{scopeBlocks: map[*ast.Node]bool{}, scopeBodies: map[*ast.Node]bool{}, scopeLoops: map[*ast.Node]bool{}, usings: map[*ast.Node]bool{}, forks: map[*ast.Node]*ast.Node{}, usingLoops: map[*ast.Node]bool{}}
+	return scopePlan{scopeBlocks: map[*ast.Node]bool{}, scopeBodies: map[*ast.Node]bool{}, scopeLoops: map[*ast.Node]bool{}, usings: map[*ast.Node]bool{}, forks: map[*ast.Node]*ast.Node{}, usingLoops: map[*ast.Node]bool{}, usingHolds: map[*ast.Node]bool{}, recording: map[*ast.Node]string{}}
 }
 
 // planScopes records the Scope regions of fn, a function the lowering turns
@@ -29,10 +33,13 @@ func (p *scopePlan) planScopes(a *analyzer, fn *ast.Node) {
 		case isBlockUsing(node):
 			p.scopeBlocks[node.Parent] = true
 			p.usings[node] = true
+			p.planUsingDeclarations(a.checker, node.AsVariableStatement().DeclarationList)
 		case isUsingForOf(node):
 			p.usingLoops[node] = true
+			p.planUsingDeclarations(a.checker, node.AsForInOrOfStatement().Initializer)
 		case isUsingFor(node):
 			p.usingLoops[outermostLabel(node)] = true
+			p.planUsingDeclarations(a.checker, node.AsForStatement().Initializer)
 		case node.Kind == ast.KindCallExpression:
 			if owner := a.forkOwner(node); owner != nil {
 				switch {
@@ -51,6 +58,124 @@ func (p *scopePlan) planScopes(a *analyzer, fn *ast.Node) {
 	if body := fn.Body(); body != nil {
 		visit(body)
 	}
+}
+
+// planAcquisitionReference records node when it is a reference to Effect's
+// Effect.acquireRelease or Effect.acquireDisposable, a call's callee or a
+// value, that resolves to Effect's declaration through any import alias
+// (rule H4). In VibeLang code such a reference denotes the runtime's form of
+// the acquisition, which also records the value whose release it registered,
+// so using adds no second release (D401). Hatches and module blocks are
+// TypeScript, which calls the runtime's forms itself.
+func (p *scopePlan) planAcquisitionReference(c *checker.Checker, node *ast.Node) {
+	switch {
+	case ast.IsPropertyAccessExpression(node):
+		if !ast.IsIdentifier(node.Name()) || !isAcquisitionName(node.Name().Text()) {
+			return
+		}
+	case ast.IsIdentifier(node):
+		if !isAcquisitionName(node.Text()) && !p.renamedAcquisitions(ast.GetSourceFileOfNode(node))[node.Text()] {
+			return
+		}
+		if !ast.IsExpressionNode(node) || ast.IsRightSideOfQualifiedNameOrPropertyAccess(node) || ast.IsDeclarationName(node) {
+			return
+		}
+	default:
+		return
+	}
+	if ast.IsPartOfTypeNode(node) || inHatch(node) || inModuleBlock(node) {
+		return
+	}
+	if module, name := effectFunctionOf(c, node); module == "Effect" && (name == "acquireRelease" || name == "acquireDisposable") {
+		p.recording[node] = name
+	}
+}
+
+func isAcquisitionName(name string) bool {
+	return name == "acquireRelease" || name == "acquireDisposable"
+}
+
+// renamedAcquisitions returns the local names that file's imports give an
+// export named acquireRelease or acquireDisposable, which the checker then
+// resolves: import { acquireRelease as acquire } from "effect/Effect".
+func (p *scopePlan) renamedAcquisitions(file *ast.SourceFile) map[string]bool {
+	if p.renamed != nil {
+		return p.renamed
+	}
+	p.renamed = map[string]bool{}
+	for _, statement := range file.Statements.Nodes {
+		if !ast.IsImportDeclaration(statement) || statement.AsImportDeclaration().ImportClause == nil {
+			continue
+		}
+		bindings := statement.AsImportDeclaration().ImportClause.AsImportClause().NamedBindings
+		if bindings == nil || !ast.IsNamedImports(bindings) {
+			continue
+		}
+		for _, specifier := range bindings.AsNamedImports().Elements.Nodes {
+			if imported := specifier.AsImportSpecifier().PropertyName; imported != nil && isAcquisitionName(imported.Text()) {
+				p.renamed[specifier.Name().Text()] = true
+			}
+		}
+	}
+	return p.renamed
+}
+
+// visitAcquisitionReference lowers node, a reference to Effect's
+// acquireRelease or acquireDisposable, to the runtime's (D401).
+func (tx *lowering) visitAcquisitionReference(node *ast.Node) *ast.Node {
+	reference := tx.runtimeMember(tx.plan.recording[node])
+	tx.EmitContext().SetOriginal(reference, node)
+	reference.Loc = node.Loc
+	return reference
+}
+
+// planUsingDeclarations records, for each declaration of list, a using
+// declaration list, whether its value may be an object (D425).
+func (p *scopePlan) planUsingDeclarations(c *checker.Checker, list *ast.Node) {
+	for _, declaration := range list.AsVariableDeclarationList().Declarations.Nodes {
+		if valueMayBeObject(c.GetTypeAtLocation(declaration.Name())) {
+			p.usingHolds[declaration] = true
+		}
+	}
+}
+
+// valueMayBeObject reports whether a value of type t may be an object, which
+// may carry a disposal method: true unless t admits only null, undefined,
+// void, never, and primitive types (D425). object, unknown, any, a type
+// parameter, and an object type that declares no disposal method may all be
+// an object at run time.
+func valueMayBeObject(t *checker.Type) bool {
+	if t == nil {
+		return true
+	}
+	members := []*checker.Type{t}
+	if t.Flags()&checker.TypeFlagsUnion != 0 {
+		members = t.Types()
+	}
+	const primitive = checker.TypeFlagsNullable | checker.TypeFlagsVoid | checker.TypeFlagsNever | checker.TypeFlagsStringLike |
+		checker.TypeFlagsNumberLike | checker.TypeFlagsBigIntLike | checker.TypeFlagsBooleanLike | checker.TypeFlagsESSymbolLike
+	for _, member := range members {
+		if member.Flags()&primitive == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// usingCall returns the runtime's $using of initializer, the initializer of
+// declaration, with the region's scope. Unless the value can only be a
+// primitive, null, or undefined, $using holds interruption off from the
+// start of the initializer until the value's owner is settled (D425).
+func (tx *lowering) usingCall(scope *ast.Node, declaration *ast.Node, initializer *ast.Node) *ast.Node {
+	f := tx.Factory()
+	hold := f.NewKeywordExpression(ast.KindFalseKeyword)
+	if tx.plan.usingHolds[declaration] {
+		hold = f.NewKeywordExpression(ast.KindTrueKeyword)
+	}
+	options := f.NewObjectLiteralExpression(f.NewNodeList([]*ast.Node{
+		f.NewPropertyAssignment(nil /*modifiers*/, f.NewIdentifier("hold"), nil /*postfixToken*/, nil /*typeNode*/, hold),
+	}), false /*multiLine*/)
+	return tx.runtimeCall("$using", scope, initializer, options)
 }
 
 // scoped reports whether the lowering of node belongs to a Scope region: node
@@ -227,7 +352,7 @@ func (tx *lowering) visitUsing(node *ast.Node) *ast.Node {
 	}
 	var declarations []*ast.Node
 	for _, declaration := range node.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
-		value := f.NewYieldExpression(f.NewToken(ast.KindAsteriskToken), tx.runtimeCall("$using", scope, tx.acquisition(declaration.Initializer())))
+		value := f.NewYieldExpression(f.NewToken(ast.KindAsteriskToken), tx.usingCall(scope, declaration, tx.acquisition(declaration.Initializer())))
 		declarations = append(declarations, f.NewVariableDeclaration(tx.Visitor().VisitNode(declaration.Name()), nil /*exclamationToken*/, nil /*typeNode*/, value))
 	}
 	statement := f.NewVariableStatement(nil /*modifiers*/, f.NewVariableDeclarationList(f.NewNodeList(declarations), ast.NodeFlagsConst))
@@ -341,7 +466,7 @@ func (tx *lowering) usingIteration(r *region, node *ast.Node, value *ast.Node) *
 	scope := tx.scopeName(body)
 	saved := tx.frame
 	tx.frame = &frame{name: saved.name, region: r, handleClause: saved.handleClause}
-	using := f.NewYieldExpression(f.NewToken(ast.KindAsteriskToken), tx.runtimeCall("$using", scope, tx.succeed(value)))
+	using := f.NewYieldExpression(f.NewToken(ast.KindAsteriskToken), tx.usingCall(scope, declaration, tx.succeed(value)))
 	statements := []*ast.Node{f.NewVariableStatement(nil /*modifiers*/, f.NewVariableDeclarationList(f.NewNodeList([]*ast.Node{
 		f.NewVariableDeclaration(tx.Visitor().VisitNode(declaration.Name()), nil /*exclamationToken*/, nil /*typeNode*/, using),
 	}), ast.NodeFlagsConst))}
@@ -388,7 +513,7 @@ func (tx *lowering) visitUsingFor(node *ast.Node) *ast.Node {
 	tx.frame = &frame{name: saved.name, region: r, handleClause: saved.handleClause}
 	var declarations []*ast.Node
 	for _, declaration := range statement.Initializer.AsVariableDeclarationList().Declarations.Nodes {
-		value := f.NewYieldExpression(f.NewToken(ast.KindAsteriskToken), tx.runtimeCall("$using", scope, tx.acquisition(declaration.Initializer())))
+		value := f.NewYieldExpression(f.NewToken(ast.KindAsteriskToken), tx.usingCall(scope, declaration, tx.acquisition(declaration.Initializer())))
 		declarations = append(declarations, f.NewVariableDeclaration(tx.Visitor().VisitNode(declaration.Name()), nil /*exclamationToken*/, nil /*typeNode*/, value))
 	}
 	using := f.NewVariableStatement(nil /*modifiers*/, f.NewVariableDeclarationList(f.NewNodeList(declarations), ast.NodeFlagsConst))

@@ -81,6 +81,8 @@ export const {
   Scope,
   TaggedError,
   abandon,
+  acquireDisposable,
+  acquireRelease,
   attempt,
   callback,
   customMatcher,

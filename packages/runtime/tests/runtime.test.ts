@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Cause, Context, Deferred, Fiber, Stream } from "effect"
 import {
-  $bind, $catch, $caught, $control, $expected, $finally, $finallyFailure, $joinedFrame, $plainOf, $plainSync, $fork, $forOf, $normal,
+  $bind, $catch, $caught, $control, $expected, $finally, $finallyFailure, $joinedFrame, $plainOf, $plainSync, $fork, $forOf, $normal, acquireRelease,
   $produce, $program, $programs, $reference, $region, $service, $tailResume,
   $tailResumeWith, $trusted, $trustedPlain, $using, $yield, $yieldAll, abandon, Control,
   $direct, Effect, Exit, fork, handle, handoff, Layer, pipe, resume,
@@ -193,9 +193,9 @@ test("fork: exiting a block interrupts its child and waits for cleanup", async (
   await Effect.runPromise(Effect.scoped(Effect.asVoid(fork(Effect.void))))
 })
 
-test("regions: using keeps each acquisition's own interruptibility (D25)", async () => {
+test("regions: using keeps each acquisition's own interruptibility (D25, D401)", async () => {
   const events: string[] = []
-  const slow = (interruptible: boolean) => Effect.acquireRelease(
+  const slow = (interruptible: boolean) => acquireRelease(
     Effect.andThen(Effect.sleep("20 millis"), Effect.sync(() => { events.push(`acquired:${interruptible}`) })),
     () => Effect.sync(() => { events.push(`released:${interruptible}`) }),
     { interruptible }

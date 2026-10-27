@@ -1,9 +1,18 @@
-// A Disposable made in a masked section that ends a using acquisition is
-// released when an interruption arrives during that section (D25, D94).
-// Pending: the interruption is delivered as the mask ends, before using
-// registers [Symbol.dispose](), so this prints ["acquired"].
-// expect-result: ["acquired","disposed"]
+// No interruption separates a using value from its release (D401, D425).
+// When the initializer can pause and its value may be an object, using holds
+// interruption off from the initializer's start until the value's owner is
+// settled, so an interruption that arrives meanwhile lands after the release
+// is registered, and the value is released: an initializer that ends in its
+// own mask ("ending"), one that waits ("waiting"), and one whose value is
+// typed object ("widened"). An acquisition with { interruptible: true } keeps
+// that policy for its acquire step inside the hold, here through a wrapper:
+// the interruption reaches its wait, and nothing is acquired ("interruptible").
+// expect-result: {"ending":["acquired","disposed"],"waiting":["acquired","disposed"],"widened":["acquired","disposed"],"interruptible":[]}
 export function main() {
+  return { ending: endingInMask(), waiting: waiting(), widened: widened(), interruptible: interruptible() }
+}
+
+function endingInMask() {
   const events: string[] = []
   const entered = Deferred.make<void>()
   const gate = Deferred.make<void>()
@@ -15,6 +24,90 @@ export function main() {
       events.push("acquired")
       return { [Symbol.dispose](): void { events.push("disposed") } }
     })
+    events.push("body")
+  }
+
+  const child = Effect.forkChild(work())
+  Deferred.await(entered)
+  child.interruptUnsafe(98765)
+  Deferred.succeed(gate, undefined)
+  Fiber.await(child)
+  return events
+}
+
+function waiting() {
+  const events: string[] = []
+  const entered = Deferred.make<void>()
+  const gate = Deferred.make<void>()
+
+  function open() {
+    Deferred.succeed(entered, undefined)
+    Deferred.await(gate)
+    events.push("acquired")
+    return { [Symbol.dispose](): void { events.push("disposed") } }
+  }
+
+  function work() {
+    using resource = open()
+    events.push("body")
+  }
+
+  const child = Effect.forkChild(work())
+  Deferred.await(entered)
+  child.interruptUnsafe(98765)
+  Deferred.succeed(gate, undefined)
+  Fiber.await(child)
+  return events
+}
+
+function widened() {
+  const events: string[] = []
+  const entered = Deferred.make<void>()
+  const gate = Deferred.make<void>()
+
+  function open(): object!! {
+    Deferred.succeed(entered, undefined)
+    Deferred.await(gate)
+    events.push("acquired")
+    return { [Symbol.dispose](): void { events.push("disposed") } }
+  }
+
+  function work() {
+    using resource = open()
+    events.push("body")
+  }
+
+  const child = Effect.forkChild(work())
+  Deferred.await(entered)
+  child.interruptUnsafe(98765)
+  Deferred.succeed(gate, undefined)
+  Fiber.await(child)
+  return events
+}
+
+function interruptible() {
+  const events: string[] = []
+  const entered = Deferred.make<void>()
+  const gate = Deferred.make<void>()
+
+  function connect() {
+    return Effect.acquireRelease(
+      () => {
+        Deferred.succeed(entered, undefined)
+        Deferred.await(gate)
+        events.push("acquired")
+        return { socket: "open" }
+      },
+      () => {
+        events.push("released")
+      },
+      { interruptible: true }
+    )
+  }
+
+  function work() {
+    using resource = connect()
+    events.push("body")
   }
 
   const child = Effect.forkChild(work())

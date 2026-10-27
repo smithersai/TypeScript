@@ -25,6 +25,9 @@ export * from "./match.js"
 export * from "./main.js"
 export * from "./prelude.js"
 
+// Effect's acquisitions, as `using` adopts their releases (D401).
+export { acquireDisposable, acquireRelease } from "./resources.js"
+
 // TypeScript adapters for asynchronous sources (D43).
 export { suspend, handoff, HandoffProtocolViolation, type Resumer } from "./kernel/kernel.js"
 

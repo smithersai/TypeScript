@@ -262,6 +262,8 @@ func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 		return tx.visitTrustedCall(node)
 	case isInvocation(node) && tx.plain && tx.plan.trusted[node] != nil:
 		return tx.visitTrustedPlainCall(node)
+	case tx.plan.recording[node] != "":
+		return tx.visitAcquisitionReference(node) // Effect's acquireRelease, as the runtime's (D401, scopes_lower.go)
 	case node.Kind == ast.KindPropertyAccessExpression && tx.inEffect && tx.plan.looksUp(node):
 		return tx.visitServiceLookup(node)
 	case node.Kind == ast.KindPropertyAccessExpression && tx.plan.aliases[node] != "":
