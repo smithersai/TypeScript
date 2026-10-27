@@ -75,8 +75,11 @@ function interrupted() {
     join [slow, bad]
     return false
   } catch (e) {
-    const exit = sync((slow): Exit.Exit<string> | undefined => slow.pollUnsafe(), slow)
-    return exit !== undefined && exit._tag === "Failure" && exit.cause.reasons.some((reason) => reason._tag === "Interrupt")
+    // join has already interrupted slow, so Fiber.await returns at once.
+    // A Fiber function keeps an owned fiber in its region; passing it to
+    // another call, such as a hatch, would be EK4838 (D409).
+    const exit = Fiber.await(slow)
+    return Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause)
   }
 }
 

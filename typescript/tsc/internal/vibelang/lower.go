@@ -46,6 +46,9 @@ type lowering struct {
 
 	// scopes maps each Scope region's block to the name of its Scope (scopes_lower.go).
 	scopes map[*ast.Node]*ast.Node
+	// loopRegion is the loop body visitScopeLoopBody is lowering inside its
+	// region, so that visiting it there lowers the statement itself.
+	loopRegion *ast.Node
 
 	// modules maps an effect module, such as effect/Stream, to the local name
 	// of its namespace import, for method calls (datamethods.go).
@@ -234,6 +237,10 @@ func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 		return tx.visitBuiltinTest(node, tx.plan.builtinTests[node]) // String, Option.None (match_builtins.go)
 	case node.Kind == ast.KindCallExpression && tx.plan.methods[node].module != "":
 		return tx.visitModuleMethodCall(node)
+	// A loop body that is not a block and owns a fork is the region of one
+	// iteration (D408).
+	case tx.inEffect && tx.plan.scopeLoops[node] && tx.loopRegion != node:
+		return tx.visitScopeLoopBody(node)
 	// A provide block may also own using resources or forked fibers. Keep
 	// provision outside its Scope region; regionStatements lowers that region.
 	case tx.inEffect && isProvideBlock(node):
@@ -709,8 +716,11 @@ func (tx *lowering) loweredBody(node *ast.Node) (*ast.NodeList, *ast.Node) {
 	parameters := ec.VisitParameters(node.ParameterList(), tx.Visitor())
 	tx.inEffect = true
 	tx.frame = &frame{name: sourceName(node), clause: tx.plan.resumesInTail(node)}
+	var scope *ast.Node
+	if tx.plan.scopeBodies[node.Body()] {
+		scope = tx.scopeName(node.Body()) // an expression body that owns forks (D353), named before its forks are visited
+	}
 	body := ec.VisitFunctionBody(node.Body(), tx.Visitor())
-	tx.inEffect, tx.frame, tx.plain = saved, savedFrame, savedPlain
 	if !ast.IsBlock(body) {
 		body = ec.ConvertToFunctionBlock(body, false /*multiLine*/)
 		// The printer emits the comments before the closing brace from the end
@@ -718,6 +728,10 @@ func (tx *lowering) loweredBody(node *ast.Node) (*ast.NodeList, *ast.Node) {
 		// the comment after the arrow would also appear inside the block.
 		body.AsBlock().Statements.Loc = core.UndefinedTextRange()
 	}
+	if scope != nil {
+		body = tx.scopeBody(node.Body(), scope, body)
+	}
+	tx.inEffect, tx.frame, tx.plain = saved, savedFrame, savedPlain
 	return parameters, body
 }
 

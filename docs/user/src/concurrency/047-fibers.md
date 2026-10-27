@@ -175,7 +175,7 @@ function printAll(ids: ReadonlyArray<string>) {
 ```vibe
 // run: request()
 function request() {
-  {
+  try {
     const progress = fork {
       try {
         sleep("1 minute")
@@ -183,16 +183,16 @@ function request() {
         Console.log("progress reporter stopped")
       }
     }
-    sleep("20 millis")
-    // The nested block owns progress, even without a join.
+    sleep("20 millis") // the try block owns progress, even without a join
+  } finally {
+    Console.log("request finishing")
   }
-  Console.log("request finishing")
 }
 // Output: progress reporter stopped
 // Output: request finishing
 ```
 
-`fork` belongs to its enclosing block: leaving the block interrupts unfinished children and waits for their cleanup. For ownership by the parent fiber instead of the lexical block, use `Effect.forkChild`.
+`fork` belongs to the innermost region the source names around it: a function body, an arrow function's expression body included, one iteration of a loop, a `try`, `catch`, or `finally` block, a block that declares `using`, or a `provide` or mask block. Leaving the region interrupts unfinished children and waits for their cleanup. Braces alone own nothing, so a `fork` in an `if` branch or a bare block lives until the function body exits, with or without the braces. For ownership by the parent fiber instead, use `Effect.forkChild`.
 
 Forked fibers inherit the current services and tracing context. Control-operation handlers belong to one fiber, so handle those operations inside each child that performs them.
 
@@ -217,7 +217,7 @@ function detachedExample() {
 
 `forkIn(scope, program)` attaches the child to a scope you hold; it lives until that scope closes. `detach(program)` ties the child to nothing: it survives its parent and needs an explicit shutdown strategy (the example joins it to stay bounded). `Effect.forkScoped` attaches the child to the caller's scope and leaves `Scope` in the caller's requirements until a scope is supplied.
 
-Returning a fiber that a block's `fork` started draws warning EK4838: the block interrupts that fiber when it exits, so the caller would join an interrupted fiber. Start a fiber that must outlive its block with `forkIn(scope, program)` on a scope the caller holds, or with `detach(program)` and a shutdown strategy.
+A fiber that a region's `fork` started is interrupted when the region exits, so its value may go only where the region keeps it: a `const` or `let` declared in the region, `join`, the prelude's `interrupt`, a `Fiber` function whose result holds no fiber, such as `Fiber.interrupt(f)`, `Fiber.await(f)`, or the method `f.interrupt()`, and the operand of a `fork`, an element of an await operation, or the body of a `for concurrent` loop in the same region. Returning it, alone or in an object or array, assigning it to a binding or property declared outside the region, storing it in a collection, passing it to any other call, or capturing it in a function or block param is EK4838, an error no setting lowers; `() => fork work()` returns its fiber from the arrow's body, so it is EK4838 too. Start a fiber that must outlive its region with `Effect.forkScoped(() => work())` for the caller's scope, `forkIn(scope, () => work())` for a scope the caller holds, or `detach(() => work())` and a shutdown strategy. To bound a `join`, race it in the region: `await.race [join f, do { sleep("5 seconds"); throw new Late() }]`.
 
 ## Understanding execution scheduling
 

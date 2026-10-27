@@ -1,0 +1,44 @@
+// expect-result: {"results":["stepped","stepped","stepped"],"events":["step","stop concise","after concise","step","stop nested","after nested","step","stop block","after block"]}
+// An arrow's expression body is a function body that owns its forks
+// (D353): the fibers forked in concise and in nested's inner arrow stop when
+// that body exits, as block's does, though a caller's Scope is open around
+// them. Each body discards the fork's value, which D409 allows.
+const events: string[] = []
+
+function ticker(name: string) {
+  try {
+    while (true) sleep("1 millis")
+  } finally {
+    events.push(`stop ${name}`)
+  }
+}
+
+function step() {
+  sleep("5 millis")
+  events.push("step")
+  return "stepped"
+}
+
+const concise = (name: string) => (fork ticker(name), step())
+
+function nested() {
+  const inner = () => (fork ticker("nested"), step())
+  return inner()
+}
+
+function block(name: string) {
+  fork ticker(name)
+  return step()
+}
+
+export function main() {
+  return Effect.scoped(() => {
+    const a = concise("concise")
+    events.push("after concise")
+    const b = nested()
+    events.push("after nested")
+    const c = block("block")
+    events.push("after block")
+    return { results: [a, b, c], events }
+  })
+}

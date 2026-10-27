@@ -1,9 +1,9 @@
-// fork starts a fiber that its block owns (D19, D47): the block is a Scope
-// region even without using, and when the block exits by any path it
-// interrupts the fiber and waits for its cleanup before it releases what it
-// acquired earlier. Fiber.join waits for the fiber. A fork that no block
-// encloses is Effect.forkScoped, and Effect's own fork combinators keep
-// their meaning.
+// fork starts a fiber that the region around it owns (D19, D47, D408): the
+// region is a Scope region even without using, and when it exits by any path
+// it interrupts the fiber and waits for its cleanup before it releases what
+// it acquired earlier. A bare block owns nothing. Fiber.join waits for the
+// fiber. Effect's own fork combinators keep their meaning, and
+// Effect.forkScoped gives a fiber the caller's Scope.
 import { Data, Effect, Fiber } from "effect"
 import { fork } from "vibelang-runtime"
 
@@ -60,7 +60,8 @@ function joined() {
   return Fiber.join(child)
 }
 
-// A fork in an inner block stops when that block exits.
+// A bare block owns nothing (D408): the function's body owns the fiber, so
+// it stops when the body exits, after the block.
 function inner() {
   {
     fork(() => ticker("inner"))
@@ -98,8 +99,9 @@ function failingBlock() {
   throw new Boom()
 }
 
-// No block: fork is Effect.forkScoped, and the caller's Scope owns the fiber.
-const background = (name: string) => fork(() => ticker(name))
+// Effect.forkScoped: the caller's Scope owns the fiber. An arrow's body owns
+// a fork in it (D353), so returning that fiber would be EK4838 (D409).
+const background = (name: string) => Effect.forkScoped(() => ticker(name))
 
 function scopedBackground() {
   return Effect.scoped(() => {
@@ -138,7 +140,7 @@ function phase<A>(name: string, result: A) {
   return result
 }
 
-// expect-result: {"served":"served by server","joined":42,"inner":"inner done","loop":"loop done","failing":"joined Boom","failedBlock":"Boom","scoped":"scoped done","outlives":"block","detached":2,"events":["acquire server","stop ticker","release server","-- served","parent goes on","computed 21","-- joined","stop inner","after inner block","-- inner","end of iteration 1","stop loop 1","end of iteration 2","stop loop 2","-- loop","-- failing","stop doomed","-- failedBlock","scope closing","stop background","-- scoped","acquire block","release block","block exited","stop forkScoped","-- outlives","computed 1","-- detached"]}
+// expect-result: {"served":"served by server","joined":42,"inner":"inner done","loop":"loop done","failing":"joined Boom","failedBlock":"Boom","scoped":"scoped done","outlives":"block","detached":2,"events":["acquire server","stop ticker","release server","-- served","parent goes on","computed 21","-- joined","after inner block","stop inner","-- inner","end of iteration 1","stop loop 1","end of iteration 2","stop loop 2","-- loop","-- failing","stop doomed","-- failedBlock","scope closing","stop background","-- scoped","acquire block","release block","block exited","stop forkScoped","-- outlives","computed 1","-- detached"]}
 export function main() {
   const served = phase("served", serve())
   const j = phase("joined", joined())

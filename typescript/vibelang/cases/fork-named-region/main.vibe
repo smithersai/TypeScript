@@ -1,0 +1,70 @@
+// expect-result: {"events":["if: after","stop if","if without braces: after","stop if without braces","bare: after","stop bare","stop loop 1","stop loop 2","loop: after","do: after","stop do","stop try","try: finally"]}
+// A fiber belongs to the innermost region the source names, never to braces
+// (D408). An if branch, a bare block, and a do block own nothing, so their
+// fibers live until the function's body exits; one iteration of a loop body
+// owns its fibers with or without braces; a try block owns its own.
+const events: string[] = []
+
+function ticker(name: string) {
+  try {
+    while (true) sleep("1 millis")
+  } finally {
+    events.push(`stop ${name}`)
+  }
+}
+
+function branch(flag: boolean) {
+  if (flag) {
+    fork ticker("if")
+  }
+  sleep("3 millis")
+  events.push("if: after")
+}
+
+function branchWithoutBraces(flag: boolean) {
+  if (flag) fork ticker("if without braces")
+  sleep("3 millis")
+  events.push("if without braces: after")
+}
+
+function bare() {
+  {
+    fork ticker("bare")
+    sleep("3 millis")
+  }
+  events.push("bare: after")
+}
+
+function loop() {
+  for (const n of [1, 2]) (fork ticker(`loop ${n}`), sleep("3 millis"))
+  events.push("loop: after")
+}
+
+function doBlock() {
+  const marked = do {
+    fork ticker("do")
+    sleep("3 millis")
+    "marked"
+  }
+  events.push(`do: after`)
+  return marked
+}
+
+function guarded() {
+  try {
+    fork ticker("try")
+    sleep("3 millis")
+  } finally {
+    events.push("try: finally")
+  }
+}
+
+export function main() {
+  branch(true)
+  branchWithoutBraces(true)
+  bare()
+  loop()
+  doBlock()
+  guarded()
+  return { events }
+}

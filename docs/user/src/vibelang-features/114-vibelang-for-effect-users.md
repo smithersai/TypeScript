@@ -93,7 +93,7 @@ Node runs the JavaScript output; importing the `.vibe` source directly with Node
 | `Effect.exit(program)` | `exit(() => program())` captures its full outcome; match `Exit.Success(let value)` or `Exit.Failure(let cause)`. |
 | `Effect.ensuring(program, cleanup)` | `try` / `finally` |
 | `Effect.scoped` with `Effect.acquireRelease` | Acquire with `using` in the block that owns the resource; see the [pending-interruption limitation and holder](../resource-management/030-scope.md#known-limitation-pending-interruption-and-javascript-disposables) |
-| `Effect.forkScoped(program)` | `fork work()` for a child owned by the enclosing block; `fork { ... }` forks a block |
+| `Effect.forkScoped(program)` | `fork work()` for a child owned by the enclosing region, such as the function body; `fork { ... }` forks a block |
 | `Fiber.join(fiber)` | `join fiber`; `join [a, b]` joins several and interrupts the rest on a failure |
 | `Effect.all([a, b], { concurrency: "unbounded" })` | `await.all [a(), b()]`, like `Promise.all`; `await.all { x: a(), y: b() }` keeps the keys |
 | `Effect.all(effects, { concurrency: "unbounded", mode: "result" })` | `await.allSettled [a(), b()]`, with a `Result` for each success or expected failure |

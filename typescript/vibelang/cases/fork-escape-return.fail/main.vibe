@@ -1,0 +1,60 @@
+// expect: EK4838
+// A region interrupts the fibers it owns when it exits (D353, D408), so a
+// fiber returned from it, alone or in an object or array, is already
+// interrupted when the caller gets it (D409).
+function heartbeat() {
+  sleep("1 minute")
+}
+
+export function startHeartbeat() {
+  return fork heartbeat()
+}
+
+export function held() {
+  const fiber = fork heartbeat()
+  return fiber
+}
+
+export function aliased() {
+  let fiber = fork heartbeat()
+  const alias = fiber
+  return alias
+}
+
+export function boxed() {
+  const fiber = fork heartbeat()
+  return { fiber }
+}
+
+export function listed() {
+  return [fork heartbeat(), "listed"]
+}
+
+export function chosen(early: boolean) {
+  const fiber = fork heartbeat()
+  return early ? fiber : undefined
+}
+
+// An if branch owns nothing (D408): the function's body owns this fiber.
+export function inner(ready: boolean) {
+  if (ready) {
+    const fiber = fork heartbeat()
+    return fiber
+  }
+  return undefined
+}
+
+// A try block is a region, and the return leaves it.
+export function guarded() {
+  try {
+    const fiber = fork heartbeat()
+    return fiber
+  } finally {
+    Console.log("left")
+  }
+}
+
+// An arrow's expression body is a function body: () => fork p() means
+// () => { return fork p() }.
+export const concise = () => fork heartbeat()
+export const conciseCall = () => fork(heartbeat())

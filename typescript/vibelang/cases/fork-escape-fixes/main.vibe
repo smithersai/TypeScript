@@ -1,0 +1,32 @@
+// expect-result: {"scoped":7,"concise":7,"inScope":7,"detached":7}
+// The lifetimes EK4838 offers a fiber that must outlive its region (D386):
+// Effect.forkScoped, the quick fix, gives it the caller's Scope, forkIn a
+// scope the caller holds, and detach no owner.
+function slow(): number!! {
+  sleep("5 millis")
+  return 7
+}
+
+function startScoped() {
+  return Effect.forkScoped(() => slow())
+}
+
+const startConcise = () => Effect.forkScoped(() => slow())
+
+function startIn(scope: Scope) {
+  return forkIn(scope, () => slow())
+}
+
+function startDetached() {
+  return detach(() => slow())
+}
+
+export function main() {
+  const scoped = Effect.scoped(() => join startScoped())
+  const concise = Effect.scoped(() => join startConcise())
+  const scope = Scope.make()
+  const inScope = join startIn(scope)
+  Scope.close(scope, Exit.void)
+  const detached = join startDetached()
+  return { scoped, concise, inScope, detached }
+}

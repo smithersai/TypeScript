@@ -7,13 +7,15 @@ import (
 // scopePlan records the Scope regions of one file (scopes.go).
 type scopePlan struct {
 	scopeBlocks map[*ast.Node]bool      // blocks that are Scope regions
+	scopeBodies map[*ast.Node]bool      // arrow functions' expression bodies that are Scope regions (D353)
+	scopeLoops  map[*ast.Node]bool      // loop bodies that are statements other than blocks and are Scope regions (D408)
 	usings      map[*ast.Node]bool      // using statements in those blocks
-	forks       map[*ast.Node]*ast.Node // fork calls, mapped to the block whose region owns the fiber
+	forks       map[*ast.Node]*ast.Node // fork calls, mapped to the region that owns the fiber (ownerRegion)
 	usingLoops  map[*ast.Node]bool      // for (using x of values) statements, and for (using x = v; ...) statements under their labels
 }
 
 func newScopePlan() scopePlan {
-	return scopePlan{scopeBlocks: map[*ast.Node]bool{}, usings: map[*ast.Node]bool{}, forks: map[*ast.Node]*ast.Node{}, usingLoops: map[*ast.Node]bool{}}
+	return scopePlan{scopeBlocks: map[*ast.Node]bool{}, scopeBodies: map[*ast.Node]bool{}, scopeLoops: map[*ast.Node]bool{}, usings: map[*ast.Node]bool{}, forks: map[*ast.Node]*ast.Node{}, usingLoops: map[*ast.Node]bool{}}
 }
 
 // planScopes records the Scope regions of fn, a function the lowering turns
@@ -33,7 +35,14 @@ func (p *scopePlan) planScopes(a *analyzer, fn *ast.Node) {
 			p.usingLoops[outermostLabel(node)] = true
 		case node.Kind == ast.KindCallExpression:
 			if owner := a.forkOwner(node); owner != nil {
-				p.scopeBlocks[owner] = true
+				switch {
+				case owner.Kind == ast.KindBlock:
+					p.scopeBlocks[owner] = true
+				case owner.Parent.Kind == ast.KindArrowFunction:
+					p.scopeBodies[owner] = true // loweredBody makes the region
+				default:
+					p.scopeLoops[owner] = true // for (const x of xs) fork work(x)
+				}
 				p.forks[node] = owner
 			}
 		}
@@ -151,6 +160,51 @@ func (tx *lowering) visitScopeBlock(block *ast.Node) *ast.Node {
 	result := f.NewBlock(f.NewNodeList(lowered), true /*multiLine*/)
 	tx.EmitContext().SetOriginal(result, block)
 	result.Loc = block.Loc
+	return result
+}
+
+// visitScopeLoopBody lowers node, a loop body that is a statement other than
+// a block and owns a fork, to the region of one iteration (D408), as
+// visitScopeBlock lowers a block body: `for (const x of xs) fork work(x)`
+// lowers as `for (const x of xs) { fork work(x) }` does, and a jump out of
+// the statement leaves its region through a completion record.
+func (tx *lowering) visitScopeLoopBody(node *ast.Node) *ast.Node {
+	f := tx.Factory()
+	scope := tx.scopeName(node)
+	r := &region{}
+	saved, savedLoop := tx.frame, tx.loopRegion
+	tx.frame = &frame{name: saved.name, region: r, handleClause: saved.handleClause}
+	tx.loopRegion = node
+	statements := statementsOf(tx.Visitor().VisitNode(node))
+	tx.frame, tx.loopRegion = saved, savedLoop
+	run := tx.scopeRegion(r, scope, node, statements)
+	result := f.NewBlock(f.NewNodeList(statementsOf(tx.runRegion(node, run, r))), true /*multiLine*/)
+	tx.EmitContext().SetOriginal(result, node)
+	result.Loc = node.Loc
+	return result
+}
+
+// scopeBody returns body, the lowered block of an arrow function whose
+// expression body source is a Scope region (D353), run in that region, whose
+// Scope is scope: the arrow lowers as `() => { return fork p() }` does in
+// visitScopeBlock,
+//
+//	() => fork p()
+//
+// becomes
+//
+//	() => { return yield* runtime.$region(Effect.fnUntraced(function* f$using(scope) {
+//	  return yield* runtime.$fork(p(), scope);
+//	})) }
+//
+// so the body interrupts the fiber when it exits. An expression has no jump
+// to dispatch.
+func (tx *lowering) scopeBody(source *ast.Node, scope *ast.Node, body *ast.Node) *ast.Node {
+	f := tx.Factory()
+	run := tx.scopeRegion(&region{}, scope, source, body.Statements())
+	result := f.NewBlock(f.NewNodeList([]*ast.Node{f.NewReturnStatement(f.NewYieldExpression(f.NewToken(ast.KindAsteriskToken), run))}), false /*multiLine*/)
+	tx.EmitContext().SetOriginal(result, source)
+	result.Loc = body.Loc
 	return result
 }
 

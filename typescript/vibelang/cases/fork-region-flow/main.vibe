@@ -1,0 +1,97 @@
+// expect-result: {"joined":7,"pair":[7,7],"record":{"a":7},"interrupted":true,"method":true,"all":true,"operand":7,"raced":7,"loop":[7,7],"chosen":7,"done":7}
+// The places an owned fiber's value may go (D409): a const or let of its
+// region and reads of it, join with an array or object literal operand,
+// the Fiber functions whose result holds no Fiber and their methods, and a
+// fork operand, await element, or for concurrent body in the region.
+function slow(): number!! {
+  sleep("5 millis")
+  return 7
+}
+
+function forever(): number!! {
+  sleep("1 minute")
+  return 0
+}
+
+function joined() {
+  const fiber = fork slow()
+  const alias = fiber
+  return join alias
+}
+
+function pair() {
+  const a = fork slow()
+  const b = fork slow()
+  return join [a, b]
+}
+
+function record() {
+  const a = fork slow()
+  return join { a }
+}
+
+function interrupted() {
+  const fiber = fork forever()
+  Fiber.interrupt(fiber)
+  const exit = Fiber.await(fiber)
+  return Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause)
+}
+
+function method() {
+  const fiber = fork forever()
+  fiber.interrupt()
+  return Exit.isFailure(fiber.await())
+}
+
+function all() {
+  const a = fork forever()
+  const b = fork forever()
+  Fiber.interruptAll([a, b])
+  return Exit.isFailure(Fiber.await(a)) && Exit.isFailure(Fiber.await(b))
+}
+
+function operand() {
+  const fiber = fork slow()
+  const waiter = fork { return join fiber }
+  return join waiter
+}
+
+function raced() {
+  const fiber = fork slow()
+  return await.race [join fiber, do { sleep("1 second"); 0 }]
+}
+
+function loop() {
+  const fiber = fork slow()
+  const seen: number[] = []
+  for concurrent (const n of [1, 2]) {
+    seen.push(join fiber)
+  }
+  return seen
+}
+
+function chosen(first: boolean) {
+  let fiber = first ? fork slow() : fork forever()
+  return join fiber
+}
+
+function done() {
+  const fiber = do { fork slow() }
+  return join fiber
+}
+
+export function main() {
+  return {
+    joined: joined(),
+    pair: pair(),
+    record: record(),
+    interrupted: interrupted(),
+    method: method(),
+    all: all(),
+    operand: operand(),
+    raced: raced(),
+    loop: loop(),
+    chosen: chosen(true),
+    done: done()
+  }
+}

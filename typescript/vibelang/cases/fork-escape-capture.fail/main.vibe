@@ -1,0 +1,50 @@
+// expect: EK4838
+// A function or block param that refers to an owned fiber captures it, and
+// nothing in the source shows that the function finishes before the region
+// does, so every such capture is an error (D409).
+function heartbeat() {
+  sleep("1 minute")
+}
+
+let saved: unknown
+
+export function returned() {
+  const fiber = fork heartbeat()
+  return () => fiber
+}
+
+export function declared() {
+  const fiber = fork heartbeat()
+  function current() {
+    return fiber
+  }
+  return current
+}
+
+export function method() {
+  const fiber = fork heartbeat()
+  return {
+    current() {
+      return fiber
+    }
+  }
+}
+
+export function stored() {
+  const fiber = fork heartbeat()
+  saved = () => fiber
+}
+
+// The function never leaves the region, but it still captures the fiber.
+export function local() {
+  const fiber = fork heartbeat()
+  const stop = () => Fiber.interrupt(fiber)
+  stop()
+}
+
+export function blockParam() {
+  const fiber = fork heartbeat()
+  return withSpan("watch") {
+    return Fiber.interrupt(fiber)
+  }
+}

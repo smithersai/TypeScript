@@ -494,6 +494,37 @@ func TestEmitScopeOwnership(t *testing.T) {
 	assert.Assert(t, !strings.Contains(js, "$scopedBody"), js)
 }
 
+// TestEmitForkRegions gives a fork to the region the source names (D408): an
+// arrow's expression body owns its fork (D353), an if branch and a do block
+// own nothing, so the function body's region owns theirs, and a loop body
+// block owns each iteration's.
+func TestEmitForkRegions(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name, source string
+		regions      int
+	}{
+		{"arrow expression body", `const f = (): number!! => Fiber.join(fork(() => 1))`, 1},
+		{"if branch", "function f(b: boolean) {\n  if (b) { fork(() => 1) }\n  return 0\n}", 1},
+		{"do block", "function f() {\n  const x = do { fork(() => 1); 2 }\n  return x\n}", 1},
+		{"loop body", "function f() {\n  for (const n of [1, 2]) { fork(() => n) }\n  return 0\n}", 1},
+		{"loop body without braces", "function f() {\n  for (const n of [1, 2]) fork(() => n)\n  return 0\n}", 1},
+		{"loop body without braces that continues", "function f() {\n  for (const n of [1, 2]) if (n > 1) continue; else fork(() => n)\n  return 0\n}", 1},
+		{"loop body and function body", "function f() {\n  fork(() => 0)\n  for (const n of [1, 2]) { fork(() => n) }\n  return 0\n}", 2},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			js, _, diagnostics := Emit(c.source, testContext)
+			assert.Equal(t, len(diagnostics), 0, "%v\n%s", diagnostics, js)
+			assert.Equal(t, strings.Count(js, "$region("), c.regions, js)
+			assert.Assert(t, strings.Contains(js, "$provideScope("), js)
+			assert.Assert(t, !strings.Contains(js, "$scopedBody"), js)
+		})
+	}
+	virtual := Project(`export const f = (): number!! => Fiber.join(fork(() => 1))`, testContext).Text
+	assert.Assert(t, strings.Contains(virtual, "$scoped(fork)"), virtual)
+}
+
 // TestEmitCorpusSyntax catches a lowered scope losing its statement braces
 // or separator before else, both of which single-file transpilation recovers.
 func TestEmitCorpusSyntax(t *testing.T) {

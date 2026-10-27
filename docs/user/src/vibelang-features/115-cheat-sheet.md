@@ -1034,7 +1034,7 @@ function outcomes() {
 // Output: ["Failure","Success"]
 ```
 
-**Fork a block**. The loop stops when the enclosing block exits.
+**Fork a block**. The loop stops when the function body that owns it exits.
 
 ```ts effect
 // fragment

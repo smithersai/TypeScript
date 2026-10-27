@@ -142,6 +142,9 @@ type projector struct {
 	forms formResolver
 	// sources memoizes isSource (synth.go).
 	sources map[*ast.Node]bool
+	// loopRegion is the loop body scopeLoopStatement is lowering inside its
+	// region, which visits it there as an ordinary statement.
+	loopRegion *ast.Node
 	// services are the services, controls, and D1 abstract classes the file
 	// declares at its top level, by name.
 	services map[string]*ast.Node
@@ -389,8 +392,11 @@ func (p *projector) visit(node *ast.Node, e env) {
 		case isUsingDeclaration(node):
 			p.usingDeclaration(node, e)
 			return
+		case !e.producer && node != p.loopRegion && p.isLoopStatementRegion(node):
+			p.scopeLoopStatement(node, e)
+			return
 		case node.Kind == ast.KindBlock && node.Flags&ast.NodeFlagsVibeLang == 0 && maskWord(node) == "" && !e.producer &&
-			p.holdsScope(node.Statements()):
+			ownsForks(node) && p.holdsScope(node.Statements()):
 			p.scopeStatement(node, e)
 			return
 		}
@@ -768,13 +774,12 @@ func (p *projector) runCall(call *ast.Node, e env) {
 	p.plan.mark(editRun, partClose, call.End(), call.End(), runArg)
 }
 
-// isBlockFork reports whether call, in an Effect body, is the prelude's fork
-// called in a block: the block is a Scope region whose Scope owns the fiber,
-// so the fork's Scope leaves R (D19, D96). A fork that is a lambda's
-// expression body keeps Scope in R.
+// isBlockFork reports whether call, in an Effect body, is the prelude's fork:
+// the region around it owns the fiber, so the fork's Scope leaves R (D19,
+// D408). A lambda's expression body is such a region too (D353).
 func (p *projector) isBlockFork(call *ast.Node, e env) bool {
 	callee := call.Expression()
-	if e.frame == nil || e.frame.expression || !ast.IsIdentifier(callee) || callee.Text() != "fork" {
+	if e.frame == nil || !ast.IsIdentifier(callee) || callee.Text() != "fork" {
 		return false
 	}
 	return p.isPreludeFork()

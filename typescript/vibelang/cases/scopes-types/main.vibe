@@ -46,8 +46,8 @@ export function forkedLease() {
   return "forked"
 }
 
-// With no block, fork is Effect.forkScoped: Scope stays in R.
-export const background = () => fork(() => Audit.record("background"))
+// An arrow's expression body owns its fork too (D353): Scope leaves R.
+export const background = () => join fork(() => Audit.record("background"))
 
 // Effect.forkScoped keeps Effect's contract inside a region too.
 export function scopedFork() {

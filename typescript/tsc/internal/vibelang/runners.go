@@ -394,10 +394,13 @@ func reportNestedRunner(c *checker.Checker, file *ast.SourceFile, call *ast.Node
 	}
 	program := "() => …"
 	if arguments := call.Arguments(); len(arguments) > 0 {
-		// fork receives a call by name (D147), as the runner did.
 		program = nodeText(file, arguments[0])
+		if !ast.IsFunctionExpressionOrArrowFunction(ast.SkipParentheses(arguments[0])) {
+			program = "() => " + program
+		}
 	}
-	note(d, "Call the program, or fork it so the block owns it:   fork({0})", program)
+	// A root outlives the fiber that started it; a fork would not (D408).
+	note(d, "Call the program, or detach it to let it outlive this fiber, as a root would:   detach({0})", program)
 }
 
 // runningFunctionName names fn, the function a fiber runs, for EK1005.

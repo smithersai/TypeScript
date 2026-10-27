@@ -1,7 +1,0 @@
-// expect-result: true
-function one() { sleep("1 minute"); return 1 }
-export function fib(): Fiber<number>!! { return fork one() }
-export function main() {
-  const stopped = Fiber.await(fib())
-  return Exit.isFailure(stopped) && Cause.hasInterrupts(stopped.cause)
-}

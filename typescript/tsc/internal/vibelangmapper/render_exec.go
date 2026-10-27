@@ -731,12 +731,23 @@ func (l *execLowering) scopeBodies() {
 	var blocks = map[int]*ast.Node{}
 	var visit func(*ast.Node)
 	visit = func(n *ast.Node) {
-		if ast.IsFunctionLike(n) && n.Body() != nil && n.Body().Kind == ast.KindBlock {
+		// A do block's function and a match expression's run in the region
+		// around them, which owns their forks (D408).
+		if ast.IsFunctionLike(n) && n.Body() != nil && n.Body().Kind == ast.KindBlock && !isRegionTransparent(n) {
 			body := n.Body()
 			blocks[l.p.tokenStart(n)] = body
 			blocks[l.p.tokenStart(body)] = body
 			blocks[l.p.tokenStart(body)+1] = body
 			blocks[body.End()] = body
+		}
+		// An arrow's expression body owns its forks too (D353).
+		if n.Kind == ast.KindArrowFunction && n.Body() != nil && n.Body().Kind != ast.KindBlock && !isRegionTransparent(n) {
+			body := n.Body()
+			for _, at := range []int{l.p.tokenStart(n), l.p.tokenStart(body)} {
+				if blocks[at] == nil {
+					blocks[at] = body
+				}
+			}
 		}
 		n.ForEachChild(func(c *ast.Node) bool { visit(c); return false })
 	}
@@ -751,7 +762,7 @@ func (l *execLowering) scopeBodies() {
 		if l.edits[b.open].kind == editContract {
 			body = blocks[l.edits[b.close].pos]
 		}
-		if body == nil || !l.p.holdsScope(body.Statements()) {
+		if body == nil || body.Kind == ast.KindBlock && !l.p.holdsScope(body.Statements()) || body.Kind != ast.KindBlock && !l.p.holdsScopeIn(body) {
 			continue
 		}
 		opening := b.open
@@ -1253,7 +1264,8 @@ func (l *execLowering) lowerLoops() {
 			}
 			for parent := n.Parent; parent != nil && parent != target; parent = parent.Parent {
 				if parent.Kind == ast.KindForOfStatement || parent.Kind == ast.KindTryStatement ||
-					parent.Kind == ast.KindBlock && parent.Parent != nil && !ast.IsFunctionLike(parent.Parent) && l.p.holdsScope(parent.Statements()) {
+					parent.Kind == ast.KindBlock && parent.Parent != nil && !ast.IsFunctionLike(parent.Parent) && ownsForks(parent) && l.p.holdsScope(parent.Statements()) ||
+					l.p.isLoopStatementRegion(parent) {
 					action = "return " + helperRef("$jump") + "(" + strconv.Quote(jumpKind(j)) + ")"
 					break
 				}
@@ -1337,7 +1349,7 @@ func (l *execLowering) lowerClauses() {
 								tail := c.Parent != nil && isTailResume(c.Parent)
 								cleanup := l.p.holdsScope(clause.body)
 								for p := c.Parent; p != nil && p != clause.block; p = p.Parent {
-									if p.Kind == ast.KindTryStatement || p.Kind == ast.KindBlock && l.p.holdsScope(p.Statements()) {
+									if p.Kind == ast.KindTryStatement || p.Kind == ast.KindBlock && ownsForks(p) && l.p.holdsScope(p.Statements()) || l.p.isLoopStatementRegion(p) {
 										cleanup = true
 									}
 								}
@@ -1512,7 +1524,7 @@ func (l *execLowering) lowerCallClauseResumes() {
 		fn := n.Parent
 		cleanup := false
 		for fn != nil && !ast.IsFunctionLike(fn) {
-			if fn.Kind == ast.KindTryStatement || fn.Kind == ast.KindBlock && l.p.holdsScope(fn.Statements()) {
+			if fn.Kind == ast.KindTryStatement || fn.Kind == ast.KindBlock && ownsForks(fn) && l.p.holdsScope(fn.Statements()) || l.p.isLoopStatementRegion(fn) {
 				cleanup = true
 			}
 			fn = fn.Parent

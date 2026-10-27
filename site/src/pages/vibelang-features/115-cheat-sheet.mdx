@@ -1175,7 +1175,7 @@ const outcomes = yield* Effect.all([getUser("1"), getOrders("1")], { concurrency
 
 :::
 
-**Fork a block**. The loop stops when the enclosing block exits.
+**Fork a block**. The loop stops when the function body that owns it exits.
 
 :::code-group
 

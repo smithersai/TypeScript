@@ -171,8 +171,7 @@ func (p *projector) effectLambda(fn *ast.Node) {
 }
 
 // expressionEnv returns the env of a generator whose body is one
-// expression, a lambda's: no block holds its code, so a fork there keeps
-// Scope in R (D19).
+// expression, a lambda's, which owns its forks as a block body does (D353).
 func expressionEnv() env {
 	e := newEffectEnv()
 	e.frame.expression = true

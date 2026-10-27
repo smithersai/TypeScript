@@ -229,7 +229,7 @@ The inner `using` resource closes before the outer block continues. In `mixedOwn
 
 Operations that only register finalizers in one scope share its lifetime. Use separate `Effect.scoped` calls when one operation's resources must close before the next begins, and one outer scope when later operations depend on earlier resources.
 
-A block that calls `fork` also owns a scope region, even without `using`: its child is interrupted when the block exits, and the block waits for cleanup. `Effect.forkScoped` uses the caller's scope instead and adds `Scope` to `R`; `Effect.forkDetach` gives a detached lifetime.
+A region that calls `fork` also owns a scope, even without `using`: a function body, one loop iteration, a `try`, `catch`, or `finally` block, a block that declares `using`, or a `provide` or mask block. Its child is interrupted when the region exits, and the region waits for cleanup; an `if` branch or a bare block owns nothing. `Effect.forkScoped` uses the caller's scope instead and adds `Scope` to `R`; `Effect.forkDetach` gives a detached lifetime.
 
 ## Sequencing scoped operations with rollback
 

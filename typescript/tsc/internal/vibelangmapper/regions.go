@@ -76,7 +76,7 @@ type frame struct {
 	region  *region  // the region whose block this is; nil for an Effect function's body
 	targets []target // the statements a break or continue can jump to, innermost last
 	// expression reports that the generator's body is one expression, a
-	// lambda's, which no block holds.
+	// lambda's, which owns its forks as a block body does (D353).
 	expression bool
 }
 
@@ -182,7 +182,13 @@ func (p *projector) jumpStatement(node *ast.Node, e env) {
 		return
 	}
 	e.frame.region.add(j)
-	p.plan.markText(editRecord, partWhole, p.tokenStart(node), node.End(), "return "+helperRef("$jump")+"("+strconv.Quote(jumpKind(j))+")")
+	text := "return " + helperRef("$jump") + "(" + strconv.Quote(jumpKind(j)) + ")"
+	// The statement's own semicolon ends the replacement too, as in
+	// `if (done) continue; else work()`, where ASI cannot insert one.
+	if end := node.End(); end > 0 && p.text[end-1] == ';' {
+		text += ";"
+	}
+	p.plan.markText(editRecord, partWhole, p.tokenStart(node), node.End(), text)
 }
 
 // openRegion returns the text that starts a region statement whose record
@@ -1039,6 +1045,39 @@ func (p *projector) scopeBlock(node *ast.Node, e env) {
 	p.plan.markText(editDispatch, partWhole, node.End(), node.End(), p.dispatch(r, name, normal, e))
 }
 
+// scopeLoopStatement lowers node, a loop body that is not a block and owns
+// a fork, to the region of one iteration (D408), as scopeBlock lowers a
+// block body: `for (const x of xs) fork work(x)` is
+// `for (const x of xs) { fork work(x) }`.
+func (p *projector) scopeLoopStatement(node *ast.Node, e env) {
+	start := p.tokenStart(node)
+	r := &region{tail: isTailRegion(node, e)}
+	name := p.freshCompletion()
+	p.plan.insert(start, "{ ")
+	opening := p.plan.reserve(editScopeRegion, partOpen, start, start)
+	statements := []*ast.Node{node}
+	saved := p.loopRegion
+	p.loopRegion = node
+	p.visitList(statements, regionEnv(r, e))
+	p.loopRegion = saved
+	normal := canCompleteNormally(statements)
+	if normal && len(r.jumps) > 0 && !r.tail {
+		p.plan.markText(editRecord, partWhole, node.End(), node.End(), "; return "+helperRef("$end")+" ")
+	}
+	p.plan.edits[opening].text = openRegion(r, name) + helperRef("$scopedBody") + "(" + helperRef("$gen") + "(" + selfPrefix(node) + "function* () { "
+	p.plan.markText(editScopeRegion, partClose, node.End(), node.End(), " }))")
+	p.plan.markText(editDispatch, partWhole, node.End(), node.End(), p.dispatch(r, name, normal, e))
+	p.plan.insert(node.End(), " }")
+}
+
+// isLoopStatementRegion reports whether node is a loop body that is not a
+// block and owns a fork or a using, so scopeLoopStatement lowers it.
+func (p *projector) isLoopStatementRegion(node *ast.Node) bool {
+	parent := node.Parent
+	return node.Kind != ast.KindBlock && parent != nil && ast.IsIterationStatement(parent, false /*lookInLabeledStatements*/) &&
+		parent.Statement() == node && p.holdsScopeIn(node)
+}
+
 // selfPrefix returns the self option of a block's generator, which passes
 // this in when the block refers to it, or "".
 func selfPrefix(block *ast.Node) string {
@@ -1048,10 +1087,32 @@ func selfPrefix(block *ast.Node) string {
 	return ""
 }
 
-// holdsScope reports whether statements, a block's own, hold a using
-// declaration or a call of the prelude's fork outside the blocks and
-// functions nested in them.
+// holdsScope reports whether statements, a region's own, hold a using
+// declaration or a call of the prelude's fork that the region owns: one
+// outside the functions and the regions nested in them (D408). A block that
+// is only braces, such as an if branch, owns nothing, so its forks are the
+// region's, and so are those of a do block, a match expression, and a catch
+// expression's sides, which run where they stand.
 func (p *projector) holdsScope(statements []*ast.Node) bool {
+	for _, statement := range statements {
+		if p.holdsScopeFrom(statement, nil) {
+			return true
+		}
+	}
+	return false
+}
+
+// holdsScopeIn reports whether root, a region's whole body that is not a
+// block, such as an arrow's expression body or a loop body without braces,
+// holds a using declaration or a fork the region owns.
+func (p *projector) holdsScopeIn(root *ast.Node) bool {
+	return p.holdsScopeFrom(root, root)
+}
+
+// holdsScopeFrom reports whether node, code of a region, holds a using
+// declaration or a fork the region owns, outside the functions and the
+// regions nested in it other than root.
+func (p *projector) holdsScopeFrom(node *ast.Node, root *ast.Node) bool {
 	found := false
 	var visit func(node *ast.Node) bool
 	visit = func(node *ast.Node) bool {
@@ -1061,7 +1122,7 @@ func (p *projector) holdsScope(statements []*ast.Node) bool {
 		case isUsingDeclaration(node):
 			found = true
 			return true
-		case ast.IsFunctionLike(node) || ast.IsClassLike(node) || node.Kind == ast.KindBlock:
+		case ast.IsFunctionLike(node) && !isRegionTransparent(node), ast.IsClassLike(node), node != root && ownsForks(node):
 			return false
 		case node.Kind == ast.KindCallExpression && ast.IsIdentifier(node.Expression()) && node.Expression().Text() == "fork" && p.isPreludeFork():
 			found = true
@@ -1069,12 +1130,51 @@ func (p *projector) holdsScope(statements []*ast.Node) bool {
 		}
 		return node.ForEachChild(visit)
 	}
-	for _, statement := range statements {
-		if visit(statement) {
+	return visit(node)
+}
+
+// ownsForks reports whether node, nested in a region, is a region of its own
+// (D408): a loop body, with or without braces, a try, catch, or finally
+// block, a block that declares using, or a provide or mask block.
+func ownsForks(node *ast.Node) bool {
+	parent := node.Parent
+	switch {
+	case parent == nil:
+		return false
+	case ast.IsIterationStatement(parent, false /*lookInLabeledStatements*/):
+		return parent.Statement() == node
+	case node.Kind != ast.KindBlock:
+		return false
+	case parent.Kind == ast.KindTryStatement, parent.Kind == ast.KindCatchClause:
+		return true
+	case isProvideBlock(node), maskWord(node) != "":
+		return true
+	}
+	for _, statement := range node.Statements() {
+		if isUsingDeclaration(statement) {
 			return true
 		}
 	}
 	return false
+}
+
+// isRegionTransparent reports whether fn, an arrow function the parser
+// wrote, holds code of the region around it: a do block's function and a
+// match expression's, which are called where they stand, and a catch
+// expression's sides (D408).
+func isRegionTransparent(fn *ast.Node) bool {
+	if fn.Kind != ast.KindArrowFunction || fn.AsArrowFunction().EqualsGreaterThanToken.Flags&ast.NodeFlagsReparsed == 0 || fn.Parent == nil {
+		return false
+	}
+	parent := fn.Parent
+	if ast.IsParenthesizedExpression(parent) && parent.Parent != nil && ast.IsCallExpression(parent.Parent) && parent.Parent.Expression() == parent {
+		return true
+	}
+	if !ast.IsCallExpression(parent) {
+		return false
+	}
+	callee := parent.Expression()
+	return ast.IsIdentifier(callee) && callee.Flags&ast.NodeFlagsReparsed != 0 && callee.Text() == "$catchExpression"
 }
 
 // endsInTailResume reports that the last path through a cleanup block resumes.
