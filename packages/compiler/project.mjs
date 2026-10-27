@@ -219,7 +219,7 @@ function collect({ status, signal, output }, root, out) {
     outputs.set(source, result)
     outputs.set(realpath(source), result)
   }
-  return { result: { outputs, inputs, errors, warnings }, files }
+  return { result: { outputs, inputs, files, errors, warnings }, files }
 }
 
 const elapsed = (started) => `${Math.round(performance.now() - started)}ms`

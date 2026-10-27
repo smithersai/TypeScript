@@ -438,7 +438,7 @@ export function projectCache({ project, root, compiler, cache, debug = () => {} 
       const output = { code, map }
       for (const path of paths) outputs.set(path, output)
     }
-    return { result: { outputs, inputs: entry.inputs, errors: [], warnings: entry.warnings } }
+    return { result: { outputs, inputs: entry.inputs, files: entry.files.map((record) => record.path), errors: [], warnings: entry.warnings } }
   }
 
   function begin() {

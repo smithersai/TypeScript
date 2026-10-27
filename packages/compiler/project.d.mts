@@ -17,6 +17,8 @@ export interface Result {
   readonly outputs: Map<string, Output>
   /** Project source files the result depends on. */
   readonly inputs: Array<string>
+  /** Every file the compiler listed, including dependencies. */
+  readonly files: Array<string>
   /** Diagnostics that blocked emission; outputs is then empty. */
   readonly errors: Array<Diagnostic>
   /** Diagnostics of a successful compile. */

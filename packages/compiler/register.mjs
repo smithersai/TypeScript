@@ -12,7 +12,7 @@
 // a module the project does not include, ERR_VIBELANG_PROJECT. Source maps are
 // turned on, so a stack frame names the .vibe line.
 // VIBELANG_REGISTER_DEBUG=1 reports each project's compile or cache hit.
-import { existsSync, statSync } from "node:fs"
+import { existsSync, realpathSync, statSync } from "node:fs"
 import * as Module from "node:module"
 import { registerHooks } from "node:module"
 import { dirname, resolve } from "node:path"
@@ -74,6 +74,9 @@ function emitted(file) {
   const output = result.outputs.get(file)
   if (output === undefined) {
     compiled.missing.add(file)
+    if (result.files.some((source) => source === file || realpathSync(source) === file)) {
+      throw failure("ERR_VIBELANG_OUTPUT", `vibelang/register: ${project} includes ${file}, but no loader output is available; dependencies in node_modules must publish compiled JavaScript or compile with their own workspace project`)
+    }
     throw failure("ERR_VIBELANG_PROJECT", `vibelang/register: ${project} does not include ${file}; set VIBELANG_PROJECT to a tsconfig that does`)
   }
   return output

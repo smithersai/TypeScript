@@ -229,3 +229,18 @@ test("the published modules hold no line that reads as their own inline source m
     assert.doesNotMatch(text, comment, name)
   }
 })
+
+test("an included node_modules source without loader output reports the output limitation, including cache hits", { skip }, (t) => {
+  const { root, run } = project(t, {
+    "node_modules/dualtest/package.json": '{"name":"dualtest","type":"module","exports":"./greeting.vibe"}',
+    "node_modules/dualtest/greeting.vibe": 'export const greeting: string = "hello"\n',
+    "src/main.ts": 'import { greeting } from "dualtest"\nconsole.log(greeting)\n'
+  })
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = run("src/main.ts", { VIBELANG_PROJECT: join(root, "tsconfig.json") })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /ERR_VIBELANG_OUTPUT/)
+    assert.match(result.stderr, /includes .*greeting\.vibe.*no loader output/)
+    assert.doesNotMatch(result.stderr, /set VIBELANG_PROJECT/)
+  }
+})
