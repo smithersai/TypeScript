@@ -131,7 +131,7 @@ A clause compiles like any function, with one rule for its last step (D18). When
 
 #### Producers
 
-A `function*` body may pause, so it cannot keep JavaScript's generator meaning, whose body runs synchronously inside `next()`. VibeLang defines `function*` by the machine instead [Rule]:
+A producer body may pause, so it cannot run synchronously inside JavaScript's `next()`. An explicit JavaScript iterator annotation keeps the native generator form (D271, D296, Chapter 8). Otherwise, VibeLang defines the producer by the machine [Rule]:
 
 - Calling a `function*` runs none of its body. The result is a **producer**: a cold program that performs the built-in control operation `Yield<T>` once per element.
 - `yield v` performs `Yield<T>`.

@@ -27,7 +27,7 @@ Every section of Effect 4's documentation, the Effect 3 pages version 4 dropped,
 | `Effect.callback` | Changed | The hatch `callback((resume, signal) => …)`: `resume(value)`, `resume.fail(error)`; inputs come before `resume` (D43, D148, D230) |
 | `Effect.void`, `never`, `yieldNow`, `interrupt` | Changed | Bare functions: `yieldNow()`, `interrupt()` (D179) |
 | Runners (`runPromise`, `runSync`, `runFork`, `runCallback`) | Changed | In the prelude; `runPromise(main())` from TypeScript, a top-level call, or a hatch's body, where no fiber runs the code (EK1005, D38, D148) |
-| `Effect.gen` and `yield*` | Changed | An ordinary function body, and calls (Chapter 2); `Effect.gen` in `.vibe` is EK1002 |
+| `Effect.gen` and `yield*` | Changed | An ordinary function body, and calls (Chapter 2); an unannotated producer passed to `Effect.gen` is EK1002, while an explicitly iterator-annotated generator is accepted (D271) |
 | `Effect.gen({ self: this }, …)` | Changed | An ordinary method; `this` keeps its JavaScript meaning |
 | `Effect.fn`, `fnUntraced` | Changed | `function f() { … }`, untraced unless `tracing` asks for spans (Chapter 28) |
 | `map`, `flatMap`, `andThen`, `tap`, `as` | Changed | Statements |

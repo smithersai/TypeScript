@@ -199,7 +199,11 @@ does not implement those editor refactors.
 
 #### Diagnostics
 
-Every EK diagnostic before EK4801 is an error, except eleven. Each error marks code with no meaning, or whose generated output would break a rule of Parts II and III, so none can be lowered and `// @ts-expect-error` does not apply to them (it keeps its TypeScript meaning for TypeScript's own codes). Five warnings mark retired spellings that still compile the same, each with a quick fix: EK1009, EK2112, EK2113, EK2120, and EK2121. EK1014 is retired: it reported the `!` form of an Effect type while D308 retired that form, D309 restored the form, and the number is not reused. Five more, EK1012, EK1016, EK2004, EK4403, and EK4409, are policy, not soundness: a project may set each to `"error"`, `"warning"`, or `"off"` in the `vibelang` setting `diagnostics`; an EK4403 read then compiles as a trusted `sync` call that tests cannot control. The eleventh, the warning EK2119, marks a handle clause's return that a `resume`'s type may not cover, which the checker cannot settle without a fixpoint (D97).
+Before EK4801, twelve EK codes are warnings by default. Five mark retired spellings that still compile the same, each with a quick fix: EK1009, EK2112, EK2113, EK2120, and EK2121. Five are adjustable policy diagnostics: EK1012, EK1016, EK2004, EK3205, and EK4409. EK2119 marks a handle clause's return that a `resume`'s type may not cover, which the checker cannot settle without a fixpoint (D97). EK4406 marks deprecated trust tags (D249). EK4408 also warns for a module name that collides with a value binding, while its other forms are errors (D303). Every other code before EK4801 is an error by default.
+
+A project may set EK1012, EK1016, EK2004, EK3205, EK4403, EK4406, and EK4409 to `"error"`, `"warning"`, or `"off"` in the `vibelang` setting `diagnostics`. EK4403 is an error by default. If allowed, the read compiles as a trusted `sync` call that tests cannot control. EK1014 is retired: D308 used it for the `!` type form, D309 restored that form, and the number is not reused.
+
+An error marks code with no meaning, or whose generated output would break a rule of Parts II and III. `// @ts-expect-error` does not suppress EK errors. It keeps its TypeScript meaning for TypeScript's own codes.
 
 EK4801-EK4825 carry the rules of Effect's language service that VibeLang's syntax does not already rule out (D240). They are lint, not soundness: each has a default category (error, warning, or off), and each except EK4813, which stands in for TypeScript's TS2339, can be set in the `vibelang` setting `diagnostics` or by a comment (D241):
 
@@ -215,7 +219,7 @@ A later comment overrides an earlier one; within one comment, a code named on it
 
 | Option in the tsconfig's top-level `vibelang` object, or `compilerOptions.vibelang` (D275) | Values | Default |
 | --- | --- | --- |
-| `diagnostics` | `"EK1012"`, `"EK1016"`, `"EK2004"`, `"EK4403"`, `"EK4409"`, EK4801-EK4825 except `"EK4813"`, and EK4830-EK4838, each `"error"`, `"warning"`, or `"off"` | EK2004 `"warning"`, EK4403 `"error"`; EK48xx as the table below says |
+| `diagnostics` | `"EK1012"`, `"EK1016"`, `"EK2004"`, `"EK3205"`, `"EK4403"`, `"EK4406"`, `"EK4409"`, `"EK9100"`, EK4801-EK4825 except `"EK4813"`, and EK4830-EK4838, each `"error"`, `"warning"`, or `"off"` | EK1012, EK1016, EK2004, EK3205, EK4406, EK4409, and EK9100 `"warning"`, EK4403 `"error"`. EK48xx as the table below says |
 | `tracing` | `"none"`: no spans. `"exported"`: exported functions get `Effect.fn` spans. `"all"`: every named lowered function and method gets a span; anonymous lambdas don't (D104) | `"none"` |
 
 `vibelang` exits non-zero when it reports any error. The CLI prints `error EK1003:`; LSP sends source `EK` and numeric code `1003`, which VS Code displays as `EK(1003)` (D61). In the terminal, the editor, and Vite's overlay, diagnostics print at `.vibe` spans in the form this document's examples use.
@@ -228,8 +232,8 @@ coverage. Repairs are suggestions, not shipped code actions:
 | Code | What it reports | Suggested repair | Chapter |
 | --- | --- | --- | --- |
 | EK1001 | Except for an explicitly Effect-typed top-level `const` initializer (D262), a module's top level runs a program, or a throw can escape it; a class field's initializer, a default parameter value, a constructor, an accessor or a static block runs a program, since each runs as plain JavaScript (D282) | Export a function instead; compute the value in an Effect function | 13 |
-| EK1002 | A `function*` passed to an API whose parameter returns a library Generator or Iterator, such as `Effect.gen` (D64) | Convert the function | 10 |
-| EK1003 | `async`, `for await`, or `await using`, and `await` inside an `async` function outside a hatch: a call already waits | Remove them; `await` in VibeLang code waits for fibers (EK4601-EK4604) | 10 |
+| EK1002 | An unannotated producer passed to an API whose parameter returns a library Generator or Iterator, such as `Effect.gen`. An explicit JavaScript iterator annotation is accepted (D271) | Convert the function | 10 |
+| EK1003 | `async`, `for await`, or `await using`, and `await` inside an `async` function outside a hatch, a `module` body, or an explicitly iterator-annotated async generator (D271, D283) | Remove them. Use `join` for a fiber or a hatch for a promise (D225, D226) | 10 |
 | EK1004 | `using` at a module's top level or in a class static block | Move it into a function | 6 |
 | EK1005 | A runner inside code that a fiber runs | Call the program, or `fork` it | 13 |
 | EK1006 | A pipe whose body does not use its topic, as in `name \|> "anonymous"` (D156) | Write `%` where the value goes: `name \|> greet(%)` | 5 |

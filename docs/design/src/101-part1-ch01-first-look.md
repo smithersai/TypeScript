@@ -80,12 +80,16 @@ Every `.vibe` file has this prelude in scope, so the program above needs no impo
 | `Scope` | Effect's `Scope` module, and the type `Scope` (Effect's `Scope.Scope`) |
 | `TaggedError` | Effect's `Data.TaggedError` |
 | `Control` | The base class of control operations (Chapter 9) |
-| `pipe`, `wire`, `fork`, `handle`, `resume`, `resumeWith`, `abandon` | VibeLang's built-ins, each introduced at first use |
+| `pipe`, `wire`, `fork`, `forkIn`, `detach`, `handle`, `resume`, `resumeWith`, `abandon`, `customMatcher` | VibeLang's built-ins, each introduced at first use |
 | `sync`, `try`, `callback` | Boundary hatches: their first argument is self-contained TypeScript, and values reach it as inputs (D148, D229) |
+| `Resume<A, E>` | The callback hatch's resume parameter type (Chapter 10, D230) |
+| `uninterruptible`, `restore`, `interruptible` | Interruption mask blocks (Chapter 17, D180) |
 | `runPromise`, `runFork`, `runSync`, `runCallback` | Effect's runners, the way back in from TypeScript (D150) |
-| `sleep`, `log`, `logDebug`, `logInfo`, `logWarning`, `logError`, `retry`, `repeat`, `timeout`, `all`, `forEach`, `race`, `withSpan`, `die` | The Effect module's functions without the `Effect.` prefix (D151) |
+| `sleep`, `log`, `logDebug`, `logInfo`, `logWarning`, `logError`, `retry`, `repeat`, `timeout`, `all`, `forEach`, `race`, `withSpan`, `die`, `exit`, `interrupt`, `yieldNow` | The Effect module's functions without the `Effect.` prefix (D151, D179) |
 | Every other export of `effect`'s root | `Console`, `Option`, `Stream`, `Schedule`, `Duration`, and the rest, plus `flow` and `identity` (D146) |
 | Every module of `effect`'s subpath packages | `HttpRouter`, `ChildProcess`, `TestClock`, `Hex`, and the rest, from `effect/http`, `effect/process`, `effect/testing`, `effect/encoding`, and the other subpaths (D310) |
+
+`Experimental` is also in scope. It holds the platform services Effect lacks (D313, Chapter 11).
 
 A module's name also names its export of the same name, where the module has no meaning of its own (D311): the type `Option<number>` is `Option.Option<number>`, `FileSystem.readFileString(path)` calls the `FileSystem.FileSystem` service, and `FileSystem()` is its implementation. The module's own exports, such as `Option.some` and `FileSystem.layerNoop`, win.
 

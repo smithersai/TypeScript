@@ -29,9 +29,9 @@ export function title(id: string) {
 
 Generic, overloaded, and aliased TypeScript functions keep their signatures. TypeScript services, `Context.Service` classes or values, are used exactly like abstract service classes: `Database.query(…)` works on either. The one exception is a TypeScript function whose R contains a control operation (EK4202, Chapter 9).
 
-#### Generator-style code stays in TypeScript
+#### Producers and JavaScript generators
 
-Existing `Effect.gen` and `Effect.fn` code keeps working in `.ts` files, and VibeLang calls it as above. It cannot move into a `.vibe` file unchanged, because there `function*` declares a producer (Chapter 8), not a JavaScript generator:
+Existing `Effect.gen` and `Effect.fn` code keeps working in `.ts` files, and VibeLang calls it as above. It cannot move into a `.vibe` file unchanged, because there an unannotated `function*` declares a producer (Chapter 8):
 
 ```ts es
 const findName = (id: string) => Effect.gen(function* () {
@@ -47,7 +47,7 @@ error EK1002: Effect.gen expects a JavaScript generator, but in VibeLang functio
     function findName(id: string) { return Users.find(id).name }
 ```
 
-The same holds for `Option.gen`, `Result.gen`, and any other API that takes a generator. VibeLang has no `async` functions either: a call already waits, `join` waits for a fiber, `d.await()` for a Deferred, and `await` appears only in the await operations (Chapter 7, D225, D226). Converting a function is mostly deletion, as every chapter of Part I shows; the editor refactor remains a design target (Chapter 28).
+The same EK1002 applies to an unannotated generator passed to `Option.gen`, `Result.gen`, or another JavaScript generator API. An explicit JavaScript iterator return annotation keeps the JavaScript generator form (D271), so that form can be passed to these APIs. Chapter 8 lists the iterator types and D296's failure rules. Outside a hatch, a `module` body, or an explicitly iterator-annotated async generator, `async` is EK1003. Use `join` for a fiber and `d.await()` for a Deferred (Chapter 7, D225, D226). Converting a function is mostly deletion, as every chapter of Part I shows. The editor refactor remains a design target (Chapter 28).
 
 #### Using VibeLang code from TypeScript
 
@@ -81,6 +81,33 @@ interface Cart {
 ```
 
 The declaration file writes `readonly`, so TypeScript code sees the same types. Readonly limits writes through the type, not the object: TypeScript assigns a mutable object to a readonly type, so TypeScript passes its objects in unchanged. Index signatures follow the same rule. Class members and arrays keep TypeScript's rules: write `ReadonlyArray` or `readonly T[]` for an array the code must not change.
+
+#### Inline TypeScript modules
+
+A named `module` declaration at a file's top level holds TypeScript code (D283):
+
+```ts es
+module text {
+  export function clean(value: string): string {
+    return value.trim()
+  }
+}
+import { clean } from text
+
+function cleanTitle(value: string) {
+  return sync((value) => clean(value), value)
+}
+```
+
+The body is checked as a separate `.ts` file. JavaScript's `throw`, `catch`, `async`, `await`, and platform APIs keep their TypeScript meaning there. The body imports what it needs and cannot read the `.vibe` file's bindings. Relative imports resolve from the `.vibe` file's directory. The containing file imports exports with an identifier specifier, `from text`, rather than a string. An identifier specifier with no matching declaration is EK4407. The module's name is not a value, so `import(text)` is unsupported.
+
+A declaration must be named, unexported, and at the file's top level. Names that differ only in letter case name the same module. A nested, exported, or duplicate declaration is EK4408, as is a CommonJS `export =` or `import = require()` in its body. `module` does not declare a TypeScript namespace in a `.vibe` file. Write `namespace` for one. A module name shared with a file's value binding warns with EK4408 (D303).
+
+The checker gives each body its own source file. For `main.vibe`, `module text` is checked as `main.vibe.text.ts`. JavaScript output keeps the body inline (D303). A module imported for values or side effects runs once before the file's own code, after the file's external imports. Its imports become namespace imports at the file's top level. Its frozen exports object supplies the containing file's imports, which read each export once. Later assignments to an exported `let` do not update those imported values. A module never imported, or imported only for types, emits no JavaScript. A top-level `await` in a used module makes the containing file await its initialization.
+
+Declaration output writes each body's declarations to its own file, such as `main.vibe.text.d.ts`. The containing declaration file refers to it through `./main.vibe.text.js`. Cases `module-declaration-emit` and `module-declaration-cjs` cover the output.
+
+Hatches and inline modules are the explicit TypeScript escapes. An iterator annotation alone is not one: D296 still checks the generator's typed failures.
 
 #### Code that is not Effect
 

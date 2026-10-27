@@ -17,7 +17,7 @@ function loadProfile(id: string) {
 // { user: User; avatar: Avatar }!UserNotFound | AvatarError!Users
 ```
 
-A call waits for its callee, whether it finishes at once or after a network round trip; meanwhile the fiber is parked and other fibers run. With no `async` function and no `await` on a call, no function is "colored": every function can wait. In VibeLang code, `join` waits for a fiber you forked, `d.await()` for a Deferred, and `await` appears only in the await operations (Chapter 7). A Promise from a TypeScript library crosses with the `try` hatch, or with `sync` when a rejection is a bug (D148); inside the hatch's function, `async` and `await` keep their JavaScript meaning, and a value of the `.vibe` file, such as `user.avatarId`, arrives as an input (D229). Effect modules replace platform APIs that return Promises, such as `fetch` (Chapter 11).
+A call waits for its callee, whether it finishes at once or after a network round trip; meanwhile the fiber is parked and other fibers run. An Effect function needs no `async` modifier or `await` on a call: every Effect function can wait. In VibeLang code, `join` waits for a fiber you forked, `d.await()` for a Deferred, and `await` appears only in the await operations (Chapter 7). A Promise from a TypeScript library crosses with the `try` hatch, or with `sync` when a rejection is a bug (D148); inside the hatch's function, `async` and `await` keep their JavaScript meaning, and a value of the `.vibe` file, such as `user.avatarId`, arrives as an input (D229). JavaScript `async` and `await` also work in inline `module` bodies and explicitly iterator-annotated async generators (Chapters 8 and 10, D271, D283). Effect modules replace platform APIs that return Promises, such as `fetch` (Chapter 11).
 
 #### How do I run things concurrently?
 
@@ -42,7 +42,7 @@ function displayName(id: string) {
 }
 ```
 
-Every function body plays the generator, and every call that returns an Effect plays `yield*`. `function*` now declares a producer (Chapter 8), so APIs that take a generator, such as `Effect.gen`, `Option.gen`, and `Result.gen`, stay in `.ts` files (EK1002). The editor converts an `Effect.gen` function for you (Chapter 28).
+Every function body plays the generator, and every call that returns an Effect plays `yield*`. An unannotated `function*` declares a producer (Chapter 8), so passing it to `Effect.gen`, `Option.gen`, or `Result.gen` is EK1002. An explicit JavaScript iterator return annotation keeps the native generator form and may be passed to those APIs (D271). D296 still rejects a throw that can escape it. Chapter 10 describes the TypeScript escapes, and Chapter 28 records the conversion refactor as a design target.
 
 #### What does `throw` mean now?
 

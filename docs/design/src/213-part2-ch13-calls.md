@@ -163,6 +163,8 @@ Against overload 1, `b`'s lambda is a plain function, which cannot call a servic
 
 #### Where programs start
 
+Inline `module` bodies use TypeScript's initialization rules (Chapter 10, D283, D303). The following entry rule applies to the containing `.vibe` file.
+
 A call never starts a fiber; a program starts only when a **runner** receives it. The compiler recognizes runners by their resolved symbols: `Effect.runPromise`, `runPromiseExit`, `runSync`, `runSyncExit`, `runFork`, `runCallback`, and their `*With` forms; `ManagedRuntime`'s `run*` methods; `NodeRuntime.runMain` and `BunRuntime.runMain`; and `@effect/vitest`'s `it.effect`, `it.live`, their `.each` and `.prop` forms, and `layer(…)`.
 
 ```ts es
