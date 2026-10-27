@@ -133,3 +133,30 @@ func TestBuildWatchShallowProjectRecreatedRootFile(t *testing.T) {
 
 	deleteAndRecreateShallowRootFile(t, sys, result.Watcher)
 }
+
+// Ancestor resolution watches receive sibling directory events. Only directory
+// changes containing actual inputs or lookup candidates should rebuild.
+func TestWatchIgnoresUnrelatedSiblingDirectory(t *testing.T) {
+	t.Parallel()
+	sys := newTestSys(&tscInput{files: FileMap{
+		"/home/src/workspaces/bugbash/app/tsconfig.json": `{"compilerOptions":{"noLib":true},"include":["src/**/*.ts"]}`,
+		"/home/src/workspaces/bugbash/app/src/index.ts":  `import { value } from "../../dependency"; export const x = value;`,
+	}, cwd: "/home/src/workspaces/bugbash/app"}, false)
+	result := execute.CommandLine(context.Background(), sys, []string{"--watch"}, sys)
+	assert.Assert(t, result.Watcher != nil)
+
+	sys.clearOutput()
+	sys.writeFileNoError("/home/src/workspaces/bugbash/unrelated/readme.md", "unrelated")
+	sys.mockWatchBackend.SendEvents([]fswatch.Event{{Kind: fswatch.EventUpdate, Path: "/home/src/workspaces/bugbash/unrelated"}})
+	result.Watcher.DoCycle()
+	assert.Assert(t, !strings.Contains(sys.getOutput(false), "Starting incremental compilation"), sys.getOutput(false))
+
+	// A directory can arrive with its files already in place, so the directory
+	// event alone must still resolve a previously missing import.
+	sys.writeFileNoError("/home/src/workspaces/bugbash/dependency/index.ts", "export const value = 42;")
+	sys.mockWatchBackend.SendEvents([]fswatch.Event{{Kind: fswatch.EventUpdate, Path: "/home/src/workspaces/bugbash/dependency"}})
+	result.Watcher.DoCycle()
+	assert.Assert(t, strings.Contains(sys.getOutput(false), "Starting incremental compilation"), sys.getOutput(false))
+	out, _ := sys.fsFromFileMap().ReadFile("/home/src/workspaces/bugbash/dependency/index.js")
+	assert.Assert(t, strings.Contains(out, "42"), out)
+}

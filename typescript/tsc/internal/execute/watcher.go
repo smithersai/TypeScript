@@ -407,9 +407,14 @@ func (w *Watcher) isRelevantChange(changedPaths map[tspath.RootedPath]fswatch.Ev
 		if w.config.ConfigFile != nil && w.config.PossiblyMatchesDirectoryName(p) {
 			return true
 		}
+		// Ancestor watches also receive unrelated sibling directory events.
+		// A directory matters when it contains a tracked input or resolution
+		// candidate, including a missing file that may have just appeared.
 		if w.sys.FS().DirectoryExists(tspath.RootedDirectoryPathFromPath(eventPath)) {
-			if w.wm.IsPathUnderWatch(eventPath) {
-				return true
+			for dependency := range w.seenFiles.Keys() {
+				if p.ContainsPath(dependency) {
+					return true
+				}
 			}
 		}
 	}
