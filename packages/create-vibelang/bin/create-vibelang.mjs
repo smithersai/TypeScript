@@ -74,6 +74,10 @@ console.log(`Created ${target} with VibeLang ${own.version}.`)
 if (install) {
   console.log(`Installing dependencies with ${manager}...`)
   const result = spawnSync(manager, ["install"], { cwd: directory, stdio: "inherit", shell: process.platform === "win32" })
+  if (result.error) {
+    if (result.error.code === "ENOENT") fail(`${manager} was not found. Install ${manager}, then run ${manager} install in ${target}.`)
+    fail(`Could not start ${manager} install: ${result.error.message}. Retry in ${target}.`)
+  }
   if (result.status !== 0) {
     console.error(`create-vibelang: ${manager} install failed. Run it again in ${target}.`)
     process.exit(result.status || 1)

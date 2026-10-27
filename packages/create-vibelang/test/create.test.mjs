@@ -180,7 +180,10 @@ test("a missing installer exits with failure and useful recovery instructions", 
     env: { ...process.env, PATH: directory, npm_config_user_agent: "pnpm/99" }
   })
   assert.equal(result.status, 1)
-  assert.match(result.stderr, /pnpm install failed\. Run it again in app/)
+  assert.match(result.stderr, /pnpm was not found/)
+  assert.match(result.stderr, /Install pnpm.*pnpm install.*app/)
+  assert.ok(existsSync(join(directory, "app/src/main.vibe")))
+  assert.doesNotMatch(result.stdout, /Next steps:/)
 })
 
 test("the packaged template restores dotfiles and excludes generated artifacts", (t) => {
