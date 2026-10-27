@@ -13,6 +13,8 @@ const effectTypeID = "~effect/Effect"
 
 // plan records what the lowering does to one .vibe file.
 type plan struct {
+	parameterWrites map[*ast.Node]bool // Effect functions whose body writes a parameter binding
+
 	fieldlessErrorConstructors map[*ast.Node]bool
 	effects                    map[*ast.Node]bool       // functions lowered to Effect.fnUntraced generators
 	programs                   map[*ast.Node]bool       // lambdas lowered to Effect.gen programs (design D7)
@@ -51,6 +53,7 @@ func (p *plan) conversionOf(node *ast.Node) conversion { return p.converts[node]
 // their calls run.
 func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 	p := &plan{effects: map[*ast.Node]bool{}, programs: map[*ast.Node]bool{}, runs: map[*ast.Node]bool{}, heldPrograms: map[*ast.Node]bool{}, converts: map[*ast.Node]conversion{}, servicePlan: newServicePlan(), plainPlan: newPlainPlan(), trustedPlan: newTrustedPlan(), tracingPlan: newTracingPlan(), scopePlan: newScopePlan()}
+	p.parameterWrites = map[*ast.Node]bool{}
 	p.returns = map[*ast.Node]bool{}
 	p.fieldlessErrorConstructors = map[*ast.Node]bool{}
 	p.handlerPlan = newHandlerPlan()
@@ -86,6 +89,7 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 				} else {
 					p.effects[node] = true
 				}
+				p.parameterWrites[node] = writesParameters(c, node)
 				p.planClause(c, node)
 				p.planProducer(c, node)
 				forEachCallInBody(node, func(call *ast.Node) bool {

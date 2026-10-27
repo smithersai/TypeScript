@@ -1,0 +1,10 @@
+// Reusing an Effect never reuses a parameter binding.
+export const compact = (n: number): Effect<number, never, never> => ++n
+export const expanded = (n: number): Effect<number, never, never> => {
+  const result = ++n
+  return result
+}
+export function declared(n: number): Effect<number, never, never> { return ++n }
+export const expression = function (n: number): Effect<number, never, never> { return ++n }
+export function declaredProgram(n: number): Effect<number, never, never> { return Effect.succeed(++n) }
+export const closure = (n: number): Effect<() => number, never, never> => () => ++n

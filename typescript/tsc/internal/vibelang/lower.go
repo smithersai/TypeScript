@@ -571,7 +571,7 @@ func (tx *lowering) visitRunningCall(node *ast.Node) *ast.Node {
 // function returning its direct Effect (direct.go).
 func (tx *lowering) lowerFunction(node *ast.Node) *ast.Node {
 	parameters, body := tx.loweredBody(node)
-	if hasSimpleParameters(node) {
+	if hasSimpleParameters(node) && !tx.plan.parameterWrites[node] {
 		role := thunkIsReturn // a function expression returns the Effect (directFunction)
 		switch {
 		case isProgramArrow(node):
@@ -720,7 +720,7 @@ func functionName(fn *ast.Node) string {
 func (tx *lowering) visitEffectFunctionDeclaration(node *ast.Node) *ast.Node {
 	f := tx.Factory()
 	loweredParameters, loweredBody := tx.loweredBody(node)
-	if hasSimpleParameters(node) {
+	if hasSimpleParameters(node) && !tx.plan.parameterWrites[node] {
 		if effect := tx.directEffect(node, loweredBody, thunkIsReturn); effect != nil {
 			body := f.NewBlock(f.NewNodeList([]*ast.Node{tx.generated(f.NewReturnStatement(effect))}), true /*multiLine*/)
 			return tx.effectFunctionDeclaration(node, loweredParameters, body)

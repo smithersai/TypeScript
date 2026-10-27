@@ -56,7 +56,7 @@ func (tx *lowering) lowerMethod(node *ast.Node) *ast.Node {
 	body := ec.VisitFunctionBody(node.Body(), tx.Visitor())
 	tx.inEffect, tx.frame, tx.plain = saved, savedFrame, savedPlain
 
-	if !hasSimpleParameters(node) {
+	if !hasSimpleParameters(node) || tx.plan.parameterWrites[node] {
 		return tx.perRunMethod(node, parameters, body)
 	}
 	if effect := tx.directEffect(node, body, thunkIsReturn); effect != nil {

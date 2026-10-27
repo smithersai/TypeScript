@@ -23,7 +23,7 @@ const makeNoop = (): Journal => ({ read: Effect.sync(() => 0) })
 
 Constructing the object runs nothing; calling `journal.read()` inside a running function executes the stored program. The same holds in `Layer.sync` service literals and in `make({ read: work() })` when `make` expects an Effect field. A field typed `number` instead runs `work()` during construction and stores its result.
 
-Running the same function's Effect again starts a fresh execution, including a fresh rest-parameter array. Methods bind defaults and destructured parameters on each execution too. Program lambdas also bind their optional or rest parameters when they run. Objects passed by the caller keep their identity; changing their contents remains visible to later executions.
+Running the same function's Effect again starts a fresh execution, including a fresh rest-parameter array. Assigning to a parameter, such as `++n` or `n += 1`, affects only that execution. Methods bind defaults and destructured parameters on each execution too. Program lambdas also bind their optional or rest parameters when they run. Objects passed by the caller keep their identity; changing their contents remains visible to later executions. A factory that explicitly returns a program keeps the outer state it captured when called.
 
 ## Build and run a local project
 
