@@ -57,3 +57,7 @@ test("scaffolder options include both aliases for help and version", () => {
   const text = read("packages/create-vibelang/README.md")
   for (const flag of ["-h", "--help", "-v", "--version"]) assert.ok(text.includes(`\`${flag}\``), flag)
 })
+
+test("essentials declares its example layer binding", () => {
+  assert.match(read("docs/user/llms-essentials.md"), /`const UsersLive = Layer\.succeed/)
+})

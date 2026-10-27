@@ -22,7 +22,7 @@ export function names(ids: ReadonlyArray<string>) {
 - `throw new NotFound({ id })` fails; `x catch (e) => y` and `try { } catch (e) { }` recover; `match (e) { when NotFound: ...; default: throw e; }` picks error classes.
 - Imports keep extensions: `"./user.vibe"`. Effect root modules are in scope.
 - `.ts`: import `"./user.vibe"`; run its Effect with `Effect.runPromise` from `effect`; include `src/**/*.ts` in tsconfig.
-- `provide UsersLive { ... }` supplies `Users`; `UsersLive = Layer.succeed(Users, { name(id) { ... } })`.
+- `provide UsersLive { ... }` supplies `Users`; `const UsersLive = Layer.succeed(Users, { name(id) { ... } })`.
 - `await.all [a(), b()]` runs both; `%` is `x` in `x |> f(%)`.
 - TypeScript bodies: `let`, loops, `typeof`, regex, Array/Map methods.
 - `using h = acquire()` frees on block exit. [Disposable limit](https://vibelang.sh/resource-management/030-scope.md#known-limitation-pending-interruption-and-javascript-disposables). `yieldNow()` first honors interrupts.
