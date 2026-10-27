@@ -111,6 +111,11 @@ func serviceClassRewrite(c *checker.Checker, file *ast.SourceFile, class *ast.No
 	if shapeType == nil || shapeType.Flags()&checker.TypeFlagsObject == 0 || len(c.GetSignaturesOfType(shapeType, checker.SignatureKindCall)) != 0 || len(c.GetPropertiesOfType(shapeType)) == 0 {
 		return nil // a service declares members
 	}
+	// Removing the heritage expression requires proof that evaluating the key
+	// has no effects. A dynamic key can call code, read a getter, or throw.
+	if !ast.IsStringLiteralLike(key) {
+		return &formRewrite{why: "No quick fix: evaluating its dynamic service key must be preserved."}
+	}
 	name := class.Name().Text()
 	keyNote := ""
 	if ast.IsStringLiteralLike(key) {
