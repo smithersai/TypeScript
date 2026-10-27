@@ -95,7 +95,7 @@ VibeLang is v0. The language will change in major, breaking ways. It is not suit
 // packageName turns a directory name into a valid npm package name.
 function packageName(name) {
   const cleaned = name.toLowerCase().replace(/[^a-z0-9._~-]+/g, "-").replace(/^[._-]+/, "").replace(/-+$/, "")
-  return cleaned || "vibelang-app"
+  return !cleaned || ["node_modules", "favicon.ico"].includes(cleaned) ? "vibelang-app" : cleaned
 }
 
 // packageManager reports the tool that ran this script, from the user agent

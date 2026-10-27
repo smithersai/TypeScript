@@ -226,3 +226,11 @@ test("new app READMEs omit repository setup instructions", (t) => {
   assert.equal(result.status, 0, result.stderr)
   assert.doesNotMatch(readFileSync(join(directory, "app/README.md"), "utf8"), /scripts\/setup\.sh|local VibeLang checkout/)
 })
+test("reserved npm package names use a valid fallback", (t) => {
+  for (const name of ["node_modules", "favicon.ico", "NODE_MODULES", "Favicon.ico"]) {
+    const directory = scratch(t)
+    const result = run(directory, name, "--no-install")
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(JSON.parse(readFileSync(join(directory, name, "package.json"), "utf8")).name, "vibelang-app")
+  }
+})
