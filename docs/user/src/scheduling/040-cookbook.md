@@ -77,11 +77,10 @@ A pending response is a success, so it feeds `repeat`, not `retry`. This simulat
 error Offline
 
 function readWithDeadline() {
-  return do {
-    const $pipe0: never!Offline! = () => { throw new Offline() }
-    const $pipe1 = Schedule.exponential("80 millis").upTo({ times: 5 })
-    timeout(() => retry($pipe0, $pipe1), "350 millis")
-  }
+  return timeout(
+    () => retry(() => { throw new Offline() }, Schedule.exponential("80 millis").upTo({ times: 5 })),
+    "350 millis"
+  )
 }
 // Output: TimeoutError
 ```

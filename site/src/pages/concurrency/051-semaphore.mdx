@@ -70,11 +70,7 @@ function releaseOnFailure() {
   } catch (error) {
     Console.log("first job rejected", error._tag)
   }
-  return do {
-    const $pipe0: (string)!! = () => "next job can enter"
-    const $pipe1 = mutex
-    Semaphore.withPermits($pipe1, 1, $pipe0)
-  }
+  return Semaphore.withPermits(mutex, 1, () => "next job can enter")
 }
 // Output: first job rejected Rejected
 // Output: next job can enter

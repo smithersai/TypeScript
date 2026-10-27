@@ -130,7 +130,7 @@ function expirationWindow() {
 // Output: 15000
 ```
 
-Effect exposes operations as module functions: call them with their data argument, or use their curried form in `pipe` where one exists. An Effect pipeline starts with a program, as in `pipe(() => work(), Effect.timeout("1 second"))`.
+Effect exposes operations as module functions: call them with their data argument, or use their curried form in `pipe` where one exists. `pipe(x, f)` passes `x` as the value it is, so a function literal first stays a function: call the operation with the program instead, as in `Effect.timeout(() => work(), "1 second")`. `pipe` suits data-last functions with no data-first form, such as `Match.when`.
 
 ## Bundling unused code
 

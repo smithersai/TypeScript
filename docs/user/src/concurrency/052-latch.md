@@ -61,11 +61,7 @@ function gatedExclusiveWork() {
   const initialized = Latch.make(true)
   const exclusive = Semaphore.make(1)
   Latch.await(initialized)
-  return do {
-    const $pipe0: void!! = () => Console.log("updating shared device")
-    const $pipe1 = exclusive
-    Semaphore.withPermits($pipe1, 1, $pipe0)
-  }
+  return Semaphore.withPermits(exclusive, 1, () => Console.log("updating shared device"))
 }
 // Output: updating shared device
 ```
