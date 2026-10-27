@@ -6,7 +6,7 @@ import { createRequire } from "node:module"
 
 const repo = resolve(import.meta.dir, "../..")
 export type Diagnostic = { code: string; message: string; line?: number; column?: number }
-export type Block = { number: number; line: number; language: "vibe" | "ts"; source: string; filename?: string; types?: string[]; firstLine: string; expected: string[]; fragment: boolean; comparison?: boolean; gap?: string; output?: string; run?: string }
+export type Block = { number: number; line: number; endLine?: number; language: "vibe" | "ts"; source: string; filename?: string; types?: string[]; firstLine: string; expected: string[]; fragment: boolean; comparison?: boolean; gap?: string; output?: string; run?: string }
 export type Result = Block & { status: "ok" | "fragment" | "compiler-gap" | "fail"; diagnostics: Diagnostic[]; reason?: string; execution?: Execution }
 export type Execution = { phase: "compile" | "run"; status: "passed" | "failed"; expectedStdout: string; stdout: string; stderr: string; exitCode: number; timedOut: boolean }
 
@@ -56,7 +56,7 @@ export function extract(markdown: string, options: { hatchExamples?: boolean } =
     }
     const run = header.match(/\/\/ run:\s*([^\n]+)/)?.[1]
     if (run && output === undefined) throw new Error(`Block ${number} has a run marker without expected output`)
-    blocks.push({ number, line: start + 1, language, source: body.join("\n"), filename, output, run,
+    blocks.push({ number, line: start + 1, endLine: i + 1, language, source: body.join("\n"), filename, output, run,
       types: header.match(/\/\/ types:\s*([^\n]+)/)?.[1].split(/[\s,]+/).filter(Boolean),
       firstLine: body.find(l => l.trim() && !/^\s*\/\//.test(l)) ?? body[0] ?? "",
       expected: [...(header.match(/\/\/ expect-error:\s*([^\n]+)/)?.[1] ?? "").matchAll(/(?:EK|TS)\d+/g)].map(m => m[0]),
@@ -314,7 +314,7 @@ export function writeProject(dir: string, blocks: Block[], options: { exportFunc
 }
 
 // Keep compile and execution output separate so a failure identifies its stage.
-async function command(args: string[], cwd: string, timeout: number) {
+export async function command(args: string[], cwd: string, timeout: number) {
   const child = Bun.spawn(args, { cwd, stdout: "pipe", stderr: "pipe" })
   let timedOut = false
   const timer = setTimeout(() => { timedOut = true; child.kill("SIGKILL") }, timeout)
@@ -367,7 +367,7 @@ async function runVitest(dir: string, emitted: string, helper: string | undefine
   return command(["node", vitest, "run", "--config", "$docs-vitest.config.mjs"], dir, timeout)
 }
 
-async function runBlock(dir: string, blocks: Block[], result: Result, compiler: string, timeout: number): Promise<Result> {
+export async function runBlock(dir: string, blocks: Block[], result: Result, compiler: string, timeout: number): Promise<Result> {
   if (result.status !== "ok" || result.expected.length || result.diagnostics.length) {
     return { ...result, status: "fail", reason: `Output assertion cannot run a ${result.status} block or a block with expected diagnostics` }
   }

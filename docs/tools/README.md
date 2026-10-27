@@ -62,6 +62,29 @@ Temporary files are removed on success and failure; `--keep` preserves the
 temporary projects for debugging. Compiler crashes, missing runtime builds, and
 project configuration errors exit 2. Snippet failures exit 1.
 
+`bun docs/tools/fix-snippets.ts` uses the same extraction, page scope and temporary
+projects to run `vibelang --fix --fix-migration-only`. It writes changed code
+blocks back only when diagnostics still match and every declared output on the
+page still runs with its expected stdout, both before and after the edit. A
+refusal leaves the whole page unchanged. Prose, fences, output assertions and
+plain-TypeScript hatch/module comments are preserved; new hatches and modules
+receive those comments. `--check` reports proposed edits without writing, and
+`--compiler`, `--root`, `--filter` and `--timeout` work as in the checker.
+`--all-fixes` also enables the existing style and prelude cleanups; the default
+scope contains decision-1 migration edits only, so S0 makes zero edits.
+
+The checked legacy oracle lives at
+`typescript/tsc/internal/vibelang/testdata/legacy_sites.txt`. Regenerate it with
+`(cd typescript/tsc && go run ./cmd/vibelang-forms -legacy internal/vibelang/testdata/legacy_sites.txt)`;
+`-legacy -` writes stdout instead. It checks the case corpus, examples, templates,
+package test fixtures and docs projects prepared by `legacy-snippets.ts`, using
+the native classifier rather than the mapper snapshot. Each sorted line records
+a span, kind, old boundary/representation and selected signature; conservative
+alternate-candidate sites and incomplete applicability checks are labelled.
+`(cd typescript/tsc && go test -timeout 20m ./cmd/vibelang-forms -run TestLegacyOracle)`
+regenerates and compares the entire file. Both commands require Bun, the pinned
+docs dependencies and the built runtime, as the snippet checker does.
+
 ```sh
 bun test docs/tools/check-snippets.test.ts docs/tools/first-run.test.ts docs/tools/hovers.test.ts
 sh scripts/deploy-docs.sh --dry-run

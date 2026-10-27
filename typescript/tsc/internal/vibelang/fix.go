@@ -57,6 +57,25 @@ import (
 // FixFlag is the command line flag that applies the quick fixes.
 const FixFlag = "--fix"
 
+// FixOptions scopes repository migration tools without also rewriting the
+// TypeScript-style teaching examples or their explicit imports (D382).
+type FixOptions struct{ MigrationOnly bool }
+
+// FixOptionsArguments removes the optional scope flag after --fix was found.
+// Ordinary --fix keeps its existing behavior, including prelude cleanup.
+func FixOptionsArguments(args []string) ([]string, FixOptions) {
+	var options FixOptions
+	var rest []string
+	for _, arg := range args {
+		if strings.EqualFold(arg, "--fix-migration-only") {
+			options.MigrationOnly = true
+		} else {
+			rest = append(rest, arg)
+		}
+	}
+	return rest, options
+}
+
 // FixArguments returns args without --fix, and whether it held one.
 func FixArguments(args []string) ([]string, bool) {
 	index := slices.IndexFunc(args, func(arg string) bool { return strings.EqualFold(arg, FixFlag) })
@@ -71,6 +90,10 @@ func FixArguments(args []string) ([]string, bool) {
 // sys's writer. It returns a nonzero exit status only when it cannot run;
 // diagnostics are the compilation's to report.
 func Fix(ctx context.Context, sys tsc.System, args []string) int {
+	return FixWithOptions(ctx, sys, args, FixOptions{})
+}
+
+func FixWithOptions(ctx context.Context, sys tsc.System, args []string, options FixOptions) int {
 	for _, arg := range args {
 		switch strings.ToLower(arg) {
 		case "-b", "--b", "-build", "--build", "-w", "--w", "-watch", "--watch":
@@ -92,7 +115,7 @@ func Fix(ctx context.Context, sys tsc.System, args []string) int {
 	if len(errors) > 0 || config == nil {
 		return 0 // the compilation reports them
 	}
-	result := FixProject(ctx, sys.FS(), sys.DefaultLibraryPath(), config)
+	result := FixProjectWithOptions(ctx, sys.FS(), sys.DefaultLibraryPath(), config, options)
 	if ctx.Err() != nil {
 		fmt.Fprintln(sys.ErrorWriter(), "vibelang --fix: interrupted; no file written.")
 		return int(tsc.ExitStatusInvalidProject_OutputsSkipped)
@@ -203,7 +226,17 @@ const fixRounds = 16
 // returns the files they change, without writing them. When ctx is done it
 // stops after the program it is checking, and returns what it had.
 func FixProject(ctx context.Context, fs vfs.FS, libraryPath tspath.RootedDirectoryPath, config *tsoptions.ParsedCommandLine) *FixResult {
+	return FixProjectWithOptions(ctx, fs, libraryPath, config, FixOptions{})
+}
+
+func FixProjectWithOptions(ctx context.Context, fs vfs.FS, libraryPath tspath.RootedDirectoryPath, config *tsoptions.ParsedCommandLine, options FixOptions) *FixResult {
 	result := &FixResult{Files: map[tspath.RootedFilePath]*FixedFile{}}
+	// S0 only records legacy decisions. Later slices insert recorder-driven
+	// migration rounds here, shared by ordinary and migration-only --fix.
+	// Existing style/prelude fixes are outside the docs migration transaction.
+	if options.MigrationOnly {
+		return result
+	}
 	// A checker that sees its context canceled panics when it is asked
 	// again, so the checks run to their end and ctx is tested between them.
 	done := ctx

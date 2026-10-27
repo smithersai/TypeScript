@@ -29,8 +29,11 @@ func rankProgramCandidates(c *checker.Checker, call *ast.Node) func(*checker.Sig
 		return nil
 	}
 	a := analyzerFor(c)
-	return func(candidate *checker.Signature) int {
-		rank := 0
+	return func(candidate *checker.Signature) (rank int) {
+		// Observe only candidates the checker actually ranks (fully applicable
+		// in their own context). The census must not rerun ranking on arbitrary
+		// declared signatures and mistake an inapplicable overload for a choice.
+		defer func() { rememberLegacyRank(c, call, candidate, rank) }()
 		for _, arg := range args {
 			if !mayRunByName(arg) {
 				continue

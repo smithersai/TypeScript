@@ -39,8 +39,9 @@ func runMain() int {
 	defer stop()
 	sys := newSystem()
 	if rest, fix := vibelang.FixArguments(args); fix {
+		rest, options := vibelang.FixOptionsArguments(rest)
 		// vibelang --fix applies the safe quick fixes, then compiles (D291).
-		if status := vibelang.Fix(ctx, sys, rest); status != 0 {
+		if status := vibelang.FixWithOptions(ctx, sys, rest, options); status != 0 {
 			return status
 		}
 		args = rest
