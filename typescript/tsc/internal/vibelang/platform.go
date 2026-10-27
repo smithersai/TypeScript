@@ -106,7 +106,7 @@ var platformServices = map[string]*platformService{
 	"Console":         {"Console, from the prelude", "Console.log(message)", "", ""},
 	"Stream":          {"Stream, from the prelude", "Stream.fromIterable(values)", "", ""},
 	"PubSub":          {"PubSub, or Stream.fromEventListener for an event target, from the prelude", `Stream.fromEventListener(target, "message")`, "", ""},
-	"Exit":            {"main's result: return or fail from main", "", "", ""},
+	"Exit":            {"return from main for exit 0; fail for exit 1; interruption exits 130", "", "", ""},
 	"@effect/vitest":  {"it.effect and assert", "", `import { assert, it } from "@effect/vitest"`, ""},
 	"ImportMeta":      {"import.meta, which needs no layer", "import.meta.resolve(specifier)", "", ""},
 	"GlobalThis":      {"globalThis, ECMAScript's global object", "globalThis", "", ""},

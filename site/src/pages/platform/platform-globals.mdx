@@ -93,8 +93,8 @@ Each row says what replaces a global or one of its members: an Effect API first,
 | `process.cwd` | `Path.resolve()` |
 | `process.env` | `Config.String("NAME")()` |
 | `process.execPath` | `Experimental.Process.execPath()` |
-| `process.exit` | main's result: return or fail from main |
-| `process.exitCode` | main's result: return or fail from main |
+| `process.exit` | return from main for exit 0; fail for exit 1; interruption exits 130 |
+| `process.exitCode` | return from main for exit 0; fail for exit 1; interruption exits 130 |
 | `process.hrtime` | `Clock.monotonicTimeNanos()` |
 | `process.kill` | `Experimental.Process.kill(pid, { killSignal })` |
 | `process.memoryUsage` | `Experimental.Process.memoryUsage()` |
