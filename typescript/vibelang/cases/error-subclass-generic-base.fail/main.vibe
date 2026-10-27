@@ -1,0 +1,9 @@
+// expect: TS2322
+// The generated constructor of a subclass of Base<number> takes a number
+// value (D278), so a string is rejected where it is written.
+error Base<T> { _tag: string; value: T }
+error Child extends Base<number> { own: string }
+
+export function wrong() {
+  return new Child({ value: "wrong type", own: "ok" })
+}

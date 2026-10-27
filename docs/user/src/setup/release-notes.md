@@ -146,6 +146,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - A `sync` or `try` hatch whose function returned `number | Promise<number>` gave the Promise object where its type promised a number, and one that returned data with a `then` field, such as `{ then: 7 }`, crashed with `then is not a function`. The hatch now waits only for a value whose `then` is a function, deciding per value when the type allows both.
 - A pattern recognized built-in matchers by spelling: with a parameter named `String`, `when String` still tested `typeof x === "string"`, and `when Option.None` on your own `data Option` failed with EK2127. A matcher now means what its name resolves to, so those are a variable pattern and your type's variant.
 - A default in a catch binding, such as `catch ({ id = fallback() })`, could fail or need a service that the function's contract left out, so a `number!!` function compiled and its callers could not catch the failure. The compiler now counts the default's failures and requirements in the function's contract.
+- An error subclass of a generic base, such as `error Child extends Base<number> { own: string }`, failed to compile with TS2345 because its generated constructor dropped the base's type arguments. The constructor now takes what `Base<number>` takes, plus the subclass's fields.
 
 #### Runtime
 

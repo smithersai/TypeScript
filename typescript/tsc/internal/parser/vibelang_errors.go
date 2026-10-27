@@ -534,7 +534,10 @@ func (p *Parser) vibelangDeclareField(d *errorDeclaration, field *ast.Node) *ast
 //
 //	constructor(args: $ErrorArgs<typeof Base, Pick<Name, "field" | ...>>) { super(args) }
 //
-// or returns nil when the base is not an entity name, which typeof needs.
+// or returns nil when the base is not an entity name, which typeof needs. A
+// base written with type arguments, `extends Base<number>`, is queried as
+// `typeof Base<number>`, so the constructor takes what the instantiated base
+// takes.
 func (p *Parser) vibelangErrorConstructor(d *errorDeclaration, expression *ast.Node) *ast.Node {
 	at := d.name.Loc
 	entity := p.vibelangSynthesizedEntityName(expression, at)
@@ -553,7 +556,15 @@ func (p *Parser) vibelangErrorConstructor(d *errorDeclaration, expression *ast.N
 		keyType = p.vibelangSynthesized(p.factory.NewUnionTypeNode(p.newNodeList(at, keys)), at)
 	}
 	pick := p.vibelangSynthesized(p.factory.NewTypeReferenceNode(p.vibelangSynthesized(p.factory.NewIdentifier("Pick"), at), p.newNodeList(at, []*ast.Node{p.vibelangErrorSelf(d), keyType})), at)
-	query := p.vibelangSynthesized(p.factory.NewTypeQueryNode(entity, nil), at)
+	var typeArguments *ast.NodeList
+	if written := d.base.AsExpressionWithTypeArguments().TypeArguments; written != nil {
+		clones := make([]*ast.Node, len(written.Nodes))
+		for i, argument := range written.Nodes {
+			clones[i] = p.addDeepCloneReparse(argument)
+		}
+		typeArguments = p.newNodeList(written.Loc, clones)
+	}
+	query := p.vibelangSynthesized(p.factory.NewTypeQueryNode(entity, typeArguments), at)
 	argsType := p.vibelangSynthesized(p.factory.NewTypeReferenceNode(p.vibelangSynthesized(p.factory.NewIdentifier("$ErrorArgs"), at), p.newNodeList(at, []*ast.Node{query, pick})), at)
 	parameter := p.vibelangSynthesized(p.factory.NewParameterDeclaration(nil, nil, p.vibelangSynthesized(p.factory.NewIdentifier("args"), at), nil, argsType, nil), at)
 	super := p.vibelangSynthesized(p.factory.NewKeywordExpression(ast.KindSuperKeyword), at)

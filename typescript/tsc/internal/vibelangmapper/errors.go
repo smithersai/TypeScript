@@ -236,6 +236,10 @@ func (p *projector) errorClassDeclaration(node *ast.Node) {
 		}
 		if len(fields) != 0 && !hasConstructor {
 			baseText := p.text[p.tokenStart(base):base.End()]
+			if arguments := extends.TypeArguments(); len(arguments) != 0 {
+				// typeof Base<number>: what the instantiated base takes (D278).
+				baseText += "<" + p.text[p.tokenStart(arguments[0]):arguments[len(arguments)-1].End()] + ">"
+			}
 			bodyStart = append(bodyStart, "constructor(args: "+helperRef("$ErrorArgs")+"<typeof "+baseText+", Pick<"+self+", "+strings.Join(fields, " | ")+">>) { super(args) }")
 		}
 	case errorClassSchemaRoot, errorClassSchemaSubclass:

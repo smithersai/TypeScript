@@ -333,6 +333,11 @@ var projectionCases = []struct {
 		virtual: "class Missing extends $errorSubclass(Wide, \"Missing\") { declare readonly _tag: \"Missing\"; constructor(args: $ErrorArgs<typeof Wide, Pick<Missing, \"path\">>) { super(args) } declare readonly path: string }\nclass Bare extends $errorSubclass(Wide, \"Bare\") { declare readonly _tag: \"Bare\"; }\nclass Own extends $errorSubclass(Wide, \"Own\") { declare readonly _tag: \"Own\"; declare readonly reason: string; constructor(reason: string) { super({ code: reason }); this.reason = reason } }\n",
 	},
 	{
+		name:    "a subclass of a generic base takes what the instantiated base takes (D278)",
+		source:  "error Child extends Base<number> { own: string }\n",
+		virtual: "class Child extends $errorSubclass(Base, \"Child\")<number> { declare readonly _tag: \"Child\"; constructor(args: $ErrorArgs<typeof Base<number>, Pick<Child, \"own\">>) { super(args) } declare readonly own: string }\n",
+	},
+	{
 		name:    "a schema error is a schema class (D279)",
 		source:  "schema error FsError { _tag: string; method: string; path?: string }\nschema error Locked extends FsError { holder: string }\n",
 		virtual: "class FsError extends Schema.TaggedError<FsError>()(\"FsError\" as string, { method: Schema.String, path: Schema.optional(Schema.String) }) { declare readonly _tag: string; declare readonly method: string; declare readonly path?: string }\nclass Locked extends FsError.extend<Locked>(\"Locked\")({ _tag: Schema.tag(\"Locked\"), holder: Schema.String }) { declare readonly holder: string }\n",

@@ -1,0 +1,18 @@
+// A subclass with fields and no constructor takes its base's fields and its
+// own as one object (D278). A generic base keeps the type arguments the
+// subclass writes, so Child's value is a number and Pair's left and right
+// take Pair's own type parameter.
+error Base<T> { _tag: string; value: T }
+error Child extends Base<number> { own: string }
+error Pair<T> extends Base<T> { other: T }
+
+// expect-result: {"child":[123,"ok","Child",true],"pair":["a","b","Pair",true]}
+export function main() {
+  const child = new Child({ value: 123, own: "ok" })
+  const pair = new Pair<string>({ value: "a", other: "b" })
+  const total: number = child.value
+  return {
+    child: [total, child.own, child._tag, child instanceof Base],
+    pair: [pair.value, pair.other, pair._tag, pair instanceof Base]
+  }
+}
