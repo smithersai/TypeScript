@@ -66,8 +66,10 @@ Comments and JSDoc stay in place. Formatting is idempotent: a formatted file doe
 The plugin reports the file and leaves it unchanged when:
 
 - the file has a syntax error, reported as `vibelang format: line:column: message`, or `vibelang format: line:column: module text: message` in a module body;
-- a comment sits inside a VibeLang form's own tokens, such as between `f(args)` and its block or between two clauses of a `try` statement; move it into the block or before the statement;
+- a comment sits inside a VibeLang form's own tokens, such as between a block-parameter call’s `f(args)` and its block or between clauses in a rewritten VibeLang clause chain containing `handle` or `finally (exit)`; move it into the block or before the statement;
 - formatting would change the program, a plugin bug: report it with the file.
+
+Comments between ordinary TypeScript `try`/`catch`/`finally` clauses are supported and follow dprint’s TypeScript formatting.
 
 It keeps the superseded `layer` declaration and the retired `select` statement exactly as written; rewrite them as `Layer.effect(...) { ... }` and `await.race`.
 
