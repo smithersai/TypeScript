@@ -480,10 +480,20 @@ func (tx *lowering) hoist(name *ast.Node) {
 // becomes
 //
 //	try { if (n > 0) throw runtime.$expected(new Invalid()) } catch (e) { e = runtime.$caught(e); return -1 }
+//
+// What plain code throws stands for the Cause a frame would carry, so the
+// runtime decides what a catch recovers as $catch does: `throw cause` (D177)
+// becomes `throw runtime.$expectedCause(cause)`, which a catch receives as
+// the cause's first expected failure only when the cause holds no defect.
 
-// visitPlainThrowStatement turns `throw e` into `throw runtime.$expected(e)`.
+// visitPlainThrowStatement turns `throw e` into `throw runtime.$expected(e)`,
+// and `throw cause` into `throw runtime.$expectedCause(cause)`.
 func (tx *lowering) visitPlainThrowStatement(node *ast.Node) *ast.Node {
-	statement := tx.Factory().NewThrowStatement(tx.runtimeCall("$expected", tx.Visitor().VisitNode(node.Expression())))
+	helper := "$expected"
+	if tx.plan.causeThrows[node] {
+		helper = "$expectedCause" // throw cause (D177, primitives.go)
+	}
+	statement := tx.Factory().NewThrowStatement(tx.runtimeCall(helper, tx.Visitor().VisitNode(node.Expression())))
 	tx.EmitContext().SetOriginal(statement, node)
 	statement.Loc = node.Loc
 	return statement

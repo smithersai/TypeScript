@@ -26,6 +26,7 @@ export const {
   $entry,
   $errorSubclass,
   $expected,
+  $expectedCause,
   $extract,
   $failCause,
   $failureOf,

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Cause, Context, Deferred, Fiber, Stream } from "effect"
 import {
-  $bind, $catch, $caught, $control, $expected, $finally, $fork, $forOf, $normal,
+  $bind, $catch, $caught, $control, $expected, $expectedCause, $finally, $fork, $forOf, $normal,
   $produce, $program, $programs, $reference, $region, $service, $tailResume,
   $tailResumeWith, $trusted, $trustedPlain, $using, $yield, $yieldAll, abandon, Control,
   Effect, Exit, fork, handle, handoff, Layer, pipe, resume,
@@ -48,6 +48,32 @@ test("regions: a plain-JavaScript catch receives expected failures and rethrows 
   expect(plain("expected")).toBe("expected")
   const defect = new TypeError("defect")
   expect(() => plain(defect)).toThrow(defect)
+})
+
+// D177, D13: plain code recovers a thrown Cause as $catch does, and passes a
+// cause that holds a defect on as the value Effect.runSync throws for it.
+test("regions: a plain-JavaScript catch recovers a thrown cause as catch does", () => {
+  const plain = (cause: Cause.Cause<unknown>) => {
+    try {
+      throw $expectedCause(cause)
+    } catch (e) {
+      return $caught(e)
+    }
+  }
+  const thrown = (f: () => unknown) => {
+    try {
+      return { returned: f() }
+    } catch (e) {
+      return { thrown: e }
+    }
+  }
+  const defect = new TypeError("defect")
+  expect(plain(Cause.fail("no"))).toBe("no")
+  expect(plain(Cause.combine(Cause.fail("first"), Cause.fail("second")))).toBe("first")
+  expect(plain(Cause.combine(Cause.interrupt(1), Cause.fail("beside")))).toBe("beside")
+  expect(thrown(() => plain(Cause.die(defect)))).toEqual({ thrown: defect })
+  expect(thrown(() => plain(Cause.combine(Cause.fail("no"), Cause.die(defect))))).toEqual({ thrown: "no" })
+  expect(thrown(() => plain(Cause.combine(Cause.die(defect), Cause.fail("no"))))).toEqual({ thrown: defect })
 })
 
 test("regions: finally runs and completes when its body is interrupted", async () => {

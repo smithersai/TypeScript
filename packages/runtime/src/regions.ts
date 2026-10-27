@@ -1,4 +1,4 @@
-import { Effect, Scope } from "effect"
+import { Cause, Effect, Scope } from "effect"
 import * as K from "./kernel/kernel.js"
 
 export const $normal = { kind: "normal" } as const
@@ -85,15 +85,44 @@ const disposal = (value: unknown, releasesItself: boolean): Effect.Effect<void> 
 }
 
 /**
- * D54: an expected failure thrown in a function that compiles to plain
- * JavaScript. The function's own catch tells it from a defect.
+ * D54: a failure in flight in a function that compiles to plain JavaScript,
+ * which a catch of the function recovers: the cause a frame would carry, with
+ * the expected failure a catch receives. Plain code throws every other cause
+ * as one JavaScript value, which its catches pass through as a defect.
  */
 class ExpectedFailure {
-  constructor(readonly error: unknown) {}
+  constructor(readonly error: unknown, private readonly whole?: Cause.Cause<unknown>) {}
+  get cause(): Cause.Cause<unknown> {
+    return this.whole ?? Cause.fail(this.error)
+  }
+}
+
+/**
+ * What plain code throws for cause (D13, D306, as `$catch` decides): an
+ * ExpectedFailure when a catch recovers the cause's first expected failure,
+ * because it holds no defect; otherwise the one JavaScript value
+ * Effect.runSync would throw for it once its defects are elected (D305):
+ * its first failure or defect, in order, as `Cause.squash` gives.
+ */
+const thrownFor = (cause: Cause.Cause<unknown>): unknown => {
+  if (!K.isAbortCause(cause) && !cause.reasons.some(Cause.isDieReason)) {
+    const failure = cause.reasons.find(Cause.isFailReason)
+    if (failure !== undefined) return new ExpectedFailure(failure.error, cause)
+  }
+  const first = cause.reasons.find((reason) => Cause.isFailReason(reason) || Cause.isDieReason(reason))
+  return first === undefined ? Cause.squash(cause) : Cause.isFailReason(first) ? first.error : (first as Cause.Die).defect
 }
 
 /** D54: `throw e` in a function that compiles to plain JavaScript throws `$expected(e)`. */
 export const $expected = (error: unknown): unknown => new ExpectedFailure(error)
+
+/**
+ * D54, D177: `throw cause` in a function that compiles to plain JavaScript
+ * throws `$expectedCause(cause)`, which fails with every reason the cause
+ * holds, as `Effect.failCause` does: a catch receives its first expected
+ * failure only when it holds no defect.
+ */
+export const $expectedCause = (cause: Cause.Cause<unknown>): unknown => thrownFor(cause)
 
 /**
  * D54, D13: a catch in a function that compiles to plain JavaScript starts

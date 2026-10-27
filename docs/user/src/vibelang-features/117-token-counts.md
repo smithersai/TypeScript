@@ -19,9 +19,9 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,113 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,705 |
-| The skill and the user guide (134 pages) | 245,660 |
-| The user guide alone | 240,547 |
-| The specification (33 chapters) | 166,671 |
+| The skill and the user guide (134 pages) | 245,737 |
+| The user guide alone | 240,624 |
+| The specification (33 chapters) | 166,758 |
 | The decision log, `docs/design/DECISIONS.md` | 107,236 |
 
 ## Effect TypeScript beside VibeLang
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **24,666** |
-| [Release notes](../setup/release-notes.md) | 24,666 |
-| **All 15 pages** | **43,812** |
+| **Upgrade** | **24,743** |
+| [Release notes](../setup/release-notes.md) | 24,743 |
+| **All 15 pages** | **43,889** |
 
 ### Guides
 
@@ -285,10 +285,10 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [10. Working with TypeScript](../../../design/src/110-part1-ch10-typescript.md) | 6,517 |
 | [11. The standard library](../../../design/src/111-part1-ch11-stdlib.md) | 5,442 |
 | [12. Questions Effect users ask](../../../design/src/112-part1-ch12-faq.md) | 3,489 |
-| **Part II. The rules** | **28,680** |
+| **Part II. The rules** | **28,755** |
 | [13. What a call means](../../../design/src/213-part2-ch13-calls.md) | 14,565 |
 | [14. Contracts and inference](../../../design/src/214-part2-ch14-contracts.md) | 4,169 |
-| [15. Which functions compile to plain JavaScript](../../../design/src/215-part2-ch15-direct.md) | 2,961 |
+| [15. Which functions compile to plain JavaScript](../../../design/src/215-part2-ch15-direct.md) | 3,036 |
 | [16. Callbacks and higher-order functions](../../../design/src/216-part2-ch16-callbacks.md) | 1,958 |
 | [17. Failures, defects, interruption, and cleanup](../../../design/src/217-part2-ch17-failures.md) | 5,027 |
 | **Part III. The runtime** | **25,582** |
@@ -301,8 +301,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 4,364 |
 | [25. Implementation strategies and costs](../../../design/src/325-part3-ch25-strategies.md) | 1,946 |
 | [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 6,313 |
-| **Part IV. The compiler** | **18,138** |
-| [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 4,184 |
+| **Part IV. The compiler** | **18,150** |
+| [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 4,196 |
 | [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 13,954 |
 | **Part V. Decisions** | **26,462** |
 | [29. Decisions](../../../design/src/529-part5-ch29-decisions.md) | 21,089 |
@@ -310,6 +310,6 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Appendices** | **18,900** |
 | [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 10,397 |
 | [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,503 |
-| **All 33 pages** | **166,671** |
+| **All 33 pages** | **166,758** |
 
 <!-- token-counts: end -->

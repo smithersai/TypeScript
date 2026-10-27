@@ -137,7 +137,7 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 					p.noteStable(c, node.Arguments()...) // the options object moves the mapper (order.go)
 				}
 			}
-			if node.Kind == ast.KindThrowStatement && inLowerableBody(node) {
+			if node.Kind == ast.KindThrowStatement && (inLowerableBody(node) || inPlainGeneratorBody(node)) {
 				if _, ok := causeErrorOf(c, c.GetTypeAtLocation(node.Expression())); ok {
 					p.causeThrows[node] = true
 				}
