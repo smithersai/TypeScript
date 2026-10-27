@@ -1,6 +1,6 @@
 ### 8. Producers: streams of values
 
-A `function*` without a JavaScript iterator annotation is a **producer**: it yields values one at a time and can do anything a VibeLang function does between yields, including calling services and waiting. `for...of` consumes it. Both sides below build the same reusable, lazy line source over the same `Files` service.
+A `function*` in VibeLang is a **producer**: it yields values one at a time and can do anything a VibeLang function does between yields, including calling services and waiting. `for...of` consumes it. Both sides below build the same reusable, lazy line source over the same `Files` service.
 
 ```ts effect
 const lines = (path: string) =>
@@ -50,26 +50,12 @@ How a producer behaves:
 - **One pass per run.** Iterating the same producer again restarts it from the beginning.
 - **Constant stack.** A loop over a million elements uses the stack depth of a loop over three (Chapter 26).
 
-A JavaScript generator cannot do this: its body runs synchronously inside `next()`, so it cannot wait for a service between values. A VibeLang producer can, because each `yield` is a control operation that the loop handles (Chapter 9 shows the machinery, Part III how it runs). An unannotated `function*` is a producer, so passing it to `Effect.gen`, `Option.gen`, or another JavaScript generator API is EK1002. An explicit iterator annotation selects the JavaScript form below (Chapter 10).
-
-#### JavaScript iterator contracts
-
-An explicit return annotation of `Generator`, `Iterator`, `IterableIterator`, or `Iterable` keeps a synchronous JavaScript generator (D271). `AsyncGenerator`, `AsyncIterator`, `AsyncIterableIterator`, or `AsyncIterable` keeps an async JavaScript generator. The compiler preserves `next()`, spread, JavaScript `yield`, `yield*` delegation and its return value, and async iteration with `for await`. A generator without an annotation, or one annotated as `Stream`, remains a producer.
-
-```ts es
-function* steps(): Generator<number, number, unknown> {
-  yield 1
-  yield* [2, 3]
-  return 9
-}
-```
-
-An iterator annotation keeps calls as JavaScript calls, so they run no returned Effect. It does not make `throw` a JavaScript exception (D296). A throw that can escape the generator is EK2003. Its own `catch` handles typed failures, while other exceptions pass through, including one injected with `generator.throw()`. A coroutine that uses JavaScript exceptions as a protocol belongs in a `.ts` file or a `module` body (Chapter 10). Cases `plain-generator`, `plain-async-generator`, and `plain-generator-throw.fail` cover these rules.
+A JavaScript generator cannot do this: its body runs synchronously inside `next()`, so it cannot wait for a service between values. A VibeLang producer can, because each `yield` is a control operation that the loop handles (Chapter 9 shows the machinery, Part III how it runs). Every `function*` is a producer, so passing one to `Effect.gen`, `Option.gen`, or another JavaScript generator API is EK1002 (Chapter 10).
 
 Which functions are producers is decided by syntax alone [Rule] (D370):
 
 - A generator function, a `function*` declaration or `function*` expression, is a producer, whatever its return annotation says. An annotation is checked against the producer's type, `Stream<T, E, R>`; a JavaScript iterator type there, such as `Generator<T>` or `AsyncIterable<T>`, is EK1002.
-- A generator method, `*name() { … }` in a class or an object literal, is a JavaScript generator, as in TypeScript, so a class can implement `[Symbol.iterator]`. Its body is plain code: it cannot pause or fail (D282), as any plain function cannot.
+- A generator method, `*name() { … }` in a class or an object literal, is a JavaScript generator, as in TypeScript, so a class can implement `[Symbol.iterator]`. Its body is plain code: it cannot pause or fail (D282), as any plain function cannot, so a `throw` that can escape it is EK2003, and its own `catch` sees typed failures only (D296). Calls in it are JavaScript calls that run no returned Effect.
 - A JavaScript generator function, such as a coroutine that a caller drives with `next()` and `throw()`, is written in a `module` block or a `.ts` file (Chapter 11). An `async function*` is EK1003 outside them, as every `async` function is.
 
 #### What `for...of` does depends on what it iterates
@@ -80,7 +66,7 @@ What a loop does depends only on the value it iterates [Rule] (D371):
 | --- | --- |
 | A producer's `Stream` | Runs the producer on the loop's fiber under a `Yield` handler: the loop body runs once per `yield` |
 | Any other `Stream` | Pulls the stream chunk by chunk; leaving the loop closes the stream |
-| Anything else: an array, a `Map`, a `Set`, a string, any iterable | Iterates it with the iterator protocol, and calls the iterator's `return()` on every early exit: a jump out of the loop, a failure, or an interruption |
+| Anything else: an array, a `Map`, a `Set`, a string, any iterable | Iterates it with the iterator protocol, and calls the iterator's `return()` on every exit before the end: a jump out of the loop, a failure in the body, the head, a default, or a destructuring, or an interruption; a failing `return()` joins the exit (D356) |
 
 The compiler emits JavaScript's own loop where it does the same thing: when the iterated expression's static type has no `Stream` among its members and the body cannot pause, JavaScript's loop already calls `return()` on every exit the body can take. Otherwise the loop runs through the runtime, which tells the three rows apart by the value. A static type that is a union, `any`, or `unknown` therefore selects nothing: it only decides whether the shorter emit is safe. A producer's body runs on the loop's fiber, so its control operations reach the handlers around the loop; another Stream may run its work on other fibers (Chapter 9).
 
@@ -95,7 +81,7 @@ function errorCount(path: string) {
 // number!IOError!Files
 ```
 
-The conversion runs the producer on its own fiber and hands over each element only when the stream pulls it, through an unbuffered handoff, so a pull from any fiber works and the producer never runs ahead of its consumer. Closing the stream interrupts that fiber, which runs the producer's cleanup.
+The conversion runs the producer on its own fiber and hands over each element only when the stream pulls it, through an unbuffered handoff, so a pull from any fiber works and the producer never runs ahead of its consumer. Closing the stream interrupts that fiber, which runs the producer's cleanup. On that fiber no handler around the consumer can be reached, so converting a producer whose body performs a control operation, other than its own `yield`, is EK4201: handle the operation inside the producer (Chapter 9).
 
 The other direction needs no adapter: Stream's functions take callbacks that return Effects, so VibeLang callbacks work there, and `for...of` iterates a `Stream` directly:
 

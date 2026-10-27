@@ -149,7 +149,7 @@ vibelang/smoke.sh vibelang-infer   # one case
 
 #### Research and drafts
 
-- `docs/design/DECISIONS.md`: the decision log, D1-D379, the record of why each rule is what it is (D360).
+- `docs/design/DECISIONS.md`: the decision log, D1-D391, the record of why each rule is what it is (D360).
 - `docs/research/effect4-runtime.md`: Effect 4.0.5 runtime facts, with 23 scripts in `experiments/scripts/runtime-facts/`. Scripts written for this design live in `experiments/scripts/`.
 - `docs/research/continuation-prior-art.md`: OCaml 5, Kotlin, Swift, Loom, WasmFX, Koka, Effekt, Effection, js_of_ocaml, and the papers.
 - `docs/research/vibelang.md`: the earlier VibeLang project's `main` (`c60eca97`) and the unmerged checkpoint (`ebe89a2b`).
@@ -200,7 +200,7 @@ Stages as fetched on 2026-10-16 (`docs/research/tc39-syntax.md`).
 | Await dictionary (`Promise.allKeyed`) | 3 | Adopted as the object operand of `await.all` and `await.allSettled` (Chapter 7, D196) |
 | Await operations (`await.all`, `await.race`, …) | 1 | Adopted: `await.all`, `await.allSettled`, `await.race`, and `await.any` start programs concurrently and behave as the `Promise` methods (Chapter 7, D196) |
 | Do expressions | 1 | Adopted: `do { … }` is an expression whose value is its last statement's (D187) |
-| Block params | 1 | Adopted: a block after a call is a program argument, `withSpan("load") { … }` (D188) |
+| Block params | 1 | Adopted: a block after a call is a program passed as its last argument, `it.effect("greets") { … }` (D188, D376) |
 | Module declarations | 2 | Adopted as an escape to TypeScript, with ECMAScript module semantics; module expressions and nested declarations are not supported (Chapter 11, D283, D364) |
 | Abort Controller, Concurrency control | 1 | Not adopted. Effect's interruption and `concurrency` options |
 | F#-style pipes; `Function.pipe` and `flow` | Failed Stage 2; withdrawn | Not applicable |
@@ -212,7 +212,7 @@ The terms the rules use. A term defined here means only this in a rule.
 | Term | Meaning |
 | --- | --- |
 | Abandonment | Ending a captured continuation without resuming it: its owner unwinds it as an interruption, running its finalizers (Chapters 20, 21) |
-| Call that runs | A call whose callee is declared to return `Effect`, or whose callee is itself an Effect value, `p()`: it runs the program on the current fiber and evaluates to its success value (Chapter 13) |
+| Call that runs | A call whose callee's declared return type is definitely an `Effect`, or whose callee is itself an Effect value, `p()`: it runs the program on the current fiber and evaluates to its success value (Chapter 13) |
 | Cause | Effect's record of why a program did not succeed: an ordered list of reasons, each a Fail (an expected failure), a Die (a defect), or an Interrupt (Chapter 17) |
 | Cold | Of a program: building it runs none of its work, and each run starts its work afresh |
 | Context | Effect's map from service identifiers to implementations, which a running program reads its services from |
@@ -235,7 +235,7 @@ The terms the rules use. A term defined here means only this in a rule.
 | Plain function | A function that compiles to plain JavaScript: it performs no Effect operation, cannot fail with an expected failure, and needs no service (Chapter 15) |
 | Prelude | The names every `.vibe` file has in scope without an import: the runtime's exports and Effect's modules (Chapter 1) |
 | Producer | What a `function*` declares: a cold program that yields values one at a time, a `Stream` to TypeScript (Chapter 8) |
-| Program | A cold value that runs when something runs it: an `Effect`, or a function with no parameters where an `Effect` is expected (Chapter 5) |
+| Program | A cold value that runs when something runs it: an `Effect`, or a function with no required parameters, which becomes an `Effect` where one is expected (Chapters 5, 13) |
 | Provider | What removes services from R: a layer, a non-empty list of layers, a `Context`, or `Key = value` (Chapter 4) |
 | Region | A block the compiler lowers to its own Effect frame: a `try`, `catch`, or `finally` block, a block that declares `using` or calls `fork`, a `provide` block, a mask (Chapter 26) |
 | Requirement | A service a program looks up, an identifier in its R (Chapter 4) |

@@ -103,7 +103,7 @@ function lease(name: string) {
 // Lock!LockError!Locks | Scope
 ```
 
-The release is registered before anything else can happen, so a cancelled request never leaks a lock. By default the acquire step is also masked: an interruption that arrives while it runs waits for it to finish, then the release runs. That suits a quick step such as taking a lock or opening a file. An acquisition that waits on the outside world, such as a connection that may never complete, passes `{ interruptible: true }` so cancellation reaches the wait, as the adapter below does.
+The release is registered before anything else can happen, so a cancelled request never leaks a lock. A release runs its cleanup by calling it: a release written `(lock) => releaseProgram`, which returns a program instead of running it, would never release, and returning a program where the release's success type names no value is EK4802, an error (Chapter 13); write `(lock) => releaseProgram()`. By default the acquire step is also masked: an interruption that arrives while it runs waits for it to finish, then the release runs. That suits a quick step such as taking a lock or opening a file. An acquisition that waits on the outside world, such as a connection that may never complete, passes `{ interruptible: true }` so cancellation reaches the wait, as the adapter below does.
 
 For a scoped acquisition, `using` adds no policy of its own: it supplies the block's Scope, and the resource's `acquireRelease` decides whether acquisition can be interrupted (D25). `using` holds interruption off only for an initializer whose disposal it owns, as the rules above say.
 
@@ -125,9 +125,9 @@ export const connect = (host: string, port: number) =>
   Effect.acquireRelease(
     suspend<net.Socket>((waiter) => {
       const socket = net.connect(port, host)
-      socket.once("connect") {
+      socket.once("connect", () => {
         if (!waiter.resume(socket)) socket.destroy()   // the waiter was cancelled first: still ours
-      }
+      })
       return () => socket.destroy()                    // cancelled while connecting
     }, { release: (socket) => socket.destroy() }),     // accepted, but cancelled before delivery
     (socket) => Effect.sync(() => socket.destroy()),

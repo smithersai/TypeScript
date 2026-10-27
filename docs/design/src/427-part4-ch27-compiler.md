@@ -5,11 +5,15 @@
 ```ts dts
 import type { Effect } from "vibelang-runtime"
 export declare function double(n: number): Effect.Effect<number, never, never>
+export declare namespace double {
+  const $plain: (n: number) => number      // the plain call signature (D268, D384)
+}
 ```
 
 The compiler writes ordinary TypeScript declarations with Effect contracts.
 TypeScript consumers call an Effect-returning function; VibeLang consumers
-run that Effect through an ordinary call. The implementation is in
+run that Effect through an ordinary call, and pass the plain form where a plain
+function is expected. The implementation is in
 `typescript/tsc/internal/vibelang/`; `typescript/VIBELANG.md` lists its hooks,
 acceptance cases, and remaining limitations.
 
@@ -58,7 +62,7 @@ implicit imports from `vibelang-runtime`, `effect`'s other root exports as
 implicit imports from `effect`, and the modules of its subpath packages as
 implicit imports of their packages, such as `effect/http`, unless a local
 declaration or import shadows them (D4, D48, D146, D310). Class hooks give fully abstract service classes an Effect
-Context key's static side and their abstract members' instance shape (D1, D45).
+Context key's static side, their identifier type, and their abstract members' shape (D1, D361).
 
 Lowering runs before TypeScript's type erasure, queries the checker while
 holding the checker lock, and rewrites the TypeScript AST directly. The
@@ -67,7 +71,7 @@ separate IR.
 
 A call runs where its callee is declared to return `Effect` (Chapter 13); a
 callee declared to return `Config`, `Exit`, or another Effect subtype returns
-data until it is called. An unannotated or Effect-contract pure
+data until that value is called. An unannotated or Effect-contract pure
 function gets a `$direct` variant for inline calls and an Effect form for the
 public ABI (D9, D10); a plain return annotation keeps one plain function (D67).
 Calls and operands keep source order. `throw` adds an expected failure; `try`,
@@ -82,9 +86,11 @@ With `--ignoreConfig` or files named on the command line, the program has no pac
 
 #### One checker pass
 
-Overload resolution is TypeScript's: it picks a signature, and the hooks check
-each argument against it in the form Chapter 13 gives the argument, so the
-order of overloads never decides when an expression is evaluated. A return in a
+Overload resolution is TypeScript's, with one preference: a function literal
+takes a candidate's function type over its Effect type (D380). It picks a
+signature, and the hooks check each argument against it in the form Chapter 13
+gives the argument, so the order of overloads never decides when an expression
+is evaluated. A return in a
 program is checked against the Effect's success type. Function values and
 collections of programs convert to Effects where a parameter expects them
 (D7, D49); the conversion changes a program's representation, never when its
@@ -112,7 +118,7 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 | --- | --- |
 | `$programs` | Convert collections of program functions |
 | `$catch`, `$finally` | Expected-failure handling and cleanup |
-| `$expected`, `$caught` | A plain function's typed throw, and its catch's filter that rethrows defects (D54, D282) |
+| `$expected`, `$caught` | A plain function's typed throw, and its catch's filter that rethrows defects (D54, D282); with them the combining form that a failing `finally` or iterator close uses in plain code, which carries two defects across a JavaScript frame as a `SuppressedError` (D340, D341) |
 | `$region`, `$using`, `$fork` | Block-owned scopes, resources, and children |
 | `$service`, `$reference`, `$control` | Service keys, defaults, and control operations |
 | `$trusted`, `$trustedPlain` | Classify listed foreign exceptions |
@@ -141,12 +147,18 @@ against it may rely on [Rule] (D366).
    sees only declarations treats such a function as foreign code (EK4401,
    EK4202) where a consumer of the source would not. It never runs or types a
    call differently.
-3. **Optimization metadata affects cost only.** A pure function's direct
-   variant (Chapter 15) travels as a property of the exported function
+3. **The plain form.** A function that compiles to plain JavaScript carries
+   its plain call signature in its declaration, D268's `$plain` member, and
+   its plain variant at run time as a property of the exported function
    object, `f[$direct]` (D268), which survives re-exports, aliases, default
-   exports, and CommonJS. A consumer that does not find it calls the Effect
-   form: correct, and slower. No generated function, such as a direct variant,
-   a region, or a helper, is a public export.
+   exports, and CommonJS. A consumer of the declaration passes the plain form
+   wherever a plain function is expected, as a consumer of the source does, so
+   `[1, 2].map(double)` is `[2, 4]` either way (D384). A function whose
+   declaration has no `$plain` member is an Effect function to its consumers,
+   and passing it where a plain function is expected is EK4301. A call of the
+   function may use either form: both produce the same observations. No
+   generated function, such as a direct variant, a region, or a helper, is a
+   public export.
 4. **Standard TypeScript.** A declaration file is TypeScript that stock
    TypeScript checks with `skipLibCheck: false`: an Effect type is written
    `Effect.Effect<A, E, R>` or through the runtime's `Effect` alias, never in

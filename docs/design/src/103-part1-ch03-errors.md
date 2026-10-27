@@ -116,7 +116,7 @@ function nameOrReason(raw: string) {
 // string!!Users
 ```
 
-The left side runs inside the catch, as a `try` block does; the fallback runs only when it fails. Defects and interrupts pass through, as with the statement. The value is the left side's or the handler's, and E is what the fallback or handler lets escape: the `match` above handles every failure, so none escapes; `default: throw e` would pass on the rest. `catch` binds looser than `??` and `||`, tighter than `? :` and assignment, and associates left, so `a() catch b() catch c` tries each in turn (D237). Effect's combinators still work and take a program, written `() =>`: `Effect.catchTag(() => Users.find(id), "UserNotFound", () => guest)`.
+The left side runs inside the catch, as a `try` block does; the fallback runs only when it fails. Both sides take the expression's contextual type, as the branches of `? :` do (D293). Defects and interrupts pass through, as with the statement. The value is the left side's or the handler's, and E is what the fallback or handler lets escape: the `match` above handles every failure, so none escapes; `default: throw e` would pass on the rest. `catch` binds looser than `??` and `||`, tighter than `? :` and assignment, and associates left, so `a() catch b() catch c` tries each in turn (D237). Effect's combinators still work and take a program, written `() =>`: `Effect.catchTag(() => Users.find(id), "UserNotFound", () => guest)`.
 
 #### Promising that nothing escapes
 
@@ -237,7 +237,7 @@ Its operand is a unary expression, as in the proposal's grammar, so an operator 
 
 #### Matching errors and outcomes
 
-`match` and `is` come from the TC39 [pattern matching](https://github.com/tc39/proposal-pattern-matching) proposal (D206, D211). An `error` class is a pattern that matches its own instances and its subclasses' (D215), and `Option`, `Exit`, and `Result` have matchers that bind their contents (D208):
+`match` and `is` come from the TC39 [pattern matching](https://github.com/tc39/proposal-pattern-matching) proposal (D206, D211). An `error` class is a pattern that matches its own instances and its subclasses' (D215), and `Option`, `Exit`, and `Result` have matchers that bind their contents (D208). A pattern's names resolve as any reference does, so these built-in matchers apply only where the name resolves to Effect's module; a local `Option` or `Number` is an ordinary matcher (D328, D367):
 
 ```ts es
 function describe(failure: NotFound | Timeout) {
@@ -256,7 +256,7 @@ function firstFailure(id: string) {
 
 A data type's variant is a pattern too (D307, Chapter 11): `when Delivery.Sent { let tracking }` tests the tag and binds the fields its braces list.
 
-The parser writes both as conditionals TypeScript narrows, so each arm sees its own type and can call Effect functions (D214). Each reads its subject once, before any pattern, as `switch` reads its discriminant. The same `match` handles a propagating failure, inside `catch (e)`, and a failure or Exit held as a value.
+The parser writes both as conditionals TypeScript narrows, so each arm sees its own type and can call Effect functions (D214). Each reads its subject once, before any pattern, as `switch` reads its discriminant, and each property of it, and each iterator step, at most once (Chapter 26 states the order, D368). The same `match` handles a propagating failure, inside `catch (e)`, and a failure or Exit held as a value.
 
 **Exhaustiveness** (D346). A `match` without `default` must cover its subject, or it is EK4701. It can cover only a subject whose declared type is a finite union of concrete cases: literal types, `boolean`, `null`, `undefined`, and `void`; a `data` type or its variants; `Option`, `Exit`, `Result`, and their cases; and concrete classes with a literal tag, such as an `error` without a `_tag` field. The compiler removes what each arm matches from that union, as TypeScript narrows it: a literal arm removes its literal; a data variant, or a case of `Option`, `Exit`, or `Result`, removes that case; a class arm removes its class and every class below it. An arm with a guard, `when X if (…)`, removes nothing, because a guard can fail. What is left after the last arm must be `never`, and EK4701 names what is left.
 
@@ -284,4 +284,4 @@ error EK4701: this match has no default, but PaymentError is an open family: any
 
 With `e: Declined | Expired`, both classes have literal tags, the two arms remove both, and the match needs no `default`. A function that throws only these declares `number!Declined | Expired`, and a `catch` around its call checks the same way.
 
-Inside `catch (e)`, the subject is the try block's expected failures, and the same law applies; there the quick fix for EK4701 writes `default: throw e`, which passes the rest on with their types. A class pattern still tests `instanceof`, or the class's custom matcher, at run time (D213, D215), because a type cannot prove what those return: a value outside its declared type, which only a cast, `any`, or a structural copy of an instance can make, fails the match with the proposal's `TypeError`, a defect. A match the compiler proves exhaustive may skip its last arm's branch (D294), but it still makes every read and call that arm's test would make, such as a getter in a matcher expression or a shape pattern's property read; proving coverage proves nothing about what a test does.
+Inside `catch (e)`, the subject is the try block's expected failures, and the same law applies; there the quick fix for EK4701 writes `default: throw e`, which passes the rest on with their types. A class pattern still tests `instanceof`, or the class's custom matcher, at run time (D213, D215), because a type cannot prove what those return: a value outside its declared type, which only a cast, `any`, or a structural copy of an instance can make, fails the match with the proposal's `TypeError`, a defect. A match the compiler proves exhaustive may omit its last arm's test only when the test is inert: its operands are literals or data variants named through their declaration, and its reads are a data value's tag or literal-typed fields (D294, D368). Any other test, such as a class pattern, a getter in a matcher expression, or a shape pattern's property read, still runs and asserts, and fails as a defect; proving coverage proves nothing about what a test does.

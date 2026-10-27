@@ -61,7 +61,7 @@ try {
 
 | Same fiber: a handler outside still works | Other fibers: handle control operations inside |
 | --- | --- |
-| `flatMap`, `map`, `catch`, `catchCause`, `ensuring`, `onExit`, `provideService`, `scoped`, `acquireRelease` (acquire), `acquireUseRelease` (use), `retry`, `repeat`, `uninterruptible`, sequential `forEach` and `all`, `zip` by default | Measured: `timeout`, `race`, `raceFirst`, `forEach` with concurrency 2, unbounded `all`, `zip` with `concurrent: true`, `forkChild`. From source: `forkIn`, `forkScoped`, `forkDetach`, `Layer.merge` builds, parallel Scope finalizers |
+| `flatMap`, `map`, `catch`, `catchCause`, `ensuring`, `onExit`, `provideService`, `scoped`, `acquireRelease` (acquire), `acquireUseRelease` (use), `retry`, `repeat`, `uninterruptible`, sequential `forEach` and `all`, `zip` by default | Measured: `timeout`, `race`, `raceFirst`, `forEach` with concurrency 2, unbounded `all`, `zip` with `concurrent: true`, `forkChild`. From source: `forkIn`, `forkScoped`, `forkDetach`, `Layer.merge` builds, parallel Scope finalizers, a producer converted to a `Stream` (Chapter 8) |
 
 `timeout` is on the right because it runs its program on a child fiber to race it against the clock. For an Effect function outside this table, the compiler assumes the argument may run on another fiber.
 

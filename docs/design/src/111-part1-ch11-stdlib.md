@@ -152,7 +152,7 @@ data LoadState<A, E> {
 // const LoadState = Data.taggedEnum<LoadStateDefinition>()
 ```
 
-A variant is a pattern (Chapter 3): `when Delivery.Sent:` and `delivery is Delivery.Sent` test the tag, and `when Delivery.Sent { let tracking }` also binds the fields its braces list, an optional field the value leaves out as `undefined`. The checker narrows the subject by the tag, and the lowering runs the test as `Delivery.$is("Sent")(delivery)`. `match` is exhaustive: without `default`, a match over a data type that leaves out a variant is EK4701, which names it, `This match does not handle every case of Delivery: Delivery.Rejected is left.` A data type a `.ts` file declares with `Data.taggedEnum` matches the same way, since what makes `Delivery` a data type is its constructors' type.
+A variant is a pattern (Chapter 3): `when Delivery.Sent:` and `delivery is Delivery.Sent` test the tag, and `when Delivery.Sent { let tracking }` also binds the fields its braces list, an optional field the value leaves out as `undefined`. The checker narrows the subject by the tag, and the lowering runs the test as `Delivery.$is("Sent")(delivery)`. `match` is exhaustive: a data type's variants are a finite union of concrete cases, so without `default`, a match over one that leaves out a variant is EK4701 (D346), which names it, `This match does not handle every case of Delivery: Delivery.Rejected is left.` A data type a `.ts` file declares with `Data.taggedEnum` matches the same way, since what makes `Delivery` a data type is its constructors' type.
 
 A variant pattern names its data type by symbol, as every pattern name resolves (D328, D367): `when Delivery.Sent` tests a variant because `Delivery` resolves to a data declaration, under any import alias, and a local `Delivery` that is not one shadows it. A data type's variants are a closed set, so a match over one is exhaustive when every variant is handled; a nested data pattern counts the combinations of its fields' variants. [Restriction] The compiler counts combinations up to a fixed bound; past it, the match needs `default`. The last arm of such a match runs without its test only when the test reads nothing a program can observe (D368, Chapter 26).
 
@@ -238,7 +238,7 @@ function currentBranch() {
 // string!PlatformError!ChildProcessSpawner
 ```
 
-`ChildProcessSpawner.spawn` gives a handle whose output is a `Stream` and whose process belongs to a scope (its type requires `Scope`), so `using child = ChildProcessSpawner.spawn(command)` ties a long-running process to a block.
+`ChildProcessSpawner.spawn` gives a handle whose output is a `Stream` and whose process belongs to a scope (its type requires `Scope`), so `using child = ChildProcessSpawner.spawn(command)` is a scoped acquisition that ties a long-running process to a block and releases it once (D342).
 
 #### Providing the platform
 
@@ -311,6 +311,6 @@ export function main() {
 }
 ```
 
-The body is checked and compiled as a `.ts` file would be: JavaScript's `throw` and `catch`, `async`/`await`, generators and platform APIs mean there what they mean in TypeScript. It imports what it needs itself, its relative specifiers resolve from the `.vibe` file's directory, and it cannot read the `.vibe` file's own bindings. Its exports are reached only through an import, `import { bump } from counter`, and are foreign code to the `.vibe` file: a call of a plain export needs a boundary or a trusted contract (Chapter 10), as above.
+The body is checked and compiled as a `.ts` file would be (Chapter 10 states how): JavaScript's `throw` and `catch`, `async`/`await`, generators and platform APIs mean there what they mean in TypeScript, and it cannot read the `.vibe` file's own bindings. Its exports are reached only through an import, `import { bump } from counter`, and are foreign code to the `.vibe` file: a call of a plain export needs a boundary or a trusted contract (Chapter 10), as the hatch above gives it.
 
 A module declaration is an ECMAScript module [Rule] (D364; Chapter 26 states the rule in full): an import of its export is a live binding, so `count` above reads 1 after `bump()`; the module runs where its first import stands among the file's imports; and its name is case-sensitive. [Restriction] A module declaration is named, unexported, and at the file's top level, and its name is not a value: `export module`, a nested or nameless declaration, and `import(counter)` are EK4408 or syntax errors, though TC39's proposal allows them.

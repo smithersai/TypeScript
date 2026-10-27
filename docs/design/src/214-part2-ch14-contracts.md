@@ -23,7 +23,7 @@ function quoteCart(cartId: string) {
 
 `PricingDown` is caught, so it is not in E, but `Pricing` stays in R: catching an error does not remove the need for the service.
 
-Precisely, E is the type of every expected failure a cause can hold. A defect beside expected failures makes them defects (D305), and `catch` recovers an expected failure beside an interruption, as `Effect.catch` does (D306), so no `Fail` reason escapes E.
+Precisely, E is the type of every expected failure a cause can hold. A defect beside expected failures makes them defects (D305), and `catch` recovers an expected failure beside an interruption, as `Effect.catch` does (D306), so no `Fail` reason escapes E. Chapter 17 states this guarantee, E bounds the `Fail` reasons that leave a function and nothing else (D355), and Chapter 26 lists every assumption the static guarantees rest on (D373).
 
 #### Writing contracts
 
@@ -53,7 +53,6 @@ Function and conditional types keep their TypeScript structure within a slot. A 
 | `(A!E!R) extends X ? Y : Z` | `Effect<A, E, R> extends X ? Y : Z` |
 
 Hovers and messages about `.vibe` code show contracts in the `!` form. Declaration files keep `Effect.Effect<A, E, R>`, so TypeScript callers are unaffected.
-
 
 `Effect<A, E, R>` is accepted everywhere too, including `infer` slots (D57), and means what it means in TypeScript: a type argument left out is `never`, so `Effect<User>` is `User!!` and `Effect<User, NotFound>` is `User!NotFound!` (D308, D309). The two spellings name the same type wherever every channel is written, and this specification and the guides write the `!` form. They differ in one place, by a visible token: `User!NotFound`, with its last `!` and R left out, on a function with a body infers R, while `Effect<User, NotFound>` checks R as `never`, as does `User!NotFound!` (D335).
 
@@ -90,7 +89,7 @@ The contract has exactly three channels. Whether a function can pause is a separ
 
 `A!E!R` is an alias of Effect's type and is covariant in all three channels. Widening A, E, or R preserves assignability. For example, `A!E1!R1` is assignable to `A!E1 | E2!R1 | R2`. A function's parameter types still follow TypeScript's function variance rules.
 
-A service type carries the optional readonly property `"~vibelang/service"` whose literal value is its derived key (Chapter 4). Two service types with different keys are not directly assignable even when their members match. An implementation is checked structurally against the service's shape. For `service Name: Shape`, `Name` is the branded key type and `Shape` is the implementation type. The brand is optional: erasing it through a structural type and assigning that unbranded shape back can lose the distinction between services.
+A service's name, as a type, is its identifier: the service's members plus a required phantom brand whose type is the service's derived key (Chapter 4, D361). A type is assignable to the identifier only if it carries that brand, so two services with the same members are different types, and no structural type, `{ get(): number!! }` included, stands for either. An implementation has the service's shape, `Users.Shape`, and is checked against it. For `service Name: Shape`, `Name` is the identifier and `Shape` the implementation's type.
 
 An `error` declaration creates a runtime class with a literal `_tag` and readonly fields. Ordinary TypeScript structural typing applies. Two packages' error classes with the same tag and public fields can be mutually assignable, while their constructors and `instanceof` tests remain distinct. Class patterns narrow by derivation and retain their runtime test even in an exhaustive match (D294). A structurally accepted instance of another class can therefore fail that test with a `TypeError`. Cases `match-class-patterns` and `match-class-patterns.fail` cover class matching.
 
@@ -125,7 +124,7 @@ function find(id: string): Effect<User, infer E, never> {
 // Checks A = User and R = never; infers E = UserNotFound.
 
 function load(id: string): Effect<User, never, infer R> {
-  return Effect.orDie(Users.find(id))
+  return Effect.orDie(() => Users.find(id))
 }
 // Checks A = User and E = never; infers R = Users.
 

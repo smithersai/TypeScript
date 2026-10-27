@@ -83,13 +83,12 @@ Every `.vibe` file has this prelude in scope, so the program above needs no impo
 | `pipe`, `wire`, `fork`, `forkIn`, `detach`, `handle`, `resume`, `resumeWith`, `abandon`, `customMatcher` | VibeLang's built-ins, each introduced at first use |
 | `sync`, `try`, `callback` | Boundary hatches: their first argument is self-contained TypeScript, and values reach it as inputs (D148, D229) |
 | `Resume<A, E>` | The callback hatch's resume parameter type (Chapter 10, D230) |
-| `uninterruptible`, `restore`, `interruptible` | Interruption mask blocks (Chapter 17, D180) |
 | `runPromise`, `runFork`, `runSync`, `runCallback` | Effect's runners, the way back in from TypeScript (D150) |
 | `sleep`, `log`, `logDebug`, `logInfo`, `logWarning`, `logError`, `retry`, `repeat`, `timeout`, `all`, `forEach`, `race`, `withSpan`, `die`, `exit`, `interrupt`, `yieldNow` | The Effect module's functions without the `Effect.` prefix (D151, D179) |
 | Every other export of `effect`'s root | `Console`, `Option`, `Stream`, `Schedule`, `Duration`, and the rest, plus `flow` and `identity` (D146) |
 | Every module of `effect`'s subpath packages | `HttpRouter`, `ChildProcess`, `TestClock`, `Hex`, and the rest, from `effect/http`, `effect/process`, `effect/testing`, `effect/encoding`, and the other subpaths (D310) |
 
-`Experimental` is also in scope. It holds the platform services Effect lacks (D313, Chapter 11).
+`Experimental` is also in scope. It holds the platform services Effect lacks (D313, Chapter 11). The keyword forms, `fork x`, `join x`, `provide L { … }`, the mask blocks `uninterruptible`, `restore`, and `interruptible` (D180), and the await operations, are syntax, not names: no import or local declaration changes them (Chapter 13, rule H5).
 
 A module's name also names its export of the same name, where the module has no meaning of its own (D311): the type `Option<number>` is `Option.Option<number>`, `FileSystem.readFileString(path)` calls the `FileSystem.FileSystem` service, and `FileSystem()` is its implementation. The module's own exports, such as `Option.some` and `FileSystem.layerNoop`, win.
 
@@ -130,4 +129,4 @@ export declare const welcome: (id: string) =>
   Effect.Effect<string, UserNotFound | MailError, Users | Mailer>
 ```
 
-TypeScript that imports `welcome` sees an ordinary function returning an `Effect`. Each service class compiles to an interface for its methods and a `Context.Key` class (Chapter 4), so TypeScript can provide `Users` with an ordinary Layer, and VibeLang can use services written in TypeScript.
+TypeScript that imports `welcome` sees an ordinary function returning an `Effect`. Each service compiles to an identifier type, a shape interface for its members, and a `Context.Key` class (Chapter 4), so TypeScript can provide `Users` with an ordinary Layer, and VibeLang can use services written in TypeScript.

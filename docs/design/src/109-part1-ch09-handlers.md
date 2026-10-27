@@ -55,7 +55,7 @@ The try block and the clauses are code of the enclosing function (D132): a `retu
 
 A handler is deep: a resumed program runs until it ends or reaches the handler again, and whatever the handled code ends with there is what `resume` returns. Every `resume` of one handler therefore has one type, the handler's **answer type** H: the type of every value the handled code can end with (D351). The compiler checks every value against that one H, never against a narrower type, so a `resume` never delivers a value outside its type. This is the typing rule of Eff and OCaml 5, where a continuation's result is the handler's answer type.
 
-For a handle statement, the compiler computes H in one step, without a fixpoint. H is the type of what the try block and each clause return, plus `undefined` when the block, or a clause that has not resumed, ends another way; a clause's return computed from a non-tail `resume`'s result is left out, because its type depends on H. The compiler then checks each return it left out against H. If every one is within H, H is sound. If one is not, the program is EK2119, an error: the type that clause's `resume` was given would not cover the value. Write the enclosing function's success type; then H is that type plus `undefined`, and every return of the try block and the clauses is checked against it:
+For a handle statement, the compiler computes H in one step, without a fixpoint. H is the type of what the try block and each clause return, plus `undefined` when the block, or a clause that has not resumed, ends another way; a clause's return computed from a non-tail `resume`'s result is left out, because its type depends on H. The compiler then checks each return it left out against H. If every one is within H, H is sound. If one is not, the program is EK2119, an error: the type that clause's `resume` was given would not cover the value. Write the enclosing function's success type; then H is the written type, plus `undefined` under the same condition, and every return of the try block and the clauses is checked against it:
 
 ```ts es
 control Step { next(): void!! }
@@ -66,13 +66,13 @@ function run(): number | string!! {
     Step.next()
     return 1
   } handle Step.next() {
-    const n = resume()                   // n: number | string | undefined
+    const n = resume()                   // n: number | string
     return typeof n === "number" ? n.toFixed(1) : "done"
   }
 }
 ```
 
-Without `: number | string!!`, H would be `number | undefined`, yet the inner clause's string return is what the outer clause's `resume` receives. The compiler reports EK2119 rather than give `n` a type its value can leave; a clause that called `n.toFixed(1)` unguarded would otherwise fail at run time with a `TypeError`.
+Here the try block always returns and the clause always resumes before it returns, so `undefined` is not added. Without `: number | string!!`, H would be `number`, the try block's return, since the clause's return is computed from a non-tail `resume`'s result and left out; yet the inner clause's string return is what the outer clause's `resume` receives. The compiler reports EK2119 rather than give `n` a type its value can leave; a clause that called `n.toFixed(1)` unguarded would otherwise fail at run time with a `TypeError`.
 
 For the `handle` function below, TypeScript fixes H before it checks the clauses, so H is the program's result type, or `never` with `onReturn`. A clause that reads a non-tail `resume`'s result while a clause or `onReturn` can produce a value outside H is EK2110. Read such results in a handle statement, whose H can be written.
 

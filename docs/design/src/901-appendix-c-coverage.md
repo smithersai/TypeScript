@@ -23,15 +23,15 @@ Every section of Effect 4's documentation, the Effect 3 pages version 4 dropped,
 | `Effect.fail`, `failSync` | Changed | `throw new HttpError()` |
 | `Effect.sync` around a side effect | Changed | Call the code; platform side effects go through Effect modules (Chapter 11), or the `sync` hatch (D148) |
 | `Effect.try`, `tryPromise`, `promise` | Changed | The hatches `try(…)` and `sync(async () => …)`, whose first arguments are self-contained TypeScript that takes values as inputs (D148, D229) |
-| `Effect.suspend` | Changed | A function with no parameters, `() => …`, where a program is expected (D7) |
+| `Effect.suspend` | Changed | A function with no required parameters, `() => …`, where a program is expected (D7, D322) |
 | `Effect.callback` | Changed | The hatch `callback((resume, signal) => …)`: `resume(value)`, `resume.fail(error)`; inputs come before `resume` (D43, D148, D230) |
 | `Effect.void`, `never`, `yieldNow`, `interrupt` | Changed | Bare functions: `yieldNow()`, `interrupt()` (D179) |
 | Runners (`runPromise`, `runSync`, `runFork`, `runCallback`) | Changed | In the prelude; `runPromise(main())` from TypeScript, a top-level call, or a hatch's body, where no fiber runs the code (EK1005, D38, D148) |
-| `Effect.gen` and `yield*` | Changed | An ordinary function body, and calls (Chapter 2); an unannotated producer passed to `Effect.gen` is EK1002, while an explicitly iterator-annotated generator is accepted (D271) |
+| `Effect.gen` and `yield*` | Changed | An ordinary function body, and calls (Chapter 2); `Effect.gen` in a `.vibe` file is EK1002, since every `function*` there is a producer (D370) |
 | `Effect.gen({ self: this }, …)` | Changed | An ordinary method; `this` keeps its JavaScript meaning |
 | `Effect.fn`, `fnUntraced` | Changed | `function f() { … }`, untraced unless `tracing` asks for spans (Chapter 28) |
 | `map`, `flatMap`, `andThen`, `tap`, `as` | Changed | Statements |
-| `pipe` and `.pipe` over programs | Changed | `pipe(() => f(), Effect.retry(…), Effect.timeout(…))`: a function with no parameters is the program (D7, D110) |
+| `pipe` and `.pipe` over programs | Changed | Nested programs, `timeout(() => retry(() => f(), …), …)`: `pipe` passes a function as the value it is, so data-last combinators, which take an `Effect`, do not take it (D383) |
 | `pipe` over data | Unchanged | `pipe(items, Array.filter(isActive))` |
 | `Effect.all`, `zip`, `zipWith` | Changed | Programs as functions: `Effect.all([() => a(), () => b()])` |
 | `Effect.fromOption`, `fromResult`, `fromNullishOr` | Unchanged | `const n = Effect.fromOption(parse(x))` |
@@ -102,7 +102,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | A resource the caller owns | Changed | Acquire without `using`; `Scope` stays in R (D14) |
 | `ensuring`, `onExit`, `onError`, `addFinalizer` | Changed | `finally`; `Effect.onExit(() => f(), (exit) => …)` when the exit matters |
 | `Scope.make`, `close`, `provide` | Unchanged | The same calls |
-| `Disposable` resources | Changed | `using x = disposable` registers `[Symbol.dispose]()` |
+| `Disposable` resources | Changed | `using x = disposable` registers its one disposal, read once, `[Symbol.asyncDispose]` first (D342, D343) |
 | `RcRef`, `RcMap`, `Pool`, `ScopedRef`, `ScopedCache`, `LayerMap` | Changed | `using pool = Pool.make({ acquire: () => connect(), size: 10 })` |
 | Cleanup when a handler abandons a program | Changed | No Effect equivalent; `using` and `finally` run before `handle` returns |
 
@@ -149,7 +149,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | `ManagedRuntime` | Unchanged | `ManagedRuntime.make(AppLive)`; `runtime.runPromise(() => handle(req))` in a framework callback, or from TypeScript |
 | Top-level `await` | Changed | No `await`; the top level builds values and calls runners (EK1001) |
 | Scheduling and fairness | Unchanged | 2048 operations per slice; a plain JavaScript region is atomic |
-| `ErrorReporter`, `Effect.withErrorReporting` | Changed | `Effect.withErrorReporting(() => program())()`: the function converts to a program, and the call returns the wrapped program, which `()` runs (D324) |
+| `ErrorReporter`, `Effect.withErrorReporting` | Changed | `Effect.withErrorReporting(() => program())()`: the arrow stays a function, and the declared return type is a conditional with a function branch, so the call returns the wrapped function, and `()` runs it (D321, D324) |
 
 #### C8. Scheduling
 
@@ -162,7 +162,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | `Effect.retry` with a schedule | Changed | `Effect.retry(() => f(), Schedule.exponential("100 millis"))` |
 | `Effect.schedule`, `repeatOrElse` | Changed | Programs as functions |
 | `Cron.parse`, `Schedule.cron` | Unchanged | `Effect.fromResult(Cron.parse("0 3 * * *", "UTC"))` |
-| A cron job's lifetime | Changed | `fork(() => Effect.schedule(() => report(), Schedule.cron(cron)))` inside `main` |
+| A cron job's lifetime | Changed | `fork Effect.schedule(() => report(), Schedule.cron(cron))` inside `main` |
 
 #### C9. State management
 
@@ -204,7 +204,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | `Effect.zip` with `concurrent: true` | Changed | Programs as functions |
 | `race`, `raceFirst`, `raceAll` | Changed | Programs as functions; each has its own exit rule (Chapter 7) |
 | `forkChild`, `forkDetach`, `forkScoped`, `forkIn` | Changed | Programs as functions |
-| Background work owned by a block | Changed | `fork(() => heartbeat())` (D19) |
+| Background work owned by a block | Changed | `fork heartbeat()` (D19, D166) |
 | `Fiber.join`, `joinAll` | Changed | `join fiber` and `join [a, b]` (D225) |
 | `Fiber.await`, `interrupt`, `interruptAll` | Unchanged | The same calls, or `fiber.await()` and `fiber.interrupt()` |
 | Interruption isn't an error | Changed | `catch` never sees it; `finally` and `using` always run |
@@ -264,7 +264,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 
 | Feature | In VibeLang | Form |
 | --- | --- | --- |
-| `it.effect` | Changed | `it.effect("name", () => { … })` |
+| `it.effect` | Changed | `it.effect("name") { … }`, a block passed as the last argument (D376) |
 | `it.live`, `.each`, `.prop`, `it.flakyTest` | Unchanged | The same calls |
 | `layer(AppLive)("suite", (it) => …)` | Unchanged | The same call |
 | Fake services | Changed | Object literals in `Layer.succeed` |
@@ -282,10 +282,10 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | --- | --- | --- |
 | Run once, at the edge | Changed | An exported `main` in the file that names its platform (D312) |
 | Avoid tacit calls | Unchanged | The same advice |
-| Dual APIs | Changed | Data-first with a program; data-last inside `pipe` |
+| Dual APIs | Changed | Data-first with a program written `() =>`; a block after a dual is a type error whose note gives that form (D376) |
 | Branded types | Unchanged | A failed check throws a defect; `Int.result(n)` for a typed error |
 | Pattern matching with pure handlers (`Match`) | Unchanged | The same module |
-| Pattern matching with effectful branches | Changed | `switch` or `if`; effectful `Match` handlers are EK4301 (D9) |
+| Pattern matching with effectful branches | Changed | `match`, whose arms can call Effect functions (Chapter 3), `switch`, or `if`; effectful `Match` handlers are EK4301 (D9) |
 | Do notation (`Effect.Do`, `bind`, `let`) | Changed | Statements |
 | Control flow operators (`Effect.when`, `whileLoop`) | Changed | `if` and `while` |
 
@@ -354,7 +354,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | `HttpClient` | Unchanged | `HttpClient.get(url)` runs |
 | Response bodies | Unchanged | `response.json()` |
 | Client middleware | Unchanged | `.pipe` over a client value |
-| `HttpRouter.add` handlers | Unchanged | A handler function, which the router calls for each request (D324) |
+| `HttpRouter.add` handlers | Unchanged | A handler function, never converted to a program (D324) |
 | Serving | Changed | `export function main() { Layer.launch(HttpRouter.serve(routes)) }` in the file that names its platform (D312) |
 | `HttpApi` definitions, middleware, security | Unchanged | Values |
 | `HttpApi` handlers | Unchanged | VibeLang functions |

@@ -13,11 +13,12 @@ function area(w: number, h: number) {
 ```
 
 ```ts gen
-export function double$direct(n: number): number {              // VibeLang callers use this
+function double$direct(n: number): number {                     // VibeLang callers use this
   return n * 2
 }
 export const double = (n: number): Effect.Effect<number> =>     // TypeScript callers use this
   Effect.sync(() => double$direct(n))
+double[$direct] = double$direct                                  // other files reach the plain form (D268)
 
 export const area = Effect.fnUntraced(function* (w: number, h: number) {
   const left = double$direct(w) * double$direct(h)              // source order: before the service call
@@ -52,11 +53,11 @@ The test is "can it reach an Effect operation", not "are E and R empty": `Effect
 - **Nothing runs early when building an Effect.** For an unannotated or Effect-contract helper, the TypeScript-facing form is `Effect.sync(() => …)`, never `Effect.succeed(double$direct(n))`. Building a program does no work, even work that looks free. A pure function can still throw a defect (`(undefined as any).x`), and that must happen when the program runs, not when it is built.
 - **No point where another fiber could run disappears.** A plain call runs inside its caller's current step. Every Effect operation is such a point, including an `Effect.sync` body, so a function containing one is not eligible. Inlining a callee that performs no operation removes none.
 - **Order is kept.** Generated code evaluates in source order (Chapter 13, rule E): in `area`, both `double` calls run before `Settings.scale()`, though only the service call can pause.
-- **Public types follow annotations.** An unannotated or Effect-contract helper exposes `(...) => Effect<A, E, R>` and gets a `$direct` shortcut. An eligible helper annotated `: A` exposes `(...) => A` and emits one plain function (D67). Plain calls run inline even at module top level (D65). The compiler does not yet emit `$direct` declaration metadata, so callers compiled against declarations use the correct, slower Effect form (Chapter 27).
+- **Public types follow annotations.** An unannotated or Effect-contract helper exposes `(...) => Effect<A, E, R>` and gets a `$direct` shortcut. An eligible helper annotated `: A` exposes `(...) => A` and emits one plain function (D67). Plain calls run inline even at module top level (D65). The plain form crosses files only as `f[$direct]`, never as an export of its own (D366), and its signature goes into the declaration as D268's `$plain` member, so a caller compiled against declarations passes the same form to a plain callback as one compiled against source (D384). A declaration without that signature describes an Effect function, and passing it where a plain function is expected is EK4301.
 
 #### Regions inside a plain function
 
-A plain JavaScript function may contain `try`, `catch`, and `finally`. They mean what they mean in frame code (Chapter 17), so the plain form changes no outcome (rule E11). Nothing inside can pause or be interrupted, but that alone does not make JavaScript's statements equal to the machine's: JavaScript's `finally` replaces a failure in flight when it fails itself, where the machine's `Final` adds the second failure to the first. So the lowering keeps JavaScript's statements with runtime helpers that keep the machine's rules. Its catch receives typed failures only (D54, D282): a throw becomes `throw $expected(e)`, a trusted call inside the try `$trustedPlain(…)`, and the catch starts with `e = $caught(e)`, which rethrows anything else, a defect. A `finally` that can fail runs inside the runtime's combining helper, which rethrows both failures together, so the Effect caller that receives them sees both reasons in order, as frame code reports them. `JSON.parse`'s shipped contract lists `SyntaxError`, so this catch receives it:
+A plain JavaScript function may contain `try`, `catch`, and `finally`. They mean what they mean in frame code, by Chapter 17's finalization rule and Exit rule (D340, D341), so the plain form changes no outcome (rule E11). Nothing inside can pause or be interrupted, but that alone does not make JavaScript's statements equal to the machine's: JavaScript's `finally` replaces a failure in flight when it fails itself, where the machine's `Final` adds the second failure to the first. So the lowering keeps JavaScript's statements with runtime helpers that keep the machine's rules. Its catch receives typed failures only (D54, D282): a throw becomes `throw $expected(e)`, a trusted call inside the try `$trustedPlain(…)`, and the catch starts with `e = $caught(e)`, which rethrows anything else, a defect. A `finally` that can fail runs inside the runtime's combining helper, which rethrows both failures together, so the Effect caller that receives them sees both reasons in order, as frame code reports them. `JSON.parse`'s shipped contract lists `SyntaxError`, so this catch receives it:
 
 ```ts es
 function readPort(text: string) {
@@ -81,7 +82,7 @@ export function readPort$direct(text: string): number {
 
 A `TypeError` from reading `.port` of `null` is a defect: `$caught` rethrows it, and it reaches the caller unchanged.
 
-Any `using` declaration makes a function compile to frames, whether its initializer acquires an Effect resource or supplies an ordinary Disposable (D54, D94).
+Any `using` declaration makes a function compile to frames, whether its initializer acquires an Effect resource or supplies an ordinary Disposable (D54, D342).
 
 #### Methods that implement a plain-function member
 

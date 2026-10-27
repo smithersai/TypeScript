@@ -29,7 +29,7 @@ const first = await.race [fromCache(id), fromNetwork(id)]
 const quick = timeout(() => slowQuery(id), "500 millis")
 ```
 
-A combinator takes its programs as functions, written `() =>`. The keyword forms, `fork`, `await.all`, `await.allSettled`, `await.race`, `await.any`, and `for concurrent`, take their operands as programs by syntax, so `await.race [fromCache(id), fromNetwork(id)]` starts each call in its own fiber.
+A combinator takes its programs as functions, written `() =>`. The keyword forms, `fork`, `await.all`, `await.allSettled`, `await.race`, `await.any`, and `for concurrent`, take their operands as programs by syntax, whatever the operands' types, so `await.race [fromCache(id), fromNetwork(id)]` starts each call in its own fiber.
 
 Each combinator has its own rule for a failing branch; VibeLang adds nothing to Effect's semantics:
 
@@ -104,9 +104,9 @@ function withProgress(id: string) {
 // Report!ReportError | MailError!Reports | Mailer
 ```
 
-`fork` adds the child's requirements to R and nothing else: the fiber cannot outlive `withProgress`, so no `Scope` appears in the contract, and its failures reach you only through `join`. `fork (buildReport(id))` is the same keyword with a parenthesized operand. For a longer lifetime, say so: `forkIn(scope, () => program())` ties the fiber to a scope you hold, `detach(() => program())` to nothing (D170), `Effect.forkScoped(() => program())` to the caller's scope (adding `Scope` to R), and `Effect.forkChild(() => program())` to the current fiber.
+`fork` adds the child's requirements to R and nothing else: the fiber cannot outlive `withProgress`, so no `Scope` appears in the contract, and its failures reach you only through `join`. `fork(buildReport(id))`, with parentheses, is the same keyword with a parenthesized operand, as `typeof(x)` is `typeof x`, unless the program declares or imports a binding named `fork` in scope, which makes it an ordinary call of that binding (Chapter 13, rule H5, D391); `join(x)` follows the same rule. For a longer lifetime, say so: `forkIn(scope, () => program())` ties the fiber to a scope you hold, `detach(() => program())` to nothing (D170), `Effect.forkScoped(() => program())` to the caller's scope (adding `Scope` to R), and `Effect.forkChild(() => program())` to the current fiber.
 
-**Block ownership** (D353). A `fork` belongs to the innermost block around it, and the body of an arrow function written without braces is a block too, so `() => fork p()` and `() => { return fork p() }` mean the same. The block interrupts the fibers it owns when it exits, newest first, interleaved in reverse order with its `using` releases (Chapter 26). That exit closes the block's Scope region one owned thing at a time, as Effect closes a Scope, so a fiber forked later is gone before an earlier one is interrupted and before an earlier resource is released; to interrupt several of a block's fibers at once, call `Fiber.interruptAll` on them. A block-owned fiber is therefore interrupted by the time anything outside the block could use it, so a fiber that escapes its block is EK4620: returning it, or an object or array holding it, from the block; assigning it to a variable or property declared outside the block; or capturing it in a function that outlives the block. Inside the block, `join` it, interrupt it, or pass it to calls that finish before the block does.
+**Block ownership** (D353, D386). A `fork` belongs to the innermost block around it, and the body of an arrow function written without braces is a block too, so `() => fork p()` and `() => { return fork p() }` mean the same. The block interrupts the fibers it owns when it exits, newest first, interleaved in reverse order with its `using` releases (Chapter 26). That exit closes the block's Scope region one owned thing at a time, as Effect closes a Scope, so a fiber forked later is gone before an earlier one is interrupted and before an earlier resource is released; to interrupt several of a block's fibers at once, call `Fiber.interruptAll` on them. A block-owned fiber is therefore interrupted by the time anything outside the block could use it, so a fiber that escapes its block is EK4838, an error: returning it, or an object or array holding it, from the block; assigning it to a variable or property declared outside the block; or capturing it in a function that outlives the block. Inside the block, `join` it, interrupt it, or pass it to calls that finish before the block does.
 
 ```ts es
 function startHeartbeat() {
@@ -115,10 +115,11 @@ function startHeartbeat() {
 ```
 
 ```text
-error EK4620: this fiber is owned by startHeartbeat's body, which interrupts it on exit,
+error EK4838: this fiber is owned by startHeartbeat's body, which interrupts it on exit,
   but it is returned from that body.
   heartbeat.vibe:2:10   return fork heartbeat()
   Give it the caller's lifetime:   return Effect.forkScoped(() => heartbeat())
+  or no owner:                     return detach(() => heartbeat())
 ```
 
 `join` waits for a `Fiber`, or an array or object of fibers, keeping the shape (`Fiber.join`). Its operand's type must be a `Fiber`, an array or tuple of them, or an object type whose every property and index signature has a `Fiber` type; anything else is EK4611. It reads its operand once, and each element of an array or object once, and joins exactly the fibers it read. It adopts each fiber's Exit: a fiber that failed, died, or was interrupted makes `join` fail with that fiber's whole cause. When one fiber fails, `join` interrupts the others still running, under the rule above, and propagates the failure, failing fast like `Effect.all`. A `Deferred` waits with its method, `d.await()` (D227):
@@ -148,7 +149,7 @@ To start several programs and wait for them in one step, use an await operation,
 
 `await.all`, `await.allSettled`, `await.race`, and `await.any` (D196) come from the TC39 [await operations](https://github.com/tc39/proposal-await.ops) proposal (stage 1) and, for an object operand, the [Await Dictionary](https://github.com/tc39/proposal-await-dictionary) proposal (stage 3). Each behaves as the same-named `Promise` method.
 
-An await operation runs where it stands. When its operand is an array or object literal, each element is a program by syntax: nothing in it runs until the operation starts it, in its own fiber, and each run of the enclosing program starts it afresh. An object literal's computed keys and an array literal's spread elements are evaluated once, in source order, when the operation runs, and keys keep that order. Any other operand is evaluated once, when the operation runs, and then enumerated once: an iterable's iterator is taken and drained, an object's own enumerable keys are read in order. An element that is a fiber or a `Deferred` already running is waited for, not restarted; an element that is an `Effect` value is run in its own fiber. A program that holds an await operation, such as `() => await.all xs`, enumerates `xs` again on every run.
+An await operation runs where it stands. When its operand is an array or object literal, every element is a program by syntax, whatever its type (D377): nothing in it runs until the operation starts it, in its own fiber, and each run of the enclosing program starts it afresh. The literal's own parts are evaluated once, in source order, when the operation runs: an object literal's computed keys, and an array literal's spread elements, whose iterables are drained then; keys keep that order. Any other operand is evaluated once, when the operation runs, and then enumerated once: an iterable's iterator is taken and drained, an object's own enumerable keys are read in order. Each element then gives a value, which the operation treats as `Promise.all` treats a thenable: an `Effect` value runs in its own fiber, a fiber or a `Deferred` already running is waited for, not restarted, and any other value, such as `1`, is the element's result as it is. The value decides, at run time; no type does. A program that holds an await operation, such as `() => await.all xs`, enumerates `xs` again on every run.
 
 ```ts effect
 const next = (jobs: Queue.Queue<Job>, shutdown: Deferred.Deferred<void>) =>

@@ -17,7 +17,7 @@ function loadProfile(id: string) {
 // { user: User; avatar: Avatar }!UserNotFound | AvatarError!Users
 ```
 
-A call waits for its callee, whether it finishes at once or after a network round trip; meanwhile the fiber is parked and other fibers run. An Effect function needs no `async` modifier or `await` on a call: every Effect function can wait. In VibeLang code, `join` waits for a fiber you forked, `d.await()` for a Deferred, and `await` appears only in the await operations (Chapter 7). A Promise from a TypeScript library crosses with the `try` hatch, or with `sync` when a rejection is a bug (D148); inside the hatch's function, `async` and `await` keep their JavaScript meaning, and a value of the `.vibe` file, such as `user.avatarId`, arrives as an input (D229). JavaScript `async` and `await` also work in inline `module` bodies and explicitly iterator-annotated async generators (Chapters 8 and 10, D271, D283). Effect modules replace platform APIs that return Promises, such as `fetch` (Chapter 11).
+A call waits for its callee, whether it finishes at once or after a network round trip; meanwhile the fiber is parked and other fibers run. An Effect function needs no `async` modifier or `await` on a call: every Effect function can wait. In VibeLang code, `join` waits for a fiber you forked, `d.await()` for a Deferred, and `await` appears only in the await operations (Chapter 7). A Promise from a TypeScript library crosses with the `try` hatch, or with `sync` when a rejection is a bug (D148); inside the hatch's function, `async` and `await` keep their JavaScript meaning, and a value of the `.vibe` file, such as `user.avatarId`, arrives as an input (D229). JavaScript `async` and `await` also work in inline `module` bodies (Chapter 10, D283). Effect modules replace platform APIs that return Promises, such as `fetch` (Chapter 11).
 
 #### How do I run things concurrently?
 
@@ -242,7 +242,7 @@ export function title(id: string) {
 }
 ```
 
-Yes, in one program: `vibelang` checks both and the editor serves both (Chapter 28). A TypeScript function declared to return an `Effect` is called like a VibeLang function, and TypeScript sees a VibeLang function as one that returns an `Effect`, except one with a plain return annotation (Chapter 10).
+Yes, in one program: `vibelang` checks both and the editor serves both (Chapter 28). A TypeScript function declared to return an `Effect` is called like a VibeLang function, and TypeScript sees a VibeLang function as one that returns a cold `Effect`, except a function with a plain return annotation, which is plain, and a producer, which returns a `Stream` (Chapter 10).
 
 #### Is there anything from Effect I cannot use?
 

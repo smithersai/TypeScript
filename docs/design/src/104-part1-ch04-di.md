@@ -109,7 +109,7 @@ Calling any member through the service looks the service up, so the service join
 
 #### Writing a provider
 
-A provider is a `Layer`. Build one with Effect's own `Layer.effect`, passing a function; in VibeLang the function is a block after the call (block params, D188). `Layer.effect(Users) { ... }` runs its statements once, when the layer is built, and returns the implementation, an object whose members the service types (D221). Without setup, write `Layer.succeed(Users, { ... })`. The older `layer UsersLive: Users { ... }` declaration (D129) still compiles, with warning EK2121 and a quick fix that rewrites it.
+A provider is a `Layer`. Build one with Effect's own `Layer.effect`, passing a function; in VibeLang the function is a block after the call, which is always the last argument (block params, D188, D376): `Layer.effect(Users) { ... }` is `Layer.effect(Users, () => { ... })`. It runs its statements once, when the layer is built, and returns the implementation, an object whose members the service types (D221). Without setup, write `Layer.succeed(Users, { ... })`. The older `layer UsersLive: Users { ... }` declaration (D129) still compiles, with warning EK2121 and a quick fix that rewrites it.
 
 ```ts effect
 const UsersLive = Layer.effect(Users, Effect.gen(function* () {
@@ -341,7 +341,7 @@ function main() {
 }
 ```
 
-A provider written `Key = value` provides one service without a layer, and comma-separated providers share one block (D173). `provide AppLive, Mailer = fakeMailer { ... }` is `Effect.provide` with `[AppLive, Layer.succeed(Mailer, fakeMailer)]`, so the block's requirements drop `Mailer` as well as what `AppLive` provides. An effect module whose same-named export is a service key stands for that key, resolved through the module's declarations as D311 resolves it: `provide Clock = testClock` provides `Clock.Clock`, and `provide Scheduler = fifo` installs a scheduler (D174). `provide(AppLive, Mailer = fakeMailer) { ... }` means the same, as `fork(x)` means `fork x`. The analyzer reads a provider list element by element, because the list's own type merges its layers into one union, which collapses to `Layer<never>` for a layer that provides nothing (D175).
+A provider written `Key = value` provides one service without a layer, and comma-separated providers share one block (D173). `provide AppLive, Mailer = fakeMailer { ... }` is `Effect.provide` with `[AppLive, Layer.succeed(Mailer, fakeMailer)]`, so the block's requirements drop `Mailer` as well as what `AppLive` provides. An effect module whose same-named export is a service key stands for that key, resolved through the module's declarations as D311 resolves it: `provide Clock = testClock` provides `Clock.Clock`, and `provide Scheduler = fifo` installs a scheduler (D174). `provide(AppLive, Mailer = fakeMailer) { ... }`, with the provider list in parentheses, is the same statement. The analyzer reads a provider list element by element, because the list's own type merges its layers into one union, which collapses to `Layer<never>` for a layer that provides nothing (D175).
 
 ```ts es
 const fakeMailer = { send: (to: string, text: string) => log(`to ${to}: ${text}`) }

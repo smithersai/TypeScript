@@ -31,7 +31,7 @@ Generic, overloaded, and aliased TypeScript functions keep their signatures. Typ
 
 #### Producers and JavaScript generators
 
-Existing `Effect.gen` and `Effect.fn` code keeps working in `.ts` files, and VibeLang calls it as above. It cannot move into a `.vibe` file unchanged, because there an unannotated `function*` declares a producer (Chapter 8):
+Existing `Effect.gen` and `Effect.fn` code keeps working in `.ts` files, and VibeLang calls it as above. It cannot move into a `.vibe` file unchanged, because there `function*` declares a producer (Chapter 8, D370):
 
 ```ts es
 const findName = (id: string) => Effect.gen(function* () {
@@ -47,7 +47,7 @@ error EK1002: Effect.gen expects a JavaScript generator, but in VibeLang functio
     function findName(id: string) { return Users.find(id).name }
 ```
 
-The same EK1002 applies to an unannotated generator passed to `Option.gen`, `Result.gen`, or another JavaScript generator API. An explicit JavaScript iterator return annotation keeps the JavaScript generator form (D271), so that form can be passed to these APIs. Chapter 8 lists the iterator types and D296's failure rules. Outside a hatch, a `module` body, or an explicitly iterator-annotated async generator, `async` is EK1003. Use `join` for a fiber and `d.await()` for a Deferred (Chapter 7, D225, D226). Converting a function is mostly deletion, as every chapter of Part I shows. The editor refactor remains a design target (Chapter 28).
+The same EK1002 applies to a `function*` passed to `Option.gen`, `Result.gen`, or another JavaScript generator API, whatever its return annotation (D370). A JavaScript generator is a generator method, or lives in a `module` declaration or a `.ts` file (Chapter 8). Outside a hatch or a `module` body, `async` is EK1003. Use `join` for a fiber and `d.await()` for a Deferred (Chapter 7, D225, D226). Converting a function is mostly deletion, as every chapter of Part I shows. The editor refactor remains a design target (Chapter 28).
 
 #### Using VibeLang code from TypeScript
 
@@ -76,9 +76,9 @@ Calling a VibeLang function from TypeScript builds a program and runs nothing, l
 | A producer, `function*` | `(…) => Stream<T, E, R>` | Nothing runs; consuming the `Stream` runs the body |
 | A method | Its annotation's type; without one, an Effect method when its body runs an Effect or the member it implements returns one, a plain method otherwise (D92) | As the function forms above |
 
-An unannotated method's form follows its body so that the protocols JavaScript reaches structurally, such as `toJSON` and `toString`, keep plain methods; annotate a method whose TypeScript signature must not change as its body grows. A VibeLang function cannot do some work when TypeScript calls it and return an `Effect` for the rest. Write such a function in TypeScript, in a `.ts` file or a `module` declaration, where `Effect.sync` keeps its TypeScript meaning.
+An unannotated method's form follows its body so that the protocols JavaScript reaches structurally, such as `toJSON` and `toString`, keep plain methods; annotate a method whose TypeScript signature must not change as its body grows. A method with a plain annotation whose body runs an Effect is EK2003, unless it implements a plain member of an interface or base class, against which it is checked (D74). A VibeLang function cannot do some work when TypeScript calls it and return an `Effect` for the rest: write such a factory in TypeScript, in a `.ts` file or a `module` declaration, where `Effect.sync` keeps its TypeScript meaning (Chapter 5, D390).
 
-A VibeLang consumer compiled against declaration files behaves as one compiled against the source: Chapter 13's rules read only the declared types, and the declarations carry the contracts, the callback channels, and the service identities. A fact that would relax a foreign-code rule, such as that a plain function was compiled from VibeLang and cannot fail, or that a function performs no control operation (EK4202), comes only from compiler metadata that the consumer checks; without it, as today (Chapter 27), the function is foreign code. Metadata that selects a faster form, such as a plain-JavaScript variant (D268), changes cost only.
+A VibeLang consumer compiled against declaration files behaves as one compiled against the source: Chapter 13's rules read only the declared types, and the declarations carry the contracts, the callback channels, and the service identities. A fact that would relax a foreign-code rule, such as that a plain function was compiled from VibeLang and cannot fail, or that a function performs no control operation (EK4202), comes only from compiler metadata that the consumer checks; without it, as today (Chapter 27), the function is foreign code. A function that compiles to plain JavaScript carries its plain call signature into its declaration, D268's `$plain` member, so a declaration consumer passes `[1, 2].map(double)` the plain form, as a source consumer does, and gets `[2, 4]` (D384). A declaration without that signature describes an Effect function, and passing it where a plain function is expected is EK4301, never a silent array of unrun Effects. Chapter 27 states this declaration ABI as a rule (D366); the table above and that rule say the same thing.
 
 #### Readonly members
 
@@ -113,13 +113,13 @@ function cleanTitle(value: string) {
 
 The body is checked as a separate `.ts` file. JavaScript's `throw`, `catch`, `async`, `await`, and platform APIs keep their TypeScript meaning there. The body imports what it needs and cannot read the `.vibe` file's bindings. Relative imports resolve from the `.vibe` file's directory. The containing file imports exports with an identifier specifier, `from text`, rather than a string. An identifier specifier with no matching declaration is EK4407. The module's name is not a value, so `import(text)` is unsupported.
 
-A declaration must be named, unexported, and at the file's top level. Names that differ only in letter case name the same module. A nested, exported, or duplicate declaration is EK4408, as is a CommonJS `export =` or `import = require()` in its body. `module` does not declare a TypeScript namespace in a `.vibe` file. Write `namespace` for one. A module name shared with a file's value binding warns with EK4408 (D303).
+A declaration must be named, unexported, and at the file's top level. Module names are case-sensitive (D364). A nested, exported, or duplicate declaration is EK4408, as is a CommonJS `export =` or `import = require()` in its body. `module` does not declare a TypeScript namespace in a `.vibe` file. Write `namespace` for one. A module name shared with a file's value binding warns with EK4408 (D303).
 
-The checker gives each body its own source file. For `main.vibe`, `module text` is checked as `main.vibe.text.ts`. JavaScript output keeps the body inline (D303). A module imported for values or side effects runs once before the file's own code, after the file's external imports. Its imports become namespace imports at the file's top level. Its frozen exports object supplies the containing file's imports, which read each export once. Later assignments to an exported `let` do not update those imported values. A module never imported, or imported only for types, emits no JavaScript. A top-level `await` in a used module makes the containing file await its initialization.
+The checker gives each body its own source file. For `main.vibe`, `module text` is checked as `main.vibe.text.ts`. JavaScript output keeps the body inline (D303). A module declaration is an ECMAScript module (D364): it runs once, where its first import stands among the file's imports, and an import of its export is a live binding, so the containing file sees a later assignment to an exported `let`. Its own imports become namespace imports at the file's top level. A module never imported, or imported only for types, emits no JavaScript. A top-level `await` in a used module makes the containing file await its initialization.
 
 Declaration output writes each body's declarations to its own file, such as `main.vibe.text.d.ts`. The containing declaration file refers to it through `./main.vibe.text.js`. Cases `module-declaration-emit` and `module-declaration-cjs` cover the output.
 
-Hatches and inline modules are the explicit TypeScript escapes. An iterator annotation alone is not one: D296 still checks the generator's typed failures.
+Hatches and inline modules are the explicit TypeScript escapes. Chapter 11 shows a live binding, and Chapter 26 states the module rule.
 
 #### Code that is not Effect
 
@@ -163,7 +163,7 @@ export const slugify = trusted(slugifyImpl, [InvalidSlug])
 
 `trusted` keeps the implementation's parameters and returns an `Effect`. An exception that is an instance of a listed class joins E. Any other exception is a defect. The compiler cannot check the TypeScript body, so the wrapper states its contract once. A package listed in the tsconfig's `vibelang.trustedPackages` is also trusted (D261).
 
-The D23 tags `@vibelang trusted` and `@throws` are deprecated. The native compiler still reads them, but reports EK4406 when their contract affects lowering in an Effect function outside a hatch. Migrate the declaration to `trusted(impl, [Errors])`. The planned per-file emitter cannot read another file's tags, so such calls become errors when that emitter replaces the native lowering (D249).
+The D23 tags `@vibelang trusted` and `@throws` are deprecated. The native compiler still reads them, but reports EK4406 when their contract affects lowering in an Effect function outside a hatch. Migrate the declaration to `trusted(impl, [Errors])`. A renderer that reads one file at a time cannot see another file's tags, so it rejects such a call (EK9100) rather than lower it without its contract (D249, D366).
 
 EK4401 applies in every function of a `.vibe` file, a function with a plain annotation included, so a plain annotation never opens a way around the trust boundary (D329). The one exception is code that no fiber can run: a module's top-level statements, and a function literal written there as an argument to a TypeScript function, such as a `describe` body or a route handler, whose exceptions go to that TypeScript code (D100). A named function is never exempt, because a fiber may call it. An exception at module top level fails the import. Trusted failures stay defects inside plain callbacks and functions with a plain annotation, while they make other functions use the Effect form (D101).
 
@@ -199,7 +199,7 @@ This changes policy from the original direction, which adapted every plain call 
 
 #### What the compiler checks and what it trusts
 
-A contract's E bounds the expected failures, the `Fail` reasons, of checked VibeLang code; defects and interruption are outside it (Chapter 17). The bound holds on assumptions the compiler cannot check (D332): a TypeScript declaration's types are true; a trusted contract's `@throws` list names the exceptions its function throws as expected failures; a value of type `any` and a type assertion are what the code claims; a library calls a callback only as its type says; and Chapter 16's table of combinators that change fibers is right. A wrong assumption can turn an expected failure into a defect, or let a typed program fail at run time. Trust attaches to the declaration a call resolves to. The functions and values that Effect's own exports return are trusted too (D121), since Effect's version is pinned; values that other trusted functions return are not. A plain annotation adds no trust.
+A contract's E bounds the expected failures, the `Fail` reasons, of checked VibeLang code; defects and interruption are outside it (Chapter 17). The bound rests on assumptions the compiler cannot check, listed once as the trusted base in Chapter 26 (D332, D373): above all, that TypeScript declarations are true, that a trusted contract's list of errors is right, that `any` and type assertions are honest, that a library calls a callback only as its type says, and that Chapter 16's table of combinators that change fibers is right. A wrong assumption can turn an expected failure into a defect, or let a typed program fail at run time. Trust attaches to the declaration a call resolves to. The functions and values that Effect's own exports return are trusted too (D121), since Effect's version is pinned; values that other trusted functions return are not. A plain annotation adds no trust.
 
 #### Promises
 

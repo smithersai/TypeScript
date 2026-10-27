@@ -31,7 +31,7 @@ const fastest = race(() => fromCache(id), () => fromNetwork(id))   // the first 
 
 Each line is a call of an Effect function, so it runs: `user` is a `User`, not an `Effect`. `retry` runs its program again on each attempt, and each attempt evaluates `fetchUser(id)` afresh. Without the arrow, `fetchUser(id)` would run once, before `retry` started, and pass a `User`; that is EK1018, whose quick fix writes the arrow. In the docs and examples, arrows around single calls were 2.6% of the tokens (D320). They buy a call site that says when its work happens.
 
-A program of several statements is `() => { … }`, or a block after the call that takes it (D188): `retry(policy) { … }`.
+A program of several statements is `() => { … }`. A block after a call passes one as the call's last argument (D188, D376), which suits a function that takes its program last, such as `it.effect("name") { … }`; Effect's combinators take their program first, so they take the arrow; a block after one fails to type-check, and the error's note gives the arrow form (Chapter 13).
 
 #### Several combinators around one program
 
@@ -44,19 +44,16 @@ const user = yield* fetchUser(id).pipe(
 ```
 
 ```ts es
-const user = withSpan("load-user") {
-  return timeout("2 seconds") {
-    return retry({ times: 3 }) {
-      return fetchUser(id)
-    }
-  }
-}
+const attempt = () => fetchUser(id)
+const retried = () => retry(attempt, { times: 3 })
+const bounded = () => timeout(retried, "2 seconds")
+const user = withSpan(bounded, "load-user")
 // user: User;  E gains Cause.TimeoutError from Effect.timeout
 ```
 
-A block after a call is a program, so each combinator receives the program inside it: `retry` runs `fetchUser(id)` again on each attempt, `timeout` bounds the retried work, and `withSpan` traces it. The types flow exactly as in Effect: `Effect.timeout` adds `Cause.TimeoutError` to E, and `Effect.retry` keeps E and R.
+Each arrow is a program, so each combinator receives the one before it: `retry` runs `fetchUser(id)` again on each attempt, `timeout` bounds the retried work, and `withSpan` traces it. Only the last line runs anything. Nested in one expression it reads `withSpan(() => timeout(() => retry(() => fetchUser(id), { times: 3 }), "2 seconds"), "load-user")`. The types flow exactly as in Effect: `Effect.timeout` adds `Cause.TimeoutError` to E, and `Effect.retry` keeps E and R.
 
-Effect's `pipe` function composes the same program from data-last forms, starting from a function: `const loadUser = pipe(() => fetchUser(id), retry({ times: 3 }), timeout("2 seconds"))` builds it, and `loadUser()` runs it. `pipe`'s declared return type is a type parameter, so the call returns the program instead of running it (Chapter 13). Given a function with no parameters first, where its first stage expects a program, `pipe` passes that function as the program (D110); on plain data it is Effect's `pipe`. It suits data-last functions with no data-first form, such as `Match.when`.
+Effect's `pipe` function is an ordinary call: `pipe(x, f, g)` is `g(f(x))`, with `x` passed as the value it is (D383). A function literal first stays a function, so `pipe(() => fetchUser(id), retry({ times: 3 }))` does not type-check, since `retry`'s data-last form takes an `Effect`; nest the calls as above. `pipe` suits data-last functions with no data-first form, such as `Match.when`. Its declared return type is a type parameter, so a `pipe` call returns its result without running it, whatever that result is (Chapter 13).
 
 #### The pipe operator
 
@@ -67,7 +64,7 @@ const rows = items |> Arr.filter(%, isActive) |> Arr.map(%, toRow)
 const total = loadOrder(id) |> sumLines(%.lines) |> addTax(%, region)
 ```
 
-`items |> Arr.filter(%, isActive) |> Arr.map(%, toRow)` is `Arr.map(Arr.filter(items, isActive), toRow)`. In the second line `loadOrder(id)` runs, `%` is the order it returns, and `sumLines` and `addTax` run with values. A pipe is a sequence of expressions in reading order: each stage is an ordinary expression, and each call in it follows Chapter 13's rules.
+`items |> Arr.filter(%, isActive) |> Arr.map(%, toRow)` is `Arr.map(Arr.filter(items, isActive), toRow)`. In the second line `loadOrder(id)` runs, `%` is the order it returns, and `sumLines` and `addTax` run with values. A pipe is a sequence of expressions in reading order: each stage is an ordinary expression, and each call in it follows Chapter 13's rules. A stage whose callee is itself a call, `x |> f(args)(%)`, types and lowers as `x.pipe(f(args))` does (D272).
 
 The topic is never a program, whatever parameter it fills. `fetchUser(id) |> retry(%, policy)` runs `fetchUser(id)` once and passes the user, which is EK1018; write the program as a function, `retry(() => fetchUser(id), policy)`, or as a block, as above. A pipe's body must use `%` (EK1006). The pipe has its body's type; to keep a pipe as a program, wrap it: `const total = () => loadOrder(id) |> sumLines(%.lines)`.
 
@@ -128,7 +125,7 @@ function syncEverything(stores: ReadonlyArray<Store>) {
 
 `stores.map(makeSync)` passes `makeSync` to JavaScript's `Array.prototype.map`, which expects a plain function. `makeSync` performs no Effect operation, so it compiles to plain JavaScript (Chapter 15) and `map` receives that form: `syncAll` holds programs. A function that can pause cannot be passed to `map` (EK4301, Chapter 10). Where `Effect.all` expects Effects, an array or record of programs converts element by element.
 
-An exported VibeLang function is a cold program to TypeScript: calling it runs none of its body (Chapter 10). To do work when a function is called and return a program that runs later, return the program from a plain function, whose annotation says it returns a function:
+An exported VibeLang function is a cold program to TypeScript: calling it runs none of its body (Chapter 10). A function that does work when it is called and returns a program for later is a **factory**, and VibeLang has no factory form of its own (D390). Two spellings cover what a factory does. A plain function, whose annotation says it returns a function, does its work at the call:
 
 ```ts es
 export function capture(input: { mutable value: number }): () => number!! {
@@ -137,7 +134,23 @@ export function capture(input: { mutable value: number }): () => number!! {
 }
 ```
 
-`capture` has a plain return annotation, so it is a plain function (Chapter 15): calling it reads `input.value` and returns the program. A VibeLang caller runs that program with `capture(input)()`, and `retry(capture(input), policy)` takes one snapshot and retries that program. TypeScript sees `(input: { value: number }) => () => Effect<number>`. A TypeScript API whose callers must receive the `Effect` itself, built when they call, is written in TypeScript, in a `.ts` file or a `module` declaration (D283), where `Effect.sync(() => snapshot)` keeps its TypeScript meaning.
+`capture` has a plain return annotation, so it is a plain function (Chapter 15): calling it reads `input.value` and returns the program. A VibeLang caller runs that program with `capture(input)()`, and `retry(capture(input), policy)` takes one snapshot and retries that program. TypeScript sees `(input: { value: number }) => () => Effect<number>`. A TypeScript API whose callers must receive the `Effect` itself, built when they call, is written in TypeScript, in a `.ts` file or a `module` declaration (D283), where `Effect.sync(() => snapshot)` keeps its TypeScript meaning:
+
+```ts es
+module snapshots {
+  import { Effect } from "effect"
+  export function capture(input: { value: number }): Effect.Effect<number> {
+    const snapshot = input.value             // at the call
+    return Effect.sync(() => snapshot)       // each run returns this snapshot
+  }
+}
+
+export { capture } from snapshots
+```
+
+TypeScript callers of `capture` get the `Effect`, built when they call. A VibeLang caller calls a TypeScript function that returns an `Effect`, so `capture(input)` runs it and gives the number (Chapter 13), and `retry(() => capture(input), policy)` takes a fresh snapshot on each attempt.
+
+VibeLang has no third spelling because each candidate would make a type decide when code runs. An Effect contract on a function whose body returns an arrow, `(input): number!! => { …; return () => snapshot }`, would run the body at the call only because the arrow does not fit the contract's A, and removing the annotation from a program that still type-checks would move that work from the call to the run (D320, D323). A `const` holding an arrow, `export const capture = (input) => { … }`, is a VibeLang function like any other, cold to TypeScript, and a declared Effect type on that `const` changes only how the arrow is passed, never when its body runs (D324). A new keyword for factories could avoid both, but it would give syntax to behavior that idiomatic Effect does not use: `Effect.fn` and `Effect.gen` bodies are cold too, and Effect's own factories are TypeScript. A factory written in the earlier form, which D269 allowed, is TypeScript's TS2322 at its return; `--fix` rewrites one that is not exported into a plain function that returns the program, and refuses an exported one with EK1023, since its TypeScript API would change (D382).
 
 ```ts es
 function startServer() {

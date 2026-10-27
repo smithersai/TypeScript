@@ -2,7 +2,7 @@
 
 #### Every function is an Effect
 
-Every function is an Effect: the compiler infers its contract `Effect<A, E, R>` from its body, and TypeScript sees it as a function that returns that cold `Effect`. The one exception is a function with a plain return annotation, such as `: number`, which stays a plain function (Chapter 15). Some functions can fail, need services, or pause; the contract records which.
+Every function is an Effect: the compiler infers its contract `Effect<A, E, R>` from its body, and TypeScript sees the function as one that returns that cold `Effect`, so calling it from TypeScript runs nothing. Two kinds of function are not: a function with a plain return annotation, such as `: number`, stays a plain JavaScript function (Chapter 15), and a producer, `function*`, returns a `Stream` (Chapter 8). Inside VibeLang, calling a function runs it where the call stands (below), and writing `() =>` before a call delays it. Some functions can fail, need services, or pause; the contract records which.
 
 ```ts es
 function add(a: number, b: number) {
@@ -21,7 +21,7 @@ function greeting(id: string) {
 
 #### Calling runs the function
 
-A call works the way a TypeScript developer reads it with an implicit `await`: its arguments are evaluated, left to right, then the function runs where the call stands, and the call's value is the function's success value. If the callee fails, the caller fails with the same error unless it catches it (Chapter 3). There is no `yield*` or `await`, and nothing else changes when a call runs: not its parameter's type, not an annotation, not an overload (Chapter 13).
+A call works the way a TypeScript developer reads it with an implicit `await`: its arguments are evaluated, left to right, then the function runs where the call stands, and the call's value is the function's success value. If the callee fails, the caller fails with the same error unless it catches it (Chapter 3). There is no `yield*` or `await`. Whether a call runs depends on the declared return type of the function it calls, an Effect or not; nothing else changes when it runs: not the parameter it fills, not an annotation on the variable that receives it, not an overload (Chapter 13).
 
 ```ts effect
 const userName = Effect.fn("userName")(function* (id: string) {
@@ -83,13 +83,11 @@ The loop runs one `welcome` at a time, in order. Running several at once is alwa
 
 ```ts es
 function welcomeTraced(id: string) {
-  return withSpan("welcome") {
-    return welcome(id)
-  }
+  return withSpan(() => welcome(id), "welcome")
 }
 ```
 
-The block after the call is a program (Chapter 13), so `withSpan` runs `welcome(id)` inside the span. `withSpan(() => welcome(id), "welcome")` means the same. `withSpan(welcome(id), "welcome")` would run `welcome(id)` first, outside the span, and is EK1018.
+The arrow is a program (Chapter 13), so `withSpan` runs `welcome(id)` inside the span. `withSpan(welcome(id), "welcome")` would run `welcome(id)` first, outside the span, and is EK1018.
 
 #### Writing the contract yourself
 

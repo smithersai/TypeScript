@@ -131,7 +131,7 @@ function describe(id?: string) {
 | Fails with `f` | `Success`, or a jump: `return`, `break`, `continue` | `Failure(f)` |
 | Fails with `f` | `Failure(c)` | `Failure(c ⊕ f)` |
 
-This is the machine's `Final` transition (Chapter 20), and it is what `Effect.onExit` and `Effect.ensuring` do. The first two rows are JavaScript's `finally`; the third is not: JavaScript replaces the pending exception with the cleanup's, and VibeLang keeps both, as Java's suppressed exceptions and Effect's causes do. A failure during cleanup is never dropped, on every path: a block's exit, a clause that abandons, an explicit `abandon` while an interruption is pending, a scope that closes, and a fiber that exits (D15, K12a-K12e, K13d).
+This is the machine's `Final` transition (Chapter 20), and it is what `Effect.onExit` and `Effect.ensuring` do. The first two rows are JavaScript's `finally`; the third is not: JavaScript replaces the pending exception with the cleanup's, and VibeLang keeps both, as Java's suppressed exceptions and Effect's causes do. A failure during cleanup that VibeLang runs is never dropped, on every path: a block's exit, a clause that abandons, an explicit `abandon` while an interruption is pending, a scope that closes, and a fiber that exits (D15, K12a-K12e, K13d). An Effect operator that discards an Exit by design, as `timeout` and `race` discard a loser's, is the one boundary of this guarantee (below, D256).
 
 ```ts es
 error First
@@ -201,7 +201,7 @@ function commit(rows: ReadonlyArray<string>) {
 
 **Applies to** every lowering of a construct other than the frame lowering of Chapter 26: plain JavaScript functions and regions (Chapter 15), single-result bodies (D274), tail resumes (K11a), an exhaustive match's untested last arm (D294), trusted-call wrappers, and any later optimization.
 
-**Checked.** The compiler applies such a lowering only where it produces the frame lowering's Exit: the same success value, or the same reasons in the same order. Chapter 28's observation model adds the other observations every lowering keeps, such as the order and count of side effects and the lifetimes of resources and fibers. Experiment G10 compiles a corpus both ways and compares.
+**Checked.** The compiler applies such a lowering only where it produces the frame lowering's Exit: the same success value, or the same reasons in the same order. Chapter 26's observation model adds the other observations every lowering keeps, such as the order and count of side effects and the lifetimes of resources and fibers. Experiment G10 compiles a corpus both ways and compares.
 
 **At run time.** Where JavaScript's own statement behaves differently, the lowering uses the runtime's combining form or is not applied. A `finally` in a plain function combines failures as the finalization rule says (D340). A plain function never fails, so only defects leave it as JavaScript exceptions. When cleanup adds a defect to a pending one, the exception that leaves is a `SuppressedError` whose `error` is the cleanup's exception and whose `suppressed` is the pending one, as ECMA-262's `DisposeResources` reports two failures; the runtime turns a `SuppressedError` it made back into the combined cause where it reaches an Effect frame. A TypeScript caller of a plain-annotated function sees that `SuppressedError`. The runtime supplies `SuppressedError` where the host lacks it.
 
@@ -209,7 +209,7 @@ function commit(rows: ReadonlyArray<string>) {
 
 **Statement.** In a program the compiler accepts, every `Fail` reason in a cause that leaves a function holds a value whose type is in that function's E. E bounds expected failures only: `Die` and `Interrupt` reasons are outside it, so a contract with E = `never` promises that no expected failure leaves the function, not that nothing crashes.
 
-**Assumptions.** The guarantee holds when TypeScript's own typing holds and foreign code keeps its contracts: no cast, `any`, non-null assertion, or structural copy of a class instance puts a value outside its type; TypeScript declarations of Effect functions, `@throws` tags, `trusted(…)` values, and `trustedPackages` say what the code does; and each hatch's mapper returns what its type says. Chapter 10 lists every such boundary. Where an assumption fails at a class pattern, the match fails with a defect, the proposal's `TypeError`, rather than taking a wrong arm (Chapter 3).
+**Assumptions.** The guarantee holds when TypeScript's own typing holds and foreign code keeps its contracts: no cast, `any`, non-null assertion, or structural copy of a class instance puts a value outside its type; TypeScript declarations of Effect functions, `@throws` tags, `trusted(…)` values, and `trustedPackages` say what the code does; and each hatch's mapper returns what its type says. Chapter 26 lists every such assumption once, as the trusted base (D373). Where an assumption fails at a class pattern, the match fails with a defect, the proposal's `TypeError`, rather than taking a wrong arm (Chapter 3).
 
 #### The Effect-operator boundary
 
