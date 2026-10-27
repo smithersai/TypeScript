@@ -867,11 +867,11 @@ Use ordinary `catch` to map a built-in’s expected failure; reserve hatches for
 ```ts effect
 // fragment
 import { hostname } from "node:os"
-import { lstat } from "node:fs/promises"
+import { statfs } from "node:fs/promises"
 const host = Effect.sync(() => hostname())
 const parsed = Effect.try({ try: () => JSON.parse(text), catch: (error) => new BadJson({ error }) })
 const key = Effect.promise(() => crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, false, ["sign"]))
-const linked = Effect.tryPromise(async () => (await lstat(path)).isSymbolicLink())
+const free = Effect.tryPromise(async () => (await statfs(path)).bavail)
 const tick = Effect.callback<number>((resume) => {
   const listener = (n: number) => resume(Effect.succeed(n))
   ticker.once("tick", listener)
@@ -881,9 +881,9 @@ const name = await Effect.runPromise(greetUser("1"))
 ```
 
 ```vibe es
-// run: provide Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]) { const ticker = sync(() => { const ticker = new EventEmitter(); ticker.on("newListener", () => queueMicrotask(() => ticker.emit("tick", 7))); return ticker }); const value = hatches('{"ok":true}', ".", ticker); Console.log(JSON.stringify({ ...value, host: typeof value.host, key: value.key.type })) }
+// run: provide Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]) { const ticker = sync(() => { const ticker = new EventEmitter(); ticker.on("newListener", () => queueMicrotask(() => ticker.emit("tick", 7))); return ticker }); const value = hatches('{"ok":true}', ".", ticker); Console.log(JSON.stringify({ ...value, host: typeof value.host, key: value.key.type, free: typeof value.free })) }
 import { hostname } from "node:os"
-import { lstat } from "node:fs/promises"
+import { statfs } from "node:fs/promises"
 import { EventEmitter } from "node:events"
 
 error BadJson { error: unknown }
@@ -892,17 +892,17 @@ function hatches(text: string, path: string, ticker: EventEmitter) {
   const host = sync(hostname())
   const parsed = JSON.parse(text) catch (error) => throw new BadJson({ error })
   const key = sync(async () => crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, false, ["sign"]))
-  const linked = try(async (path) => (await lstat(path)).isSymbolicLink(), path)
+  const free = try(async (path) => (await statfs(path)).bavail, path)
   const tick = callback((ticker, resume: Resume<number, never>) => {
     const listener = (n: number) => resume(n)
     ticker.once("tick", listener)
     return () => ticker.off("tick", listener)
   }, ticker)
   const name = sync(async (greet) => runPromise(greet("1")), greetUser)
-  return { host, parsed, key, linked, tick, name }
+  return { host, parsed, key, free, tick, name }
 }
 // Output: Hello, Ada
-// Output: {"host":"string","parsed":{"ok":true},"key":"secret","linked":false,"tick":7,"name":"Ada"}
+// Output: {"host":"string","parsed":{"ok":true},"key":"secret","free":"number","tick":7,"name":"Ada"}
 ```
 
 **TypeScript modules inline** (D283, [module declarations](https://github.com/tc39/proposal-module-declarations)). A module's body is TypeScript, compiled as a `.ts` file would be, so JavaScript's `throw` and `catch` and `async` keep their meaning there. It is self-contained: it imports what it needs, and the file reaches it only through imports.

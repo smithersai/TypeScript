@@ -24,6 +24,24 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
   import, nothing changes, and EK3205 names the import that would provide
   the platform's services.
 
+### Experimental platform APIs
+
+- `Experimental`, in scope in every `.vibe` file, holds what Effect lacks.
+  Each service extends Effect's service of the same name and has its own key;
+  it is experimental and goes when Effect ships the API. See
+  [Experimental platform APIs](/vibelang-features/118-experimental-platform-apis).
+  - `Experimental.FileSystem` adds `access(path, { executable })`,
+    `open(path, { nonBlocking })` and `File.chmod`. `lstat` is Effect's own
+    since 4.0.6.
+  - `Experimental.Crypto` adds `hmac`, `sign` and `verify` (ECDSA P-256 and
+    Ed25519), with secret keys as `Redacted<Uint8Array>`.
+- `vibelang-runtime/experimental/platform-node`, `-bun` and `-browser` hold
+  the layers. `NodeServices.layer` and `BunServices.layer` there are the
+  platform bundles plus the experimental services; each layer provides the
+  experimental service and Effect's from one implementation.
+- `vibelang-runtime` lists `@effect/platform-node`, `@effect/platform-bun` and
+  `@effect/platform-browser` 4.0.6 as optional peer dependencies.
+
 ## 0.0.10
 
 Update `vibelang`, `vibelang-runtime` and the bundler plugin together. This

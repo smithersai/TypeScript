@@ -696,6 +696,17 @@ func TestImportLine(t *testing.T) {
 	assert.Equal(t, line, `import { type $PreludeLoaded, $gen, $run as $run_1, Console, Layer } from "vibelang-ts-mapper/prelude"; true satisfies $PreludeLoaded;`)
 }
 
+// TestImportLineExperimental checks that the projection imports D313's
+// Experimental namespace from the prelude, as the fork resolves it.
+func TestImportLineExperimental(t *testing.T) {
+	t.Parallel()
+	source := "function kind(path: string) {\n  return Experimental.FileSystem.FileSystem.stat(path)\n}\n"
+	projection := Project(source, testContext)
+	line, _, _ := strings.Cut(projection.Text, "\n")
+	assert.Assert(t, strings.Contains(line, ", Experimental }") || strings.Contains(line, " Experimental,"), line)
+	assertParses(t, projection.Text)
+}
+
 // TestSynthesizedNamesAvoidDeclarations checks that synthesized text names
 // a prelude module through an alias when the file declares that name.
 func TestSynthesizedNamesAvoidDeclarations(t *testing.T) {

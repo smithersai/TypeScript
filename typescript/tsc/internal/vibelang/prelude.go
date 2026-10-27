@@ -13,7 +13,7 @@ import (
 
 // The prelude (design decisions D4 and D48) is the names every .vibe file sees
 // without an import: Effect, Schema, Layer, TaggedError, Control, Scope, pipe,
-// wire, fork, handle, resume, resumeWith, and abandon. They are the exports of
+// wire, fork, handle, resume, resumeWith, abandon, and Experimental (D313). They are the exports of
 // vibelang-runtime, which declares each with the right meanings: Effect
 // is the namespace and the type Effect<A, E, R>, Scope the namespace and the
 // type Scope.Scope.
@@ -38,6 +38,8 @@ var preludeModules = map[string]string{
 	"Schema":      "effect/Schema",
 	"Scope":       "effect/Scope",
 	"TaggedError": runtimeModule,
+	// What VibeLang adds where Effect lacks an API (D313): Experimental.FileSystem, Experimental.Crypto.
+	"Experimental": runtimeModule,
 	// An error that extends another, which the parser writes (D278, parser/vibelang_errors.go).
 	"$errorSubclass": runtimeModule,
 	"$ErrorArgs":     runtimeModule,

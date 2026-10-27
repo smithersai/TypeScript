@@ -706,6 +706,10 @@ export const sidebar = [
       {
         "text": "Token counts",
         "link": "/vibelang-features/117-token-counts"
+      },
+      {
+        "text": "Experimental platform APIs",
+        "link": "/vibelang-features/118-experimental-platform-apis"
       }
     ],
     "collapsed": false

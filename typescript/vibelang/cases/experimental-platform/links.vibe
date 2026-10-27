@@ -1,0 +1,18 @@
+// A file imports an experimental service by name from its subpath; the
+// import shadows the prelude's FileSystem, and Effect's members keep working
+// on the same service.
+import { FileSystem } from "vibelang-runtime/experimental/FileSystem"
+
+export function isLink(path: string) {
+  return FileSystem.lstat(path).type === "SymbolicLink"
+}
+
+export function size(path: string) {
+  return FileSystem.stat(path).size
+}
+
+// A parameter of the prelude namespace's service type: the declaration file
+// imports Experimental from vibelang-runtime.
+export function kind(fs: Experimental.FileSystem.FileSystem, path: string) {
+  return fs.lstat(path).type
+}

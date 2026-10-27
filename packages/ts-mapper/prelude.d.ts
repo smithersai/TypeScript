@@ -57,7 +57,7 @@ export {
 export {
   TaggedError, Control, pipe, wire, fork, handle, resume, resumeWith, abandon, sync, callback, Resume, runPromise,
   runFork, runSync, runCallback, detach, forkIn, interrupt, yieldNow, uninterruptible, restore, interruptible,
-  customMatcher
+  customMatcher, Experimental
 } from "vibelang-runtime"
 
 /** D5/D54: shipped built-in failures use the same value boundary as trusted implementations. */

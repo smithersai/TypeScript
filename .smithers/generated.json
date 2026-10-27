@@ -2,7 +2,7 @@
   "version": 2,
   "flow": "docs",
   "source": ".smithers/flows/docs/flow.ts",
-  "digest": "3109d12c06c21b0e443003713b224971209b5cc54d14eaab14599c700701df4f",
+  "digest": "3e78dc0ae100bbbd653f0b091568a61fb500b5b1a85568a4a5c4f6cf43de738c",
   "inputs": [
     {
       "path": ".smithers/flows/docs/project.ts",
@@ -38,7 +38,7 @@
     },
     {
       "path": "packages/compiler/skills/vibelang/SKILL.md",
-      "sha256": "2aed09e25ce0e3f4ed270ab0db632186525f59b6361231f5e9f210a14c2a6af4"
+      "sha256": "b901dbc7afd7d3ed712eb207c39c413e7efb6bdc9748daf0f4b37f22ea3f51b2"
     }
   ],
   "outputs": {
@@ -52,7 +52,7 @@
       "sha256": "1407d65d1b99dae026eb78058df5ababe0f2184b4ae205f9d537edca2a657ff8"
     },
     "AGENTS.md": {
-      "sha256": "ecaab00a04ef5092d3c5f391a154d0b049d2857748274115ec04caf005faedf5"
+      "sha256": "b005bc027d1195177d8e66512c12ad5addbf60590a55b4d2f13c5b3ea01fb86b"
     },
     "templates/app/AGENTS.md": {
       "sha256": "23b5e5a36bef21e1a63c4c8a3be36d0581ad8379ae4d579dba0bf7644bc4b00f"

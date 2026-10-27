@@ -55,7 +55,7 @@ Each Node.js or web call has an Effect replacement. EK4402 and EK4403 name it, i
 
 Import a service from the module the table names, by its own name: `import { Crypto } from "effect/Crypto"`. `ChildProcess.make` needs `import * as ChildProcess from "effect/process/ChildProcess"` too, and `HttpClient`, `HttpRouter`, and `FetchHttpClient` are named imports of `effect/http`. `NodeServices.layer` provides `FileSystem`, `Path`, `Crypto`, `Stdio`, `Terminal`, and `ChildProcessSpawner`; `BunServices.layer` from `@effect/platform-bun` is Bun's. The platform import provides the platform's bundle to `main`; provide every other layer inside `main`. Effect's runtime provides the prelude's services itself.
 
-Where Effect has no service yet, as for `os.hostname()`, `fs.lstat`, or `process.pid`, EK4402 says so: run the call in a hatch where you need it, `sync(hostname())`, or `try` when it can throw ([Creating Effects](/getting-started/005-creating-effects)).
+Where Effect has no service yet, as for `os.hostname()` or `process.pid`, EK4402 says so: run the call in a hatch where you need it, `sync(hostname())`, or `try` when it can throw ([Creating Effects](/getting-started/005-creating-effects)). An execute-permission check, a nonblocking open, `chmod` on an open file, HMAC and signatures are VibeLang's [experimental platform APIs](/vibelang-features/118-experimental-platform-apis).
 
 ## Installing runtime-specific packages
 

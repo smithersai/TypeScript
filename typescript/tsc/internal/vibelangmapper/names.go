@@ -47,9 +47,10 @@ var preludeNames = func() map[string]bool {
 		TxSubscriptionRef Types UndefinedOr Unify Utils Version absurd cast flow hole identity`,
 		// D151.
 		`all die exit forEach log logDebug logError logInfo logWarning race repeat retry sleep timeout withSpan`,
-		// The runtime's prelude names.
+		// The runtime's prelude names; Experimental is D313's namespace.
 		`TaggedError Control pipe wire fork handle resume resumeWith abandon sync callback Resume runPromise runFork
-		runSync runCallback detach forkIn interrupt yieldNow uninterruptible restore interruptible customMatcher`,
+		runSync runCallback detach forkIn interrupt yieldNow uninterruptible restore interruptible customMatcher
+		Experimental`,
 	} {
 		for _, name := range strings.Fields(list) {
 			names[name] = true
