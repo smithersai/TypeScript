@@ -7,7 +7,6 @@
 ```vibe
 // run: provide NodePath.layer { Console.log(pathSeparator()) }
 import { NodePath } from "@effect/platform-node"
-import { Path } from "effect/Path"
 
 function pathSeparator() {
   return Path().sep
@@ -15,14 +14,13 @@ function pathSeparator() {
 // Output: /
 ```
 
-`import { Path } from "effect/Path"` imports the service key. `Path()` returns the implementation from the current environment, whose `sep` is a value, and `Path.join(...)` calls one of its methods. Without the import, `Path` is the prelude's module, whose service key is `Path.Path`.
+`Path` is the prelude's module, and its name also names the module's service (D311). `Path()` returns the implementation from the current environment, whose `sep` is a value, and `Path.join(...)` calls one of its methods. The module's own exports, such as `Path.layer`, keep their meaning, and the key itself is `Path.Path`.
 
 ## Manipulating paths portably
 
 ```vibe
 // run: provide NodePath.layer { Console.log(JSON.stringify(describeReport())) }
 import { NodePath } from "@effect/platform-node"
-import { Path } from "effect/Path"
 
 function describeReport() {
   const joined = Path.join("reports", "weekly.txt")
@@ -41,7 +39,7 @@ function describeReport() {
 // Output: {"joined":"reports/weekly.txt","normalized":"reports/weekly.txt","base":"weekly.txt","directory":"reports","extension":".txt","absolute":false,"rebuilt":"reports/weekly.txt"}
 ```
 
-Most `Path` methods are plain synchronous TypeScript functions. Effect's own packages are trusted, so call them directly; an exception escaping into Effect code is a defect, which Effect catch doesn't handle. A plain function's catch doesn't see it either (D282); recover it with the `try` hatch. Calling a member through the key, as in `Path.join("reports", "weekly.txt")`, looks up the service and adds `Path` to R even though the member returns a string.
+Most `Path` methods are plain synchronous TypeScript functions. Effect's own packages are trusted, so call them directly; an exception escaping into Effect code is a defect, which Effect catch doesn't handle. A plain function's catch doesn't see it either (D282); recover it with the `try` hatch. Calling a member through the module's name, as in `Path.join("reports", "weekly.txt")`, looks up the service and adds `Path` to R even though the member returns a string.
 
 | Operation | Result |
 | --- | --- |
@@ -57,7 +55,6 @@ Most `Path` methods are plain synchronous TypeScript functions. Effect's own pac
 ```vibe
 // run: provide NodePath.layer { Console.log(asFileUrl("/reports/weekly.txt")) }
 import { NodePath } from "@effect/platform-node"
-import { Path } from "effect/Path"
 
 function asFileUrl(file: string) {
   const absolute = Path.resolve(file)
@@ -74,7 +71,6 @@ URL conversions return Effects, run when called, and report `BadArgument` on inv
 ```vibe
 // main.vibe
 import "vibelang/platform/node"
-import { Path } from "effect/Path"
 
 export function main() {
   Console.log(Path.join("reports", "weekly.txt"))
@@ -82,8 +78,8 @@ export function main() {
 // Output: reports/weekly.txt
 ```
 
-`import "vibelang/platform/node"` makes the entry provide the Node service bundle, which supplies host path behavior, to `main` (D312); `"vibelang/platform/bun"` provides Bun's, `BunServices.layer`. `layer` from `effect/Path`, the prelude's `Path.layer`, supplies the built-in POSIX implementation, for programs that use POSIX paths on purpose, deterministic tests included: `provide Path.layer { ... }` inside `main` wins over the bundle.
+`import "vibelang/platform/node"` makes the entry provide the Node service bundle, which supplies host path behavior, to `main` (D312); `"vibelang/platform/bun"` provides Bun's, `BunServices.layer`. The module's `Path.layer` supplies the built-in POSIX implementation, for programs that use POSIX paths on purpose, deterministic tests included: `provide Path.layer { ... }` inside `main` wins over the bundle.
 
 ## Coming from Effect
 
-Effect-returning methods run directly; synchronous methods from Effect's trusted packages return plain values. Called through the key, both look up the service and add it to R. Read value members from the implementation, as in `Path().sep`.
+Effect-returning methods run directly; synchronous methods from Effect's trusted packages return plain values. Called through the module's name, both look up the service and add it to R. Read value members from the implementation, as in `Path().sep`.

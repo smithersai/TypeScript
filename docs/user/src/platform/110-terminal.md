@@ -5,16 +5,16 @@
 ## Requesting terminal services
 
 ```vibe
-// run: provide Terminal.Terminal = Terminal.make({ columns: () => 80, rows: () => 24, readInput: () => Queue.unbounded<Terminal.UserInput>(), readLine: () => " Ada ", display: (text) => Console.log(text.trimEnd()) }) { Console.log(JSON.stringify(dimensions())) }
+// run: provide Terminal = Terminal.make({ columns: () => 80, rows: () => 24, readInput: () => Queue.unbounded<Terminal.UserInput>(), readLine: () => " Ada ", display: (text) => Console.log(text.trimEnd()) }) { Console.log(JSON.stringify(dimensions())) }
 function dimensions() {
-  const terminal = Effect.service(Terminal.Terminal)
+  const terminal = Terminal()
   return { columns: terminal.columns(), rows: terminal.rows() }
 }
 // { columns: number; rows: number }!!Terminal.Terminal
 // Output: {"columns":80,"rows":24}
 ```
 
-`Terminal.Terminal` is the service key; `Effect.service` retrieves its implementation. `columns`, `rows`, and `readLine` are Effect values: call them to run them. `display` is an Effect-returning method and runs on an ordinary call.
+The module's name `Terminal` also names its service (D311), so `Terminal()` returns the implementation; the key itself is `Terminal.Terminal`. `columns`, `rows`, and `readLine` are Effect values: call them to run them. `display` is an Effect-returning method and runs on an ordinary call.
 
 ## Writing standard output
 
@@ -22,7 +22,7 @@ function dimensions() {
 // main.vibe
 import { NodeRuntime, NodeTerminal } from "@effect/platform-node"
 function main() {
-  const terminal = Effect.service(Terminal.Terminal)
+  const terminal = Terminal()
   terminal.display("Package prepared.\n")
 }
 
@@ -35,9 +35,9 @@ NodeRuntime.runMain(() => Effect.provide(() => main(), NodeTerminal.layer))
 ## Reading standard input
 
 ```vibe
-// run: provide Terminal.Terminal = Terminal.make({ columns: () => 80, rows: () => 24, readInput: () => Queue.unbounded<Terminal.UserInput>(), readLine: () => " Ada ", display: (text) => Console.log(text.trimEnd()) }) { askName() }
+// run: provide Terminal = Terminal.make({ columns: () => 80, rows: () => 24, readInput: () => Queue.unbounded<Terminal.UserInput>(), readLine: () => " Ada ", display: (text) => Console.log(text.trimEnd()) }) { askName() }
 function askName() {
-  const terminal = Effect.service(Terminal.Terminal)
+  const terminal = Terminal()
   terminal.display("Your name: ")
   const name = terminal.readLine()
   terminal.display(`Hello, ${name.trim() || "visitor"}.\n`)
@@ -52,7 +52,7 @@ function askName() {
 ## Handling terminal quit errors
 
 ```vibe
-// run: provide Terminal.Terminal = Terminal.make({ columns: () => 80, rows: () => 24, readInput: () => Queue.unbounded<Terminal.UserInput>(), readLine: () => throw new Terminal.QuitError(), display: (text) => Console.log(text.trimEnd()) }) { askNameOrQuit(); Console.log("quit handled") }
+// run: provide Terminal = Terminal.make({ columns: () => 80, rows: () => 24, readInput: () => Queue.unbounded<Terminal.UserInput>(), readLine: () => throw new Terminal.QuitError(), display: (text) => Console.log(text.trimEnd()) }) { askNameOrQuit(); Console.log("quit handled") }
 function askNameOrQuit() {
   try {
     askName()
@@ -73,7 +73,7 @@ A host SIGINT or SIGTERM is a separate termination path: the runner interrupts t
 
 ```vibe
 // guessing.vibe
-// run: const inputs = ["no", "2", "19", "11"]; provide Random = { nextIntUnsafe: () => 0, nextDoubleUnsafe: () => 0.5 }, Terminal.Terminal = Terminal.make({ columns: () => 80, rows: () => 24, readInput: () => Queue.unbounded<Terminal.UserInput>(), readLine: () => inputs.shift() ?? throw new Terminal.QuitError(), display: (text) => Console.log(text.trimEnd()) }) { main() }
+// run: const inputs = ["no", "2", "19", "11"]; provide Random = { nextIntUnsafe: () => 0, nextDoubleUnsafe: () => 0.5 }, Terminal = Terminal.make({ columns: () => 80, rows: () => 24, readInput: () => Queue.unbounded<Terminal.UserInput>(), readLine: () => inputs.shift() ?? throw new Terminal.QuitError(), display: (text) => Console.log(text.trimEnd()) }) { main() }
 function parseGuess(input: string) {
   const text = input.trim()
   const number = Number(text)
@@ -84,7 +84,7 @@ function parseGuess(input: string) {
 }
 
 function game() {
-  const terminal = Effect.service(Terminal.Terminal)
+  const terminal = Terminal()
   const secret = Random.nextIntBetween(1, 20)
   terminal.display("Guess an integer from 1 to 20. You have five guesses.\n")
 

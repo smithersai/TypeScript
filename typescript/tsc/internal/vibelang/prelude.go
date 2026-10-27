@@ -370,6 +370,14 @@ func isPreludeName(name string) bool {
 // unless a global value has the name, in each case when the export has the
 // meaning the checker asks for.
 func resolvePreludeName(c *checker.Checker, location *ast.Node, name string, meaning ast.SymbolFlags) *ast.Symbol {
+	if meaning&ast.SymbolFlagsType != 0 && meaning&ast.SymbolFlagsVariable == 0 {
+		// import { Prompt } from "effect/ai": the type Prompt is Prompt.Prompt (D311).
+		if file := ast.GetSourceFileOfNode(location); isVibeLangFile(file) {
+			if export := importedModuleType(c, file, location, name); export != nil {
+				return export
+			}
+		}
+	}
 	if !isPreludeName(name) {
 		return nil
 	}
@@ -379,6 +387,13 @@ func resolvePreludeName(c *checker.Checker, location *ast.Node, name string, mea
 	}
 	state := preludeStateOf(c)
 	symbol := preludeSymbol(c, state, file, name)
+	if symbol != nil && meaning&ast.SymbolFlagsType != 0 && !hasMeaning(c, symbol, meaning) && !shadowed(location, name) {
+		// The type Option is Option.Option (D311), unless the file declares
+		// Option in another meaning, as const Order = Schema.Struct(…) does.
+		if export := moduleAliasType(c, location, symbol, name); export != nil {
+			return export
+		}
+	}
 	if symbol == nil || !hasMeaning(c, symbol, meaning) {
 		return nil
 	}

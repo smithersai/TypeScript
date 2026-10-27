@@ -71,6 +71,17 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
   `effect/workers`' module; write `globalThis.Worker` for the DOM's.
   [Effect's modules](/getting-started/008-importing-effect) lists every
   collision.
+- A module's name also names its export of the same name, wherever the module
+  has no meaning of its own, a deliberate change from TypeScript: the
+  type `Option<number>` is `Option.Option<number>`, `FileSystem.readFileString(path)`
+  calls the `FileSystem` service with no import, `FileSystem()` is its
+  implementation, and a member the module lacks reads the export, as
+  `FileSystem.of` does. The module's own exports win, so `Option.some` and
+  `FileSystem.layerNoop` keep their meaning and `Option.Option<A>` still
+  compiles. The same holds after `import { Prompt } from "effect/ai"`. In a
+  type, the DOM's `Cache`, `Console`, `Crypto`, `FileSystem`, `Scheduler`,
+  `Transferable` and `Worker` lose their bare names; alias one in a `.ts`
+  file to use it.
 
 ## 0.0.10
 

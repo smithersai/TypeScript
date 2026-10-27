@@ -686,6 +686,31 @@ const ready = Console.log(Hex.encode("ready"))
 
 :::
 
+**A module's name names its export of that name**: its service, or its type.
+
+:::code-group
+
+```vibe [VibeLang]
+function size(path: string) {
+  return FileSystem.readFileString(path).length
+}
+// Output: 5
+```
+
+```ts [Effect]
+import { Effect } from "effect"
+import { FileSystem } from "effect/FileSystem"
+
+const size = (path: string) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem
+    const text = yield* fs.readFileString(path)
+    return text.length
+  })
+```
+
+:::
+
 **Common functions without the `Effect.` prefix**: `sleep`, `log`, `retry`, `repeat`, `timeout`, `race`, `all`, `forEach`, `die`, `withSpan`, and the `log` levels.
 
 :::code-group

@@ -1,27 +1,24 @@
 # FileSystem
 
-`FileSystem` exposes Effect's portable file operations, in place of `node:fs`. Import the service, call its operations, and provide a runtime implementation or test layer around the application.
+`FileSystem` exposes Effect's portable file operations, in place of `node:fs`. Call its operations through the module's name, with no import, and provide a runtime implementation or test layer around the application.
 
 ## Requesting the file-system service
 
 ```vibe
-// run: provide layerNoop({ readFileString: () => '{"theme":"dark"}' }) { Console.log(readSettings()) }
-import { FileSystem, layerNoop } from "effect/FileSystem"
-
+// run: provide FileSystem.layerNoop({ readFileString: () => '{"theme":"dark"}' }) { Console.log(readSettings()) }
 function readSettings() {
   return FileSystem.readFileString("./settings.json")
 }
 // Output: {"theme":"dark"}
 ```
 
-`import { FileSystem } from "effect/FileSystem"` imports the service key, and `FileSystem.readFileString(path)` calls its operation, adding `FileSystem` to R. `readFileString` returns text or fails with an expected `PlatformError`. Without the import, `FileSystem` is the prelude's module, whose service key is `FileSystem.FileSystem`; `Effect.service(FileSystem.FileSystem)` returns the implementation.
+`FileSystem` is the prelude's module, and its name also names the module's service (D311): `FileSystem.readFileString(path)` calls the service's operation, adding `FileSystem` to R, and `FileSystem()` returns the implementation. `readFileString` returns text or fails with an expected `PlatformError`. The module's own exports, such as `FileSystem.layerNoop`, keep their meaning, and the key itself is `FileSystem.FileSystem`.
 
 ## Performing file operations
 
 ```vibe
 // run: provide NodeFileSystem.layer { Console.log(JSON.stringify(saveSummary("ready"))) }
 import { NodeFileSystem } from "@effect/platform-node"
-import { FileSystem } from "effect/FileSystem"
 
 function saveSummary(text: string) {
   FileSystem.makeDirectory("./output", { recursive: true })
@@ -53,7 +50,6 @@ Calls run in order: the write completes before the read starts. Expected I/O fai
 ```vibe
 // run: provide NodeFileSystem.layer { using path = FileSystem.makeTempFileScoped(); FileSystem.writeFileString(path, "hello"); Console.log(String(fileSize(path))) }
 import { NodeFileSystem } from "@effect/platform-node"
-import { FileSystem } from "effect/FileSystem"
 
 function fileSize(path: string) {
   using file = FileSystem.open(path)
@@ -69,7 +65,6 @@ function fileSize(path: string) {
 ```vibe
 // main.vibe
 import { NodeFileSystem } from "@effect/platform-node"
-import { FileSystem } from "effect/FileSystem"
 
 export function main() {
   provide NodeFileSystem.layer {
@@ -87,14 +82,12 @@ export function main() {
 
 ```vibe
 // run: provide FilesTest { Console.log(readFixture()) }
-import { FileSystem, layerNoop } from "effect/FileSystem"
-
 function readFixture() {
   if (!FileSystem.exists("/fixtures/title.txt")) return "Untitled"
   return FileSystem.readFileString("/fixtures/title.txt")
 }
 
-const FilesTest = layerNoop({
+const FilesTest = FileSystem.layerNoop({
   exists: (path) => path === "/fixtures/title.txt",
   readFileString: () => "Release notes"
 })
@@ -112,7 +105,7 @@ it.effect("reads the configured title") {
 // Output:
 ```
 
-`layerNoop` supplies a complete service with the methods you override. Its other methods fail or die; it is not an in-memory file system. Override every operation the test exercises, so unexpected access exposes a missing test behavior.
+`FileSystem.layerNoop` supplies a complete service with the methods you override. Its other methods fail or die; it is not an in-memory file system. Override every operation the test exercises, so unexpected access exposes a missing test behavior.
 
 ## Coming from Effect
 

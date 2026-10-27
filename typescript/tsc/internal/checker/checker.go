@@ -16323,6 +16323,9 @@ func (c *Checker) resolveQualifiedName(name *ast.Node, left *ast.Node, right *as
 		symbol = c.getMergedSymbol(c.getSymbol(c.getExportsOfSymbol(c.resolveAlias(namespace)), text, meaning))
 	}
 	if symbol == nil {
+		symbol = c.resolveQualifiedNameFromHooks(name, namespace, right, meaning)
+	}
+	if symbol == nil {
 		if !ignoreErrors {
 			namespaceName := c.getFullyQualifiedName(namespace, nil /*containingLocation*/)
 			declarationName := scanner.DeclarationNameToString(right)

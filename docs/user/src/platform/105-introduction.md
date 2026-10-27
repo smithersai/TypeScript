@@ -7,10 +7,6 @@ VibeLang reaches files, paths, processes, HTTP, randomness, and terminals throug
 ```vibe
 // main.vibe
 import "vibelang/platform/node"
-import { FileSystem } from "effect/FileSystem"
-import { Path } from "effect/Path"
-import * as ChildProcess from "effect/process/ChildProcess"
-import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
 
 export function main() {
   using directory = FileSystem.makeTempDirectoryScoped()
@@ -23,7 +19,7 @@ export function main() {
 // Output: from a child process
 ```
 
-Import a service by name from its module, as in `import { FileSystem } from "effect/FileSystem"`, and call its methods: `FileSystem.readFileString(file)` runs and returns the text, and its `PlatformError` joins E. The prelude's `FileSystem`, without an import, is the module, whose service is `FileSystem.FileSystem`. `import "vibelang/platform/node"` names the platform, so `main` writes no `provide`: when Node starts the module, it runs `main` with `NodeServices.layer` from `@effect/platform-node`, which supplies the services `main` needs (D312). The import loads nothing; the compiler removes it. The functions that call the services only require them, so a test provides others.
+Call a service through its module's name, with no import: `FileSystem.readFileString(file)` runs the service's method and returns the text, and its `PlatformError` joins E. The module's own exports keep their meaning, as `FileSystem.layerNoop` does; `FileSystem()` is the implementation, and the type `FileSystem` is the service ([Effect's modules](../getting-started/008-importing-effect.md#a-modules-own-export)). `import "vibelang/platform/node"` names the platform, so `main` writes no `provide`: when Node starts the module, it runs `main` with `NodeServices.layer` from `@effect/platform-node`, which supplies the services `main` needs (D312). The import loads nothing; the compiler removes it. The functions that call the services only require them, so a test provides others.
 
 ## Replacing Node.js and web calls
 
@@ -81,9 +77,7 @@ bun add effect@4.0.6 @effect/platform-bun
 
 ```vibe
 // greeting.vibe
-// run: provide layerNoop({ readFileString: () => "  Hello, VibeLang!\n" }) { greet() }
-import { FileSystem, layerNoop } from "effect/FileSystem"
-
+// run: provide FileSystem.layerNoop({ readFileString: () => "  Hello, VibeLang!\n" }) { greet() }
 export function greet() {
   const greeting = FileSystem.readFileString("./greeting.txt")
   Console.log(greeting.trim())
@@ -91,14 +85,13 @@ export function greet() {
 // Output: Hello, VibeLang!
 ```
 
-`greet` requires `FileSystem` and nothing else, so it runs on any platform that provides it, and a test provides a layer of its own, here `layerNoop` from the same module. Shared modules name no platform; the entry file does.
+`greet` requires `FileSystem` and nothing else, so it runs on any platform that provides it, and a test provides a layer of its own, here the module's `FileSystem.layerNoop`. Shared modules name no platform; the entry file does.
 
 ## Supplying Node or Deno implementations
 
 ```vibe
 // main-node.vibe
 import "vibelang/platform/node"
-import { FileSystem } from "effect/FileSystem"
 import { greet } from "./greeting.vibe"
 
 export function main() {
@@ -117,7 +110,6 @@ A `provide` inside `main` wins for the code inside it, so `provide NodeFileSyste
 ```vibe
 // main-bun.vibe
 import "vibelang/platform/bun"
-import { FileSystem } from "effect/FileSystem"
 import { greet } from "./greeting.vibe"
 
 export function main() {
@@ -131,4 +123,4 @@ The entry provides `BunServices.layer` from `@effect/platform-bun`. Only the pla
 
 ## Coming from Effect
 
-A service imported by name is its key: `FileSystem.readFileString(path)` is `yield* FileSystem.FileSystem` followed by the method call. An exported `main` in a file that imports `"vibelang/platform/node"` compiles to `NodeRuntime.runMain(main.pipe(Effect.provide(NodeServices.layer)))`, and `provide layer { ... }` is `Effect.provide(program, layer)`. Functions run on call, platform methods return success values directly, and no generator wraps the application.
+A module's name names its service: `FileSystem.readFileString(path)` is `yield* FileSystem.FileSystem` followed by the method call. An exported `main` in a file that imports `"vibelang/platform/node"` compiles to `NodeRuntime.runMain(main.pipe(Effect.provide(NodeServices.layer)))`, and `provide layer { ... }` is `Effect.provide(program, layer)`. Functions run on call, platform methods return success values directly, and no generator wraps the application.

@@ -11,14 +11,14 @@ description: "Terminal is Effect's interactive input and output service. Use it 
 
 ```vibe
 function dimensions() {
-  const terminal = Effect.service(Terminal.Terminal)
+  const terminal = Terminal()
   return { columns: terminal.columns(), rows: terminal.rows() }
 }
 // { columns: number; rows: number }!!Terminal.Terminal
 // Output: {"columns":80,"rows":24}
 ```
 
-`Terminal.Terminal` is the service key; `Effect.service` retrieves its implementation. `columns`, `rows`, and `readLine` are Effect values: call them to run them. `display` is an Effect-returning method and runs on an ordinary call.
+The module's name `Terminal` also names its service, so `Terminal()` returns the implementation; the key itself is `Terminal.Terminal`. `columns`, `rows`, and `readLine` are Effect values: call them to run them. `display` is an Effect-returning method and runs on an ordinary call.
 
 ## Writing standard output
 
@@ -26,7 +26,7 @@ function dimensions() {
 // main.vibe
 import { NodeRuntime, NodeTerminal } from "@effect/platform-node"
 function main() {
-  const terminal = Effect.service(Terminal.Terminal)
+  const terminal = Terminal()
   terminal.display("Package prepared.\n")
 }
 
@@ -40,7 +40,7 @@ NodeRuntime.runMain(() => Effect.provide(() => main(), NodeTerminal.layer))
 
 ```vibe
 function askName() {
-  const terminal = Effect.service(Terminal.Terminal)
+  const terminal = Terminal()
   terminal.display("Your name: ")
   const name = terminal.readLine()
   terminal.display(`Hello, ${name.trim() || "visitor"}.\n`)
@@ -85,7 +85,7 @@ function parseGuess(input: string) {
 }
 
 function game() {
-  const terminal = Effect.service(Terminal.Terminal)
+  const terminal = Terminal()
   const secret = Random.nextIntBetween(1, 20)
   terminal.display("Guess an integer from 1 to 20. You have five guesses.\n")
 

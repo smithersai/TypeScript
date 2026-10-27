@@ -11,12 +11,14 @@ import (
 type servicePlan struct {
 	lookups    map[*ast.Node]bool   // calls S.member(…) whose callee looks the service up
 	values     map[*ast.Node]bool   // calls p() that run p, an Effect value
+	moduleKeys map[*ast.Node]string // the S or p of those calls that name a module, and the key it names (D311)
+	aliases    map[*ast.Node]string // property accesses M.member read through M's export, and the export's name (D311)
 	keys       map[*ast.Node]string // service and control classes, by declaration, and their keys
 	wireOrders map[*ast.Node][]int  // wire calls whose arguments the lowering reorders
 }
 
 func newServicePlan() servicePlan {
-	return servicePlan{lookups: map[*ast.Node]bool{}, values: map[*ast.Node]bool{}, keys: map[*ast.Node]string{}, wireOrders: map[*ast.Node][]int{}}
+	return servicePlan{lookups: map[*ast.Node]bool{}, values: map[*ast.Node]bool{}, moduleKeys: map[*ast.Node]string{}, aliases: map[*ast.Node]string{}, keys: map[*ast.Node]string{}, wireOrders: map[*ast.Node][]int{}}
 }
 
 // planServiceCall records how call, in the body of a function the lowering
@@ -24,10 +26,33 @@ func newServicePlan() servicePlan {
 func (p *servicePlan) planServiceCall(c *checker.Checker, call *ast.Node) {
 	if isServiceLookup(c, call) {
 		p.lookups[call] = true
+		p.planModuleKey(c, call.Expression().Expression())
 	}
 	if isEffectValueCall(c, call) {
 		p.values[call] = true
+		p.planModuleKey(c, call.Expression())
 	}
+}
+
+// planModuleKey records the key that expression, the S of S.member(…) or the
+// p of p(), names when it names a module (D311), so the lowering writes the
+// key: FileSystem.FileSystem.
+func (p *servicePlan) planModuleKey(c *checker.Checker, expression *ast.Node) {
+	if name := moduleServiceKeyName(c, expression); name != "" {
+		p.moduleKeys[expression] = name
+	}
+}
+
+// moduleKey returns receiver, the lowered S or p of a service call, followed
+// by the key that its source, expression, names as a module (D311).
+func (tx *lowering) moduleKey(expression *ast.Node, receiver *ast.Node) *ast.Node {
+	name, ok := tx.plan.moduleKeys[expression]
+	if !ok {
+		return receiver
+	}
+	key := tx.Factory().NewPropertyAccessExpression(receiver, nil /*questionDotToken*/, tx.Factory().NewIdentifier(name), ast.NodeFlagsNone)
+	tx.EmitContext().SetOriginal(key, expression)
+	return key
 }
 
 // planServiceNode records the key of node when it declares a service or a
@@ -35,6 +60,9 @@ func (p *servicePlan) planServiceCall(c *checker.Checker, call *ast.Node) {
 func (p *servicePlan) planServiceNode(c *checker.Checker, node *ast.Node) {
 	if classKindOf(node) != ordinaryClass {
 		p.keys[node] = servicesFor(c).key(node)
+	}
+	if name := moduleServiceStateOf(c).accesses[node]; name != "" {
+		p.aliases[node] = name
 	}
 	if ast.IsCallExpression(node) {
 		p.planWire(c, node)
@@ -56,7 +84,7 @@ func (a *analyzer) addServiceLookup(info *effectInfo, call *ast.Node) {
 	}
 	info.addRequirement(identifier, call)
 	if info.effect == nil {
-		info.effect = effectInterface(a.checker, a.checker.GetApparentType(a.checker.GetTypeAtLocation(call.Expression().Expression())))
+		info.effect = effectInterface(a.checker, serviceKeyTypeAt(a.checker, call.Expression().Expression()))
 	}
 }
 
@@ -65,18 +93,30 @@ func (a *analyzer) addServiceLookup(info *effectInfo, call *ast.Node) {
 // the current Context.
 func (tx *lowering) visitServiceLookup(node *ast.Node) *ast.Node {
 	f := tx.Factory()
-	receiver := tx.Visitor().VisitNode(node.Expression())
+	receiver := tx.moduleKey(node.Expression(), tx.Visitor().VisitNode(node.Expression()))
 	lookup := f.NewParenthesizedExpression(f.NewYieldExpression(f.NewToken(ast.KindAsteriskToken), receiver))
 	tx.EmitContext().SetOriginal(lookup, node.Expression())
 	access := f.UpdatePropertyAccessExpression(node.AsPropertyAccessExpression(), lookup, nil /*questionDotToken*/, node.Name(), ast.NodeFlagsNone)
 	return access
 }
 
+// visitModuleAlias turns M.member, read through M's export of M's own name
+// (D311), into M.M.member.
+func (tx *lowering) visitModuleAlias(node *ast.Node) *ast.Node {
+	f := tx.Factory()
+	access := node.AsPropertyAccessExpression()
+	object := f.NewPropertyAccessExpression(tx.Visitor().VisitNode(node.Expression()), nil /*questionDotToken*/, f.NewIdentifier(tx.plan.aliases[node]), ast.NodeFlagsNone)
+	tx.EmitContext().SetOriginal(object, node.Expression())
+	lowered := f.UpdatePropertyAccessExpression(access, object, access.QuestionDotToken, node.Name(), node.Flags)
+	tx.EmitContext().SetOriginal(lowered, node)
+	return lowered
+}
+
 // visitEffectValueCall turns `p()`, where p is an Effect value, into
 // `yield* p`.
 func (tx *lowering) visitEffectValueCall(node *ast.Node) *ast.Node {
 	f := tx.Factory()
-	callee := tx.Visitor().VisitNode(node.Expression())
+	callee := tx.moduleKey(node.Expression(), tx.Visitor().VisitNode(node.Expression()))
 	run := f.NewYieldExpression(f.NewToken(ast.KindAsteriskToken), callee)
 	tx.EmitContext().SetOriginal(run, node)
 	return run

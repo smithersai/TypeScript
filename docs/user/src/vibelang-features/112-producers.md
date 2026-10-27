@@ -36,9 +36,7 @@ In `.vibe`, `function*` declares a producer; don't use it for `Effect.gen` or ot
 ## Call services between yields
 
 ```vibe
-// run: provide NodeServices.layer { const fs = Effect.service(FileSystem); using dir = fs.makeTempDirectoryScoped(); fs.writeFileString(`${dir}/a.txt`, "short"); fs.writeFileString(`${dir}/b.txt`, "x".repeat(1001)); Console.log(firstLargeFile(dir) === `${dir}/b.txt`) }
-import { FileSystem } from "effect/FileSystem"
-import { Path } from "effect/Path"
+// run: provide NodeServices.layer { const fs = FileSystem(); using dir = fs.makeTempDirectoryScoped(); fs.writeFileString(`${dir}/a.txt`, "short"); fs.writeFileString(`${dir}/b.txt`, "x".repeat(1001)); Console.log(firstLargeFile(dir) === `${dir}/b.txt`) }
 import { NodeServices } from "@effect/platform-node"
 
 function* fileTexts(directory: string) {

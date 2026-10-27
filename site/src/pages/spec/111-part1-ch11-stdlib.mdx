@@ -56,7 +56,7 @@ Three reasons:
 
 The runtime packages supply the implementations and the runner: `@effect/platform-node` (`NodeRuntime`, `NodeServices.layer`), `@effect/platform-bun`, and `@effect/platform-browser`.
 
-Import a module whose service is a `Context.Service` value, such as `FileSystem`, from its module path, `effect/FileSystem`, to call its methods directly: `FileSystem.readFileString(path)`. The namespace from `effect` works too: `FileSystem.FileSystem.readFileString(path)`.
+A module that exports a service of its own name, such as `FileSystem`, names that service, with no import (D311): `FileSystem.readFileString(path)` calls the service's member, `FileSystem()` is the implementation, and the type `FileSystem` is the service. The key itself is `FileSystem.FileSystem`, and `FileSystem.FileSystem.readFileString(path)` works too.
 
 #### Files
 
@@ -69,8 +69,6 @@ const countLines = Effect.fn("countLines")(function* (path: string) {
 ```
 
 ```ts [VibeLang]
-import { FileSystem } from "effect/FileSystem"
-
 function countLines(path: string) {
   return FileSystem.readFileString(path).split("\n").length
 }
@@ -160,8 +158,6 @@ const getTodo = Effect.fn("getTodo")(function* (id: number) {
 ```
 
 ```ts [VibeLang]
-import { HttpClient, HttpClientResponse } from "effect/http"
-
 function getTodo(id: number) {
   const response = HttpClient.get(`https://jsonplaceholder.typicode.com/todos/${id}`)
   return HttpClientResponse.schemaBodyJson(Todo)(response)
@@ -228,9 +224,6 @@ const currentBranch = Effect.fn("currentBranch")(function* () {
 ```
 
 ```ts [VibeLang]
-import { ChildProcess } from "effect/process"
-import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
-
 function currentBranch() {
   return ChildProcessSpawner.string(ChildProcess.make("git", ["branch", "--show-current"])).trim()
 }

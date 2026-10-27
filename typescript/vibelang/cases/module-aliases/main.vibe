@@ -1,0 +1,33 @@
+// A module's name also names its export of the same name (D311): in a type,
+// Option is Option.Option and Chunk is Chunk.Chunk; a member the module does
+// not export is read from that export, as FileSystem.of is the key's of.
+// The module's exports win (Option.some), Option.Option<A> still compiles,
+// and an import of an Effect module under its name gets the same reading.
+import { Prompt } from "effect/ai"
+
+export function firstOr(values: Chunk<number>, fallback: number): Option<number> {
+  return Option.orElse(Chunk.head(values), () => Option.some(fallback))
+}
+
+export const spelled = (value: Option.Option<number>): number => Option.getOrElse(value, () => 0)
+
+export const promptAst = () => Prompt.ast._tag
+
+export function prompt(text: string): Prompt {
+  return Prompt.make(text)
+}
+
+export function implementation(files: FileSystem) {
+  return FileSystem.of(files)
+}
+
+// expect-result: [1,7,0,"Declaration","user"]
+export function main() {
+  return [
+    Option.getOrElse(firstOr(Chunk.make(1, 2), 7), () => 0),
+    Option.getOrElse(firstOr(Chunk.empty(), 7), () => 0),
+    spelled(Option.none()),
+    promptAst(),
+    prompt("hi").content[0].role,
+  ]
+}

@@ -190,6 +190,32 @@ func RegisterNameResolutionHook(hook NameResolutionHook) {
 	nameResolutionHooks = append(nameResolutionHooks, hook)
 }
 
+// QualifiedNameResolutionHook can supply a symbol for right in name, a
+// qualified name or property access whose left side resolved to namespace,
+// when namespace exports nothing named right with meaning. It returns nil
+// when it has nothing to supply. It runs only where TypeScript would report
+// that namespace has no such member, so it costs nothing on a name that
+// resolves.
+type QualifiedNameResolutionHook func(c *Checker, name *ast.Node, namespace *ast.Symbol, right *ast.Node, meaning ast.SymbolFlags) *ast.Symbol
+
+var qualifiedNameResolutionHooks []QualifiedNameResolutionHook
+
+// RegisterQualifiedNameResolutionHook adds hook to every checker. Call it
+// only from the init function of an in-tree package that tsc/cmd/tsc
+// imports; registration is not synchronized.
+func RegisterQualifiedNameResolutionHook(hook QualifiedNameResolutionHook) {
+	qualifiedNameResolutionHooks = append(qualifiedNameResolutionHooks, hook)
+}
+
+func (c *Checker) resolveQualifiedNameFromHooks(name *ast.Node, namespace *ast.Symbol, right *ast.Node, meaning ast.SymbolFlags) *ast.Symbol {
+	for _, hook := range qualifiedNameResolutionHooks {
+		if symbol := hook(c, name, namespace, right, meaning); symbol != nil {
+			return symbol
+		}
+	}
+	return nil
+}
+
 // SpellingCandidatesHook returns names that a "Did you mean" suggestion
 // (TS2552) may offer at location for meaning, besides those in scope: names
 // that a NameResolutionHook supplies, which no symbol table lists.

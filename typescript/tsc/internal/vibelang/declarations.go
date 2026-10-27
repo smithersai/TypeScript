@@ -39,8 +39,12 @@ func preludeNameVisible(c *checker.Checker, entityName *ast.Node, symbol *ast.Sy
 		return false
 	}
 	state := preludeStateOf(c)
-	if preludeSymbol(c, state, file, name) != symbol {
-		return false
+	if prelude := preludeSymbol(c, state, file, name); prelude != symbol {
+		// The type Option, which names Option.Option (D311), imports the
+		// module; moduleServiceTypes writes the export's type.
+		if symbol == nil || ast.IsQualifiedName(entityName) || moduleAliasTypeOf(c, prelude, name) != symbol {
+			return false
+		}
 	}
 	if isServiceShapeFactory(first) {
 		// service Name: Type's extends clause, which the service's
@@ -107,7 +111,8 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 		}
 
 		var names []string
-		var refs map[*ast.Node]bool
+		var refs, serviceTypes map[*ast.Node]bool
+		var moduleImports map[string]*ast.Node
 		r.WithChecker(func(c *checker.Checker) {
 			state := preludeStateOf(c)
 			// S19-1: nodebuilder can recycle a written return annotation on an
@@ -149,7 +154,19 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 				names = append(names, name)
 			}
 			refs = state.typeRefs
+			serviceTypes = moduleServiceStateOf(c).typeNames
+			moduleImports = moduleServiceStateOf(c).imports[sourceFile]
 		})
+		// The type Option is written Option.Option (D311), and the type Prompt,
+		// which the file imports, keeps its import.
+		types := &moduleServiceTypes{names: serviceTypes}
+		types.NewTransformer(types.visit, resolver.EmitContext())
+		declarations = types.TransformSourceFile(declarations)
+		if added := moduleImportDeclarations(resolver.EmitContext().Factory, moduleImports, declarations); len(added) > 0 {
+			statements := resolver.EmitContext().Factory.NewNodeList(append(added, declarations.Statements.Nodes...))
+			statements.Loc = declarations.Statements.Loc
+			declarations = resolver.EmitContext().Factory.UpdateSourceFile(declarations, statements, declarations.EndOfFileToken).AsSourceFile()
+		}
 		if len(names) == 0 {
 			return declarations
 		}
@@ -264,8 +281,15 @@ func recordLibraryTypeUse(c *checker.Checker, state *preludeState, file *ast.Sou
 		}
 		return symbol
 	}
-	if want := resolve(preludeSymbol(c, state, file, name)); want != nil && want == resolve(c.GetSymbolAtLocation(identifier)) {
+	prelude := preludeSymbol(c, state, file, name)
+	got := resolve(c.GetSymbolAtLocation(identifier))
+	if want := resolve(prelude); want != nil && want == got {
 		recordTypeUse(state, file, identifier)
+	} else if got != nil && got == moduleAliasTypeOf(c, prelude, name) && ast.IsTypeReferenceNode(identifier.Parent) {
+		// effect's own Option, the type, which the declaration file writes
+		// through the module the prelude names (D311).
+		recordTypeUse(state, file, identifier)
+		moduleServiceStateOf(c).typeNames[identifier] = true
 	}
 }
 
@@ -310,6 +334,35 @@ func preludeAliases(declarations *ast.SourceFile, names []string) map[string]str
 		}
 	}
 	return aliases
+}
+
+// moduleServiceTypes writes a type that names a module's service by the
+// module's name (D311) as the key's type, which TypeScript reads:
+//
+//	// main.vibe                               // main.d.ts
+//	export const read = (fs: FileSystem) => …   import type { FileSystem } from "effect";
+//	                                            export declare const read: (fs: FileSystem.FileSystem) => …
+//
+// It runs before preludeRenamer, which may rename the module's name.
+type moduleServiceTypes struct {
+	transformers.Transformer
+	names map[*ast.Node]bool // the identifiers that write a module's name as its service's type
+}
+
+func (tx *moduleServiceTypes) visit(node *ast.Node) *ast.Node {
+	if ast.IsTypeReferenceNode(node) {
+		name := node.AsTypeReferenceNode().TypeName
+		last := name
+		if ast.IsQualifiedName(last) {
+			last = last.AsQualifiedName().Right
+		}
+		if ast.IsIdentifier(last) && tx.names[tx.EmitContext().MostOriginal(last)] {
+			f := tx.Factory()
+			reference := node.AsTypeReferenceNode()
+			return f.UpdateTypeReferenceNode(reference, f.NewQualifiedName(name, f.NewIdentifier(last.Text())), reference.TypeArguments)
+		}
+	}
+	return tx.Visitor().VisitEachChild(node)
 }
 
 // preludeRenamer gives the identifiers that write a prelude name the alias

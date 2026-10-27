@@ -596,6 +596,28 @@ function ready() {
 // Output: 7265616479
 ```
 
+**A module's name names its export of that name** (D311): its service, or its type.
+
+```ts effect
+import { Effect } from "effect"
+import { FileSystem } from "effect/FileSystem"
+
+const size = (path: string) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem
+    const text = yield* fs.readFileString(path)
+    return text.length
+  })
+```
+
+```vibe es
+// run: provide FileSystem.layerNoop({ readFileString: () => "hello" }) { Console.log(size("notes.txt")) }
+function size(path: string) {
+  return FileSystem.readFileString(path).length
+}
+// Output: 5
+```
+
 **Common functions without the `Effect.` prefix** (D151): `sleep`, `log`, `retry`, `repeat`, `timeout`, `race`, `all`, `forEach`, `die`, `withSpan`, and the `log` levels.
 
 ```ts effect

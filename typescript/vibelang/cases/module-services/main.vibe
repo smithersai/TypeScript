@@ -1,0 +1,36 @@
+// A module's name also names its service (D311): with no import, a member
+// that the module does not export is the service's, M() is the
+// implementation, and the type M is the service. The module's exports keep
+// their meaning: FileSystem.layerNoop and Path.layer.
+function notes(directory: string) {
+  const file = Path.join(directory, "notes.txt")
+  return [file, FileSystem.readFileString(file)]
+}
+
+export function exists(fs: FileSystem, path: string) {
+  return fs.exists(path)
+}
+
+export function read(path: string) {
+  return FileSystem.readFileString(path)
+}
+
+export const id = () => Crypto.randomUUIDv4()
+export const token = () => Crypto.randomBytes(16)
+export const status = () => ChildProcessSpawner.string(ChildProcess.make("git", ["status"]))
+export const line = () => Terminal.readLine()
+
+const Files = FileSystem.layerNoop({
+  readFileString: (path) => `read ${path}`,
+  exists: (path) => path === "/srv/notes.txt",
+})
+const Args = Stdio.layerTest({ args: Effect.succeed(["--verbose"]) })
+
+// expect-result: ["/srv/notes.txt","read /srv/notes.txt",true,["--verbose"]]
+export function main() {
+  provide Path.layer, Files, Args {
+    const [file, text] = notes("/srv")
+    const fs = FileSystem()
+    return [file, text, exists(fs, file), Stdio.args()]
+  }
+}

@@ -337,6 +337,10 @@ func isMemberCallSite(node *ast.Node) bool {
 // member. It returns nil and nil otherwise.
 func serviceMember(c *checker.Checker, node *ast.Node, receiver *checker.Type) (identifier *checker.Type, shape *checker.Type) {
 	identifier, shape = serviceOfKey(c, receiver)
+	if shape == nil {
+		// FileSystem.readFileString(path): the module's name names its service (D311).
+		identifier, shape = moduleServiceMember(c, node, receiver)
+	}
 	if shape == nil || c.GetPropertyOfType(shape, node.Name().Text()) == nil {
 		return nil, nil
 	}
@@ -396,6 +400,12 @@ func effectValueCall(c *checker.Checker, call *ast.Node, callee *checker.Type) [
 	if effect := effectOfValue(c, callee); effect != nil {
 		return []*checker.Signature{c.NewCallSignature(effect)}
 	}
+	// FileSystem(): the module's name names its service (D311).
+	if key := moduleServiceKey(c, call.Expression(), callee); key != nil {
+		if effect := effectOfValue(c, c.GetTypeOfSymbol(key)); effect != nil {
+			return []*checker.Signature{c.NewCallSignature(effect)}
+		}
+	}
 	return nil
 }
 
@@ -405,7 +415,10 @@ func isEffectValueCall(c *checker.Checker, call *ast.Node) bool {
 		return false
 	}
 	callee := c.GetApparentType(c.GetTypeAtLocation(call.Expression()))
-	return len(c.GetSignaturesOfType(callee, checker.SignatureKindCall)) == 0 && effectOfValue(c, callee) != nil
+	if len(c.GetSignaturesOfType(callee, checker.SignatureKindCall)) != 0 {
+		return false
+	}
+	return effectOfValue(c, callee) != nil || effectOfValue(c, serviceKeyTypeAt(c, call.Expression())) != nil
 }
 
 // effectOfValue returns Effect<A, E, R> for t, a type whose values are

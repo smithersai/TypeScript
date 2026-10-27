@@ -213,6 +213,8 @@ func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 		return tx.visitTrustedPlainCall(node)
 	case node.Kind == ast.KindPropertyAccessExpression && tx.inEffect && tx.plan.looksUp(node):
 		return tx.visitServiceLookup(node)
+	case node.Kind == ast.KindPropertyAccessExpression && tx.plan.aliases[node] != "":
+		return tx.visitModuleAlias(node)
 	case node.Kind == ast.KindClassDeclaration && tx.plan.keys[node] != "":
 		return tx.visitServiceClass(node)
 	case tx.inEffect && isHandleStatement(node):

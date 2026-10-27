@@ -40,7 +40,6 @@ function attemptReservation(item: string, available: boolean) {
 ```vibe
 // run: provide NodeServices.layer { Console.log(token().length) }
 import { NodeServices } from "@effect/platform-node"
-import { Crypto } from "effect/Crypto"
 
 function token() {
   return Crypto.randomBytes(16)
@@ -48,7 +47,7 @@ function token() {
 // Output: 16
 ```
 
-Platform work goes through Effect's services, not through a wrapper of your own. `Crypto.randomBytes(16)` replaces `crypto.getRandomValues`: import the service by name from its module. An entry file's platform import, `import "vibelang/platform/node"`, provides its platform layer to `main` (D312); a program run another way provides it, here `NodeServices.layer`. For each Node.js or web call, EK4402 names the service, its import, and its layer.
+Platform work goes through Effect's services, not through a wrapper of your own. `Crypto.randomBytes(16)` replaces `crypto.getRandomValues`: the module's name `Crypto` names its service. An entry file's platform import, `import "vibelang/platform/node"`, provides its platform layer to `main` (D312); a program run another way provides it, here `NodeServices.layer`. For each Node.js or web call, EK4402 names the service, its import, and its layer.
 
 ```vibe
 // run: Console.log(freeBlocks(".") > 0)

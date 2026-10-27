@@ -69,6 +69,52 @@ Four rules settle a name that two globals share, in order: a JavaScript or share
 | `Worker` | `effect/workers` | Effect's module: the DOM's global loses |
 
 
+## A module's own export
+
+Many of Effect's modules export something of their own name: the module `Option` exports the type `Option.Option`, and the module `FileSystem` the service `FileSystem.FileSystem`. In a `.vibe` file the module's name also stands for that export, wherever the module has no meaning of its own. This differs from TypeScript on purpose:
+
+| You write | It means |
+| --- | --- |
+| `Option<number>`, a type | `Option.Option<number>` |
+| `FileSystem.readFileString(path)` in a function body | `FileSystem.FileSystem.readFileString(path)`, a service call |
+| `FileSystem()` in a function body | `FileSystem.FileSystem()`, the service's implementation |
+| `FileSystem.of(implementation)`, a member the module does not export | `FileSystem.FileSystem.of(implementation)` |
+
+The module's own exports win: `Option.some`, `FileSystem.layerNoop`, and `Path.layer` are the module's, and `Option.Option<number>` still works. A service key as a value stays explicit: `Layer.succeed(FileSystem.FileSystem, implementation)`.
+
+```vibe
+function readConfig(dir: string) {
+  return FileSystem.readFileString(Path.join(dir, "config.json"))
+}
+
+function hasConfig(fs: FileSystem, dir: string) {
+  return fs.exists(Path.join(dir, "config.json"))
+}
+
+function firstOr(values: Chunk<number>, fallback: number): number {
+  const first: Option<number> = Chunk.head(values)
+  return Option.getOrElse(first, () => fallback)
+}
+// Output: read /srv/config.json
+// Output: 7
+```
+
+The rule holds for every Effect module you reach by its name: through the prelude, as a module of a namespace the prelude supplies, or through an import, such as `import { Prompt } from "effect/ai"`, after which the type `Prompt` is `Prompt.Prompt`. A service call reads the service's member; these modules name a service:
+
+
+`AddressResolver`, `AtomRegistry`, `Chat`, `ChildProcessSpawner`, `CliConfig`, `Clock`, `ConfigProvider`, `Console`, `Crypto`, `DatagramSocket`, `DecisionModel`, `DevToolsClient`, `Dns`, `EmbeddingModel`, `EventJournal`, `EventLog`, `EventLogEncryption`, `EventLogRemote`, `EventLogServerUnencrypted`, `FileSystem`, `GraphQLProtocol`, `HttpClient`, `HttpPlatform`, `HttpRouter`, `HttpServer`, `HttpServerRequest`, `IdGenerator`, `K8sHttpClient`, `KeyValueStore`, `LanguageModel`, `McpClient`, `McpServer`, `MessageStorage`, `OtlpSerialization`, `Path`, `Persistence`, `Random`, `RateLimiter`, `Reactivity`, `Redis`, `ResponseIdTracker`, `RpcSerialization`, `RunnerHealth`, `RunnerStorage`, `Runners`, `Scheduler`, `Sharding`, `ShardingConfig`, `Socket`, `SocketServer`, `SqlClient`, `Stdio`, `Terminal`, `TerminalCapabilities`, `Tokenizer`, `Tracer`, `UserDirectories`, `WorkflowEngine`.
+
+
+In a type, a module's name is Effect's, so these DOM types lose their bare names:
+
+
+`Cache`, `Console`, `Crypto`, `FileSystem`, `Scheduler`, `Transferable`, `Worker`.
+
+
+To name one of those DOM types, alias it in a `.ts` file, as in `export type DomFileSystem = FileSystem`, and import the alias.
+
+
+
 ## Compose standalone functions
 
 ```vibe

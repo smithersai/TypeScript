@@ -1517,6 +1517,12 @@ typescript/vibelang/cases/match-subject-shadow/main.vibe:29:25 lambda plain tabl
 typescript/vibelang/cases/match-unused-names/main.vibe:17:16 lambda plain fallback
 typescript/vibelang/cases/match-unused-names/main.vibe:21:17 lambda dual fallback
 typescript/vibelang/cases/methods-optional-chain.fail/main.vibe:5:21 lambda plain fallback
+typescript/vibelang/cases/module-aliases/main.vibe:12:24 lambda plain annotation
+typescript/vibelang/cases/module-aliases/main.vibe:12:90 lambda plain table
+typescript/vibelang/cases/module-aliases/main.vibe:14:26 lambda plain fallback
+typescript/vibelang/cases/module-aliases/main.vibe:27:52 lambda plain table
+typescript/vibelang/cases/module-aliases/main.vibe:28:49 lambda plain table
+typescript/vibelang/cases/module-aliases/main.vibe:9:44 lambda plain table
 typescript/vibelang/cases/module-declaration-cjs/main.vibe:58:14 lambda plain table
 typescript/vibelang/cases/module-declaration-cjs/main.vibe:58:51 lambda plain table
 typescript/vibelang/cases/module-declaration-cjs/main.vibe:70:23 lambda plain table
@@ -1548,6 +1554,13 @@ typescript/vibelang/cases/module-declaration/main.vibe:73:24 lambda plain table
 typescript/vibelang/cases/module-import-generated-names/main.vibe:14:21 lambda dual fallback
 typescript/vibelang/cases/module-missing-export.fail/main.vibe:17:15 lambda plain table
 typescript/vibelang/cases/module-outer-binding.fail/main.vibe:23:15 lambda plain table
+typescript/vibelang/cases/module-services/main.vibe:18:19 lambda choice fallback
+typescript/vibelang/cases/module-services/main.vibe:19:22 lambda choice fallback
+typescript/vibelang/cases/module-services/main.vibe:20:23 lambda choice fallback
+typescript/vibelang/cases/module-services/main.vibe:21:21 lambda choice fallback
+typescript/vibelang/cases/module-services/main.vibe:24:19 lambda effectFn table
+typescript/vibelang/cases/module-services/main.vibe:25:11 lambda effectFn table
+typescript/vibelang/cases/module-services/main.vibe:27:38 byname program table
 typescript/vibelang/cases/module-vibelang-syntax.fail/main.vibe:15:15 lambda plain table
 typescript/vibelang/cases/never-stored-spellings/main.vibe:10:18 lambda effectFn table
 typescript/vibelang/cases/never-stored-spellings/main.vibe:10:38 lambda effectFn table
