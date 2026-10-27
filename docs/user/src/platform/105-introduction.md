@@ -41,6 +41,11 @@ Each Node.js or web call has an Effect replacement. EK4402 and EK4403 name it, i
 | `crypto.randomUUID` | `Crypto.randomUUIDv4()` | `effect/Crypto` | `NodeServices.layer` |
 | `crypto.subtle.digest` | `Crypto.digest("SHA-256", bytes)` | `effect/Crypto` | `NodeServices.layer` |
 | `process.argv` | `Stdio.args()` | `effect/Stdio` | `NodeServices.layer` |
+| `os.hostname` | `Process.hostname()` | `vibelang-runtime/experimental/Process` | `NodeServices.layer` |
+| `process.kill` | `Process.kill(pid, { killSignal })` | `vibelang-runtime/experimental/Process` | `NodeServices.layer` |
+| `fs.constants.X_OK` | `FileSystem.access(path, { executable: true })` | `vibelang-runtime/experimental/FileSystem` | `NodeServices.layer` |
+| `crypto.createHmac` | `Crypto.hmac("SHA-256", key, data)` | `vibelang-runtime/experimental/Crypto` | `NodeServices.layer` |
+| `navigator.locks` | `Locks.hold(name)` | `vibelang-runtime/experimental/Locks` | `BrowserLocks.layer` |
 | `process.env` | `Config.String("NAME")()` | the prelude | none |
 | `console.log` | `Console.log(message)` | the prelude | none |
 | `setTimeout` | `sleep("1 second")` | the prelude | none |
@@ -50,7 +55,7 @@ Each Node.js or web call has an Effect replacement. EK4402 and EK4403 name it, i
 
 Import a service from the module the table names, by its own name: `import { Crypto } from "effect/Crypto"`. `ChildProcess.make` needs `import * as ChildProcess from "effect/process/ChildProcess"` too, and `HttpClient`, `HttpRouter`, and `FetchHttpClient` are named imports of `effect/http`. `NodeServices.layer` provides `FileSystem`, `Path`, `Crypto`, `Stdio`, `Terminal`, and `ChildProcessSpawner`; `BunServices.layer` from `@effect/platform-bun` is Bun's. The platform import provides the platform's bundle to `main`; provide every other layer inside `main`. Effect's runtime provides the prelude's services itself.
 
-Where Effect has no service yet, as for `os.hostname()` or `process.pid`, EK4402 says so: run the call in a hatch where you need it, `sync(hostname())`, or `try` when it can throw ([Creating Effects](../getting-started/005-creating-effects.md)). An execute-permission check, a nonblocking open, `chmod` on an open file, HMAC and signatures are VibeLang's [experimental platform APIs](../vibelang-features/118-experimental-platform-apis.md).
+Where Effect has no service yet, as for `os.hostname()`, `process.pid`, an execute-permission check, HMAC and signatures, or `navigator.locks`, EK4402 names the experimental service VibeLang adds ([Experimental platform APIs](../vibelang-features/118-experimental-platform-apis.md)), whose layers come from `vibelang-runtime/experimental/platform-node`, `-bun`, or `-browser`. There, `NodeServices.layer` is `@effect/platform-node`'s bundle plus the experimental `FileSystem`, `Crypto`, and `Process`, so it replaces Effect's in `main`. Where neither has one, as for `os.uptime()`, EK4402 says so: run the call in a hatch where you need it, `sync(uptime())`, or `try` when it can throw ([Creating Effects](../getting-started/005-creating-effects.md)).
 
 ## Installing runtime-specific packages
 

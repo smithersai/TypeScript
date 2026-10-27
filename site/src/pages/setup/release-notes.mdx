@@ -51,6 +51,12 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
   Effect's from one implementation.
 - `vibelang-runtime` lists `@effect/platform-node`, `@effect/platform-bun` and
   `@effect/platform-browser` 4.0.6 as optional peer dependencies.
+- EK4402 names the experimental service instead of a hatch: `FileSystem`
+  for `X_OK` and `O_NONBLOCK`, `Crypto` for HMAC and signatures, `Process`
+  for `os.hostname()`, `process.pid`, `process.kill` and the other calls it
+  replaces, and `Locks` for `navigator.locks`. It names Effect's own
+  `FileSystem.lstat` for `lstat` and `UserDirectories.home()` for
+  `os.homedir()`.
 
 ## 0.0.10
 

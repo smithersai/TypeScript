@@ -18,9 +18,10 @@ import (
 //	  Import it with   import { FileSystem } from "effect/FileSystem"
 //	  Provide it in main with NodeServices.layer from "@effect/platform-node", or BunServices.layer from "@effect/platform-bun".
 //
-// Where Effect has no API for it yet, as for os.hostname(), the error says so
-// and shows the call in a hatch, the boundary that remains; it never sends
-// the program to a wrapper module of its own.
+// Where Effect has no API for it yet, the error names VibeLang's experimental
+// service that adds it (D313), as Process does for os.hostname(), or says so
+// and shows the call in a hatch, the boundary that remains, as for
+// os.uptime(); it never sends the program to a wrapper module of its own.
 //
 // D108 puts the error where the code runs the API: a call, a new, or a
 // tagged template of it, or a read of one of its properties, which can run a
@@ -104,13 +105,19 @@ var platformServices = map[string]*platformService{
 	"PubSub":         {"PubSub, or Stream.fromEventListener for an event target, from the prelude", "", "", ""},
 	"Exit":           {"main's result", "", "", ""},
 	"@effect/vitest": {"it.effect and assert", "", `import { assert, it } from "@effect/vitest"`, ""},
-	"import":         {"an import declaration", `import { name } from "./module.ts"`, "", ""},
-	"export":         {"an export declaration", "export function name() { ... }", "", ""},
+	"UserDirectories": {"the UserDirectories service", "UserDirectories.home()", `import { UserDirectories } from "effect/persistence/UserDirectories"`,
+		`UserDirectories.layer from "effect/persistence/UserDirectories"`},
+	"import": {"an import declaration", `import { name } from "./module.ts"`, "", ""},
+	"export": {"an export declaration", "export function name() { ... }", "", ""},
 	// VibeLang's additions where Effect has none (D313).
 	"ExperimentalFileSystem": {"the experimental FileSystem service", "FileSystem.access(path, { executable: true })",
 		`import { FileSystem } from "vibelang-runtime/experimental/FileSystem"`, experimentalServices},
 	"ExperimentalCrypto": {"the experimental Crypto service", `Crypto.hmac("SHA-256", key, data)`,
 		`import { Crypto } from "vibelang-runtime/experimental/Crypto"`, experimentalCrypto},
+	"ExperimentalProcess": {"the experimental Process service", "Process.pid()",
+		`import { Process } from "vibelang-runtime/experimental/Process"`, experimentalServices},
+	"ExperimentalLocks": {"the experimental Locks service", "Locks.hold(name)", `import { Locks } from "vibelang-runtime/experimental/Locks"`,
+		`BrowserLocks.layer from "vibelang-runtime/experimental/platform-browser"; NodeLocks.layer from "vibelang-runtime/experimental/platform-node" locks only within one Node.js process`},
 }
 
 // platformAPI says what replaces a platform API.
@@ -217,6 +224,12 @@ var platformAPIs = map[string]platformAPI{
 
 	"os.tmpdir": {"FileSystem", "FileSystem.makeTempDirectory()", "FileSystem.makeTempDirectory creates a directory in it; nothing returns its path alone."},
 
+	"os.hostname":             {"ExperimentalProcess", "Process.hostname()", ""},
+	"os.homedir":              {"UserDirectories", "UserDirectories.home()", "UserDirectories.home() reads HOME, or USERPROFILE on Windows; os.homedir() also falls back to the user database."},
+	"os.availableParallelism": {"ExperimentalProcess", "Process.availableParallelism()", ""},
+	"os.platform":             {"ExperimentalProcess", "Process.platform()", ""},
+	"os.arch":                 {"ExperimentalProcess", "Process.arch()", ""},
+
 	"url.fileURLToPath": {"Path", "Path.fromFileUrl(url)", ""},
 	"path.sep":          {"Path", "Path().sep", ""},
 	"util.inspect":      {"Inspectable", "", "It writes values as JSON, not as util.inspect does."},
@@ -228,8 +241,8 @@ var platformAPIs = map[string]platformAPI{
 	"events.once":            {note: "Effect has no adapter for a Node.js EventEmitter; Stream.fromEventListener reads an event target."},
 	"stream.Readable.from":   {"Stream", "Stream.fromIterable(values)", ""},
 	"require.resolve":        {note: "Effect resolves no modules at run time; a static import resolves one when the program loads."},
-	"navigator.locks":        {note: "Effect has no Web Locks; a Semaphore locks only within one program."},
-	"performance.timeOrigin": {note: "Clock reads the time now; it has no time origin."},
+	"navigator.locks":        {"ExperimentalLocks", "", ""},
+	"performance.timeOrigin": {"ExperimentalProcess", "Process.timeOrigin()", ""},
 
 	"setInterval":                  {"Schedule", `repeat(program, Schedule.spaced("1 second"))`, ""},
 	"timers.setInterval":           {"Schedule", `repeat(program, Schedule.spaced("1 second"))`, ""},
@@ -253,7 +266,13 @@ var platformAPIs = map[string]platformAPI{
 	"process.exit":           {"Exit", "", processExit},
 	"process.exitCode":       {"Exit", "", processExit},
 	"process.uptime":         {note: "Clock reads the time, not the process's age: keep a Clock.monotonicTimeNanos() reading from the start."},
-	"process.kill":           {note: "A child that ChildProcessSpawner.spawn started stops with its handle's kill()."},
+	"process.kill":           {"ExperimentalProcess", "Process.kill(pid, { killSignal })", "Signal 0 is Process.isRunning(pid); a child that ChildProcessSpawner.spawn started also stops with its handle's kill()."},
+	"process.pid":            {"ExperimentalProcess", "Process.pid()", ""},
+	"process.platform":       {"ExperimentalProcess", "Process.platform()", ""},
+	"process.arch":           {"ExperimentalProcess", "Process.arch()", ""},
+	"process.execPath":       {"ExperimentalProcess", "Process.execPath()", ""},
+	"process.versions":       {"ExperimentalProcess", "Process.versions()", ""},
+	"process.memoryUsage":    {"ExperimentalProcess", "Process.memoryUsage()", ""},
 	"process.on":             {note: processEvents},
 	"process.once":           {note: processEvents},
 	"process.off":            {note: processEvents},

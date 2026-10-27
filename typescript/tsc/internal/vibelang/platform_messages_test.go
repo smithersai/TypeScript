@@ -17,11 +17,11 @@ const platformTypes = `declare module "node:fs/promises" {
 declare module "node:path" { export function join(...paths: string[]): string }
 declare module "node:child_process" { export function execFileSync(command: string, args: string[]): string }
 declare module "node:http" { export function createServer(): unknown }
-declare module "node:os" { export function tmpdir(): string; export function hostname(): string }
+declare module "node:os" { export function tmpdir(): string; export function hostname(): string; export function uptime(): number; export function homedir(): string }
 declare module "node:events" { export function once(emitter: unknown, name: string): Promise<unknown[]> }
 declare module "node:fs" { export const constants: { X_OK: number; O_NONBLOCK: number } }
 declare module "node:crypto" { export function createHmac(algorithm: string, key: Uint8Array): unknown }
-declare var process: { cwd(): string; env: Record<string, string | undefined>; pid: number; argv: string[] }
+declare var process: { cwd(): string; env: Record<string, string | undefined>; pid: number; argv: string[]; kill(pid: number, signal?: string | number): true; umask(): number }
 declare var Buffer: { from(text: string): Uint8Array }`
 
 const (
@@ -32,6 +32,7 @@ const (
 	provideCrypto       = `Provide it in main with NodeServices.layer from "@effect/platform-node", BunServices.layer from "@effect/platform-bun", or BrowserCrypto.layer from "@effect/platform-browser".`
 	noServiceYet        = "Effect, VibeLang's standard library, has no service for it yet."
 	provideExperimental = `Provide it in main with NodeServices.layer from "vibelang-runtime/experimental/platform-node", or BunServices.layer from "vibelang-runtime/experimental/platform-bun".`
+	importProcess       = `Import it with   import { Process } from "vibelang-runtime/experimental/Process"`
 	allowEK4403         = `To allow it, set "EK4403": "warning" or "off" in "vibelang": { "diagnostics": { ... } } at the top level of tsconfig.json.`
 )
 
@@ -112,10 +113,34 @@ export const run = () => mkdtemp("build-")`, []string{
 			"Use Uint8Array and TextEncoder or TextDecoder, which need no layer, or Base64 and Hex:   new TextEncoder().encode(text)",
 			`Import it with   import { Base64, Hex } from "effect/encoding"`,
 		}},
-		{"gap", `import { hostname } from "node:os"
+		{"gap", `import { uptime } from "node:os"
+export const run = () => uptime()`, []string{
+			"uptime from node:os is a platform API, which VibeLang code does not call directly.",
+			noServiceYet, "Run it in a hatch:   sync(() => uptime()), or with try when it can throw.",
+		}},
+		{"experimental service", `import { hostname } from "node:os"
 export const run = () => hostname()`, []string{
 			"hostname from node:os is a platform API, which VibeLang code does not call directly.",
-			noServiceYet, "Run it in a hatch:   sync(() => hostname()), or with try when it can throw.",
+			"Use the experimental Process service:   Process.hostname()", importProcess, provideExperimental,
+		}},
+		{"home directory", `import { homedir } from "node:os"
+export const run = () => homedir()`, []string{
+			"homedir from node:os is a platform API, which VibeLang code does not call directly.",
+			"Use the UserDirectories service:   UserDirectories.home()",
+			`Import it with   import { UserDirectories } from "effect/persistence/UserDirectories"`,
+			`Provide it in main with UserDirectories.layer from "effect/persistence/UserDirectories".`,
+			"UserDirectories.home() reads HOME, or USERPROFILE on Windows; os.homedir() also falls back to the user database.",
+		}},
+		{"experimental service with a note", `export const run = (pid: number) => process.kill(pid, "SIGINT")`, []string{
+			"process.kill is a platform API, which VibeLang code does not call directly.",
+			"Use the experimental Process service:   Process.kill(pid, { killSignal })", importProcess, provideExperimental,
+			"Signal 0 is Process.isRunning(pid); a child that ChildProcessSpawner.spawn started also stops with its handle's kill().",
+		}},
+		{"experimental locks", `export const run = (name: string) => navigator.locks.request(name, () => undefined)`, []string{
+			"navigator.locks is a platform API, which VibeLang code does not call directly.",
+			"Use the experimental Locks service:   Locks.hold(name)",
+			`Import it with   import { Locks } from "vibelang-runtime/experimental/Locks"`,
+			`Provide it in main with BrowserLocks.layer from "vibelang-runtime/experimental/platform-browser"; NodeLocks.layer from "vibelang-runtime/experimental/platform-node" locks only within one Node.js process.`,
 		}},
 		{"gap with a near miss", `import { once } from "node:events"
 export const run = (emitter: unknown) => once(emitter, "exit")`, []string{
@@ -149,9 +174,13 @@ export const run = (key: Uint8Array) => createHmac("sha256", key)`, []string{
 			`Provide it in main with NodeServices.layer from "vibelang-runtime/experimental/platform-node", BunServices.layer from "vibelang-runtime/experimental/platform-bun", or BrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser".`,
 			"It takes keys as bytes, a secret in a Redacted: raw for HMAC, PKCS#8 and SPKI DER for ECDSA P-256 and Ed25519; it has no ciphers.",
 		}},
-		{"gap of a property", `export const run = () => process.pid`, []string{
+		{"gap of a property", `export const run = () => process.umask()`, []string{
+			"process.umask is a platform API, which VibeLang code does not call directly.",
+			noServiceYet, "Run it in a hatch:   sync(() => process.umask()), or with try when it can throw.",
+		}},
+		{"experimental service of a property", `export const run = () => process.pid`, []string{
 			"process.pid is a platform API, which VibeLang code does not call directly.",
-			noServiceYet, "Run it in a hatch:   sync(() => process.pid), or with try when it can throw.",
+			"Use the experimental Process service:   Process.pid()", importProcess, provideExperimental,
 		}},
 		{"clock", `export const run = () => Date.now()`, []string{
 			"Date.now() reads the clock or randomness, which a test cannot control.",

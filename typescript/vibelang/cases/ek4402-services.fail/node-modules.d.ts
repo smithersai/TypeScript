@@ -12,6 +12,7 @@ declare module "node:crypto" {
 declare module "node:os" {
   export function tmpdir(): string
   export function hostname(): string
+  export function uptime(): number
 }
 declare module "node:fs/promises" {
   export function mkdtemp(prefix: string): Promise<string>
