@@ -4,7 +4,7 @@
 // package manager that ran it: `bun create vibelang@latest my-app` or
 // `npm create vibelang@latest my-app`.
 import { spawnSync } from "node:child_process"
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { basename, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -28,8 +28,9 @@ for (const arg of process.argv.slice(2)) {
 }
 target ??= "vibelang-app"
 const directory = resolve(target)
-if (existsSync(directory) && readdirSync(directory).length > 0) {
-  fail(`${target} is not empty. Choose a new directory name.`)
+if (existsSync(directory)) {
+  if (!statSync(directory).isDirectory()) fail(`${target} is not a directory. Choose a new directory name.`)
+  if (readdirSync(directory).length > 0) fail(`${target} is not empty. Choose a new directory name.`)
 }
 
 // The published package carries the template in template/; a checkout uses

@@ -245,3 +245,13 @@ test("new npm package names stay within 214 characters", (t) => {
     assert.equal(actual, name.slice(0, 214))
   }
 })
+
+test("refuses a file target without an uncaught filesystem error", (t) => {
+  const directory = scratch(t)
+  writeFileSync(join(directory, "app"), "keep me")
+  const result = run(directory, "app", "--no-install")
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /create-vibelang: app is not a directory/)
+  assert.doesNotMatch(result.stderr, /ENOTDIR|at .*\.mjs:/)
+  assert.equal(readFileSync(join(directory, "app"), "utf8"), "keep me")
+})
