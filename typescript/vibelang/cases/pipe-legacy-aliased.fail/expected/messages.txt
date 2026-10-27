@@ -1,0 +1,1 @@
+Through VibeLang 0.0.10, pipe's first argument became a program by look-ahead.

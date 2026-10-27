@@ -123,7 +123,10 @@ the elements of array and object literals, convert to Effects where a
 parameter expects them (D7, D49, D423); the conversion changes a function's
 representation, never when its body runs, and traverses no collection that an
 argument only names. D10 eligibility is a greatest fixpoint over the callee group. D12
-callback parameters carry inferred E and R type parameters.
+callback parameters carry inferred E and R type parameters. An intrinsic call such as
+Effect's `pipe` or the runtime's `wire` is recognized by the declaration its
+callee resolves to, through import aliases and namespace members, never by
+its spelling.
 
 D52 requires recursive E and R inference inside a call-graph component; the
 acceptance cases and `typescript/VIBELANG.md` record current coverage. No

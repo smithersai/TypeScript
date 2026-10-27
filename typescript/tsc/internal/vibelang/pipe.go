@@ -64,17 +64,11 @@ func (a *analyzer) legacyStageSignatures(stage *ast.Node) []*checker.Signature {
 }
 
 // isEffectPipe reports whether call calls effect's pipe function, which the
-// prelude also exports.
+// prelude also exports, by the symbol its callee resolves to, whatever it
+// is spelled: `import { pipe as flow } from "effect"` is pipe too.
 func (a *analyzer) isEffectPipe(call *ast.Node) bool {
-	callee := call.Expression()
-	if !ast.IsIdentifier(callee) || callee.Text() != "pipe" {
-		return false
-	}
-	symbol := a.checker.GetSymbolAtLocation(callee)
-	if symbol != nil && symbol.Flags()&ast.SymbolFlagsAlias != 0 {
-		symbol = a.checker.GetAliasedSymbol(symbol)
-	}
-	if symbol == nil {
+	symbol := calleeSymbol(a.checker, call)
+	if symbol == nil || symbol.Name() != "pipe" {
 		return false
 	}
 	for _, declaration := range symbol.Declarations() {
