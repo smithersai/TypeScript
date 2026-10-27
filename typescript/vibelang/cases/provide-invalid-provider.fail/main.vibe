@@ -1,0 +1,34 @@
+// expect: EK3207 EK2002
+// provide takes what Effect.provide takes: a Layer, a Context, or a non-empty
+// list of layers (D362). Any other value is EK3207, a number or a union with
+// undefined included, since the block would fail when it runs, and it
+// provides nothing (EK2002). A Context is not a layer, so it cannot be an
+// entry of a list beside one.
+service A { value: string }
+
+const LA = Layer.succeed(A, { value: "a" })
+const CA = Context.make(A, { value: "a" })
+
+export function number(): string!! {
+  provide 123 {
+    return "inside"
+  }
+}
+
+export function maybe(layer: Layer.Layer<A> | undefined): string!! {
+  provide layer {
+    return A().value
+  }
+}
+
+export function contextInList(): string!! {
+  provide [LA, CA] {
+    return A().value
+  }
+}
+
+export function context(): string!! {
+  provide CA {
+    return A().value
+  }
+}

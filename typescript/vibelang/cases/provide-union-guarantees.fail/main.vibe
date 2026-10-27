@@ -1,0 +1,33 @@
+// expect: EK2002
+// A union of providers is one of them at run time, so a provide block over
+// it discharges only the services every member provides: neither LA nor LB
+// provides both A and B, and neither CA nor CB does. A service each member
+// provides, as A in shared, is discharged.
+service A { name: string }
+service B { name: string }
+
+const LA = Layer.succeed(A, { name: "A" })
+const LB = Layer.succeed(B, { name: "B" })
+const CA = Context.make(A, { name: "A" })
+const CB = Context.make(B, { name: "B" })
+
+export function layers(flag: boolean): string!! {
+  const chosen = flag ? LA : LB
+  provide chosen {
+    return A().name + B().name
+  }
+}
+
+export function contexts(flag: boolean): string!! {
+  const chosen = flag ? CA : CB
+  provide chosen {
+    return A().name + B().name
+  }
+}
+
+export function shared(flag: boolean): string!! {
+  const chosen = flag ? LA : Layer.mergeAll(LA, LB)
+  provide chosen {
+    return A().name
+  }
+}
