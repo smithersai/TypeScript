@@ -213,6 +213,8 @@ function detachedExample() {
 
 `forkIn(scope, program)` attaches the child to a scope you hold; it lives until that scope closes. `detach(program)` ties the child to nothing: it survives its parent and needs an explicit shutdown strategy (the example joins it to stay bounded). `Effect.forkScoped` attaches the child to the caller's scope and leaves `Scope` in the caller's requirements until a scope is supplied.
 
+Returning a fiber that a block's `fork` started draws warning EK4838: the block interrupts that fiber when it exits, so the caller would join an interrupted fiber. Start a fiber that must outlive its block with `forkIn(scope, program)` on a scope the caller holds, or with `detach(program)` and a shutdown strategy.
+
 ## Understanding execution scheduling
 
 ```vibe

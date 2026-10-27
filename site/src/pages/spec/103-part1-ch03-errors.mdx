@@ -156,7 +156,7 @@ function lookupAudited(id: string) {
 }
 ```
 
-`catch` handles an expected failure only when nothing else went wrong. Here the exit carries both the `UserNotFound` and the crash, so the `catch` block does not run and the whole failure propagates, crash included. `Effect.catch` would recover from this exit and drop the crash.
+Here the exit carries both the `UserNotFound` and the crash. Effect 4.0.6 makes the expected failure a defect beside the crash (D305), so neither `catch` nor `Effect.catch` recovers. Both propagate the whole cause. An expected failure beside an interruption is caught when no defect is present (D306).
 
 | What happened | Example | In E? | Caught by `catch`? | Runs `finally`? |
 | --- | --- | --- | --- | --- |

@@ -40,7 +40,7 @@ Each combinator has its own rule for a failing branch; VibeLang adds nothing to 
 | `Effect.all`, `Effect.forEach` | Every result, in order | Interrupts the other branches, waits for their cleanup, fails with that failure |
 | `Effect.race` | The first success | Keeps waiting; fails only if both fail, with both failures |
 | `Effect.raceFirst` | The first to finish, success or failure | Fails if the first to finish failed; interrupts the other |
-| `Effect.timeout` | The program's result | At the deadline, interrupts the program and fails with `Cause.TimeoutError` |
+| `Effect.timeout` | The program's result | At the deadline, interrupts the program and fails with `Cause.TimeoutError`. The interrupted program's cleanup failure can be absent from this exit (D256) |
 | `join [a, b]` | Every fiber's value, same shape | Interrupts the other fibers, fails with that failure |
 | `await.all [a(), b()]` | Every result, same shape | Interrupts the other elements, fails with that failure |
 | `await.allSettled [a(), b()]` | Every success or typed failure as a `Result`, same shape | Never fails with a typed error; defects and interruption propagate exactly as in `Effect.all` with `mode: "result"` (D258) |
@@ -48,7 +48,7 @@ Each combinator has its own rule for a failing branch; VibeLang adds nothing to 
 | `await.any [a(), b()]` | The first success | Keeps waiting; fails only if every element fails, with every failure |
 | `for concurrent` | Nothing: the loop runs its body per item | Interrupts the other items, fails with that failure |
 
-A `catch` around any of these sees the failure. When `Effect.race` fails because both branches failed, `catch` receives the first failure (Chapter 3).
+A `catch` sees the expected failure the combinator reports. When `Effect.race` fails because both branches failed, `catch` receives the first failure (Chapter 3). Cleanup runs when a branch is interrupted, but Effect's `timeout` and `race` can discard a loser's cleanup failure rather than add it to the reported exit (D256). VibeLang preserves failures while running its own cleanup, as Chapter 17 states.
 
 #### Background work with a lifetime
 

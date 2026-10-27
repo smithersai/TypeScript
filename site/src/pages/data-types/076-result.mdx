@@ -159,7 +159,7 @@ function combinedData() {
 {"title":"Weekly","count":6}
 ```
 
-`Result.gen` sequences with JavaScript generators: the first yielded failure skips the rest. VibeLang's `function*` declares a producer, so `Result.gen` in `.vibe` is EK1002 and generator-based APIs stay in `.ts` files. In VibeLang, use `flatMap` and `all` for the same computation, as above.
+`Result.gen` sequences with JavaScript generators: the first yielded failure skips the rest. An unannotated `function*` in VibeLang declares a producer, so `Result.gen` in `.vibe` is EK1002 and generator-based APIs stay in `.ts` files. In VibeLang, use `flatMap` and `all` for the same computation, as above.
 
 ---
 

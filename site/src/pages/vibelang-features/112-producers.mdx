@@ -35,7 +35,7 @@ function firstAlert() {
 
 The consumer returns at 25; before `firstAlert` returns, the producer's `finally` logs `sensor closed`. `break`, a return, or a failure in the loop body closes the source and runs its cleanup. Iterating the source again starts a new run.
 
-In `.vibe`, `function*` declares a producer; don't use it for `Effect.gen` or other generator-based APIs. Generator methods on objects remain JavaScript generators.
+In `.vibe`, an unannotated `function*` declares a producer; don't use it for `Effect.gen` or other generator-based APIs. A `function*` annotated with a JavaScript iterator type is a JavaScript generator ([below](#javascript-generators)). Generator methods on objects remain JavaScript generators.
 
 ## Call services between yields
 

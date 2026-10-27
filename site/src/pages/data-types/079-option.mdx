@@ -224,7 +224,7 @@ function combinedData() {
 {"title":"Daily","total":3}
 ```
 
-`Option.gen` sequences JavaScript generator yields and stops at the first `None`. In `.vibe`, `function*` creates a producer instead, so `Option.gen` there is EK1002 and generator-based APIs stay in `.ts` files. In VibeLang, use `flatMap`, `zipWith`, and `all` for the same computation, as above.
+`Option.gen` sequences JavaScript generator yields and stops at the first `None`. In `.vibe`, an unannotated `function*` creates a producer instead, so `Option.gen` there is EK1002 and generator-based APIs stay in `.ts` files. In VibeLang, use `flatMap`, `zipWith`, and `all` for the same computation, as above.
 
 ## Deriving equality and ordering
 

@@ -110,4 +110,4 @@ Existing `.ts` functions that yield `Data.Error` or `Data.TaggedError` stay in T
 
 In a `.vibe` file, `class NotFound extends Data.TaggedError("NotFound")<{ … }> {}` draws EK4830, whose quick fix writes `error NotFound { … }`; a `Schema.TaggedError` class draws EK4837, without a fix, because an error declaration is not a Schema ([TypeScript-style Effect code](../getting-started/012-devtools.md#typescript-style-effect-code)).
 
-A VibeLang `function*` is a producer that yields elements and converts to an Effect `Stream` wherever one is expected; don't paste `Effect.gen` or `yield*` error sequencing into it.
+An unannotated VibeLang `function*` is a producer that yields elements and converts to an Effect `Stream` wherever one is expected; don't paste `Effect.gen` or `yield*` error sequencing into it.

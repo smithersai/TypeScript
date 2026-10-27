@@ -4,7 +4,7 @@ title: "8. Producers: streams of values"
 
 ### 8. Producers: streams of values
 
-A `function*` in VibeLang is a **producer**: it yields values one at a time and can do anything a VibeLang function does between yields, including calling services and waiting. `for...of` consumes it. Both sides below build the same reusable, lazy line source over the same `Files` service.
+A `function*` without a JavaScript iterator annotation is a **producer**: it yields values one at a time and can do anything a VibeLang function does between yields, including calling services and waiting. `for...of` consumes it. Both sides below build the same reusable, lazy line source over the same `Files` service.
 
 ```ts [Effect]
 const lines = (path: string) =>
@@ -54,7 +54,21 @@ How a producer behaves:
 - **One pass per run.** Iterating the same producer again restarts it from the beginning.
 - **Constant stack.** A loop over a million elements uses the stack depth of a loop over three (Chapter 26).
 
-A JavaScript generator cannot do this: its body runs synchronously inside `next()`, so it cannot wait for a service between values. A VibeLang producer can, because each `yield` is a control operation that the loop handles (Chapter 9 shows the machinery, Part III how it runs). Because `function*` declares a producer in `.vibe` files, `Effect.gen`, `Option.gen`, and other generator-based APIs cannot be written there (Chapter 10).
+A JavaScript generator cannot do this: its body runs synchronously inside `next()`, so it cannot wait for a service between values. A VibeLang producer can, because each `yield` is a control operation that the loop handles (Chapter 9 shows the machinery, Part III how it runs). An unannotated `function*` is a producer, so passing it to `Effect.gen`, `Option.gen`, or another JavaScript generator API is EK1002. An explicit iterator annotation selects the JavaScript form below (Chapter 10).
+
+#### JavaScript iterator contracts
+
+An explicit return annotation of `Generator`, `Iterator`, `IterableIterator`, or `Iterable` keeps a synchronous JavaScript generator (D271). `AsyncGenerator`, `AsyncIterator`, `AsyncIterableIterator`, or `AsyncIterable` keeps an async JavaScript generator. The compiler preserves `next()`, spread, JavaScript `yield`, `yield*` delegation and its return value, and async iteration with `for await`. A generator without an annotation, or one annotated as `Stream`, remains a producer.
+
+```ts [VibeLang]
+function* steps(): Generator<number, number, unknown> {
+  yield 1
+  yield* [2, 3]
+  return 9
+}
+```
+
+An iterator annotation keeps calls as JavaScript calls, so they run no returned Effect. It does not make `throw` a JavaScript exception (D296). A throw that can escape the generator is EK2003. Its own `catch` handles typed failures, while other exceptions pass through, including one injected with `generator.throw()`. A coroutine that uses JavaScript exceptions as a protocol belongs in a `.ts` file or a `module` body (Chapter 10). Cases `plain-generator`, `plain-async-generator`, and `plain-generator-throw.fail` cover these rules.
 
 #### What `for...of` does depends on what it iterates
 

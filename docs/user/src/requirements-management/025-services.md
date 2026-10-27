@@ -137,7 +137,7 @@ function testWithContext() {
 // Output: ticket-17
 ```
 
-A `Context` holds existing implementations; a `Layer` describes how to build them. A `provide` block, like `Effect.provide`, accepts either. Keep resource-owning implementations within the lifetime that created them.
+A `Context` holds existing implementations; a `Layer` describes how to build them. A `provide` block, like `Effect.provide`, accepts either. `provide` is a statement: using it as an expression, as in `const ticket = provide testContext { … }`, is EK1017; return the value from inside its block. Keep resource-owning implementations within the lifetime that created them.
 
 ## Requesting optional services
 

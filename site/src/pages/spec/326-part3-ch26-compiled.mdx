@@ -19,8 +19,9 @@ export const displayName = Effect.fnUntraced(function* (id: string) {
 ```
 
 ```ts [Generated declaration]
+import type { Effect } from "vibelang-runtime"
 export declare const displayName:
-  (id: string) => string!UserNotFound!Users
+  (id: string) => Effect.Effect<string, UserNotFound, Users>
 ```
 
 #### One obligation
@@ -134,7 +135,7 @@ A clause compiles like any function, with one rule for its last step (D18). When
 
 #### Producers
 
-A `function*` body may pause, so it cannot keep JavaScript's generator meaning, whose body runs synchronously inside `next()`. VibeLang defines `function*` by the machine instead [Rule]:
+A producer body may pause, so it cannot run synchronously inside JavaScript's `next()`. An explicit JavaScript iterator annotation keeps the native generator form (D271, D296, Chapter 8). Otherwise, VibeLang defines the producer by the machine [Rule]:
 
 - Calling a `function*` runs none of its body. The result is a **producer**: a cold program that performs the built-in control operation `Yield<T>` once per element.
 - `yield v` performs `Yield<T>`.
@@ -166,7 +167,7 @@ Evidence [Kernel]:
 
 If a producer's own loop iterated another producer, abandoning the outer one would reach the inner loop's owner frame and abandon the inner producer too, finalizers included (O01).
 
-**The `Stream` adapter** [Experiment]. Where a `Stream` is expected, or across the TypeScript boundary, a producer becomes a `Stream` that runs the producer on a fiber of its own, under internal iteration, and hands over one element per pull through a zero-capacity handoff: the clause completes the pending pull and waits for the next one before it resumes the producer. A buffer of one element, as the prototype compiler used (`Stream.callback` with `bufferSize: 1`), lets the producer run one element ahead, which D26 forbids. Closing the stream interrupts the producer's fiber, which abandons the producer and runs its finalizers. `for...of` over a `Stream` needs no adapter: it opens a Scope region, takes the stream's pull with `Stream.toPull`, and loops over chunks until the pull signals the end. G12 is the experiment that confirms the adapter. A `for...of` over any other iterable whose body can pause, other than an array or a string, runs through the same runtime loop, which calls the iterator's `return()` when the loop exits before the end: a jump, a failure, or an interruption. JavaScript's own `for...of` would do it for a jump only, since Effect abandons the generator without calling `return()` (Chapter 24).
+**The `Stream` adapter** [Rule, D26]. Where a `Stream` is expected, or across the TypeScript boundary, a producer becomes a `Stream` that runs the producer on a fiber of its own, under internal iteration, and hands over one element per pull through a zero-capacity handoff: the clause completes the pending pull and waits for the next one before it resumes the producer. A buffer of one element, as the prototype compiler used (`Stream.callback` with `bufferSize: 1`), lets the producer run one element ahead, which D26 forbids. Closing the stream interrupts the producer's fiber, which abandons the producer and runs its finalizers. `for...of` over a `Stream` needs no adapter: it opens a Scope region, takes the stream's pull with `Stream.toPull`, and loops over chunks until the pull signals the end. G12 is the experiment that confirms the adapter. A `for...of` over any other iterable whose body can pause, other than an array or a string, runs through the same runtime loop, which calls the iterator's `return()` when the loop exits before the end: a jump, a failure, or an interruption. JavaScript's own `for...of` would do it for a jump only, since Effect abandons the generator without calling `return()` (Chapter 24).
 
 #### Trusted calls
 
