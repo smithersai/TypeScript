@@ -136,6 +136,7 @@ JavaScript value. Decisions are in [`docs/design/DECISIONS.md`](../../docs/desig
 | `Layer` | Supply the prelude Layer namespace | D4 |
 | `Schema` | Supply the prelude Schema namespace | D4 |
 | `Scope` | Supply the prelude Scope namespace | D48 |
+| `Experimental` | Supply the prelude Experimental namespace: VibeLang's additions where Effect lacks an API | D313 |
 | `TaggedError` | Expose Effect's `Data.TaggedError` | D3 |
 | `pipe` | Supply the prelude pipeline function | D8 |
 | `Exit` | Expose Effect completion values to TypeScript adapters | D43 |
@@ -153,6 +154,22 @@ continuation machine directly. Generated code uses the package root. Tests and
 instrumentation import the kernel module itself from `vibelang-runtime/kernel`,
 such as its `hooks`, which report each capture and resumption; the compiler's
 acceptance case `stack-depth` uses them to check that loops run in constant stack.
+
+## Experimental platform APIs
+
+`vibelang-runtime/experimental` holds what VibeLang adds where Effect lacks a
+platform API (D313), one module per Effect module it extends, each also a
+subpath: `vibelang-runtime/experimental/FileSystem` (Effect's `FileSystem` plus
+`access` with `executable`, `open` with `nonBlocking` and `File.chmod`) and `vibelang-runtime/experimental/Crypto` (Effect's `Crypto`
+plus `hmac`, `sign` and `verify`). Each service has its own key and a superset
+of Effect's interface. The layers are in
+`vibelang-runtime/experimental/platform-node` (`NodeServices`, `NodeFileSystem`,
+`NodeCrypto`), `-bun` (`BunServices`, `BunFileSystem`, `BunCrypto`) and
+`-browser` (`BrowserCrypto`); each provides the experimental service and
+Effect's service of the same name from one implementation. Install the
+matching `@effect/platform-*` package, an optional peer dependency. The
+platform-neutral modules import only `effect`, and the service keys are pure,
+so a program that does not use them bundles none of them.
 
 ## Fast calls without types
 

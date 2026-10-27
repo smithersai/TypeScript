@@ -77,6 +77,9 @@ ln -s "$effect_dir" "$work/node_modules/effect"
 runtime="$work/node_modules/vibelang-runtime"
 mkdir -p "$work/.runtime-build/node_modules" "$runtime"
 cp -R "$root/packages/runtime/src" "$root/packages/runtime/tsconfig.json" "$work/.runtime-build/"
+# The experimental platform layers (D313) need the optional @effect/platform-*
+# packages and Node's types, which this build does not install.
+rm -rf "$work/.runtime-build/src/experimental/platform-"* "$work/.runtime-build/src/experimental/internal/node"*
 ln -s "$effect_dir" "$work/.runtime-build/node_modules/effect"
 "$tsc" -p "$work/.runtime-build/tsconfig.json" --outDir "$runtime/dist" --declarationMap false --sourceMap false --inlineSources false
 cp "$root/packages/runtime/package.json" "$runtime/"

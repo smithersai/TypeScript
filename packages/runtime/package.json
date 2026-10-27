@@ -34,6 +34,36 @@
       "types": "./dist/data-methods.d.ts",
       "import": "./dist/data-methods.js",
       "default": "./dist/data-methods.js"
+    },
+    "./experimental": {
+      "types": "./dist/experimental/index.d.ts",
+      "import": "./dist/experimental/index.js",
+      "default": "./dist/experimental/index.js"
+    },
+    "./experimental/Crypto": {
+      "types": "./dist/experimental/Crypto.d.ts",
+      "import": "./dist/experimental/Crypto.js",
+      "default": "./dist/experimental/Crypto.js"
+    },
+    "./experimental/FileSystem": {
+      "types": "./dist/experimental/FileSystem.d.ts",
+      "import": "./dist/experimental/FileSystem.js",
+      "default": "./dist/experimental/FileSystem.js"
+    },
+    "./experimental/platform-browser": {
+      "types": "./dist/experimental/platform-browser/index.d.ts",
+      "import": "./dist/experimental/platform-browser/index.js",
+      "default": "./dist/experimental/platform-browser/index.js"
+    },
+    "./experimental/platform-bun": {
+      "types": "./dist/experimental/platform-bun/index.d.ts",
+      "import": "./dist/experimental/platform-bun/index.js",
+      "default": "./dist/experimental/platform-bun/index.js"
+    },
+    "./experimental/platform-node": {
+      "types": "./dist/experimental/platform-node/index.d.ts",
+      "import": "./dist/experimental/platform-node/index.js",
+      "default": "./dist/experimental/platform-node/index.js"
     }
   },
   "files": [
@@ -46,11 +76,32 @@
     "test": "bun run build && bun test"
   },
   "peerDependencies": {
+    "@effect/platform-browser": "4.0.6",
+    "@effect/platform-bun": "4.0.6",
+    "@effect/platform-node": "4.0.6",
     "effect": "4.0.6"
   },
+  "peerDependenciesMeta": {
+    "@effect/platform-browser": {
+      "optional": true
+    },
+    "@effect/platform-bun": {
+      "optional": true
+    },
+    "@effect/platform-node": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@effect/platform-browser": "4.0.6",
+    "@effect/platform-bun": "4.0.6",
+    "@effect/platform-node": "4.0.6",
+    "@types/node": "26.6.5",
     "effect": "4.0.6",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@effect/platform-node-shared": "4.0.6"
   },
   "engines": {
     "node": ">=26",

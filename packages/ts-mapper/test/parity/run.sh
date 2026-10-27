@@ -89,6 +89,9 @@ runtime="$mapper_package/node_modules/vibelang-runtime"
 mkdir -p "$runtime"
 cp "$root/packages/runtime/package.json" "$runtime/"
 cp -R "$root/packages/runtime/src" "$root/packages/runtime/tsconfig.json" "$out/runtime-build/"
+# The experimental platform layers (D313) need the optional @effect/platform-*
+# packages and Node's types, which this build does not install.
+rm -rf "$out/runtime-build/src/experimental/platform-"* "$out/runtime-build/src/experimental/internal/node"*
 ln -s "$effect_real" "$out/runtime-build/node_modules/effect"
 echo "parity: build packages/runtime copy with the fork" >&2
 "$out/bin/tsc" -p "$out/runtime-build/tsconfig.json" --outDir "$runtime/dist"

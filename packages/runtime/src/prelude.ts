@@ -9,6 +9,8 @@ import { customMatcher, type MatchHint } from "./match.js"
 // `Effect.gen` and `Scope.make` still reach the module.
 export { Effect, Exit, Layer, Schema, Scope } from "effect"
 export { pipe } from "effect/Function"
+// D313: the Experimental namespace, what VibeLang adds where Effect lacks an API.
+export * as Experimental from "./experimental/index.js"
 
 /** D4: in a .vibe file, `Effect<A, E, R>` is `Effect.Effect<A, E, R>`. */
 export type Effect<A, E = never, R = never> = EffectModule.Effect<A, E, R>

@@ -130,6 +130,9 @@ func buildMapperTestScope(root string) error {
 		if err != nil {
 			return err
 		}
+		if experimentalPlatformSource(rel) {
+			return nil
+		}
 		return copyFile(path, filepath.Join(scope, "runtime-build", rel))
 	}); err != nil {
 		return err
@@ -141,6 +144,15 @@ func buildMapperTestScope(root string) error {
 		return err
 	}
 	return run(scope, filepath.Join(scope, "bin/tsc"), "-p", filepath.Join(scope, "runtime-build/tsconfig.json"), "--outDir", filepath.Join(scope, "node_modules/vibelang-runtime/dist"))
+}
+
+// experimentalPlatformSource reports whether rel, a path in packages/runtime,
+// is an experimental platform layer or its Node implementation (D313). They
+// import the optional @effect/platform-* packages and node: modules, which a
+// scope with only effect does not install, and no mapper test loads them.
+func experimentalPlatformSource(rel string) bool {
+	rel = filepath.ToSlash(rel)
+	return strings.HasPrefix(rel, "src/experimental/platform-") || strings.HasPrefix(rel, "src/experimental/internal/node")
 }
 
 func mapperEffectModules(root string) string {

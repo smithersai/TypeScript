@@ -5,5 +5,5 @@
     "noEmit": true,
     "skipLibCheck": false
   },
-  "include": ["consumer.ts"]
+  "include": ["consumer.ts", "experimental-consumer.ts"]
 }
