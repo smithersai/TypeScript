@@ -32,6 +32,8 @@ const late: Record<string, [string, string][]> = {
     ["typed main failures", "error's fields"],
     ["early version check", "module linking"],
     ["traced callers", "before forwarding"],
+    ["rest and default parameters", "rest-parameter array"],
+    ["parameter assignments", "assignment to a parameter"],
   ],
   "Editor and language server": [
     ["hover separator", "Hover text"],
