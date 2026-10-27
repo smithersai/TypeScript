@@ -134,6 +134,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - `try(f, mapper, input())` evaluated its inputs before its mapper. It now evaluates its arguments in the order written.
 - `wire(a(), b())` evaluated `b()` before `a()` when `b()`'s layer needs a service that `a()`'s layer provides. The arguments now run in the order written; only the layers they make are reordered.
 - `for concurrent(limit()) (const x of items())` evaluated `items()` before `limit()`, so the loop could iterate items that `limit()` had replaced. The head now runs in the order written.
+- An optional chain that went on after a call that runs an Effect, such as `box?.read().value`, crashed with a `TypeError` when `box` was absent, and an optional call such as `codec.parse?.(input())` could run its arguments when skipped. The rest of the chain is now skipped, arguments included.
 
 #### Runtime
 

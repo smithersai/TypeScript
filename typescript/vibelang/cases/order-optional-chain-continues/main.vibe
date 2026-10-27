@@ -1,0 +1,34 @@
+// expect-result: {"absent":null,"present":5,"element":null,"present element":6,"call":null,"present call":3}
+// A ?. skips the rest of its chain when the value before it is absent
+// (chapter 13), also when the chain continues after a call that runs an
+// Effect: the access after the call is skipped too.
+class Box {
+  size = 5
+  read() {
+    Effect.yieldNow()
+    return { value: this.size, items: [this.size + 1] }
+  }
+}
+
+function value(box: Box | undefined) {
+  return box?.read().value ?? null
+}
+
+function element(box: Box | undefined) {
+  return box?.read().items[0] ?? null
+}
+
+function call(make: (() => { value: number }!!) | undefined) {
+  return make?.().value ?? null
+}
+
+export function main() {
+  return {
+    absent: value(undefined),
+    present: value(new Box()),
+    element: element(undefined),
+    "present element": element(new Box()),
+    call: call(undefined),
+    "present call": call(() => ({ value: 3 }))
+  }
+}

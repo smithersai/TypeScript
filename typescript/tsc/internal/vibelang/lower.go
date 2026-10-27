@@ -66,6 +66,10 @@ type lowering struct {
 
 	// fresh names the bindings the lowering introduces (hygiene.go).
 	fresh freshNames
+
+	// chainGuards holds the ?. links of optional chains that a test before
+	// the chain covers (chains_lower.go).
+	chainGuards map[*ast.Node]*chainGuard
 }
 
 func newLowering(opts *transformers.TransformOptions, file *ast.SourceFile) *transformers.Transformer {
@@ -158,6 +162,9 @@ func (tx *lowering) visitSource(node *ast.Node) *ast.Node {
 }
 
 func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
+	if link := tx.guardedLink(node); link != nil {
+		return tx.visitGuardedChain(node, link) // a ?. before a yield (chains_lower.go)
+	}
 	switch {
 	case tx.plan.fieldlessErrorConstructors[node]:
 		f := tx.Factory()
@@ -180,6 +187,8 @@ func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 		result := f.UpdateConstructorDeclaration(node.AsConstructorDeclaration(), node.Modifiers(), nil, node.AsConstructorDeclaration().Parameters, nil, nil, f.NewBlock(f.NewNodeList(statements), true))
 		tx.EmitContext().SetOriginal(result, node)
 		return result
+	case tx.chainGuards[node] != nil:
+		return tx.visitGuardedLink(node)
 	case tx.plan.unreachable[node]:
 		return nil // the $noMatch of a match D209 proves exhaustive (D294, match_lower.go)
 	case tx.plan.untested[node]:
@@ -577,10 +586,11 @@ func (tx *lowering) visitRunningCall(node *ast.Node) *ast.Node {
 	} else {
 		call = tx.Visitor().VisitEachChild(node)
 	}
-	if ast.IsOptionalChain(node) {
+	if tx.unguardedOptional(node) {
 		// Keep the native chain intact: it preserves the receiver and skips
 		// arguments when absent. Run its present Effect exactly once, and lift
-		// the absent branch to a successful undefined for yield*.
+		// the absent branch to a successful undefined for yield*. A chain
+		// that continues after the call is tested before it (chains_lower.go).
 		f := tx.Factory()
 		absent := f.NewCallExpression(f.NewPropertyAccessExpression(tx.effectName(), nil, f.NewIdentifier("succeed"), ast.NodeFlagsNone), nil, nil, f.NewNodeList([]*ast.Node{f.NewVoidExpression(f.NewNumericLiteral("0", ast.TokenFlagsNone))}), ast.NodeFlagsNone)
 		call = f.NewBinaryExpression(nil, call, nil, f.NewToken(ast.KindQuestionQuestionToken), absent)
