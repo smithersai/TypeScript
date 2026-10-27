@@ -19,9 +19,9 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,113 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,705 |
-| The skill and the user guide (134 pages) | 244,232 |
-| The user guide alone | 239,119 |
-| The specification (33 chapters) | 166,026 |
+| The skill and the user guide (134 pages) | 244,381 |
+| The user guide alone | 239,268 |
+| The specification (33 chapters) | 166,277 |
 | The decision log, `docs/design/DECISIONS.md` | 107,223 |
 
 ## Effect TypeScript beside VibeLang
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **23,478** |
-| [Release notes](../setup/release-notes.md) | 23,478 |
-| **All 15 pages** | **42,624** |
+| **Upgrade** | **23,547** |
+| [Release notes](../setup/release-notes.md) | 23,547 |
+| **All 15 pages** | **42,693** |
 
 ### Guides
 
@@ -259,13 +259,13 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | Page | Tokens |
 | --- | ---: |
 | [Control operations and handlers](111-control-operations-and-handlers.md) | 2,027 |
-| [Producers](112-producers.md) | 1,307 |
+| [Producers](112-producers.md) | 1,387 |
 | [Building an HTTP API](113-building-an-http-api.md) | 1,375 |
 | [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,755 |
 | [Cheat sheet](115-cheat-sheet.md) | 9,592 |
 | [Pattern matching with match and is](116-match-and-is.md) | 3,753 |
 | [Experimental platform APIs](118-experimental-platform-apis.md) | 3,219 |
-| **All 7 pages** | **26,028** |
+| **All 7 pages** | **26,108** |
 
 ### Specification
 
@@ -291,18 +291,18 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [15. Which functions compile to plain JavaScript](../../../design/src/215-part2-ch15-direct.md) | 2,961 |
 | [16. Callbacks and higher-order functions](../../../design/src/216-part2-ch16-callbacks.md) | 1,958 |
 | [17. Failures, defects, interruption, and cleanup](../../../design/src/217-part2-ch17-failures.md) | 5,027 |
-| **Part III. The runtime** | **25,346** |
+| **Part III. The runtime** | **25,582** |
 | [18. Why a continuation runtime](../../../design/src/318-part3-ch18-why.md) | 2,258 |
 | [19. The checkout trace, step by step](../../../design/src/319-part3-ch19-trace.md) | 1,583 |
 | [20. The machine](../../../design/src/320-part3-ch20-machine.md) | 3,677 |
 | [21. One-shot ownership and races](../../../design/src/321-part3-ch21-ownership.md) | 1,935 |
 | [22. What resume restores](../../../design/src/322-part3-ch22-restore.md) | 1,478 |
 | [23. Boundaries and finalization](../../../design/src/323-part3-ch23-boundaries.md) | 2,028 |
-| [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 4,339 |
+| [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 4,364 |
 | [25. Implementation strategies and costs](../../../design/src/325-part3-ch25-strategies.md) | 1,946 |
-| [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 6,102 |
-| **Part IV. The compiler** | **18,010** |
-| [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 4,078 |
+| [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 6,313 |
+| **Part IV. The compiler** | **18,025** |
+| [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 4,093 |
 | [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 13,932 |
 | **Part V. Decisions** | **26,462** |
 | [29. Decisions](../../../design/src/529-part5-ch29-decisions.md) | 21,089 |
@@ -310,6 +310,6 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Appendices** | **18,900** |
 | [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 10,397 |
 | [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,503 |
-| **All 33 pages** | **166,026** |
+| **All 33 pages** | **166,277** |
 
 <!-- token-counts: end -->

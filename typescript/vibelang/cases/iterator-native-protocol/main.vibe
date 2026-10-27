@@ -1,0 +1,79 @@
+import { events, values, reference } from "./helper.js"
+
+function boom(): number!string! { throw "boom" }
+function choose(): number!! { sync(() => {}); return 7 }
+
+function nested() {
+  try {
+    const { items: [[n = boom()]] } = { items: values("outer", [values("inner", [undefined])]) }
+    events.push("unreachable:" + n)
+  } catch { events.push("caught") }
+  return events.splice(0)
+}
+
+function loopTarget() {
+  let target = [0]
+  try { for (target[boom()] of values("loop-target", [1])) events.push("unreachable") }
+  catch { events.push("caught") }
+  return events.splice(0)
+}
+
+function target() {
+  let target = [0]
+  try { [target[boom()]] = values("target", [1]); events.push("unreachable") }
+  catch { events.push("caught") }
+  return events.splice(0)
+}
+
+function restTarget() {
+  let target: number[][] = []
+  try { [...target[boom()]] = values("rest", [1, 2]); events.push("unreachable") }
+  catch { events.push("caught") }
+  return events.splice(0)
+}
+
+function elision() {
+  const [, n = choose(), ...rest] = values("elision", [1, undefined, 3, 4])
+  events.push(String(n) + ":" + rest.join(","))
+  return events.splice(0)
+}
+
+function captures() {
+  const input: [number | undefined, (() => number) | undefined, ...number[]] = [undefined, undefined, 3, 4]
+  let [n = choose(), read = () => n, ...rest] = input
+  n++
+  return [read(), rest]
+}
+
+class Reader {
+  prefix = 10
+  read(arg: number) {
+    const [n = choose()] = values("method", [undefined])
+    return n + this.prefix + arguments[0]
+  }
+}
+
+function* producer() {
+  const [n = choose()] = values("producer", [undefined])
+  yield n
+}
+
+function recursive(depth: number): number!! {
+  const [n = choose()] = values("recursive", [undefined])
+  return depth === 0 ? n : recursive(depth - 1)
+}
+
+// expect-result: {"same":true,"capture":[8,[3,4]],"method":19,"arrow":7,"byName":7,"producer":[7],"recursive":7}
+export function main() {
+  const expected = reference()
+  const actual = [nested(), loopTarget(), target(), restTarget(), elision()]
+  const same = JSON.stringify(actual) === JSON.stringify(expected)
+  const capture = captures()
+  const method = new Reader().read(2)
+  const arrow = (() => { const [n = choose()] = values("arrow", [undefined]); return n })()
+  const byName = retry(() => { const [n = choose()] = values("byName", [undefined]); return n }, { times: 0 })
+  const produced: number[] = []
+  for (const n of producer()) produced.push(n)
+  const recursion = recursive(1)
+  return { same, capture, method, arrow, byName, producer: produced, recursive: recursion }
+}

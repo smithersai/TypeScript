@@ -15,6 +15,7 @@ export { $Context, $control, $reference, $service, Control, wire } from "./servi
 export type { ReferenceKey, ServiceKey } from "./services.js"
 export * from "./handlers.js"
 export * from "./producers.js"
+export { $iteratorFrame } from "./iterators.js"
 export * from "./boundaries.js"
 export * from "./hatches.js"
 export * from "./fibers.js"

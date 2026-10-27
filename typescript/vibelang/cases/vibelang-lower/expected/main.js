@@ -20,7 +20,7 @@ function greet(arg_1) {
 // generator.
 const shout = (text) => Effect_1.suspend({ shout: () => { return Console.log(text.toUpperCase()); } }.shout);
 export function main() {
-    return Effect_1.fnUntraced(function* main() {
+    return Effect_1.fnUntraced(runtime.$iteratorFrame(function* main() {
         for (const id of [0, 1]) {
             const length = yield* greet(`user ${id}`); // a .vibe Effect: runs
             yield* Console.log(`greeted with ${length} letters`);
@@ -35,6 +35,6 @@ export function main() {
         // findName returns Effect<string>, so the call runs it and name is a string.
         const name = yield* findName(2);
         yield* Console.log(`found ${name.toUpperCase()}`);
-    }).apply(this, arguments);
+    })).apply(this, arguments);
 }
 runtime.$entry(import.meta.main, import.meta.url, main, () => runtime.$runMain(main()));

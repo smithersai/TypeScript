@@ -170,7 +170,8 @@ JavaScript value. Decisions are in [`docs/design/DECISIONS.md`](../../docs/desig
 | `$produce` | Turn a generated producer body into a cold `Stream` that hands over one element per pull | D26 |
 | `$yield` | Perform the built-in yield operation | D26 |
 | `$yieldAll` | Yield every element of another producer, a Stream, or an iterable (`yield*`) | D26 |
-| `$forOf` | Iterate a producer under a `Yield` handler, or pull a Stream, and lower loop completion records | D18, D26 |
+| `$forOf` | Iterate a producer under a `Yield` handler, pull a Stream, or iterate a JavaScript iterable with IteratorClose, and lower loop completion records | D18, D26 |
+| `$iteratorFrame` | Internal compiler adapter: unwind the native loops and array destructuring of an abandoned generator so JavaScript runs IteratorClose; a throwing `return()` is a defect beside the original cause | D26, D305 |
 | `$forStream`, `$toStream` | Kept for the prototype compiler's output: `$forOf`, and the identity | D26 |
 | `trusted` | Wrap a synchronous implementation with a value-level expected-failure contract | D249 |
 | `$trusted` | Run a trusted call: an instance of a listed class is an expected failure, any other exception a defect | D5, D23 |

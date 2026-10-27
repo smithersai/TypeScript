@@ -282,10 +282,11 @@ func (p *producerPlan) planProducer(c *checker.Checker, fn *ast.Node) {
 // not a Stream in an Effect body, must close its iterator itself. JavaScript's
 // for...of calls the iterator's return() on every abrupt exit, but Effect
 // abandons a generator at a failed or interrupted yield* without calling its
-// return(), so the loop's own iterator would stay open. A loop whose body can
+// return(), so the loop's own iterator needs Effect ownership. A loop whose body can
 // pause or fail runs through $forOf instead, which closes the iterator on
-// every exit that does not finish it, as JavaScript does. The iterators of an
-// array or a string have no return(), so a loop over one stays JavaScript's.
+// every exit that does not finish it, as JavaScript does. A loop this leaves
+// native is protected by protectIteratorFrames (iterators_lower.go), which
+// covers an array with its own iterator and a binding that pauses.
 func isClosingLoop(c *checker.Checker, statement *ast.Node) bool {
 	loop := statement.AsForInOrOfStatement()
 	if loop.AwaitModifier != nil || !inLowerableBody(statement) || isStreamLoop(c, statement) {

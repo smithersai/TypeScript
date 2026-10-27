@@ -97,7 +97,9 @@ function sumStream() {
 // Output: 6
 ```
 
-`for...of` pulls an Effect Stream and closes it when the loop exits, including on `break`. Arrays, maps, sets, and strings iterate as in JavaScript. As in JavaScript, a loop that exits early calls its iterator's `return()`, also when the body fails or the fiber is interrupted.
+`for...of` pulls an Effect Stream and closes it when the loop exits, including on `break`. Arrays, maps, sets, and strings iterate as in JavaScript. As in JavaScript, a loop that exits early calls its iterator's `return()`, also when a binding default or the body fails, or the fiber is interrupted, and also for an array with its own iterator: a type annotation does not change cleanup.
+
+Array destructuring follows the same protocol: a default that fails or is interrupted closes every live iterator, innermost pattern first, before recovery. An exhausted iterator is not closed again. A `return()` that throws is a defect beside the original failure, as any cleanup failure is.
 
 Use `for (const value of source)` for producers, or `for (using value of source)` when each element needs disposal at the end of its iteration. On early exit the element is disposed before the producer closes. `Array.from(source)` is not a Stream consumer; `Stream.runCollect(source)` collects all the elements into an array.
 

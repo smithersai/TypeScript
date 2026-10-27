@@ -99,6 +99,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - Using provide in an expression could produce unrelated parser errors. The diagnostic now explains that provide is a statement.
 - Wide failure, service and match lists could overwhelm diagnostic messages. Each list now shows at most ten members and counts the rest.
 - An unsupported Effect installation could be reported as missing. EK1011 now names the resolved version and the required installation.
+- A `for...of` whose binding default failed, a `for...of` over an array with its own iterator, and an array destructuring whose default failed left the iterator open: its `return()` never ran. Every live iterator is now closed as JavaScript closes it, innermost first, before the failure is reported.
 - Explicitly empty service keys could be missed. A `service Empty {}` key is now recognized.
 - Imports from paths containing spaces, `#`, `?` or percent signs could fail at runtime. Generated imports now escape those characters.
 - Deeply nested arrow functions could take a long time to check. Effect return inference now shares the guarded type lookup.

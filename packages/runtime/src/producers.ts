@@ -2,6 +2,7 @@ import { Cause, Channel, Deferred, Effect, Exit, Pull, Stream } from "effect"
 import type { NonEmptyReadonlyArray } from "effect/Array"
 import * as K from "./kernel/kernel.js"
 import { $normal } from "./regions.js"
+import { $iteratorFrame } from "./iterators.js"
 
 // ---------------------------------------------------------------------------
 // Producers (D26, design chapters 8 and 26)
@@ -110,37 +111,16 @@ export function $forOf(
       }
     }))
   }
-  return Effect.suspend(() => {
-    const iterator = (iterable as Iterable<unknown>)[Symbol.iterator]()
-    const advance = iterator.next
-    let done = false
-    // Effect discards its generator frame on failure or abandonment without
-    // calling return(), so JavaScript's for-of cannot own iterator cleanup.
-    return Effect.onExit(Effect.gen(function*() {
-      while (true) {
-        // As in a JavaScript loop, a throwing next() does not close itself.
-        done = true
-        const step = Reflect.apply(advance, iterator, [])
-        if (step === null || (typeof step !== "object" && typeof step !== "function")) throw new TypeError("Iterator result is not an object")
-        if (step.done) return $normal
-        const value = step.value
-        done = false
-        const c = yield* body(value)
-        if (!next(c)) return exit(c)
-      }
-    }), () => Effect.sync(() => {
-      if (!done) {
-        done = true
-        const close = iterator.return
-        if (close != null) {
-          const result = Reflect.apply(close, iterator, [])
-          if (result === null || (typeof result !== "object" && typeof result !== "function")) {
-            throw new TypeError("Iterator return result is not an object")
-          }
-        }
-      }
-    }))
-  })
+  // Native iteration owns the iterator protocol. The frame adapter unwinds it
+  // when the body fails or the fiber is interrupted, and a return() that
+  // throws is a defect beside that cause (D305).
+  return Effect.gen($iteratorFrame(function*() {
+    for (const value of iterable as Iterable<unknown>) {
+      const c = yield* body(value)
+      if (!next(c)) return exit(c)
+    }
+    return $normal
+  }))
 }
 
 /**

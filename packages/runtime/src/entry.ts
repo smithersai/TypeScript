@@ -41,6 +41,7 @@ export const {
   $is,
   $isFailure,
   $isRun,
+  $iteratorFrame,
   $join,
   $noFailure,
   $noMatch,
