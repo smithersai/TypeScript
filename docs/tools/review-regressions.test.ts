@@ -27,3 +27,10 @@ test("module-block onboarding enables Node declarations explicitly", () => {
   expect(moduleSection).toMatch(/"types": \["node"\]/)
   expect(extract(moduleSection).find(block => block.source.includes('from "node:fs"'))?.source).toContain("// types: node")
 })
+
+test("process exit replacements clarify status codes beside the compiler-backed table", () => {
+  const page = read("docs/user/src/platform/platform-globals.md")
+  const note = page.split("A numeric return value")[1]?.split("## The replacements at work")[0] || ""
+  expect(note).toMatch(/return 3.*still exits 0/)
+  expect(note).toMatch(/Return normally for exit 0,[\s\S]*fail for exit 1,[\s\S]*interrupt for exit 130/)
+})

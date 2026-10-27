@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,002 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,416 |
-| The skill and the user guide (134 pages) | 236,024 |
-| The user guide alone | 231,022 |
+| The skill and the user guide (134 pages) | 236,075 |
+| The user guide alone | 231,073 |
 | The specification (33 chapters) | 108,815 |
 | The decision log, `docs/design/DECISIONS.md` | 70,804 |
 
@@ -243,16 +243,16 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Equivalence](../schema/102-equivalence.md) | 770 |
 | [Formatter](../schema/103-formatter.md) | 541 |
 | [Schema Compilers](../schema/104-compilers.md) | 2,110 |
-| **Platform** | **13,106** |
+| **Platform** | **13,157** |
 | [Introduction](../platform/105-introduction.md) | 2,747 |
 | [FileSystem](../platform/106-file-system.md) | 1,204 |
 | [Path](../platform/107-path.md) | 917 |
 | [PlatformLogger](../platform/108-platformlogger.md) | 752 |
 | [Runtime](../platform/109-runtime.md) | 1,219 |
 | [Terminal](../platform/110-terminal.md) | 1,508 |
-| [Platform globals in VibeLang](../platform/platform-globals.md) | 4,012 |
+| [Platform globals in VibeLang](../platform/platform-globals.md) | 4,063 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **140,305** |
+| **All 100 pages** | **140,356** |
 
 ### VibeLang features
 
