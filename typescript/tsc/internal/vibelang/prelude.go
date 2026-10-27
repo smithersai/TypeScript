@@ -132,7 +132,7 @@ func implicitRuntimeImport(file *ast.SourceFile) []string {
 	}
 	prelude, root, barrels := mayUsePrelude(file)
 	effect, runtime := mayLowerToEffect(file)
-	entry := entryMain(file) != nil
+	entry := entryCandidate(file) != nil
 	var modules []string
 	if prelude || entry || runtime {
 		modules = append(modules, runtimeModule)

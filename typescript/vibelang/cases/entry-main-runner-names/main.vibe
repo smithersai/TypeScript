@@ -1,0 +1,8 @@
+// A method that is spelled like a runner but is not one starts no program,
+// so main still runs when the host starts the module (D135).
+const helper = { runSync: (n: number) => n + 1 }
+const result = helper.runSync(1)
+
+export function main() {
+  Console.log("ran", result)
+}

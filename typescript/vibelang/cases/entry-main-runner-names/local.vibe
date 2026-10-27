@@ -1,0 +1,9 @@
+// A local function named like a prelude runner is not a runner either.
+function runPromise(n: number) {
+  return n
+}
+const started = runPromise(3)
+
+export function main() {
+  Console.log("local runner", started)
+}

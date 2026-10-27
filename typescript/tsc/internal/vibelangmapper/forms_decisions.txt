@@ -1026,6 +1026,7 @@ typescript/vibelang/cases/ek4405-self-contained.fail/main.vibe:28:18 lambda plai
 typescript/vibelang/cases/ek4405-self-contained.fail/main.vibe:29:17 lambda plain table
 typescript/vibelang/cases/ek4405-self-contained.fail/main.vibe:30:18 lambda plain table
 typescript/vibelang/cases/ek4405-self-contained.fail/main.vibe:31:18 lambda plain table
+typescript/vibelang/cases/entry-main-runner-names/main.vibe:3:27 lambda plain fallback
 typescript/vibelang/cases/entry-main-runner-variable/main.vibe:6:35 byname program table
 typescript/vibelang/cases/entry-main-runner/main.vibe:7:12 byname program table
 typescript/vibelang/cases/entry-main-services.fail/runner.vibe:10:19 byname program table

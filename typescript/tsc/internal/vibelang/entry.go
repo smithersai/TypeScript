@@ -28,7 +28,9 @@ import (
 // emitted as CommonJS has no import.meta and passes void 0 for both, as every
 // module of a CommonJS bundle does, which empties it; $entry then asks the
 // host's main module. A module that calls a runner at its top level starts
-// its program itself and gets no entry statement.
+// its program itself and gets no entry statement. A runner is the
+// declaration the call resolves to, not its spelling: helper.runSync(1) on
+// an object of the program's own is not one (startsProgram).
 //
 // The file that exports main names its platform once, with a platform import
 // (D312):
@@ -115,7 +117,7 @@ func platformImport(statement *ast.Node) *entryPlatform {
 	return nil
 }
 
-// entryModules are the modules that file, an entry module, resolves as
+// entryModules are the modules that file, an entry candidate, resolves as
 // implicit imports (implicitRuntimeImport), so the plan can ask which are
 // installed: NodeRuntime's package, and the bundles of the platform it names.
 func entryModules(file *ast.SourceFile) []string {
@@ -126,23 +128,34 @@ func entryModules(file *ast.SourceFile) []string {
 	return modules
 }
 
-// runnerNames are the functions that start a program from a module's top level.
-var runnerNames = map[string]bool{"runMain": true, "runPromise": true, "runFork": true, "runSync": true, "runCallback": true}
-
-// entryMain returns the declaration of file's exported main function with no
-// parameters, or nil when file has none or calls a runner at its top level.
-func entryMain(file *ast.SourceFile) *ast.Node {
+// entryCandidate returns the declaration of file's exported main function
+// with no parameters, or nil. It reads only syntax, so the implicit imports
+// can use it; a candidate whose module starts its program itself still
+// resolves the modules an entry would use, which loads them and nothing more.
+func entryCandidate(file *ast.SourceFile) *ast.Node {
 	if !isVibeLangFile(file) {
 		return nil
 	}
 	var main *ast.Node
 	for _, statement := range file.Statements.Nodes {
-		switch {
-		case statement.Kind == ast.KindFunctionDeclaration && statement.Name() != nil && statement.Name().Text() == "main" &&
+		if statement.Kind == ast.KindFunctionDeclaration && statement.Name() != nil && statement.Name().Text() == "main" &&
 			ast.HasSyntacticModifier(statement, ast.ModifierFlagsExport) && !ast.HasSyntacticModifier(statement, ast.ModifierFlagsDefault) &&
-			len(statement.Parameters()) == 0 && statement.Body() != nil:
+			len(statement.Parameters()) == 0 && statement.Body() != nil {
 			main = statement
-		case containsTopLevelRunner(statement):
+		}
+	}
+	return main
+}
+
+// entryMain returns file's entry candidate, or nil when file has none or
+// starts a program at its top level by calling a runner.
+func entryMain(c *checker.Checker, file *ast.SourceFile) *ast.Node {
+	main := entryCandidate(file)
+	if main == nil {
+		return nil
+	}
+	for _, statement := range file.Statements.Nodes {
+		if containsTopLevelRunner(c, statement) {
 			return nil
 		}
 	}
@@ -152,28 +165,40 @@ func entryMain(file *ast.SourceFile) *ast.Node {
 // containsTopLevelRunner finds runner calls in expressions and initializers
 // that execute during module evaluation, without descending into delayed
 // function bodies or instance field initializers.
-func containsTopLevelRunner(node *ast.Node) bool {
+func containsTopLevelRunner(c *checker.Checker, node *ast.Node) bool {
 	if ast.IsFunctionLike(node) {
 		return false
 	}
 	if node.Kind == ast.KindPropertyDeclaration && !ast.HasSyntacticModifier(node, ast.ModifierFlagsStatic) {
 		return false
 	}
-	return callsRunner(node) || node.ForEachChild(containsTopLevelRunner)
+	return startsProgram(c, node) || node.ForEachChild(func(child *ast.Node) bool { return containsTopLevelRunner(c, child) })
 }
 
-// callsRunner reports whether expression calls a runner, such as
-// NodeRuntime.runMain(…) or runPromise(…).
-func callsRunner(expression *ast.Node) bool {
+// startsProgram reports whether expression calls a runner that starts a
+// program, by the declaration the call resolves to: a runner of Effect's or
+// a platform's (runnerOf), such as Effect.runPromise, the prelude's
+// runPromise or NodeRuntime.runMain; the runtime's runMain; or a runner that
+// effect's Runtime.makeRunMain made. A method or function of the program's
+// own named runSync or runMain is not one.
+func startsProgram(c *checker.Checker, expression *ast.Node) bool {
 	expression = ast.SkipParentheses(expression)
 	if !ast.IsCallExpression(expression) {
 		return false
 	}
-	switch callee := expression.Expression(); {
-	case ast.IsIdentifier(callee):
-		return runnerNames[callee.Text()]
-	case ast.IsPropertyAccessExpression(callee):
-		return runnerNames[callee.Name().Text()]
+	if runnerOf(c, expression) == programRunner {
+		return true
+	}
+	d, ok := calleeIdentity(c, expression)
+	switch {
+	case !ok:
+		return false
+	case d.pkg == runtimeModule:
+		return d.name == "runMain" || d.name == "$runMain"
+	case d.pkg == "effect" && d.module == "Runtime" && d.name == "makeRunMain":
+		// Runtime.makeRunMain(f) makes a runner and starts nothing; calling
+		// the runner, whose signature the declared type returns, starts one.
+		return signatureDeclaration(c, expression).Parent != d.owner
 	}
 	return false
 }
@@ -190,7 +215,7 @@ type entryPlan struct {
 // an implicit import (implicitRuntimeImport), so the plan can ask whether it
 // resolved.
 func planEntry(c *checker.Checker, file *ast.SourceFile) *entryPlan {
-	main := entryMain(file)
+	main := entryMain(c, file)
 	if main == nil {
 		return nil
 	}

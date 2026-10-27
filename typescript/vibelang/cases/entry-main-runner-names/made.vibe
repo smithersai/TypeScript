@@ -1,0 +1,9 @@
+// A runner that Runtime.makeRunMain made is a runner: the module starts its
+// program itself, so main runs once.
+import { runMain } from "./runner.ts"
+
+export function main() {
+  Console.log("made runner ran once")
+}
+
+runMain(main())
