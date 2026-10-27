@@ -65,6 +65,9 @@
 					"include": "#vibelang-for-concurrent"
 				},
 				{
+					"include": "#vibelang-interruption"
+				},
+				{
 					"include": "#vibelang-fork"
 				},
 				{
@@ -6129,6 +6132,14 @@
 					"name": "punctuation.accessor.ts"
 				},
 				"3": {
+					"name": "keyword.control.flow.ts"
+				}
+			}
+		},
+		"vibelang-interruption": {
+			"match": "(?<![_$[:alnum:].])(uninterruptible|interruptible|restore)(?=[ \t]*\\{)",
+			"captures": {
+				"1": {
 					"name": "keyword.control.flow.ts"
 				}
 			}

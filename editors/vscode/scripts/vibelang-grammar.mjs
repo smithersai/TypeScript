@@ -150,6 +150,11 @@ export function addVibeLangSyntax(grammar) {
       3: { name: "keyword.control.flow.ts" }
     }
   }
+  // Interruption forms are blocks; the same words remain ordinary identifiers.
+  repository["vibelang-interruption"] = {
+    match: "(?<![_$[:alnum:].])(uninterruptible|interruptible|restore)(?=[ \t]*\\{)",
+    captures: { 1: { name: "keyword.control.flow.ts" } }
+  }
   // provide Layer { ... } (D130, D172): the keyword at the start of a statement.
   repository["vibelang-provide"] = {
     match: "^\\s*(provide)(?=\\s+[_$[:alpha:]\\[])",
@@ -217,7 +222,7 @@ export function addVibeLangSyntax(grammar) {
     match: `(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))\\b(import)\\s+${specifier}`,
     captures: { 1: { name: "keyword.control.import.ts" }, 2: { name: "entity.name.type.module.ts" } }
   }
-  const vibelangIncludes = ["#vibelang-module-import", "#vibelang-error-declaration", "#vibelang-data-declaration", "#vibelang-schema-alias", "#vibelang-type-declaration", "#vibelang-member-declaration", "#vibelang-layer-declaration", "#vibelang-handle-clause", "#vibelang-provide", "#vibelang-for-concurrent", "#vibelang-fork", "#vibelang-join"]
+  const vibelangIncludes = ["#vibelang-module-import", "#vibelang-error-declaration", "#vibelang-data-declaration", "#vibelang-schema-alias", "#vibelang-type-declaration", "#vibelang-member-declaration", "#vibelang-layer-declaration", "#vibelang-handle-clause", "#vibelang-provide", "#vibelang-for-concurrent", "#vibelang-interruption", "#vibelang-fork", "#vibelang-join"]
   const statements = repository.statements.patterns.filter((pattern) => !vibelangIncludes.includes(pattern.include))
   repository.statements.patterns = [...vibelangIncludes.map((include) => ({ include })), ...statements]
   const vibelangExpressions = ["#vibelang-await-operation", "#vibelang-fork", "#vibelang-join", "#vibelang-match", "#vibelang-catch-expression"]

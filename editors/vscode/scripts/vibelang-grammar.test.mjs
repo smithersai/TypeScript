@@ -26,3 +26,12 @@ test("join remains an identifier before TypeScript assertions and operators", ()
   assert.equal(keyword("export const hit = join fiber;", "join"), true)
   assert.equal(keyword("export const hit = join assigned;", "join"), true)
 })
+
+test("interruption blocks have contextual keyword scopes", () => {
+  const source = "export function f() { uninterruptible { restore { } } interruptible { } }"
+  for (const word of ["uninterruptible", "restore", "interruptible"]) {
+    assert.equal(keyword(source, word), true, word)
+    assert.equal(keyword(`export const x = ${word} + 1;`, word), false, word)
+    assert.equal(keyword(`export const x = obj.${word};`, word), false, word)
+  }
+})
