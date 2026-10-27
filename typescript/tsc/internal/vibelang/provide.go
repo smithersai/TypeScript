@@ -35,7 +35,7 @@ import (
 // still compiles and draws the warning EK1009, whose quick fix writes provide.
 
 func init() {
-	fileChecks = append(fileChecks, checkProvideBlocks, checkProvideSpelling)
+	fileChecks = append(fileChecks, checkProvideBlocks, checkProvideProviders, checkProvideSpelling)
 	ls.RegisterCodeFixProvider(provideSpellingFix)
 	ls.RegisterQuickInfoHook(providerQuickInfo)
 }
@@ -276,6 +276,36 @@ func checkProvideBlocks(c *checker.Checker, file *ast.SourceFile) {
 		}
 		if isProvideBlock(n) {
 			report(c, n.AsBlock().Statements.Nodes[0], EK1001.With("This provide block runs a program, but a module's top level is not inside one."))
+		}
+		return n.ForEachChild(visit)
+	}
+	file.AsNode().ForEachChild(visit)
+}
+
+// checkProvideProviders checks the provider expression with Effect.provide's
+// ordinary overloads. Its curried form checks the same providers without moving
+// the block's statements into a function, where return, break and continue
+// would have different targets. Keep the original argument nodes so TypeScript
+// checks array literals element by element and reports errors at the providers.
+func checkProvideProviders(c *checker.Checker, file *ast.SourceFile) {
+	module := effectModuleNamespace(c, file, "Effect")
+	if module == nil {
+		return
+	}
+	provide := c.GetTypeOfPropertyOfType(c.GetTypeOfSymbol(module), "provide")
+	if provide == nil {
+		return
+	}
+	f := ast.NewNodeFactory(ast.NodeFactoryHooks{})
+	var visit func(n *ast.Node) bool
+	visit = func(n *ast.Node) bool {
+		if isProvideBlock(n) {
+			layer := provideLayer(n)
+			callee := f.NewSyntheticExpression(provide, false /*isSpread*/, nil /*tupleNameSource*/)
+			call := f.NewCallExpression(callee, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{layer}), ast.NodeFlagsNone)
+			call.Loc, call.Parent = layer.Loc, layer.Parent
+			callee.Loc, callee.Parent = layer.Loc, call
+			c.GetTypeOfExpressionBeforeWidening(call)
 		}
 		return n.ForEachChild(visit)
 	}

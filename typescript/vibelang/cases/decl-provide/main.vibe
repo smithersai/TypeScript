@@ -1,4 +1,4 @@
-// expect-result: {"greeting":"Hello, Ada","early":"early","count":2,"both":"Ada 1"}
+// expect-result: {"greeting":"Hello, Ada","early":"early","count":2,"both":"Ada 1","context":"Context"}
 error NotFound { id: string }
 
 service Names {
@@ -58,6 +58,14 @@ function both(): string!NotFound! {
   }
 }
 
+// A Context provides its services just as Effect.provide does.
+function context(): string!NotFound! {
+  const names = Context.make(Names, { name: () => "Context" })
+  provide names {
+    return Names.name("42")
+  }
+}
+
 export function main() {
-  return { greeting: greeting("42"), early: early(), count: counted(), both: both() }
+  return { greeting: greeting("42"), early: early(), count: counted(), both: both(), context: context() }
 }
