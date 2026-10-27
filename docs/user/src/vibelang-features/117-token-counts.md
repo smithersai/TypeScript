@@ -17,10 +17,10 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 
 | Load | Tokens |
 | --- | ---: |
-| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,064 |
-| The skill and the [cheat sheet](115-cheat-sheet.md) | 14,599 |
-| The skill and the user guide (134 pages) | 241,209 |
-| The user guide alone | 236,145 |
+| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,113 |
+| The skill and the [cheat sheet](115-cheat-sheet.md) | 14,648 |
+| The skill and the user guide (134 pages) | 241,338 |
+| The user guide alone | 236,225 |
 | The specification (33 chapters) | 145,028 |
 | The decision log, `docs/design/DECISIONS.md` | 92,744 |
 
@@ -136,8 +136,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | Page | Tokens |
 | --- | ---: |
 | [Getting Started](../013-getting-started.md) | 1,087 |
-| **Error Management** | **13,319** |
-| [Expected Errors](../error-management/014-expected-errors.md) | 4,121 |
+| **Error Management** | **13,399** |
+| [Expected Errors](../error-management/014-expected-errors.md) | 4,201 |
 | [Unexpected Errors](../error-management/015-unexpected-errors.md) | 1,300 |
 | [Fallback](../error-management/016-fallback.md) | 1,009 |
 | [Matching](../error-management/017-matching.md) | 760 |
@@ -252,7 +252,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Terminal](../platform/110-terminal.md) | 1,508 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 4,107 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **140,881** |
+| **All 100 pages** | **140,961** |
 
 ### VibeLang features
 
