@@ -134,7 +134,7 @@ export function addVibeLangSyntax(grammar) {
   }
   // The fiber forms (D166, D169, D196, D225): fork operand, join operand, await.all [...] and the other await operations, for concurrent (...).
   repository["vibelang-fork"] = {
-    match: "(?<![_$[:alnum:]])(fork)\\s+(?=[_$[:alpha:]{]|this\\b|new\\b|await\\b)",
+    match: "(?<![_$[:alnum:]])(fork)\\s+(?!(?:in|instanceof|as|satisfies)\\b)(?=[_$[:alpha:]{]|this\\b|new\\b|await\\b)",
     captures: { 1: { name: "keyword.control.flow.ts" } }
   }
   // join operand (D225): join a fiber, or an array or object of fibers. join( stays a call.

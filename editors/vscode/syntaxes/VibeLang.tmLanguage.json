@@ -5810,6 +5810,61 @@
 				}
 			]
 		},
+		"vibelang-schema-alias": {
+			"name": "meta.type.declaration.ts",
+			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexport)\\s+)?\\b(schema)\\s+([_$[:alpha:]][_$[:alnum:]]*)(?=\\s*=)\\s*",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.export.ts"
+				},
+				"2": {
+					"name": "storage.type.type.ts"
+				},
+				"3": {
+					"name": "entity.name.type.alias.ts"
+				}
+			},
+			"end": "(?=\\}|;|^\\s*$|(?:^\\s*(?:error|service|control|schema|layer|abstract|async|(?:\\bawait\\s+(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)\\b)|break|case|catch|class|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)|var|while)\\b))",
+			"patterns": [
+				{
+					"include": "#comment"
+				},
+				{
+					"include": "#type-parameters"
+				},
+				{
+					"begin": "(=)\\s*(intrinsic)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))",
+					"beginCaptures": {
+						"1": {
+							"name": "keyword.operator.assignment.ts"
+						},
+						"2": {
+							"name": "keyword.control.intrinsic.ts"
+						}
+					},
+					"end": "(?=\\}|;|^\\s*$|(?:^\\s*(?:error|service|control|schema|layer|abstract|async|(?:\\bawait\\s+(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)\\b)|break|case|catch|class|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)|var|while)\\b))",
+					"patterns": [
+						{
+							"include": "#type"
+						}
+					]
+				},
+				{
+					"begin": "(=)\\s*",
+					"beginCaptures": {
+						"1": {
+							"name": "keyword.operator.assignment.ts"
+						}
+					},
+					"end": "(?=\\}|;|^\\s*$|(?:^\\s*(?:error|service|control|schema|layer|abstract|async|(?:\\bawait\\s+(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)\\b)|break|case|catch|class|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)|var|while)\\b))",
+					"patterns": [
+						{
+							"include": "#type"
+						}
+					]
+				}
+			]
+		},
 		"vibelang-type-declaration": {
 			"name": "meta.class.ts",
 			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexport)\\s+)?\\b(schema)\\s+([_$[:alpha:]][_$[:alnum:]]*)",
@@ -5837,6 +5892,146 @@
 				},
 				{
 					"include": "#type-object"
+				}
+			]
+		},
+		"vibelang-error-declaration": {
+			"name": "meta.class.ts",
+			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexport)\\s+)?(?:(abstract)\\s+)?(?:(schema)\\s+)?\\b(error)\\s+([_$[:alpha:]][_$[:alnum:]]*)",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.export.ts"
+				},
+				"2": {
+					"name": "storage.modifier.ts"
+				},
+				"3": {
+					"name": "storage.type.class.ts"
+				},
+				"4": {
+					"name": "storage.type.class.ts"
+				},
+				"5": {
+					"name": "entity.name.type.class.ts"
+				}
+			},
+			"end": "(?<=\\})|(?<=[_$[:alnum:]>])(?=\\s*(?:$|;|//))",
+			"patterns": [
+				{
+					"include": "#comment"
+				},
+				{
+					"include": "#type-parameters"
+				},
+				{
+					"include": "#vibelang-error-heritage"
+				},
+				{
+					"include": "#class-or-interface-body"
+				}
+			]
+		},
+		"vibelang-error-heritage": {
+			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:\\b(extends|implements)\\b)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))",
+			"beginCaptures": {
+				"1": {
+					"name": "storage.modifier.ts"
+				}
+			},
+			"end": "(?=\\{)|$",
+			"patterns": [
+				{
+					"include": "#comment"
+				},
+				{
+					"include": "#vibelang-error-heritage"
+				},
+				{
+					"include": "#type-parameters"
+				},
+				{
+					"include": "#expressionWithoutIdentifiers"
+				},
+				{
+					"match": "([_$[:alpha:]][_$[:alnum:]]*)\\s*(?:(\\.)|(\\?\\.(?!\\s*[[:digit:]])))(?=\\s*[_$[:alpha:]][_$[:alnum:]]*(\\s*\\??\\.\\s*[_$[:alpha:]][_$[:alnum:]]*)*\\s*)",
+					"captures": {
+						"1": {
+							"name": "entity.name.type.module.ts"
+						},
+						"2": {
+							"name": "punctuation.accessor.ts"
+						},
+						"3": {
+							"name": "punctuation.accessor.optional.ts"
+						}
+					}
+				},
+				{
+					"match": "([_$[:alpha:]][_$[:alnum:]]*)",
+					"captures": {
+						"1": {
+							"name": "entity.other.inherited-class.ts"
+						}
+					}
+				},
+				{
+					"include": "#expressionPunctuations"
+				}
+			]
+		},
+		"vibelang-data-declaration": {
+			"name": "meta.enum.declaration.ts",
+			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexport)\\s+)?\\b(data)\\s+([_$[:alpha:]][_$[:alnum:]]*)(?=\\s*(?:<|\\{|$|//|/\\*))",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.export.ts"
+				},
+				"2": {
+					"name": "storage.type.enum.ts"
+				},
+				"3": {
+					"name": "entity.name.type.enum.ts"
+				}
+			},
+			"end": "(?<=\\})",
+			"patterns": [
+				{
+					"include": "#comment"
+				},
+				{
+					"include": "#type-parameters"
+				},
+				{
+					"begin": "\\{",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.block.ts"
+						}
+					},
+					"end": "\\}",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.block.ts"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#comment"
+						},
+						{
+							"include": "#type-object"
+						},
+						{
+							"match": "[_$[:alpha:]][_$[:alnum:]]*",
+							"name": "variable.other.enummember.ts"
+						},
+						{
+							"include": "#punctuation-comma"
+						},
+						{
+							"include": "#punctuation-semicolon"
+						}
+					]
 				}
 			]
 		},
@@ -5909,7 +6104,7 @@
 			}
 		},
 		"vibelang-fork": {
-			"match": "(?<![_$[:alnum:]])(fork)\\s+(?=[_$[:alpha:]{]|this\\b|new\\b|await\\b)",
+			"match": "(?<![_$[:alnum:]])(fork)\\s+(?!(?:in|instanceof|as|satisfies)\\b)(?=[_$[:alpha:]{]|this\\b|new\\b|await\\b)",
 			"captures": {
 				"1": {
 					"name": "keyword.control.flow.ts"
@@ -6001,145 +6196,6 @@
 				}
 			}
 		},
-		"vibelang-error-declaration": {
-			"name": "meta.class.ts",
-			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexport)\\s+)?(?:(abstract)\\s+)?(?:(schema)\\s+)?\\b(error)\\s+([_$[:alpha:]][_$[:alnum:]]*)",
-			"beginCaptures": {
-				"1": {
-					"name": "keyword.control.export.ts"
-				},
-				"2": {
-					"name": "storage.modifier.ts"
-				},
-				"3": {
-					"name": "storage.type.class.ts"
-				},
-				"4": {
-					"name": "storage.type.class.ts"
-				},
-				"5": {
-					"name": "entity.name.type.class.ts"
-				}
-			},
-			"end": "(?<=\\})|(?<=[_$[:alnum:]>])(?=\\s*(?:$|;|//))",
-			"patterns": [
-				{
-					"include": "#comment"
-				},
-				{
-					"include": "#type-parameters"
-				},
-				{
-					"include": "#vibelang-error-heritage"
-				},
-				{
-					"include": "#class-or-interface-body"
-				}
-			]
-		},
-		"vibelang-error-heritage": {
-			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:\\b(extends|implements)\\b)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))",
-			"beginCaptures": {
-				"1": {
-					"name": "storage.modifier.ts"
-				}
-			},
-			"end": "(?=\\{)|$",
-			"patterns": [
-				{
-					"include": "#comment"
-				},
-				{
-					"include": "#vibelang-error-heritage"
-				},
-				{
-					"include": "#type-parameters"
-				},
-				{
-					"include": "#expressionWithoutIdentifiers"
-				},
-				{
-					"match": "([_$[:alpha:]][_$[:alnum:]]*)\\s*(?:(\\.)|(\\?\\.(?!\\s*[[:digit:]])))(?=\\s*[_$[:alpha:]][_$[:alnum:]]*(\\s*\\??\\.\\s*[_$[:alpha:]][_$[:alnum:]]*)*\\s*)",
-					"captures": {
-						"1": {
-							"name": "entity.name.type.module.ts"
-						},
-						"2": {
-							"name": "punctuation.accessor.ts"
-						},
-						"3": {
-							"name": "punctuation.accessor.optional.ts"
-						}
-					}
-				},
-				{
-					"match": "([_$[:alpha:]][_$[:alnum:]]*)",
-					"captures": {
-						"1": {
-							"name": "entity.other.inherited-class.ts"
-						}
-					}
-				},
-				{
-					"include": "#expressionPunctuations"
-				}
-			]
-		},
-		"vibelang-schema-alias": {
-			"name": "meta.type.declaration.ts",
-			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexport)\\s+)?\\b(schema)\\s+([_$[:alpha:]][_$[:alnum:]]*)(?=\\s*=)\\s*",
-			"beginCaptures": {
-				"1": {
-					"name": "keyword.control.export.ts"
-				},
-				"2": {
-					"name": "storage.type.type.ts"
-				},
-				"3": {
-					"name": "entity.name.type.alias.ts"
-				}
-			},
-			"end": "(?=\\}|;|^\\s*$|(?:^\\s*(?:error|service|control|schema|layer|abstract|async|(?:\\bawait\\s+(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)\\b)|break|case|catch|class|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)|var|while)\\b))",
-			"patterns": [
-				{
-					"include": "#comment"
-				},
-				{
-					"include": "#type-parameters"
-				},
-				{
-					"begin": "(=)\\s*(intrinsic)(?![_$[:alnum:]])(?:(?=\\.\\.\\.)|(?!\\.))",
-					"beginCaptures": {
-						"1": {
-							"name": "keyword.operator.assignment.ts"
-						},
-						"2": {
-							"name": "keyword.control.intrinsic.ts"
-						}
-					},
-					"end": "(?=\\}|;|^\\s*$|(?:^\\s*(?:error|service|control|schema|layer|abstract|async|(?:\\bawait\\s+(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)\\b)|break|case|catch|class|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)|var|while)\\b))",
-					"patterns": [
-						{
-							"include": "#type"
-						}
-					]
-				},
-				{
-					"begin": "(=)\\s*",
-					"beginCaptures": {
-						"1": {
-							"name": "keyword.operator.assignment.ts"
-						}
-					},
-					"end": "(?=\\}|;|^\\s*$|(?:^\\s*(?:error|service|control|schema|layer|abstract|async|(?:\\bawait\\s+(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)\\b)|break|case|catch|class|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\\busing(?=\\s+(?!in\\b|of\\b(?!\\s*(?:of\\b|=)))[_$[:alpha:]])\\b)|var|while)\\b))",
-					"patterns": [
-						{
-							"include": "#type"
-						}
-					]
-				}
-			]
-		},
 		"vibelang-module-declaration": {
 			"name": "meta.namespace.declaration.ts",
 			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexport)\\s+)?\\b(module)\\s+([_$[:alpha:]][_$[:alnum:]]*)(?=\\s*(?:$|\\{|//|/\\*))",
@@ -6200,62 +6256,6 @@
 					"name": "entity.name.type.module.ts"
 				}
 			}
-		},
-		"vibelang-data-declaration": {
-			"name": "meta.enum.declaration.ts",
-			"begin": "(?<![_$[:alnum:]])(?:(?<=\\.\\.\\.)|(?<!\\.))(?:(\\bexport)\\s+)?\\b(data)\\s+([_$[:alpha:]][_$[:alnum:]]*)(?=\\s*(?:<|\\{|$|//|/\\*))",
-			"beginCaptures": {
-				"1": {
-					"name": "keyword.control.export.ts"
-				},
-				"2": {
-					"name": "storage.type.enum.ts"
-				},
-				"3": {
-					"name": "entity.name.type.enum.ts"
-				}
-			},
-			"end": "(?<=\\})",
-			"patterns": [
-				{
-					"include": "#comment"
-				},
-				{
-					"include": "#type-parameters"
-				},
-				{
-					"begin": "\\{",
-					"beginCaptures": {
-						"0": {
-							"name": "punctuation.definition.block.ts"
-						}
-					},
-					"end": "\\}",
-					"endCaptures": {
-						"0": {
-							"name": "punctuation.definition.block.ts"
-						}
-					},
-					"patterns": [
-						{
-							"include": "#comment"
-						},
-						{
-							"include": "#type-object"
-						},
-						{
-							"match": "[_$[:alpha:]][_$[:alnum:]]*",
-							"name": "variable.other.enummember.ts"
-						},
-						{
-							"include": "#punctuation-comma"
-						},
-						{
-							"include": "#punctuation-semicolon"
-						}
-					]
-				}
-			]
 		}
 	}
 }
