@@ -50,7 +50,8 @@ const (
 // implements clause, and no extends clause, and has at least one instance
 // member, every one of them an abstract method or property. With
 // `extends Control` instead of no extends clause, it is a control operation.
-// Static members are allowed. Every other class is ordinary.
+// Static members are allowed. An explicit service or control declaration may
+// have no instance members. Every other class is ordinary.
 func classKindOf(class *ast.Node) classKind {
 	if class == nil || !ast.IsClassDeclaration(class) || class.TypeParameters() != nil {
 		return ordinaryClass
@@ -89,7 +90,7 @@ func shapeKindOf(class *ast.Node) classKind {
 		}
 		instanceMembers++
 	}
-	if instanceMembers == 0 {
+	if instanceMembers == 0 && declarationWord(class) == "" {
 		return ordinaryClass
 	}
 	return kind
