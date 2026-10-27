@@ -50,7 +50,8 @@ const (
 
 // runnerOf reports whether call calls a runner, and which kind: Effect's
 // run functions and their *With forms, ManagedRuntime's run methods,
-// NodeRuntime.runMain and BunRuntime.runMain, and @effect/vitest's it.effect
+// NodeRuntime.runMain, BunRuntime.runMain and BrowserRuntime.runMain, and
+// @effect/vitest's it.effect
 // and it.live with their modifiers, .each, and .prop forms, and layer(…).
 func runnerOf(c *checker.Checker, call *ast.Node) runnerKind {
 	d, ok := calleeIdentity(c, call)
@@ -81,8 +82,8 @@ func runnerOf(c *checker.Checker, call *ast.Node) runnerKind {
 
 // isRootRunner reports whether call calls a runner whose program starts with
 // an empty Context, so the program must need no service (D27): Effect's run
-// functions, but not their *With forms, and NodeRuntime.runMain and
-// BunRuntime.runMain.
+// functions, but not their *With forms, and NodeRuntime.runMain,
+// BunRuntime.runMain and BrowserRuntime.runMain.
 func isRootRunner(c *checker.Checker, call *ast.Node) bool {
 	d, ok := calleeIdentity(c, call)
 	return ok && isRootRunnerIdentity(d)
@@ -92,7 +93,8 @@ func isRootRunnerIdentity(d identity) bool {
 	switch {
 	case d.pkg == "effect" && d.module == "Effect":
 		return d.owner.Kind == ast.KindVariableDeclaration && slices.Contains(effectRootRunners, d.name)
-	case d.pkg == "@effect/platform-node" && d.module == "NodeRuntime", d.pkg == "@effect/platform-bun" && d.module == "BunRuntime":
+	case d.pkg == "@effect/platform-node" && d.module == "NodeRuntime", d.pkg == "@effect/platform-bun" && d.module == "BunRuntime",
+		d.pkg == "@effect/platform-browser" && d.module == "BrowserRuntime":
 		return d.name == "runMain"
 	}
 	return false

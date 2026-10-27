@@ -19,10 +19,10 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 4,941 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,355 |
-| The skill and the user guide (134 pages) | 233,395 |
-| The user guide alone | 228,454 |
+| The skill and the user guide (134 pages) | 233,824 |
+| The user guide alone | 228,883 |
 | The specification (33 chapters) | 108,487 |
-| The decision log, `docs/design/DECISIONS.md` | 70,169 |
+| The decision log, `docs/design/DECISIONS.md` | 70,329 |
 
 ## Effect TypeScript beside VibeLang
 
@@ -96,13 +96,13 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Creating Effects](../getting-started/005-creating-effects.md) | 3,024 |
 | [Two Types of Errors](../error-management/006-two-error-types.md) | 642 |
 | [Basic Concurrency](../concurrency/007-basic-concurrency.md) | 1,441 |
-| **Core Concepts** | **15,799** |
+| **Core Concepts** | **15,887** |
 | [Effect's Modules](../getting-started/008-importing-effect.md) | 2,472 |
-| [Running Effects](../getting-started/009-running-effects.md) | 1,616 |
+| [Running Effects](../getting-started/009-running-effects.md) | 1,704 |
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
 | [Devtools](../getting-started/012-devtools.md) | 8,720 |
-| **All 12 pages** | **27,329** |
+| **All 12 pages** | **27,417** |
 
 ### Setup
 
@@ -243,8 +243,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Equivalence](../schema/102-equivalence.md) | 770 |
 | [Formatter](../schema/103-formatter.md) | 541 |
 | [Schema Compilers](../schema/104-compilers.md) | 2,110 |
-| **Platform** | **12,544** |
-| [Introduction](../platform/105-introduction.md) | 2,187 |
+| **Platform** | **12,885** |
+| [Introduction](../platform/105-introduction.md) | 2,528 |
 | [FileSystem](../platform/106-file-system.md) | 1,204 |
 | [Path](../platform/107-path.md) | 917 |
 | [PlatformLogger](../platform/108-platformlogger.md) | 752 |
@@ -252,7 +252,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Terminal](../platform/110-terminal.md) | 1,508 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 4,010 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **139,743** |
+| **All 100 pages** | **140,084** |
 
 ### VibeLang features
 

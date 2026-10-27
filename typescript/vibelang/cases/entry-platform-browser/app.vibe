@@ -1,0 +1,12 @@
+// The application: main, which needs the experimental Crypto.
+import "vibelang/platform/browser"
+
+function hex(bytes: Uint8Array) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
+}
+
+export function main() {
+  const key = Redacted.make(new TextEncoder().encode("Jefe"))
+  const mac = Experimental.Crypto.hmac("SHA-256", key, new TextEncoder().encode("what do ya want for nothing?"))
+  Console.log(`page main ran ${hex(mac)}`)
+}

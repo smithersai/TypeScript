@@ -20,7 +20,9 @@ import (
 //
 // with NodeRuntime imported from @effect/platform-node when that package
 // resolves from the module, and runtime.$runMain, the runtime's copy of the
-// same runner, otherwise. $entry calls the arrow when the host started the
+// same runner, otherwise. A file that names the browser platform runs main
+// with @effect/platform-browser's BrowserRuntime instead, and imports nothing
+// of Node's. $entry calls the arrow when the host started the
 // module. import.meta.main is true only in that module, so importing the
 // module, from a test or another module, runs nothing. In an ES module bundle
 // made by esbuild, Rollup, Rolldown, or Vite, every module shares the bundle's
@@ -43,7 +45,10 @@ import (
 //	runtime.$entry(import.meta.main, import.meta.url, main, () => NodeRuntime.runMain(Effect.provide(main(), NodeServices.layer)));
 //
 // node names @effect/platform-node's NodeServices, bun @effect/platform-bun's
-// BunServices, and browser @effect/platform-browser's BrowserServices. When
+// BunServices, and browser @effect/platform-browser's BrowserServices. A
+// browser never says which module it started, so in a page $entry runs
+// nothing and the page starts main itself; the browser's runner runs main
+// where a host does say, as Bun does. When
 // main needs a service that only the platform's experimental bundle provides
 // (D313), the entry provides that bundle too, inside Effect's, so its layer
 // may need Effect's services. A bundle provides the services its layer's
@@ -69,19 +74,35 @@ type platformBundle struct {
 	namespace string // the export whose layer the entry provides
 }
 
-// An entryPlatform is a platform that a platform import names, with its
+// An entryPlatform is a platform that a platform import names, with the
+// runtime whose runMain runs main when its package resolves, and its
 // bundles: Effect's, and VibeLang's experimental one, which provides the
 // services Effect lacks (D313).
 type entryPlatform struct {
 	name                 string // the name after platformImportPrefix
+	runtime              platformBundle
 	effect, experimental platformBundle
 }
 
+// nodeRuntime is the runtime of a file that names Node, Bun or no platform
+// (D135).
+var nodeRuntime = platformBundle{platformNodeModule, "NodeRuntime"}
+
 // entryPlatforms are the platforms a platform import can name.
 var entryPlatforms = []entryPlatform{
-	{"node", platformBundle{platformNodeModule, "NodeServices"}, platformBundle{"vibelang-runtime/experimental/platform-node", "NodeServices"}},
-	{"bun", platformBundle{"@effect/platform-bun", "BunServices"}, platformBundle{"vibelang-runtime/experimental/platform-bun", "BunServices"}},
-	{"browser", platformBundle{"@effect/platform-browser", "BrowserServices"}, platformBundle{"vibelang-runtime/experimental/platform-browser", "BrowserServices"}},
+	{"node", nodeRuntime, platformBundle{platformNodeModule, "NodeServices"}, platformBundle{"vibelang-runtime/experimental/platform-node", "NodeServices"}},
+	{"bun", nodeRuntime, platformBundle{"@effect/platform-bun", "BunServices"}, platformBundle{"vibelang-runtime/experimental/platform-bun", "BunServices"}},
+	{"browser", platformBundle{"@effect/platform-browser", "BrowserRuntime"}, platformBundle{"@effect/platform-browser", "BrowserServices"}, platformBundle{"vibelang-runtime/experimental/platform-browser", "BrowserServices"}},
+}
+
+// entryRuntime returns the runtime whose runMain runs file's main when its
+// package resolves: the named platform's, or NodeRuntime when file names
+// none.
+func entryRuntime(file *ast.SourceFile) platformBundle {
+	if platform := namedPlatform(file); platform != nil {
+		return platform.runtime
+	}
+	return nodeRuntime
 }
 
 // namedPlatform returns the platform that file names with a platform import,
@@ -119,9 +140,9 @@ func platformImport(statement *ast.Node) *entryPlatform {
 
 // entryModules are the modules that file, an entry candidate, resolves as
 // implicit imports (implicitRuntimeImport), so the plan can ask which are
-// installed: NodeRuntime's package, and the bundles of the platform it names.
+// installed: its runtime's package, and the bundles of the platform it names.
 func entryModules(file *ast.SourceFile) []string {
-	modules := []string{platformNodeModule}
+	modules := []string{entryRuntime(file).module}
 	if platform := namedPlatform(file); platform != nil {
 		modules = append(modules, platform.effect.module, platform.experimental.module)
 	}
@@ -205,13 +226,13 @@ func startsProgram(c *checker.Checker, expression *ast.Node) bool {
 
 // An entryPlan records how the lowering runs an entry module's main.
 type entryPlan struct {
-	main        *ast.Node        // the main function's declaration
-	nodeRuntime bool             // @effect/platform-node resolves from the module
-	bundles     []platformBundle // the bundles the entry provides to main, outermost first
+	main    *ast.Node        // the main function's declaration
+	runtime *platformBundle  // the runtime whose runMain runs main, or nil for the runtime's $runMain
+	bundles []platformBundle // the bundles the entry provides to main, outermost first
 }
 
 // planEntry returns the entry plan of file, or nil when file is not an entry
-// module. The program resolves @effect/platform-node from an entry module as
+// module. The program resolves the runtime's package from an entry module as
 // an implicit import (implicitRuntimeImport), so the plan can ask whether it
 // resolved.
 func planEntry(c *checker.Checker, file *ast.SourceFile) *entryPlan {
@@ -219,7 +240,10 @@ func planEntry(c *checker.Checker, file *ast.SourceFile) *entryPlan {
 	if main == nil {
 		return nil
 	}
-	entry := &entryPlan{main: main, nodeRuntime: resolvedModuleFile(c, file, platformNodeModule) != nil}
+	entry := &entryPlan{main: main}
+	if runtime := entryRuntime(file); resolvedModuleFile(c, file, runtime.module) != nil {
+		entry.runtime = &runtime
+	}
 	entry.bundles, _ = entryBundles(c, file, main)
 	return entry
 }
@@ -379,9 +403,9 @@ func (tx *lowering) entryStatement() *ast.Node {
 		program = f.NewCallExpression(provide, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{program, layers[i]}), ast.NodeFlagsNone)
 	}
 	var runner *ast.Node
-	if entry.nodeRuntime {
-		nodeRuntime := tx.classReference(classRef{module: platformNodeModule, name: "NodeRuntime"})
-		runner = f.NewPropertyAccessExpression(nodeRuntime, nil /*questionDotToken*/, f.NewIdentifier("runMain"), ast.NodeFlagsNone)
+	if entry.runtime != nil {
+		runtime := tx.classReference(classRef{module: entry.runtime.module, name: entry.runtime.namespace})
+		runner = f.NewPropertyAccessExpression(runtime, nil /*questionDotToken*/, f.NewIdentifier("runMain"), ast.NodeFlagsNone)
 	} else {
 		runner = tx.runtimeMember("$runMain")
 	}

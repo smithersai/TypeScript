@@ -120,6 +120,31 @@ export function main() {
 
 The entry provides `BunServices.layer` from `@effect/platform-bun`. Only the platform import changes; the same `greet` uses Bun's implementations. A target-specific package can supply a narrower layer than the whole bundle, such as `NodeFileSystem.layer`. The FileSystem, Path, PlatformLogger, Runtime, and Terminal pages cover each integration.
 
+## Starting `main` in a browser
+
+`import "vibelang/platform/browser"` names the browser: `main` runs with `@effect/platform-browser`'s `BrowserRuntime.runMain`, the compiled module imports nothing of Node's, and a `main` that needs `Experimental.Crypto` or `Experimental.Locks` gets `BrowserServices.layer` from `vibelang-runtime/experimental/platform-browser`. EK3205 names any other service `main` needs. A page never says which module it started, so in a browser the compiled module does not run `main`, and the page's script starts it:
+
+```vibe
+// app.vibe
+import "vibelang/platform/browser"
+
+export function main() {
+  const mac = Experimental.Crypto.hmac("SHA-256", Redacted.make(new TextEncoder().encode("key")), new TextEncoder().encode("hello"))
+  Console.log(mac.length)
+}
+```
+
+```vibe
+// page.vibe
+import { BrowserRuntime } from "@effect/platform-browser"
+import { BrowserCrypto } from "vibelang-runtime/experimental/platform-browser"
+import { main } from "./app.vibe"
+
+BrowserRuntime.runMain(Effect.provide(main(), BrowserCrypto.layer))
+```
+
+The page loads `page.vibe`'s JavaScript as a module script, bundled or not, and the runner call at its top level starts `main`, as a top-level runner call does in any module. `BrowserRuntime.runMain` interrupts `main` when the page is discarded. A host that says which module it started, such as Bun, runs a browser `main` itself, with `BrowserRuntime.runMain`.
+
 ## Coming from Effect
 
 A module's name names its service: `FileSystem.readFileString(path)` is `yield* FileSystem.FileSystem` followed by the method call. An exported `main` in a file that imports `"vibelang/platform/node"` compiles to `NodeRuntime.runMain(main.pipe(Effect.provide(NodeServices.layer)))`, and `provide layer { ... }` is `Effect.provide(program, layer)`. Functions run on call, platform methods return success values directly, and no generator wraps the application.

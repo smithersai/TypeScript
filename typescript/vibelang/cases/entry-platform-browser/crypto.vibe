@@ -1,0 +1,8 @@
+// A browser main that needs the experimental Crypto gets the experimental
+// browser bundle, with the browser's runner.
+import "vibelang/platform/browser"
+
+export function main() {
+  const mac = Experimental.Crypto.hmac("SHA-256", Redacted.make(new Uint8Array([1])), new Uint8Array([2]))
+  Console.log(mac.length)
+}
