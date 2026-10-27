@@ -55,21 +55,44 @@ func init() {
 
 // catchCombinatorOf returns the name of the Effect catch combinator that call
 // calls in its data-first form, or "".
+// methodCatchParts accepts a single Effect catch operator on a running call.
+// A real pipe member and multi-operator pipelines keep their own meaning.
+func methodCatchParts(c *checker.Checker, call *ast.Node) (*ast.Node, *ast.Node) {
+	if !ast.IsCallExpression(call) || call.TypeArguments() != nil || ast.IsOptionalChain(call) || len(call.Arguments()) != 1 {
+		return nil, nil
+	}
+	access := call.Expression()
+	if !ast.IsPropertyAccessExpression(access) || ast.IsOptionalChain(access) {
+		return nil, nil
+	}
+	self := missingCallPipe(c, access)
+	operator := ast.SkipParentheses(call.Arguments()[0])
+	if self == nil || !ast.IsCallExpression(operator) || operator.TypeArguments() != nil || ast.IsOptionalChain(operator) {
+		return nil, nil
+	}
+	return self, operator
+}
+
 func catchCombinatorOf(c *checker.Checker, call *ast.Node) string {
-	if !ast.IsCallExpression(call) || call.TypeArguments() != nil || !inLowerableBody(call) || inHatch(call) {
+	if !ast.IsCallExpression(call) || call.TypeArguments() != nil || !inLowerableBody(call) || inHatch(call) || ast.IsOptionalChain(call) {
 		return ""
 	}
-	for _, argument := range call.Arguments() {
+	operator := call
+	count := len(call.Arguments())
+	if self, inner := methodCatchParts(c, call); self != nil {
+		operator, count = inner, len(inner.Arguments())+1
+	}
+	for _, argument := range operator.Arguments() {
 		if ast.IsSpreadElement(argument) {
 			return ""
 		}
 	}
-	if !isEffectFunction(c, call.Expression(), "Effect", "catchTag", "catchTags", "catch") {
+	if !isEffectFunction(c, operator.Expression(), "Effect", "catchTag", "catchTags", "catch") {
 		return ""
 	}
-	_, name := effectMember(c, call.Expression())
+	_, name := effectMember(c, operator.Expression())
 	switch {
-	case name == "catchTag" && len(call.Arguments()) == 3, name == "catchTags" && len(call.Arguments()) == 2, name == "catch" && len(call.Arguments()) == 2:
+	case name == "catchTag" && count == 3, name == "catchTags" && count == 2, name == "catch" && count == 2:
 		return name
 	}
 	return ""
@@ -83,6 +106,9 @@ func findCatchCombinators(c *checker.Checker, file *ast.SourceFile, report func(
 		if name := catchCombinatorOf(c, node); name != "" {
 			if rewrite := catchCombinatorRewrite(c, file, node); rewrite.fixable() {
 				report(node, rewrite, "Effect."+name)
+				if self, _ := methodCatchParts(c, node); self != nil {
+					cover(c, node)
+				}
 			}
 		}
 		return node.ForEachChild(visit)
@@ -135,6 +161,9 @@ func catchCombinatorRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.
 		return nil
 	}
 	arguments := call.Arguments()
+	if self, inner := methodCatchParts(c, call); self != nil {
+		arguments = append([]*ast.Node{self}, inner.Arguments()...)
+	}
 	self := arguments[0]
 	left, runs := runningText(c, file, self)
 	if !runs {
@@ -293,11 +322,20 @@ func containsIdentifier(node *ast.Node, name string) bool {
 // combinator, catches, one type per member, or nil when one has no literal
 // _tag. They are the E of its first parameter as the call instantiates it.
 func catchFailures(c *checker.Checker, call *ast.Node) []*checker.Type {
-	signature := c.GetResolvedSignature(call)
-	if signature == nil || len(signature.Parameters()) == 0 {
-		return nil
+	var t *checker.Type
+	if self, _ := methodCatchParts(c, call); self != nil {
+		signature := c.GetResolvedSignature(self)
+		if signature == nil {
+			return nil
+		}
+		t = c.GetReturnTypeOfSignature(signature)
+	} else {
+		signature := c.GetResolvedSignature(call)
+		if signature == nil || len(signature.Parameters()) == 0 {
+			return nil
+		}
+		t = c.GetTypeAtPosition(signature, 0)
 	}
-	t := c.GetTypeAtPosition(signature, 0)
 	if !isEffectType(c, t) {
 		return nil
 	}

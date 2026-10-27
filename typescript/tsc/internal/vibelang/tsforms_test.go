@@ -57,6 +57,7 @@ func TestTypeScriptFormQuickFixes(t *testing.T) {
 		{"succeed in an Effect-typed arrow", 4834, "export const read: () => Effect.Effect<{ ok: boolean }> = () => Effect.succeed({ ok: true })", "export const read: () => Effect.Effect<{ ok: boolean }> = () => ({ ok: true })"},
 		{"fail in an Effect-typed arrow", 4834, "error Gone\nexport const gone: () => Effect.Effect<never, Gone> = () => Effect.fail(new Gone())", "error Gone\nexport const gone: () => Effect.Effect<never, Gone> = () => throw new Gone()"},
 		// EK4835 (D289)
+		{"method catchTag", 4835, "error Gone { id: number }\nfunction find(id: number): string!Gone { throw new Gone({ id }) }\nexport function describe(id: number) { return find(id).pipe(Effect.catchTag(\"Gone\", (e) => Effect.succeed(\"gone \" + e.id))) }", "error Gone { id: number }\nfunction find(id: number): string!Gone { throw new Gone({ id }) }\nexport function describe(id: number) { return find(id) catch (e) => match (e) { when Gone: (\"gone \" + e.id); } }"},
 		{"catchTag keeps succeed of a cold program", 4835, `error Gone
 function fail() { throw new Gone() }
 const job: number!! = () => 1
