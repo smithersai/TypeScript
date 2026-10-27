@@ -5,6 +5,7 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/scanner"
+	"slices"
 )
 
 // Checks of error declarations (D278, D279, D304). An error declaration is a
@@ -23,7 +24,43 @@ import (
 //   - EK2118: a subclass that declares fields and no constructor, whose base's
 //     constructor does not take one object of fields.
 
-func init() { fileChecks = append(fileChecks, checkErrorDeclarations) }
+func init() {
+	fileChecks = append(fileChecks, checkErrorDeclarations)
+	checker.RegisterDiagnosticsFilterHook(filterCyclicErrorConstructorDiagnostics)
+}
+
+// A cyclic base already has TS2506. Do not also expose the parser-written
+// constructor parameter's recursive $ErrorArgs annotation as TS2502.
+func filterCyclicErrorConstructorDiagnostics(c *checker.Checker, file *ast.SourceFile, all []*ast.Diagnostic) []*ast.Diagnostic {
+	if !isVibeLangFile(file) {
+		return all
+	}
+	var generated []core.TextRange
+	var visit func(*ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		if form, _ := errorFormOf(node); form == errorFormSubclass {
+			for _, member := range node.ClassLikeData().Members.Nodes {
+				if ast.IsConstructorDeclaration(member) && member.Flags&ast.NodeFlagsReparsed != 0 {
+					for _, parameter := range member.AsConstructorDeclaration().Parameters.Nodes {
+						if isSynthesizedName(parameter.Name(), "args") {
+							generated = append(generated, parameter.Name().Loc)
+						}
+					}
+				}
+			}
+		}
+		return node.ForEachChild(visit)
+	}
+	file.AsNode().ForEachChild(visit)
+	return slices.DeleteFunc(slices.Clone(all), func(d *ast.Diagnostic) bool {
+		if d.Source() != "" || d.Code() != 2502 || !slices.ContainsFunc(generated, func(r core.TextRange) bool { return r.Pos() <= d.Pos() && d.End() <= r.End() }) {
+			return false
+		}
+		return slices.ContainsFunc(all, func(primary *ast.Diagnostic) bool {
+			return primary.Source() == "" && primary.Code() == 2506 && primary.Pos() == d.Pos()
+		})
+	})
+}
 
 // errorForm is which of the classes an error declaration writes a class is.
 type errorForm int

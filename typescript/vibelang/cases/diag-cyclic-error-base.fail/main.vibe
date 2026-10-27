@@ -1,0 +1,3 @@
+// expect: TS2506
+error E extends E { x: string }
+export function main() {}
