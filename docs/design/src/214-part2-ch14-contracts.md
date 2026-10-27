@@ -40,7 +40,7 @@ Precisely, E is the type of every expected failure a cause can hold. A defect be
 
 An empty slot is `never`; dependencies left out entirely are inferred on a function with a body and `never` everywhere else. Unions bind inside a slot, so `User!NotFound | Timeout!Db` fails with `NotFound | Timeout`. A function type, a conditional type, or an Effect type inside a slot needs parentheses, and so does an object type after a `!`: a `{` there starts the function's body, so `User!NotFound! { ... }` has no dependencies. Hovers and messages about `.vibe` code show contracts in this form; declaration files keep `Effect.Effect<A, E, R>`, so TypeScript callers are unaffected.
 
-`Effect<A, E, R>` is accepted everywhere too, including `infer` slots (D57), and means what it means in TypeScript: a type argument left out is `never`, so `Effect<User>` is `User!!` and `Effect<User, NotFound>` is `User!NotFound!` (D308, D309). The two spellings are interchangeable; this specification and the guides write the `!` form. They differ only where a channel is left out: `User!NotFound` on a function with a body infers R, while `Effect<User, NotFound>` checks it as `never`.
+`Effect<A, E, R>` is accepted everywhere too, including `infer` slots (D57), and means what it means in TypeScript: a type argument left out is `never`, so `Effect<User>` is `User!!` and `Effect<User, NotFound>` is `User!NotFound!` (D308, D309). With all channels written, the two spellings mean the same type. This specification and the guides write the `!` form. Omitted channels can differ: `User!NotFound` on a function with a body infers R, while `Effect<User, NotFound>` checks it as `never`.
 
 #### Checking a written contract
 

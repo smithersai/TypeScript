@@ -292,7 +292,7 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK4201 | A control operation inside a combinator that runs it on another fiber | Handle the operation inside the branch | 9, 16 |
 | EK4202 | A TypeScript function whose R holds a control operation | None in v0 | 9 |
 | EK4301 | A callback that can pause or fail where a plain function is expected | Rewrite as `Effect.forEach` or `for...of`; a visitor returning a program uses `() => () => call()` when its result is used | 10, 16 |
-| EK4401 | Packages matching the `vibelang` setting `trustedPackages` are trusted (D261); otherwise, a plain TypeScript call in code a fiber runs, with no boundary or trusted contract (D100) | Wrap it in `try`, or tag the declaration `@vibelang trusted` | 10 |
+| EK4401 | Packages matching the `vibelang` setting `trustedPackages` are trusted (D261); otherwise, a plain TypeScript call in code a fiber runs, with no boundary or trusted contract (D100) | Wrap it in `try`, or export a `trusted(impl, [Errors])` value (D249) | 10 |
 | EK4402 | A Node.js global or a web global that does I/O, run or held as a value, or a Node.js module imported as a value (D310, amending D108); `import type` and imports in a `module` block are allowed | Use the Effect service the error names; for what Effect lacks, `Experimental`, a `module` block or a `.ts` file | 11 |
 | EK4403 | Error by default: a clock or randomness read | Use `Clock`, `DateTime`, `Random`, or `Crypto` | 10 |
 | EK4404 | `try` given Effect's `{ try, catch }` options object, which it would treat as a value | Pass the code and the error mapping as two arguments: `try((text) => parse(text), (error) => …, text)` | 10 |
@@ -301,9 +301,9 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK4407 | A module specifier written as an identifier, `from text`, names no module declaration of the file (D283) | Declare `module text { … }` at the file's top level, or import a file with a string specifier | 10 |
 | EK4408 | A module declaration that is nested, exported, declared twice, or has no name (`module { … }`); `module` used for a namespace in a `.vibe` file; a module body that uses `export =` or `import = require()` (D283); or a module name shared with a value binding of the file (warning, D303) | Keep module declarations named, at the top level and unexported, write namespaces with `namespace`, use ES module syntax in the body, and choose distinct module and value names | 10 |
 | EK4409 | Warning: what an Effect function or a program returns is a call of a value of type `any`, so a program the callee returns never runs (D24) | Give the callee a function type: one that returns `A!E!R` runs the program | 10 |
+| EK4501 | A method of an Effect data type named without a call, as in `const f = stream.filter` (D153) | Call it, or pass `Stream.filter` itself | 13 |
 | EK4502 | .pipe on a call whose success value has no pipe member | Write call() \|> retry(%, policy), or pass the call by name to retry | 13 |
 | EK4503 | A service implementation member read on its key, or on a module whose name names the service (`Path.sep`, D311) | Read S().member; S.method(args) directly calls an implementation method, and S.member() runs a member that is a program | 13 |
-| EK4501 | A method of an Effect data type named without a call, as in `const f = stream.filter` (D153) | Call it, or pass `Stream.filter` itself | 13 |
 | EK4601 | `await` before a call that already runs (D226) | Remove `await`; to run the call concurrently, fork it and join the fiber | 7 |
 | EK4602 | `await` on a promise in VibeLang code (D226) | Wrap it in a hatch: `try(async () => …)` | 7 |
 | EK4603 | `await` on any other value; VibeLang code has only the await operations (D226) | Fork the program and join the fiber, or use `await.all`, `await.race`, `await.any`, or `await.allSettled` | 7 |

@@ -130,24 +130,24 @@ VibeLang calls TypeScript functions directly; what a call does depends on what t
 
 ```ts es
 import { loadAvatar } from "./avatars.ts"    // (id: string) => Avatar!AvatarError!Storage
-import { formatName } from "./format.ts"     // (user: User) => string, declared trusted
+import { formatName } from "./format.ts"     // trusted(formatNameImpl, [])
 
 function profileCard(id: string) {
   const user = Users.find(id)
   return {
-    title: formatName(user),                 // a trusted plain function: an ordinary call
+    title: formatName(user),                 // trusted(): returns the formatted name
     avatar: loadAvatar(user.id)              // returns an Effect, so the call runs it
   }
 }
 // { title: string; avatar: Avatar }!UserNotFound | AvatarError!Users | Storage
 ```
 
-A TypeScript function that returns an `Effect` behaves exactly like a VibeLang function: calling it runs it. One that returns anything else is foreign code; nothing says what its exceptions mean, so the compiler asks you to say it once. `formatName` carries a trusted contract, a one-line tag on its declaration (Chapter 10). Without one, the call is an error that offers the fixes:
+A TypeScript function that returns an `Effect` behaves exactly like a VibeLang function: calling it runs it. One that returns anything else is foreign code; nothing says what its exceptions mean, so the compiler asks you to say it once. `formatName` is a `trusted(impl, [Errors])` value exported beside its TypeScript implementation (D249, Chapter 10). Without one, the call is an error that offers the fixes:
 
 ```text
 error EK4401: formatName is a plain TypeScript function, and nothing says what its exceptions mean.
   profile-card.vibe:7:12   title: formatName(user),
-  Declare it trusted once:  add /** @vibelang trusted */ to formatName in format.ts
+  Declare its failures once with trusted(formatName, [Errors]) from "vibelang-runtime", and call that value.
   Or bound this call:       try((user) => formatName(user), (cause) => new FormatError({ cause }), user)
   Or move it into a .vibe file, where its contract is inferred.
 ```

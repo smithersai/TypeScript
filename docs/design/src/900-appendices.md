@@ -149,7 +149,7 @@ vibelang/smoke.sh vibelang-infer   # one case
 
 #### Research and drafts
 
-- `docs/design/DECISIONS.md`: the decision log, D1-D60.
+- `docs/design/DECISIONS.md`: the decision log, with assigned decisions through D313.
 - `docs/research/effect4-runtime.md`: Effect 4.0.5 runtime facts, with 23 scripts in `experiments/scripts/runtime-facts/`. Scripts written for this design live in `experiments/scripts/`.
 - `docs/research/continuation-prior-art.md`: OCaml 5, Kotlin, Swift, Loom, WasmFX, Koka, Effekt, Effection, js_of_ocaml, and the papers.
 - `docs/research/vibelang.md`: the earlier VibeLang project's `main` (`c60eca97`) and the unmerged checkpoint (`ebe89a2b`).
@@ -193,10 +193,10 @@ Stages as fetched on 2026-10-16 (`docs/research/tc39-syntax.md`).
 | Pipeline operator (Hack `\|>`) | 2 since 2021-08; topic token undecided; "somewhat stuck" (January 2026) | In `.vibe` files with the topic `%`; a topic that stands for a program passes the left side by name (Chapter 5, D154, D155; supersedes D8) |
 | AsyncContext | 2 | Prior art for the snapshot rule (Chapter 22). VibeLang code keeps request-scoped values in Effect's Context |
 | Partial application (`f~(x, ?)`) | 1 | Not adopted. A function with no arguments is the program spelling (D7) |
-| Pattern matching (`match`) | 1 | Not adopted. `switch` and `catch` narrowing, and Effect's `Match` module |
-| Throw expressions | 2, unchanged since 2017 | Not adopted. `throw` is a statement and a typed failure |
-| Extractors | 2 | Not in v0. A possible future syntax for Schema decoding |
+| Pattern matching (`match`) | 1 | Adopted: `match` and `is`, with the supported pattern subset (Chapter 3, D206-D215) |
+| Throw expressions | 2, unchanged since 2017 | Adopted: `throw` is a typed failure in statements and expressions (Chapter 3, D186) |
+| Extractors | 2 | Adopted in match patterns, such as `Option.Some(let value)` (Chapter 3, D207) |
 | Import defer | 3 | Not used. Deferring a module's evaluation doesn't change EK1001: its top level still can't run a program |
-| Await dictionary (`Promise.allKeyed`) | 3 | Not needed: `Effect.all` takes a record |
+| Await dictionary (`Promise.allKeyed`) | 3 | Adopted for record-shaped `await.all` and `await.allSettled` (Chapter 7, D196) |
 | Abort Controller, Concurrency control | 1 | Not adopted. Effect's interruption and `concurrency` options |
 | F#-style pipes; `Function.pipe` and `flow` | Failed Stage 2; withdrawn | Not applicable |

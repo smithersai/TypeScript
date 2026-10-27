@@ -1,6 +1,6 @@
 # VibeLang
 
-A language for writing Effect programs. Specification, 2026-10-16. Runtime: `effect@4.0.6`.
+A language for writing Effect programs. Specification, 2026-10-27. Runtime: `effect@4.0.6`.
 
 VibeLang is TypeScript syntax in which every function is an Effect. You call functions normally, `throw` and `catch` typed errors, and ask for services by name. The compiler infers each function's `Effect<A, E, R>` and emits the Effect code you would write by hand, so TypeScript uses it like any other Effect library.
 
@@ -40,7 +40,7 @@ The two functions do the same work, with two differences. `Effect.fn("welcome")`
 
 To learn VibeLang by task, not by rule, start with the [user guide](../../user/src/001-onboarding.md). The [cheat sheet](../../user/src/vibelang-features/115-cheat-sheet.md) puts every change beside the Effect code it replaces.
 
-**Status.** Every rule in this specification is decided. `docs/design/DECISIONS.md` records the design decisions and their rationale (D1-D60); [Part V](#29-decisions) collects them and records the closed end-to-end build calls. D57 and D58 record historical choices. The Part III runtime is a working prototype: {{testCount}} tests pass in `experiments/`. The compiler has two prototypes: `prototype/esc`, on TypeScript's API, compiles 46 example files written from this document, and the Go fork of TypeScript in `typescript/` lowers calls by type and infers contracts (Chapter 27). The compiler, spec, runtime, and tooling share one repository (D60).
+**Status.** `docs/design/DECISIONS.md` records the assigned design decisions through D313 and their rationale. [Part V](#29-decisions) indexes selected decisions and the closed end-to-end build calls. D310-D313 remain provisional, and D25 records an open resource limitation. The Part III runtime is a working prototype: {{testCount}} tests pass in `experiments/`. The shipped compiler is the Go fork of TypeScript in `typescript/` (Chapter 27). `prototype/esc`, on TypeScript's API, is the earlier prototype. The compiler, spec, runtime, and tooling share one repository (D60).
 
 ## Effect to VibeLang at a glance
 

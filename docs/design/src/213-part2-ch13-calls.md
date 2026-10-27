@@ -42,7 +42,7 @@ The full rule:
 | A service, `Users()` | Returns the implementation | `yield* Users` |
 | A control operation, `Approval.approve(x)` | Asks the nearest handler on this fiber | `yield* (yield* Approval).approve(x)` |
 | A JavaScript built-in, or an export of `effect` or `@effect/*` that does not return an `Effect` | A trusted call: listed exceptions join E, others are defects | `f(a)`, with listed exceptions converted |
-| A TypeScript function tagged `@vibelang trusted` | The same | `f(a)`, with listed exceptions converted |
+| A TypeScript function wrapped with `trusted(impl, [Errors])` (D249, Chapter 10) | Runs the returned `Effect` | `yield* f(a)` |
 | Any other plain TypeScript or JavaScript function | Rejected: EK4401 (Chapter 10) | |
 | A platform API, or a clock or randomness read | Rejected: EK4402, EK4403 (Chapters 10, 11) | |
 | `new C(…)` | Constructs; never runs a program | `new C(…)` |
@@ -143,15 +143,15 @@ yield* Effect.retry(Effect.suspend(retrySync), Schedule.recurs(3))
 
 "The expected type" means exactly the declared parameter type of the overload candidate TypeScript is trying, before instantiation (D44). TypeScript's own contextual type is wrong here, because it is inferred from the argument itself. In `ids.map((id) => Users.find(id))`, `map`'s declared parameter is `(value: T, index: number) => U`, a plain function type, so the lambda is a callback that cannot pause (EK4301); instantiating `U` from the lambda would make it look like an Effect position. When resolution fails, the candidates whose arity fits decide. The instantiated type is used only when the declared type is a bare type parameter fixed by another argument, such as `Layer.succeed`'s `NoInfer<S>`.
 
-With overloads, the first candidate that accepts the lambda in the form it expects wins (D56). TypeScript tries candidates in declaration order, and against each the lambda takes the form the candidate's parameter declares: a plain function, an Effect function, or a program.
+TypeScript tries overload candidates in declaration order. Against each, the lambda takes the form the candidate's parameter declares: a plain function, an Effect function, or a program (D56). Among applicable candidates, one whose parameter expects an `Effect` and passes a program argument by name outranks one that would run that same argument (D257). A running call whose result type is `never` makes no parameter applicable during ranking. It fails, rather than supplying a value accepted by every parameter. Otherwise, the first applicable candidate wins. Thus `Effect.race(Effect.fail(a), Effect.fail(b))` selects the two-program form. Case `overload-program-ranking` pins this rule.
 
 ```ts dts
 // helpers.d.ts: a plain callback first, an Effect callback second
 import { Effect } from "effect"
 
-/** @vibelang trusted */
+// The package is listed in vibelang.trustedPackages (Chapter 10).
 export declare function register(f: (x: number) => number): string
-export declare function register<E, R>(f: (x: number) => number!E!R): string!E!R
+export declare function register<E, R>(f: (x: number) => Effect.Effect<number, E, R>): Effect.Effect<string, E, R>
 ```
 
 ```ts es
@@ -184,6 +184,10 @@ import { main } from "./main.js"
 
 NodeRuntime.runMain(main())
 ```
+
+A module that exports a function declaration named `main` with no parameters gets an entry statement unless it already calls a runner at its top level (D135). For this suppression check, a call named `runMain`, `runPromise`, `runFork`, `runSync`, or `runCallback` counts. The entry statement uses `runtime.$entry` to start `main` only when the host starts this module. Importing it starts nothing. The helper checks the started file's exported `main` in bundles and CommonJS output, so an imported module's `main` does not start with the entry module's.
+
+The compiler uses `NodeRuntime.runMain` when `@effect/platform-node` resolves from the module, and the runtime's `$runMain` otherwise. A `main` that compiles to plain JavaScript runs through `Effect.sync`. A platform import, `import "vibelang/platform/node"`, `"vibelang/platform/bun"`, or `"vibelang/platform/browser"`, selects the platform layers the entry supplies (D312, Chapter 11). An explicit top-level runner supplies its own layers and options and suppresses the generated entry.
 
 A module's top level is inside no program. A call there may build values, such as `Layer.effect(…)`, `wire(…)`, `Config.Port(…)`, or `Schedule.exponential(…)`, but not run a program:
 

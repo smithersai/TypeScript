@@ -87,11 +87,11 @@ The declaration file writes `readonly`, so TypeScript code sees the same types. 
 A function that does not return an `Effect` is foreign code. Nothing in its type says whether it throws, what it reads, or whether it touches the outside world, so each kind of callee has a rule:
 
 ```ts es
-import { slugify } from "./slug.ts"          // carries /** @vibelang trusted */
+import { slugify } from "./slug.ts"          // exported through trusted()
 
 function publish(draft: Draft) {
   const meta = JSON.parse(draft.frontMatter)  // a built-in: SyntaxError joins E
-  const slug = slugify(meta.title)            // trusted: its @throws adds InvalidSlug
+  const slug = slugify(meta.title)            // trusted(): lists InvalidSlug
   const words = draft.body.split(/\s+/).length
   return Articles.save({ slug, words, ...meta })
 }
@@ -103,24 +103,26 @@ function publish(draft: Draft) {
 | A function returning `Effect`, from VibeLang or TypeScript | Calls run it | |
 | A JavaScript built-in: `String`, `Array`, `Math`, `JSON`, `Number`, `Object`, `Map`, `Set`, `RegExp`, deterministic `Date` parsing | Ships with a trusted contract: a control class, and which exceptions are expected failures. Only built-ins that parse outside text declare any: `JSON.parse` fails with `SyntaxError`, `decodeURI` and `decodeURIComponent` with `URIError`; other built-in exceptions are defects (D101) | |
 | An export of `effect` or an `@effect/*` package that does not return an `Effect`, and the functions and values it returns, such as a `Brand` constructor or the function `Match.exhaustive` returns | Trusted: `sync`; its exceptions are defects, as inside `Effect.gen` today | |
-| A TypeScript function tagged `/** @vibelang trusted */` | Trusted: `sync`; each `@throws {T}` names an expected failure; any other exception is a defect | |
+| A function wrapped with `trusted(impl, [Errors])` from `vibelang-runtime` | Returns an `Effect`; listed exception classes are expected failures, and any other exception is a defect (D249) | |
 | A platform API: `node:*` modules and browser globals such as `fetch`, `setTimeout`, `process`, `console`, `localStorage` | Not callable from `.vibe` files; the error names the Effect service to use, its import, and the layer that provides it (Chapter 11) | EK4402 |
 | A clock or randomness read: `Date.now()`, `new Date()`, `Math.random()`, `crypto.randomUUID()` | Use `Clock`, `DateTime`, `Random`, and `Crypto`, so tests control them | EK4403 |
 | Any other plain TypeScript or JavaScript function | Needs an explicit boundary or a trusted contract | EK4401 |
-| A value of type `any` | Its call returns its value, as a call of data does (D24); where that value is what an Effect function or a program returns, a program the callee returns would never run | EK4409 (warning) |
+| A value of type `any` | An ordinary JavaScript call returns the result without running it as a program (D24). Calling a non-callable Effect value raises a `TypeError`, a defect. Where an Effect function or a program returns the call's result, a program in that result would never run | EK4409 (warning) |
 
-A trusted contract is declared once, on the TypeScript declaration:
+A trusted contract is a value declared beside the TypeScript implementation (D249):
 
 ```ts ts
 // slug.ts
-/**
- * @vibelang trusted
- * @throws {InvalidSlug} when the title has no letters or digits
- */
-export function slugify(title: string): string { … }
+import { trusted } from "vibelang-runtime"
+import { InvalidSlug } from "./errors.ts"
+
+function slugifyImpl(title: string): string { … }
+export const slugify = trusted(slugifyImpl, [InvalidSlug])
 ```
 
-The compiler trusts the tag; it cannot check a TypeScript body. `@throws {InvalidSlug}` makes `InvalidSlug` an expected failure that joins the caller's E, and the generated code tests `instanceof InvalidSlug`; any other exception from `slugify` is a defect. Each `@throws` must name a class exported by a module the `.vibe` caller imports; otherwise the call is EK4401 (D101). The tag cannot go on a function that returns a Promise or an `Effect`. To trust a function from a package you cannot edit, re-export it with the tag from a `.ts` file you own.
+`trusted` keeps the implementation's parameters and returns an `Effect`. An exception that is an instance of a listed class joins E. Any other exception is a defect. The compiler cannot check the TypeScript body, so the wrapper states its contract once. A package listed in the tsconfig's `vibelang.trustedPackages` is also trusted (D261).
+
+The D23 tags `@vibelang trusted` and `@throws` are deprecated. The native compiler still reads them, but reports EK4406 when their contract affects lowering in an Effect function outside a hatch. Migrate the declaration to `trusted(impl, [Errors])`. The planned per-file emitter cannot read another file's tags, so such calls become errors when that emitter replaces the native lowering (D249).
 
 EK4401 applies where a fiber runs the code. Module initialization and its plain callbacks passed to TypeScript, such as `describe` bodies and route handlers, run ordinary JavaScript calls (D100). An exception at module top level fails the import. Trusted failures stay defects inside plain callbacks, while they make free lambdas and named VibeLang functions use the Effect form (D101).
 

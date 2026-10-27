@@ -70,7 +70,7 @@ Most pipes you write today disappear:
 | `Effect.catchCause`, `Effect.failCause`, `Effect.onExit` | `match (exit(…))`, `throw cause`, `finally (exit)` (D217, D177, D178) |
 | `Effect.uninterruptibleMask`, `Effect.interruptible` | `uninterruptible { … restore { … } }`, `interruptible { … }` (D180) |
 
-On a cause that also holds a defect, Effect's recovery operators and `try`/`catch` differ; Chapter 17 lists how. A catch expression recovers as `try`/`catch` does.
+On a cause that also holds a defect, neither Effect's typed recovery operators nor `try`/`catch` recovers (D305). Chapter 17 lists each operator's behavior. A catch expression recovers as `try`/`catch` does.
 
 In two large Effect codebases, once statements replace sequencing, error handling, and cleanup, only 1.1% (Smithers) and 2.6% (opencode) of Effect pipes outside tests keep two or more stages (`docs/research/pipe-census.md`). Pipelines over plain data stay plain: `items |> Arr.filter(%, isActive) |> Arr.map(%, toRow)` is `Arr.map(Arr.filter(items, isActive), toRow)`.
 

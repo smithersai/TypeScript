@@ -4,12 +4,12 @@
 
 ```text
 settled before this document      1-7     original design decisions
-decisions since                  D1-D124 design and implementation decisions; gaps reserved
+decisions since                  D1-D313 selected design and implementation decisions; gaps reserved
 rules of the runtime and compiler P1-P22  adopted (D29), revised by verified counterexamples
-end-to-end build calls          D61-D124 recorded below where reported; unreported numbers stay unassigned
+end-to-end build calls          D61 onward recorded below where reported; unreported numbers stay unassigned
 ```
 
-Every rule in this document traces to one of these. `docs/design/DECISIONS.md` logs them with full reasons.
+The tables index selected decisions. `docs/design/DECISIONS.md` records every assigned decision with its full reasons. Unassigned numbers remain reserved.
 
 #### Settled before this document
 
@@ -52,7 +52,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D20 | A TypeScript function whose R holds a control operation is EK4202 in v0 | Foreign functions may fork where the handler cannot reach | 9, 16 |
 | D21 | Each `Effect.provide` builds its layers once; provide at `main`; `ManagedRuntime` for several entry points | Avoids rebuilding a layer for every request; conformance test D05 | 4 |
 | D22 | Effect's own packages are trusted, with the functions and values they return | D6; `Option` and `Result` are data in Effect 4 | 10 |
-| D23 | A trusted contract is the `@vibelang trusted` JSDoc tag, with `@throws` | TypeScript syntax only; the compiler's metadata channel | 10, 27 |
+| D23 | (Amended by D249.) A trusted contract is the `@vibelang trusted` JSDoc tag, with `@throws` | TypeScript syntax only; the compiler's metadata channel | 10, 27 |
 | D24 | A call runs only `Effect` itself; subtypes are data until called; `new` never runs | `Config`, `Exit`, keys, and errors extend `Effect` | 13 |
 | D25 | `using` adds no masking policy | K15a-K15c | 6, 21 |
 | D26 | Producers: `for...of` by type; a producer is a `Stream` to TypeScript; the adapter runs it on its own fiber behind a zero-capacity handoff | Stream operators pull on other fibers; continuations are fiber-affine; a one-element buffer runs ahead | 8, 26 |
@@ -150,17 +150,17 @@ These rows record implementation decisions. The decision log separates implement
 | D122 | Every runner checks all services it does not supply; it.effect supplies Scope and its layer services | Diagnose missing services before execution | 4, 28 |
 | D123 | Declaration prelude imports use free aliases when names are already bound | Avoid duplicate identifiers in declaration consumers | 27 |
 | D124 | Setup relinks vibelang launchers pointing into another checkout or at missing files | Keep the launcher usable after workspace changes | 28 |
-| D125 | The language is Effeck: binary `effeck`, files `.effeck`, codes `EK`, unscoped npm packages `effeck`, `effeck-runtime`, `effeck-vite` | The `@effectscript` npm scope belongs to another language | 28 |
+| D125 | (Superseded by D255.) The language is Effeck: binary `effeck`, files `.effeck`, codes `EK`, unscoped npm packages `effeck`, `effeck-runtime`, `effeck-vite` | The `@effectscript` npm scope belongs to another language | 28 |
 | D126 | `error NotFound { id: string }` declares a tagged error class with readonly fields | Fewer tokens for the most common declaration | 3 |
 | D127 | (Superseded by D308, restored by D309.) Effect types are written `Result!Error!Dependencies`; an empty slot is never, and left-out dependencies are inferred on a function with a body | Fewer tokens than `Effect<A, E, R>` in every contract | 14 |
 | D128 | (Amended by D220, reverted by D223.) `service` and `control` declare abstract classes whose bodiless members are abstract; an implemented member is EK2103 | Fewer tokens than `abstract class` and `abstract` on every member | 4, 9 |
 | D129 | (Superseded by D221.) `layer UsersLive: Users { setup; find(id) { ... } }` is `Layer.effect` (or `Layer.succeed` without setup); setup after members is EK2104 | Fewer tokens than `Layer.effect(S, () => { return { ... } })` | 4 |
-| D13 | `catch` handles a cause only when it holds no defect; a failure beside a defect is a defect (D305), and one beside an interruption is caught (D306) | K14a-K14d | 3, 17, 26 |
-| D13 | `catch` handles a cause only when it holds no defect; a failure beside a defect is a defect (D305), and one beside an interruption is caught (D306) | K14a-K14d | 3, 17, 26 |
-| D13 | `catch` handles a cause only when it holds no defect; a failure beside a defect is a defect (D305), and one beside an interruption is caught (D306) | K14a-K14d | 3, 17, 26 |
-| D13 | `catch` handles a cause only when it holds no defect; a failure beside a defect is a defect (D305), and one beside an interruption is caught (D306) | K14a-K14d | 3, 17, 26 |
-| D13 | `catch` handles a cause only when it holds no defect; a failure beside a defect is a defect (D305), and one beside an interruption is caught (D306) | K14a-K14d | 3, 17, 26 |
-| D13 | `catch` handles a cause only when it holds no defect; a failure beside a defect is a defect (D305), and one beside an interruption is caught (D306) | K14a-K14d | 3, 17, 26 |
+| D130 | `with` provides a layer to a block, with the enclosing function's jumps. Amended by D172 to use `provide` and by D173 to accept services | Effect's provision as a source block | 4 |
+| D131 | Typed catch clauses select failures by tag. Superseded by D216 | Historical catch syntax | 3 |
+| D132 | `handle` clauses follow a try block and use its enclosing function's jumps | Handlers as source statements | 9 |
+| D133 | `schema` declares a struct schema and its type | The schema determines the type | 11 |
+| D134 | Interface and object-type members are readonly unless written `mutable` | Declaration output keeps readonly members | 10 |
+| D135 | An exported parameterless function declaration named `main` gets a host entry check unless a top-level runner starts the program | A module can serve as a library and a program | 1, 11, 13 |
 | D146 | Every export of `effect`'s root is in scope; JavaScript's own globals win, host globals do not | Imports from `effect` were 5.9% of the docs' tokens | 1, 27 |
 | D147 | A call is passed by name where a parameter expects a program: `fork(fetchReport())` | Thunks around single calls were 2.6% of the docs' tokens | 5, 13 |
 | D148 | (Amended by D229-D232.) `sync`, `try`, and `callback` are boundary hatches whose first arguments are plain TypeScript | One visible escape hatch replaces five Effect constructors and their lambda rules | 10, 28 |
@@ -172,12 +172,12 @@ These rows record implementation decisions. The decision log separates implement
 | D154 | The Hack pipe operator in `.vibe` files: `x \|> f(%, a)`, topic `%`, left-associative, looser than every binary operator; supersedes D8 | Fewer tokens and no nesting for operator chains; any argument position | 5, 27 |
 | D155 | A topic follows the by-name rule: where `%` stands for a program, the left side is passed by name; elsewhere it runs once, before the body; both in one pipe is EK1008 | `fetchUser(id) \|> retry(%, policy)` must retry the call, as `retry(fetchUser(id), policy)` does | 5, 13 |
 | D156 | A pipe's body must use `%` (EK1006); `%` outside a pipe's body is EK1007; after an operand `%` is still the remainder | The proposal's early errors; `%` keeps its JavaScript meaning where it already has one | 5, 28 |
-| D166 | `fork` is a keyword: `fork x` is `fork(x)` and `fork { ... }` forks a block | Concurrency reads as one word, with no lambda |
-| D167 | `await` waits for a Fiber, a Deferred, or an array or object of them, failing fast; superseded by D225 and D226 | Fibers need a join, and `await` was free outside hatches |
-| D168 | **Superseded by D197.** `select` runs the first case to finish and interrupts the rest; ties go to the first written; `default` polls; `break` leaves it | First-of-several events without `raceAll` plumbing |
-| D169 | `for concurrent(n)` runs the body per item in its own fiber; `continue` ends an item; `break` and `return` are EK4605 and EK4606 | `forEach` with a concurrency option, as a loop |
-| D170 | `detach(program)` and `forkIn(scope, program)` are fork's variants | Longer lifetimes without Effect's names |
-| D171 | `await`'s types accept one level of arrays and objects; D228 carries the rule to `join` | Deeper recursive types exceed TypeScript's limits |
+| D166 | `fork` is a keyword: `fork x` is `fork(x)` and `fork { ... }` forks a block | Concurrency reads as one word, with no lambda | 7 |
+| D167 | `await` waits for a Fiber, a Deferred, or an array or object of them, failing fast; superseded by D225 and D226 | Fibers need a join, and `await` was free outside hatches | 7 |
+| D168 | **Superseded by D197.** `select` runs the first case to finish and interrupts the rest; ties go to the first written; `default` polls; `break` leaves it | First-of-several events without `raceAll` plumbing | 7 |
+| D169 | `for concurrent(n)` runs the body per item in its own fiber; `continue` ends an item; `break` and `return` are EK4605 and EK4606 | `forEach` with a concurrency option, as a loop | 7 |
+| D170 | `detach(program)` and `forkIn(scope, program)` are fork's variants | Longer lifetimes without Effect's names | 7 |
+| D171 | `await`'s types accept one level of arrays and objects; D228 carries the rule to `join` | Deeper recursive types exceed TypeScript's limits | 7 |
 | D172 | `provide AppLive { ... }` replaces `with AppLive { ... }`; `with` still compiles, with warning EK1009 and a quick fix | VibeLang keywords reuse Effect's own names, so `provide` reads as `Effect.provide` | 4 |
 | D173 | `provide Key = value` provides one service; comma-separated providers mix layers and services; `provide(...) { }` means the same | `Effect.provideService` without a layer, in the same block form | 4 |
 | D174 | In a provider, an effect module stands for its key of the same name: `Clock` for `Clock.Clock` | `provide Clock = testClock` and `provide Scheduler = fifo` swap runtime services | 4, 28 |
@@ -191,7 +191,7 @@ These rows record implementation decisions. The decision log separates implement
 | D187 | `do { }` is an expression whose value is its last statement's | TC39 do expressions (stage 1); a racer or an arm gets several statements | 13 |
 | D188 | A block after a call is its program: `withSpan("load") { ... }`, `it.effect("name") { ... }`; an Effect dual takes it in its program's place | TC39 block params (stage 1); removes `() => { }` around multi-statement programs | 13 |
 | D196 | `await.all`, `await.allSettled`, `await.race`, `await.any` start programs by name and behave as the `Promise` methods; EK4608 | TC39 await operations and Await Dictionary; `await.x` reads as `Promise.x` |
-| D197 | `await.race [...]` replaces `select`, which is EK4607 | `case` read as value comparison and "select" is not Effect's word |
+| D197 | `await.race [...]` replaces `select`, which is EK4607 | `case` read as value comparison and "select" is not Effect's word | 7 |
 | D206 | `match (x) { when P: v; default: d; }` is an expression; mixed `and`/`or`/`not` need parentheses (EK4705) | TC39 pattern matching (stage 1); one expression per arm, `do { }` for more | 3 |
 | D207 | The supported pattern subset: literals, bindings, arrays, objects, matchers, extractors, `and`/`or`/`not`, guards, `is` | The proposal's core; regular expression, relational, and async forms deferred | 3 |
 | D208 | `Option`, `Exit`, `Result`, and primitive classes compile to their own guards | Exact binding types without a runtime protocol; a shadowing local is not consulted | 3 |
@@ -292,4 +292,4 @@ Proposed in the first draft as P1-P22; adopted by D29. A row marked **revised** 
 | O9 | D58, superseded by D125, then D255 (**controversial**) | VibeLang: `vibelang`, `.vibe`, `EK` codes, and unscoped npm packages |
 | Remote and repository layout | D60 | One repository, with the compiler in `typescript/`: public at `github.com/smithersai/vibelang` |
 
-No language or repository decision remains open here. Upstream drafts require maintainer approval before filing.
+D25 records an open resource limitation, and D310-D313 remain provisional. The closed end-to-end build calls above stay recorded. Upstream drafts require maintainer approval before filing.

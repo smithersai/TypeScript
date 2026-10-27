@@ -4,7 +4,7 @@
 
 ```ts dts
 import type { Effect } from "vibelang-runtime"
-export declare function double(n: number): number!!
+export declare function double(n: number): Effect.Effect<number, never, never>
 ```
 
 The compiler writes ordinary TypeScript declarations with Effect contracts.
@@ -53,7 +53,7 @@ applied patch series.
        JavaScript, source maps, and ordinary .d.ts files
 ```
 
-The parser keeps TypeScript's grammar. The checker resolves prelude names as
+The parser extends TypeScript's grammar with VibeLang's contracts, declarations, expressions, and block forms. The checker resolves prelude names as
 implicit imports from `vibelang-runtime`, `effect`'s other root exports as
 implicit imports from `effect`, and the modules of its subpath packages as
 implicit imports of their packages, such as `effect/http`, unless a local
@@ -122,8 +122,9 @@ shape as an interface plus a class whose base has type `ServiceKey<Users>`
 (D45), so ordinary TypeScript can implement and provide the service:
 
 ```ts dts
+import type { Effect } from "vibelang-runtime"
 export interface Users {
-  find(id: string): User!UserNotFound!
+  find(id: string): Effect.Effect<User, UserNotFound, never>
   readonly "~vibelang/service"?: "@acme/app/src/users#Users"
 }
 declare const Users_base: import("vibelang-runtime").ServiceKey<Users>
@@ -138,9 +139,9 @@ specifiers to `.js` (D31). TypeScript consumers need only the `.js`, `.d.ts`,
 Chapter 15's control-class and `$direct` JSDoc metadata is a design target; the
 compiler neither emits nor reads it. A consumer compiled against a declaration
 uses the Effect form: correct, but without the direct-call optimization.
-Trusted TypeScript declarations do support `/** @vibelang trusted */` and
-`@throws {T}` (D23): each listed exception class joins E, and generated code
-tests it with `instanceof` (D51).
+Trusted TypeScript contracts use `trusted(impl, [Errors])` (D249, Chapter 10).
+The older D23 declaration tags still affect the native compiler and draw
+EK4406 where their contract affects lowering.
 
 #### Acceptance checks
 

@@ -104,7 +104,7 @@ export function main() {
 }
 ```
 
-`Effect.provide` supplies the services `welcome` needs from an application Layer (Chapter 4 builds `AppLive`). The `() =>` in `() => welcome("42")` hands Effect a program without running it (Chapter 5). The module exports a parameterless `main`, so its JavaScript ends with `if (import.meta.main) NodeRuntime.runMain(main())`: `node main.js` hands `main` to Node's runner, the only place a program starts, and importing the module starts nothing (D135).
+`Effect.provide` supplies the services `welcome` needs from an application Layer (Chapter 4 builds `AppLive`). The `() =>` in `() => welcome("42")` hands Effect a program without running it (Chapter 5). The module exports a parameterless `main`, so the compiler appends a `runtime.$entry(...)` check that starts it only when the host starts this module (D135). Importing the module starts nothing. A top-level runner call suppresses this entry statement. Chapter 13 states the entry rule, including platform imports (D312).
 
 #### What the compiler produces
 
@@ -121,8 +121,9 @@ export const welcome = Effect.fnUntraced(function* (id: string) {
 ```
 
 ```ts dts
+import type { Effect } from "vibelang-runtime"
 export declare const welcome: (id: string) =>
-  string!UserNotFound | MailError!Users | Mailer
+  Effect.Effect<string, UserNotFound | MailError, Users | Mailer>
 ```
 
 TypeScript that imports `welcome` sees an ordinary function returning an `Effect`. Each service class compiles to an interface for its methods and a `Context.Key` class (Chapter 4), so TypeScript can provide `Users` with an ordinary Layer, and VibeLang can use services written in TypeScript.

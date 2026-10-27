@@ -40,7 +40,7 @@ Every section of Effect 4's documentation, the Effect 3 pages version 4 dropped,
 
 #### C2. Error management
 
-On a cause mixing an expected failure and a defect, the Effect operators below keep Effect's behavior, which differs from VibeLang's `catch` (Chapter 17 lists how).
+On a cause mixing an expected failure and a defect, neither Effect's typed recovery operators nor VibeLang's `catch` recovers (D305). Chapter 17 lists each operator's behavior.
 
 | Feature | In VibeLang | Form |
 | --- | --- | --- |

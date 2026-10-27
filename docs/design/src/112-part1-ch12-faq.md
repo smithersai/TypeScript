@@ -180,7 +180,7 @@ function main() {
 NodeRuntime.runMain(() => main())
 ```
 
-A program starts only at a runner: `NodeRuntime.runMain` or `BunRuntime.runMain` for a process, `it.effect` for a test, and `Effect.runPromise` or a `ManagedRuntime` where TypeScript code needs a result. A web framework that calls your handlers builds one `ManagedRuntime` from the application layer and runs each handler through it, so the layer is built once (Chapter 4). A module's top level cannot run a program (EK1001).
+A program starts only at a runner: `NodeRuntime.runMain` or `BunRuntime.runMain` for a process, `it.effect` for a test, and `Effect.runPromise` or a `ManagedRuntime` where TypeScript code needs a result. A web framework that calls your handlers builds one `ManagedRuntime` from the application layer and runs each handler through it, so the layer is built once (Chapter 4). A module's top level cannot run a program (EK1001). Chapter 13 states when the compiler appends an entry statement and when an explicit top-level runner suppresses it (D135).
 
 #### Do I still use `pipe`?
 
@@ -194,20 +194,14 @@ Rarely. Statements replace sequencing, error handling, and cleanup, so most pipe
 
 ```ts es
 function area(shape: Circle | Square) {
-  switch (shape._tag) {
-    case "Circle": return Math.PI * shape.radius ** 2
-    case "Square": return shape.side ** 2
+  return match (shape) {
+    when { _tag: "Circle", let radius }: Math.PI * radius ** 2;
+    when { _tag: "Square", let side }: side ** 2;
   }
 }
-
-const describe = Match.type<Circle | Square>().pipe(
-  Match.tag("Circle", (c) => `circle of radius ${c.radius}`),
-  Match.tag("Square", (s) => `square of side ${s.side}`),
-  Match.exhaustive
-)
 ```
 
-TypeScript's narrowing does most of the work: `switch` on `_tag`, `instanceof`, and `catch` narrowing on errors (Chapter 3). Effect's `Match` module works unchanged; its handlers are plain functions, so they cannot pause (EK4301). TC39's pattern matching proposal is at Stage 1 and is not used.
+`match` is an expression, and `is` tests a pattern in a condition (D206-D215). A match without `default` over a finite union must cover every case (EK4701). Catch a failure with `catch (e)`, then use `match (e)` or `e is T` to narrow it (Chapter 3). TypeScript's `switch` and `instanceof` still work. Effect's `Match` module also works unchanged, with plain handlers that cannot pause (EK4301).
 
 #### How do fibers, interruption, and cancellation work?
 
