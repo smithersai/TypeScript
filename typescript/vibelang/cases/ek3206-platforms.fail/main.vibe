@@ -1,0 +1,9 @@
+// expect: EK3206
+// A file names one platform (D312): a second, different platform import is
+// an error, not a choice that source order makes.
+import "vibelang/platform/node"
+import "vibelang/platform/browser"
+
+export function main() {
+  Console.log(FileSystem.readFileString("config.json"))
+}

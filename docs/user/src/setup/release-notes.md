@@ -408,7 +408,8 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   it. A `provide` inside `main` still wins, tests provide their own layers,
   and EK3205 names only the services the layer does not provide. Without the
   import, nothing changes, and EK3205 names the import that would provide
-  the platform's services.
+  the platform's services. A file names one platform: a second, different
+  platform import is error EK3206.
 
 ### Experimental platform APIs
 

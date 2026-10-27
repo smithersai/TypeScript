@@ -100,7 +100,7 @@ export function main() {
 // Output: Hello, VibeLang!
 ```
 
-`import "vibelang/platform/node"` names Node and `main` needs `FileSystem`, so the compiled module runs `main` as Effect's canonical entry does, `NodeRuntime.runMain(Effect.provide(main(), NodeServices.layer))`, with the Node platform service bundle. `"vibelang/platform/bun"` names Bun's bundle and `"vibelang/platform/browser"` the browser's; the services each bundle supplies come from its installed declarations. The same package works in Deno's Node compatibility environment, subject to Deno permissions. Run the generated entry module with Node or Deno, granting only the permissions the application needs.
+`import "vibelang/platform/node"` names Node and `main` needs `FileSystem`, so the compiled module runs `main` as Effect's canonical entry does, `NodeRuntime.runMain(Effect.provide(main(), NodeServices.layer))`, with the Node platform service bundle. `"vibelang/platform/bun"` names Bun's bundle and `"vibelang/platform/browser"` the browser's; the services each bundle supplies come from its installed declarations. A file names one platform: importing a second, different one is error EK3206. The same package works in Deno's Node compatibility environment, subject to Deno permissions. Run the generated entry module with Node or Deno, granting only the permissions the application needs.
 
 A `provide` inside `main` wins for the code inside it, so `provide NodeFileSystem.layer { ... }` replaces one service. Tests never run the entry: they import `main` and provide their own layers. EK3205 names any other service `main` needs; provide it inside `main`. Without a platform import the entry provides no platform, and EK3205 names the import that would.
 

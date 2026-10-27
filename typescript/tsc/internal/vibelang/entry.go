@@ -105,8 +105,29 @@ func entryRuntime(file *ast.SourceFile) platformBundle {
 	return nodeRuntime
 }
 
+func init() {
+	fileChecks = append(fileChecks, checkPlatformImports)
+}
+
+// checkPlatformImports reports EK3206 at each platform import of file that
+// names a platform other than the first one file names: a file runs on one
+// platform, and source order is no way to choose it.
+func checkPlatformImports(c *checker.Checker, file *ast.SourceFile) {
+	var first *entryPlatform
+	for _, statement := range file.Statements.Nodes {
+		switch platform := platformImport(statement); {
+		case platform == nil:
+		case first == nil:
+			first = platform
+		case platform != first:
+			report(c, statement.AsImportDeclaration().ModuleSpecifier, EK3206, first.name, platform.name)
+		}
+	}
+}
+
 // namedPlatform returns the platform that file names with a platform import,
-// or nil. It reads only syntax, so the implicit imports can use it.
+// the first when it names several (EK3206), or nil. It reads only syntax, so
+// the implicit imports can use it.
 func namedPlatform(file *ast.SourceFile) *entryPlatform {
 	for _, statement := range file.Statements.Nodes {
 		if platform := platformImport(statement); platform != nil {

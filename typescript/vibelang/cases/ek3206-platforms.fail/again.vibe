@@ -1,0 +1,7 @@
+// Naming the same platform twice contradicts nothing.
+import "vibelang/platform/node"
+import "vibelang/platform/node"
+
+export function main() {
+  Console.log(FileSystem.readFileString("config.json"))
+}
