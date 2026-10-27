@@ -51,7 +51,7 @@ Three reasons:
 
 The runtime packages supply the implementations and the runner: `@effect/platform-node` (`NodeRuntime`, `NodeServices.layer`), `@effect/platform-bun`, and `@effect/platform-browser`.
 
-A module that exports a service of its own name, such as `FileSystem`, names that service, with no import (D311): `FileSystem.readFileString(path)` calls the service's member, `FileSystem()` is the implementation, and the type `FileSystem` is the service. The key itself is `FileSystem.FileSystem`, and `FileSystem.FileSystem.readFileString(path)` works too.
+A module that exports a service of its own name, such as `FileSystem`, names that service, with no import (D311): `FileSystem.readFileString(path)` calls the service's member, `FileSystem()` is the implementation, and the type `FileSystem` is the service. The key itself is `FileSystem.FileSystem`, and `FileSystem.FileSystem.readFileString(path)` works too. A value member reads from the implementation, as on any key: `Path().sep` is the separator, and `Path.sep` is EK4503, as `Path.Path.sep` is. A member that is itself a program, such as `Terminal`'s `columns`, runs when called: `Terminal.columns()`.
 
 #### Files
 

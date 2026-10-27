@@ -471,7 +471,8 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   type `Option<number>` is `Option.Option<number>`, `FileSystem.readFileString(path)`
   calls the `FileSystem` service with no import, `FileSystem()` is its
   implementation, and a member the module lacks reads the export, as
-  `FileSystem.of` does. The module's own exports win, so `Option.some` and
+  `FileSystem.of` does. A service's value member reads from its
+  implementation, `Path().sep`; `Path.sep` is EK4503, as it is on the key. The module's own exports win, so `Option.some` and
   `FileSystem.layerNoop` keep their meaning and `Option.Option<A>` still
   compiles. The same holds after `import { Prompt } from "effect/ai"`, and
   for the experimental services: `Experimental.Process.hostname()`

@@ -78,6 +78,8 @@ Many of Effect's modules export something of their own name: the module `Option`
 | `Option<number>`, a type | `Option.Option<number>` |
 | `FileSystem.readFileString(path)` in a function body | `FileSystem.FileSystem.readFileString(path)`, a service call |
 | `FileSystem()` in a function body | `FileSystem.FileSystem()`, the service's implementation |
+| `Path().sep` in a function body | `Path.Path().sep`, a value of the implementation; `Path.sep` is EK4503, as on the key |
+| `Terminal.columns()` in a function body | runs the service's `columns`, which Effect declares as a program |
 | `FileSystem.of(implementation)`, a member the module does not export | `FileSystem.FileSystem.of(implementation)` |
 
 The module's own exports win: `Option.some`, `FileSystem.layerNoop`, and `Path.layer` are the module's, and `Option.Option<number>` still works. A service key as a value stays explicit: `Layer.succeed(FileSystem.FileSystem, implementation)`.

@@ -1,0 +1,21 @@
+// A module whose name names a service reads a value member from the
+// service's implementation, as its key does (D311): Path().sep is the
+// separator. Terminal's columns is a program, as Effect declares it:
+// Terminal().columns is that program, and Terminal.columns() and
+// Terminal().columns() run it. Path.sep and Terminal.columns are EK4503
+// (module-service-values.fail).
+const Fixed = Terminal.make({
+  columns: Effect.succeed(80),
+  rows: Effect.succeed(24),
+  readInput: Effect.die("no input"),
+  readLine: Effect.succeed("line"),
+  display: (text: string) => Effect.void
+})
+
+// expect-result: ["/",true,80,80]
+export function main() {
+  provide Path.layer, Layer.succeed(Terminal.Terminal, Fixed) {
+    const columns = Terminal().columns
+    return [Path().sep, Effect.isEffect(columns), Terminal.columns(), Terminal().columns()]
+  }
+}
