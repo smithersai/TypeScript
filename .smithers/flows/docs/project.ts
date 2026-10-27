@@ -123,7 +123,7 @@ The end-to-end check runs setup, then scaffolds, installs, builds, runs and test
     {
       heading: "Pull requests",
       body: `1. Link the accepted issue: \`Closes #123\`.
-2. Change one thing. Add a test that fails without the change, and update the examples and diagnostics it affects. Every fix commit must add one line to the top release-notes section's \`Bugs fixed since <last published version>\` list and update every doc page its change affects, in the same commit.
+2. Change one thing. Add a test that fails without the change, and update the examples and diagnostics it affects. Every fix commit must add one line to the top release-notes section's \`Bugs fixed since <last published version>\` list and update every doc page its change affects, in the same commit. If the bug is listed under \`Known bugs\`, remove that line and add its \`Bugs fixed\` line in the same commit.
 3. Describe the behavior before and after, any syntax or API break, and the commands you ran with their results.
 4. Open a draft for early feedback. {{merge}}
 

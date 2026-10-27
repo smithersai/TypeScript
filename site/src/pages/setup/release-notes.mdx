@@ -156,6 +156,235 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - The agent essentials used an undeclared layer binding. The example now declares the layer before providing it.
 
 
+### Known bugs
+
+These bugs were found and confirmed and are being fixed; please don't re-report them, and each entry moves to the fixed list when its fix lands.
+
+#### Generated names
+
+- Your names can collide with the compiler's own names: for example,
+  `answer$direct`, `sum$recur`, `work$try`, `$match1`, `$is`, `$noMatch`,
+  `$awaitAll`, `$forConcurrent` or `Users_base`. Calls and patterns can use
+  your value, or generated JavaScript and declarations can contain duplicate
+  names. A local `SyntaxError` can also break the generated error check for
+  `JSON.parse`. Rename the colliding source binding.
+
+#### `this`/`arguments`/`super` in effectful functions
+
+- An effectful arrow that uses `this` only in a parameter default, a nested
+  class's `extends` expression or a computed member name can lose its receiver
+  and throw. Capture `this` in a local before the arrow and use that local.
+- A named effectful function expression that calls or returns its own name
+  can refer to a generator instead of the function: retries can crash and
+  recursion can overflow the stack. A declaration's self-reference in a
+  parameter default can also return the wrong function. Use an anonymous
+  function referring to its outer variable, and avoid self-referencing defaults.
+- `super.count++`, `--super.count` and computed compound assignments such as
+  `super[key()] += value()` in an effectful method can produce JavaScript
+  that fails to load or an invalid assignment target. Use separate reads and
+  simple assignments, saving a computed key once.
+- A nested effectful arrow that reads `arguments` can see a different object
+  from its enclosing function; mutations can also carry over between runs
+  of the same program. Capture `const args = arguments` in the enclosing
+  function body and share that local.
+- A producer that reads `arguments[0]` can yield `undefined` instead of its
+  first argument. Use named parameters in the producer body.
+- An effectful arrow created in a constructor can see `new.target` as
+  `undefined`. Capture `const target = new.target` in the constructor and
+  read `target` from the arrow.
+
+#### Evaluation order
+
+- `||` and `??` inside a program argument can test the cold Effect object
+  instead of the call's result, skipping a fallback that should run. Pass a
+  block program that stores the expression in a local before returning it.
+
+  ```vibe
+  // fragment
+  Effect.retry(first() || second(), { times: 0 })
+  Effect.all([absent() ?? fallback()])
+  ```
+
+- Continuing an optional chain after an effectful call, as in
+  `box?.read().value`, can throw when `box` is absent. Check the receiver
+  explicitly before calling and reading the result.
+- A value pipe such as `source() |> sink.take(%)` can read the stage's getter
+  or function before running `source()`, reversing side effects or calling
+  an old function. Store the left value in a local before applying the stage.
+- A trusted method call with effectful arguments can evaluate those arguments
+  before looking up the method. Optional trusted calls can run arguments
+  that should be skipped and can then throw. Check optional receivers and
+  callables first, and save the method before evaluating its arguments.
+- A `sync` or `try` hatch returning a scalar-or-Promise union can hand back
+  an unresolved Promise despite a scalar result type; ordinary data with a
+  non-callable `then` property can instead be treated as a Promise and crash.
+  Use an async callback for mixed returns, or the runtime hatch adapter
+  imported under an alias for data with a `then` field.
+- `try(evaluate, makeMapper(), input())` can run `input()` before
+  `makeMapper()`. Evaluate the mapper and inputs into locals in written order
+  before calling the hatch.
+- `wire(makeA(), makeB())` can evaluate layer factories in dependency order
+  instead of the order you wrote, changing their side effects. Build the
+  layers into locals in written order, then pass those locals to `wire`.
+- `for concurrent(limit()) (const item of items())` can evaluate `items()`
+  before `limit()`, even selecting an old collection and skipping work.
+  Evaluate the limit into a local before the loop.
+
+#### Errors
+
+- When both a `try` body and its `finally` fail in an otherwise plain
+  function, cleanup can replace the original failure instead of preserving
+  both causes. An outer catch can receive the cleanup error instead of the
+  original one.
+- A call in a catch binding's default can fail or need a service that the
+  function's checked contract and declarations omit. Move destructuring
+  and defaults into the catch body.
+
+  ```vibe
+  // fragment
+  catch ({ id = fallback() }) { return id }
+  ```
+
+- An error subclass without its own constructor can lose its own fields when its base has a custom constructor that rebuilds the argument object.
+- An error subclass such as `error Child extends Base<number>` can be
+  rejected because its generated constructor forgets the base's type
+  arguments. Write an explicit constructor accepting the base and subclass
+  fields and passing them to `super`.
+- Throwing `Cause.fail(...)` inside an otherwise plain function can give
+  `catch` the whole Cause instead of its error; `Cause.die(...)` can even
+  be caught as an expected failure. Use `Effect.failCause` explicitly.
+- A trusted tagged-template call can let its declared expected error escape
+  as a defect, bypassing `catch`. Use an ordinary call to the trusted function
+  where its API supports one.
+
+#### Concurrency and resources
+
+- Aggregate joins and races can hang during cancellation if one child's
+  cleanup waits for another child's cleanup: children are interrupted one at
+  a time. Avoid dependencies between sibling finalizers; when managing fibers
+  explicitly, `Fiber.interruptAll` signals them together.
+- Holding `const p: number[]!! = await.all items` can iterate `items` while
+  constructing the program and reuse that snapshot on every run. The same
+  issue affects `await.allSettled`, `await.race` and `await.any`. Wrap the
+  whole await expression in a block program so it is constructed afresh per run.
+- `using` looks up `Symbol.dispose` or `Symbol.asyncDispose` again at cleanup
+  time. Replacing the method, or using a getter that returns different methods,
+  can run the wrong disposer. Keep the disposal method stable for the lifetime
+  of the binding.
+- `join tasks` can read object getters or array entries twice, joining a
+  different child from the one used for cancellation. Copy the selected fibers
+  into a plain collection once before joining.
+- `join` rejects a valid `Record<string, Fiber.Fiber<number>>`, yet can
+  accept a record whose index signature also permits non-fibers and then
+  crash. Use an object with explicit fiber properties, or map valid dictionary
+  entries through `Fiber.join` and `Effect.all`.
+- Assigning to a `const` binding in a `for concurrent` head is accepted and
+  changes the value, including destructured bindings. Keep those bindings
+  unchanged; introduce a separate local for mutable state.
+- A `for...of` whose destructuring default runs an Effect can leave its
+  iterator open when that default fails. Move the destructuring and default
+  into the loop body.
+- Array destructuring such as `const [n = fallback()] = values` can leave
+  its iterator open if the Effect default fails. Destructure first, then run
+  the fallback after destructuring has finished.
+- An effectful `for...of` over an array with a custom iterator can skip
+  iterator cleanup on failure. Bind the array as `Iterable<T>` before looping
+  so it uses the protected iteration path.
+
+#### Services and layers
+
+- A service's `static readonly default` is not checked against its declared
+  shape or method contracts. Wrong value types, hidden failures or plain
+  methods where Effect methods are required can compile and then fail or
+  return the wrong type. Use an explicitly checked provider such as
+  `Layer.succeed` for the implementation.
+- Providing a choice between layers or contexts can claim that every branch's
+  services are available, even though only one branch runs. Missing-service
+  failures then appear at runtime despite a closed contract. Branch around
+  separate provider blocks, or make every branch supply the required services.
+- A possibly empty array of layers can count as providing its element type's
+  services even when the array is empty. Use a nonempty provider tuple or
+  provide the required layer directly.
+- Calling `wire` through an import alias, a namespace or a tuple spread can
+  skip dependency ordering and fail with a missing service. Use the direct
+  `wire(layerA, layerB)` form with explicit arguments.
+- `wire(layer)` can erase a layer's requirement for the same service it
+  produces, even though building that layer still needs an external provider.
+  Use the layer directly and supply its input service.
+- `provide` accepts values that are neither layers nor contexts, such as
+  `provide 123 { ... }`, and crashes at runtime. Pass a layer, a nonempty
+  tuple of layers or a context.
+
+#### `match` and `data`
+
+- Matching `Option<A> | string` with the Option arms first can be rejected
+  because the generated tests require an already narrowed Option. Put the
+  disjoint `String` arm first.
+- A match covering every nested data variant can still be reported as
+  non-exhaustive. Match the nested field separately, or add a fallback arm.
+- A nested property pattern that both tests and binds a getter's value can
+  read it twice, binding a different value from the one that passed the test.
+  Read the property into a local and match that saved value.
+- A variable pattern named `String`, `Number` or another built-in matcher
+  can ignore your binding and use the built-in test; a data type named
+  `Option` can be mistaken for Effect's Option. Rename the source binding.
+- A custom extractor inside an `or` pattern can be
+  rejected because its generated result is not kept for narrowing. For `or`,
+  use separate adjacent match arms instead.
+- The final arm of an exhaustive data match can skip evaluating the matcher
+  expression, including its getters. Store the matcher value in a local before
+  matching if its lookup must run.
+
+#### Modules and declarations
+
+- Mutable exports from an inline `module` are snapshots: named imports,
+  namespace imports and re-exports can keep the initial value after updates.
+  Export a getter function, or move the module to a separate TypeScript module.
+- A dynamic import of a VibeLang source can keep the source extension when
+  extension rewriting is disabled, or fail to escape URL characters such as
+  `#` when it is enabled, so the emitted module cannot be loaded. Use a static
+  import where possible.
+- Importing Effect's `pipe` under another name can reject a program argument
+  that works with the name `pipe`. Keep that import named `pipe`.
+- CommonJS imports of source modules with spaces or URL characters in their
+  names can request an encoded filename that does not exist. Rename the
+  source module to avoid those characters.
+- A service inside a namespace can work at runtime but lose its service-key
+  API in generated declarations, so TypeScript consumers reject it as a
+  provider key. Declare and export the service at the top level.
+
+#### `--fix` and the formatter
+
+- Formatting can reorder value imports and change the order in which their
+  modules initialize, changing program behavior. Disable import-declaration
+  sorting in the formatter settings when initialization order matters.
+- `--fix` can discard comments when converting tagged error fields or
+  unwrapping `Effect.succeed` and `Effect.fail`. Preserve those comments when
+  applying the change manually.
+- Converting `catchTag` or `catchTags` to a class pattern can stop catching
+  a copied or structural error that has the right `_tag` but no class
+  prototype. Keep a structural tag pattern, or keep the original call.
+- Converting `catchTags` can reuse one handler's parameter as the shared
+  catch binding and capture a different handler's outer variable, changing
+  its result. Apply the rewrite manually with a fresh catch binding.
+- Import cleanup after a form rewrite can remove an entire import and
+  silently skip that module's initialization. Retain a side-effect-only
+  import when its initialization is needed.
+- Converting `Effect.provide(programExpression, layerExpression)` to a
+  provider block can evaluate the layer before the program expression.
+  Evaluate the program into an explicitly Effect-typed local first, then
+  evaluate the provider and run the saved program inside its block.
+- Converting a `Context.Service` class can delete evaluation of a dynamic
+  key expression such as `keys.pop()`. Keep the original declaration when
+  evaluating the key has side effects.
+- The editor's quick fix from a tagged error class can truncate a constrained
+  generic parameter or a comment containing `extends`, leaving invalid syntax.
+  Preserve the full type parameter list when converting manually; CLI `--fix`
+  refuses this malformed edit.
+- One `--fix` invocation can stop after 16 rounds with deeply nested,
+  overlapping fixes still available. Run it again until it reports no edits.
+
+
 ### Known limitations
 
 - A JavaScript Disposable acquired while interruption is masked can leak if
