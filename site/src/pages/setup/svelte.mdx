@@ -25,8 +25,8 @@ npm install --save-dev --save-exact happy-dom@20.14.6 @testing-library/svelte@5.
 
 Find the configuration that includes `src`. In an app from Vite's `svelte-ts` template, `tsconfig.json` has `"files": []` and lists `tsconfig.app.json` and `tsconfig.node.json` as `references`; `tsconfig.app.json` includes `src`. Make two changes there:
 
-1. In `compilerOptions`, set `"rewriteRelativeImportExtensions": true`. Without it, `vite build` fails with TS5097 for each `.ts` file that imports a `.vibe` module. A configuration that sets `allowImportingTsExtensions` fails with TS5096 instead.
-2. Add `"src/**/*.vibe"` to `include`; the template lists only `.ts`, `.js`, and `.svelte` globs. Without the `.vibe` glob, the compiler skips `.vibe` files that no other file imports, such as tests, and Vitest fails with `ENOENT`.
+1. The VibeLang plugin automatically enables `rewriteRelativeImportExtensions` for the JavaScript it emits, so `vite build` works without this setting. For the separate `vibelang -b` check in step 7, set `"rewriteRelativeImportExtensions": true` in `compilerOptions`; without it, a `.ts` file importing a `.vibe` module reports TS5097. It also rewrites source-extension imports during CLI emission; `allowImportingTsExtensions` alone produces TS5096 when emitting JavaScript.
+2. Add `"src/**/*.vibe"` to `include`; the template lists only `.ts`, `.js`, and `.svelte` globs. Without the `.vibe` glob, the compiler skips `.vibe` files that no other file imports, such as tests, and Vitest reports `vibelang: …/src/cart.test.vibe is not part of …/tsconfig.app.json. Add it to the tsconfig's include.`.
 
 ```json
 {
