@@ -131,7 +131,11 @@ func checkEffectRules(c *checker.Checker, file *ast.SourceFile) {
 }
 
 // checkFloating reports EK4801 at statement, an expression statement, when it
-// discards an Effect value. A call at a module's top level is EK1001's.
+// discards an Effect value, or a program it names without calling it, such
+// as `interrupt` or a function of no arguments that runs Effects: naming
+// one runs nothing (D24), so a program went on past `interrupt`. A call
+// that returns a program stays quiet; a call at a module's top level is
+// EK1001's.
 func (r *ruleCheck) checkFloating(statement *ast.Node) {
 	expression := statement.Expression()
 	if isProvideLayer(statement) || isDiscardingForm(expression) || isHelperCall(expression) {
@@ -145,10 +149,14 @@ func (r *ruleCheck) checkFloating(statement *ast.Node) {
 	if !body && ast.IsCallExpression(ast.SkipParentheses(expression)) && ast.GetContainingFunction(statement) == nil {
 		return
 	}
-	if !isEffectType(r.c, r.c.GetTypeAtLocation(expression)) {
-		return
+	message := EK4801
+	if t := r.c.GetTypeAtLocation(expression); !isEffectType(r.c, t) {
+		if !isProgramReference(expression) || r.a.programOf(t) == nil {
+			return
+		}
+		message = discardedProgram
 	}
-	d := report(r.c, expression, EK4801, messageText(expression, "This expression"))
+	d := report(r.c, expression, message, messageText(expression, "This expression"))
 	switch {
 	case body:
 		note(d, "Call it to run it: {0}.", callText(expression))
@@ -157,6 +165,18 @@ func (r *ruleCheck) checkFloating(statement *ast.Node) {
 	default:
 		note(d, "Call it inside a VibeLang function to run it.")
 	}
+}
+
+// discardedProgram is EK4801's text for a program named by reference. {0} is
+// the expression.
+var discardedProgram = EK4801.With("{0} is a program, and this statement discards it without running it.")
+
+// isProgramReference reports whether expression names a value without
+// computing it: an identifier or a member, as in `interrupt` or
+// `Console.log`.
+func isProgramReference(expression *ast.Node) bool {
+	expression = ast.SkipParentheses(expression)
+	return ast.IsIdentifier(expression) || ast.IsPropertyAccessExpression(expression)
 }
 
 // isHelperCall reports whether expression is a call that the parser wrote

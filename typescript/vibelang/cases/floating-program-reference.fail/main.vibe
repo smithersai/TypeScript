@@ -1,0 +1,30 @@
+// expect: EK4801
+// A statement that names a program without calling it runs nothing: the
+// program went on past `interrupt` and exited 0. Data stays data (D24), so
+// a Config, a call that returns a function, and a function that needs
+// arguments stay quiet.
+function work() {
+  Console.log("work")
+}
+
+function greet(name: string) {
+  Console.log(name)
+}
+
+const Port = Config.Number("PORT")
+
+function unsubscribe(): () => void!! {
+  return () => Console.log("unsubscribed")
+}
+
+export function main() {
+  Console.log("before")
+  interrupt
+  work
+  yieldNow
+  Console.log
+  greet
+  Port
+  unsubscribe()
+  Console.log("after interrupt")
+}

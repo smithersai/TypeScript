@@ -1198,6 +1198,7 @@ typescript/vibelang/cases/fibers-fork-join/main.vibe:85:10 byname program table
 typescript/vibelang/cases/fibers-fork-join/main.vibe:91:31 byname program table
 typescript/vibelang/cases/fibers-join-identifiers/main.vibe:19:23 lambda plain fallback
 typescript/vibelang/cases/fibers-join-identifiers/main.vibe:20:18 byname program table
+typescript/vibelang/cases/floating-program-reference.fail/main.vibe:17:10 lambda dual fallback
 typescript/vibelang/cases/for-of-closes-iterator/main.vibe:14:5 lambda plain protocol
 typescript/vibelang/cases/for-of-closes-iterator/main.vibe:16:9 lambda plain annotation
 typescript/vibelang/cases/for-of-closes-iterator/main.vibe:20:9 lambda plain annotation

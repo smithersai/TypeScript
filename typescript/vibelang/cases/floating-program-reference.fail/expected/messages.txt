@@ -1,0 +1,1 @@
+interrupt is a program, and this statement discards it without running it.

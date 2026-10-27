@@ -149,7 +149,7 @@ function discard(program: Effect.Effect<number>) {
 | Correctness | `classSelfMismatch` | Not needed: a `service` has no `Self` parameter | `service Users { find(id: string): User!NotFound }` |
 | Correctness | `duplicatePackage` | EK4803, warning | two versions of `effect` in one program |
 | Correctness | `effectFnImplicitAny` | Not needed: parameters are TypeScript's, so `strict` reports TS7006 | `function load(id) { … }` |
-| Correctness | `floatingEffect` | EK4801, error, with a quick fix | `program` alone on a line; the fix writes `program()` |
+| Correctness | `floatingEffect` | EK4801, error, with a quick fix | `program` alone on a line, or a program named without a call, such as `interrupt`; the fix writes `program()` |
 | Correctness | `genericEffectServices` | Covered: EK3005 | `service Repo<T> { … }` |
 | Correctness | `missingEffectContext` | Covered: EK2002 at a contract, EK3201 at a runner | `function f(): User!NotFound! { return Users.find(id) }` is EK2002 |
 | Correctness | `missingEffectError` | Covered: EK2001 | `function f(): User!! { return Users.find(id) }` |

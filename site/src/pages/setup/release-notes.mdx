@@ -126,6 +126,9 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
   constructor when its base's constructor takes a string, a number, a
   boolean or a list, rather than one object of fields; before, the first
   `new` of the subclass was TS2345.
+- EK4801 also reports a statement that names a program without calling
+  it, such as `interrupt` or `yieldNow` alone on a line: it ran nothing,
+  so the program went on. The quick fix writes `interrupt()`.
 
 ## 0.0.10
 
