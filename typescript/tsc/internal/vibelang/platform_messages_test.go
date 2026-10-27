@@ -18,6 +18,9 @@ declare module "node:path" { export function join(...paths: string[]): string }
 declare module "node:child_process" { export function execFileSync(command: string, args: string[]): string }
 declare module "node:http" { export function createServer(): unknown }
 declare module "node:os" { export function tmpdir(): string; export function hostname(): string }
+declare module "node:events" { export function once(emitter: unknown, name: string): Promise<unknown[]> }
+declare module "node:fs" { export const constants: { X_OK: number; O_NONBLOCK: number } }
+declare module "node:crypto" { export function createHmac(algorithm: string, key: Uint8Array): unknown }
 declare var process: { cwd(): string; env: Record<string, string | undefined>; pid: number; argv: string[] }
 declare var Buffer: { from(text: string): Uint8Array }`
 
@@ -28,6 +31,7 @@ const (
 	importCrypto        = `Import it with   import { Crypto } from "effect/Crypto"`
 	provideCrypto       = `Provide it in main with NodeServices.layer from "@effect/platform-node", BunServices.layer from "@effect/platform-bun", or BrowserCrypto.layer from "@effect/platform-browser".`
 	noServiceYet        = "Effect, VibeLang's standard library, has no service for it yet."
+	provideExperimental = `Provide it in main with NodeServices.layer from "vibelang-runtime/experimental/platform-node", or BunServices.layer from "vibelang-runtime/experimental/platform-bun".`
 	allowEK4403         = `To allow it, set "EK4403": "warning" or "off" in "vibelang": { "diagnostics": { ... } } at the top level of tsconfig.json.`
 )
 
@@ -113,11 +117,37 @@ export const run = () => hostname()`, []string{
 			"hostname from node:os is a platform API, which VibeLang code does not call directly.",
 			noServiceYet, "Run it in a hatch:   sync(() => hostname()), or with try when it can throw.",
 		}},
-		{"gap with a near miss", `import { lstat } from "node:fs/promises"
+		{"gap with a near miss", `import { once } from "node:events"
+export const run = (emitter: unknown) => once(emitter, "exit")`, []string{
+			"once from node:events is a platform API, which VibeLang code does not call directly.",
+			noServiceYet, "Effect has no adapter for a Node.js EventEmitter; Stream.fromEventListener reads an event target.",
+			"Run it in a hatch:   sync(() => once(...)), or with try when it can throw.",
+		}},
+		{"lstat", `import { lstat } from "node:fs/promises"
 export const run = (path: string) => lstat(path)`, []string{
 			"lstat from node:fs/promises is a platform API, which VibeLang code does not call directly.",
-			noServiceYet, "FileSystem.stat follows symbolic links, so it does not replace lstat.",
-			"Run it in a hatch:   sync(() => lstat(...)), or with try when it can throw.",
+			"Use the FileSystem service:   FileSystem.lstat(path)", importFileSystem, provideNodeServices,
+		}},
+		{"experimental file system", `import { constants } from "node:fs"
+export const run = () => constants.O_NONBLOCK`, []string{
+			"constants.O_NONBLOCK from node:fs is a platform API, which VibeLang code does not call directly.",
+			"Use the experimental FileSystem service:   FileSystem.open(path, { nonBlocking: true })",
+			`Import it with   import { FileSystem } from "vibelang-runtime/experimental/FileSystem"`, provideExperimental,
+		}},
+		{"experimental crypto", `import { createHmac } from "node:crypto"
+export const run = (key: Uint8Array) => createHmac("sha256", key)`, []string{
+			"createHmac from node:crypto is a platform API, which VibeLang code does not call directly.",
+			`Use the experimental Crypto service:   Crypto.hmac("SHA-256", key, data)`,
+			`Import it with   import { Crypto } from "vibelang-runtime/experimental/Crypto"`,
+			`Provide it in main with NodeServices.layer from "vibelang-runtime/experimental/platform-node", BunServices.layer from "vibelang-runtime/experimental/platform-bun", or BrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser".`,
+			"Crypto.hmac takes the key as Redacted bytes and all the data in one call.",
+		}},
+		{"experimental signatures", `export const run = (key: CryptoKey, data: Uint8Array) => crypto.subtle.sign("Ed25519", key, data)`, []string{
+			"crypto.subtle is a platform API, which VibeLang code does not call directly.",
+			`Use the experimental Crypto service:   Crypto.sign("Ed25519", privateKey, data)`,
+			`Import it with   import { Crypto } from "vibelang-runtime/experimental/Crypto"`,
+			`Provide it in main with NodeServices.layer from "vibelang-runtime/experimental/platform-node", BunServices.layer from "vibelang-runtime/experimental/platform-bun", or BrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser".`,
+			"It takes keys as bytes, a secret in a Redacted: raw for HMAC, PKCS#8 and SPKI DER for ECDSA P-256 and Ed25519; it has no ciphers.",
 		}},
 		{"gap of a property", `export const run = () => process.pid`, []string{
 			"process.pid is a platform API, which VibeLang code does not call directly.",

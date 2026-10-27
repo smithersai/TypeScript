@@ -49,6 +49,13 @@ type platformService struct {
 // and Terminal.
 const nodeServices = `NodeServices.layer from "@effect/platform-node", or BunServices.layer from "@effect/platform-bun"`
 
+// The layers of the experimental services (D313), which provide Effect's
+// services of the same names too.
+const (
+	experimentalServices = `NodeServices.layer from "vibelang-runtime/experimental/platform-node", or BunServices.layer from "vibelang-runtime/experimental/platform-bun"`
+	experimentalCrypto   = `NodeServices.layer from "vibelang-runtime/experimental/platform-node", BunServices.layer from "vibelang-runtime/experimental/platform-bun", or BrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser"`
+)
+
 // platformServices are the Effect APIs that replace platform APIs (Chapter 11), by
 // the names the tables below use. Each import and layer is declared by
 // effect 4.0.6 or its platform packages; TestPlatformServicesTable checks
@@ -99,6 +106,11 @@ var platformServices = map[string]*platformService{
 	"@effect/vitest": {"it.effect and assert", "", `import { assert, it } from "@effect/vitest"`, ""},
 	"import":         {"an import declaration", `import { name } from "./module.ts"`, "", ""},
 	"export":         {"an export declaration", "export function name() { ... }", "", ""},
+	// VibeLang's additions where Effect has none (D313).
+	"ExperimentalFileSystem": {"the experimental FileSystem service", "FileSystem.access(path, { executable: true })",
+		`import { FileSystem } from "vibelang-runtime/experimental/FileSystem"`, experimentalServices},
+	"ExperimentalCrypto": {"the experimental Crypto service", `Crypto.hmac("SHA-256", key, data)`,
+		`import { Crypto } from "vibelang-runtime/experimental/Crypto"`, experimentalCrypto},
 }
 
 // platformAPI says what replaces a platform API.
@@ -157,10 +169,9 @@ var platformGlobals = map[string]string{
 // "process.env". "process.*" covers process's other members. An API the table
 // lacks takes its module's or global's service.
 var platformAPIs = map[string]platformAPI{
-	"fs.lstat":                {note: "FileSystem.stat follows symbolic links, so it does not replace lstat."},
 	"fs.constants":            {"FileSystem", `FileSystem.open(path, { flag: "wx" })`, ""},
-	"fs.constants.X_OK":       {note: "FileSystem.access checks only that a path is readable or writable."},
-	"fs.constants.O_NONBLOCK": {note: "FileSystem.open takes a flag, such as \"wx\", but no nonblocking mode."},
+	"fs.constants.X_OK":       {"ExperimentalFileSystem", "FileSystem.access(path, { executable: true })", ""},
+	"fs.constants.O_NONBLOCK": {"ExperimentalFileSystem", "FileSystem.open(path, { nonBlocking: true })", ""},
 
 	"child_process.spawn":        {"ChildProcess", "ChildProcessSpawner.spawn(ChildProcess.make(command, args))", ""},
 	"child_process.exec":         {"ChildProcess", "", ""},
@@ -176,13 +187,15 @@ var platformAPIs = map[string]platformAPI{
 	"crypto.createHash":       {"Crypto", `Crypto.digest("SHA-256", bytes)`, "Crypto.digest hashes all the bytes in one call; it has no incremental update."},
 	"crypto.hash":             {"Crypto", `Crypto.digest("SHA-256", bytes)`, ""},
 	"crypto.subtle.digest":    {"Crypto", `Crypto.digest("SHA-256", bytes)`, ""},
-	"crypto.subtle":           {note: cryptoGap},
-	"crypto.webcrypto":        {note: cryptoGap},
-	"crypto.createHmac":       {note: cryptoGap},
-	"crypto.createSign":       {note: cryptoGap},
-	"crypto.createVerify":     {note: cryptoGap},
-	"crypto.sign":             {note: cryptoGap},
-	"crypto.verify":           {note: cryptoGap},
+	"crypto.subtle":           {"ExperimentalCrypto", `Crypto.hmac("SHA-256", key, data)`, cryptoKeys},
+	"crypto.subtle.sign":      {"ExperimentalCrypto", `Crypto.sign("Ed25519", privateKey, data)`, cryptoKeys},
+	"crypto.subtle.verify":    {"ExperimentalCrypto", `Crypto.verify("Ed25519", publicKey, signature, data)`, cryptoKeys},
+	"crypto.webcrypto":        {"ExperimentalCrypto", `Crypto.hmac("SHA-256", key, data)`, cryptoKeys},
+	"crypto.createHmac":       {"ExperimentalCrypto", `Crypto.hmac("SHA-256", key, data)`, "Crypto.hmac takes the key as Redacted bytes and all the data in one call."},
+	"crypto.createSign":       {"ExperimentalCrypto", `Crypto.sign("Ed25519", privateKey, data)`, cryptoKeys},
+	"crypto.createVerify":     {"ExperimentalCrypto", `Crypto.verify("Ed25519", publicKey, signature, data)`, cryptoKeys},
+	"crypto.sign":             {"ExperimentalCrypto", `Crypto.sign("Ed25519", privateKey, data)`, cryptoKeys},
+	"crypto.verify":           {"ExperimentalCrypto", `Crypto.verify("Ed25519", publicKey, signature, data)`, cryptoKeys},
 	"crypto.createCipheriv":   {note: cryptoGap},
 	"crypto.createDecipheriv": {note: cryptoGap},
 	"crypto.generateKeyPair":  {note: cryptoGap},
@@ -257,7 +270,8 @@ var platformAPIs = map[string]platformAPI{
 }
 
 const (
-	cryptoGap     = "Crypto has random values and digests; it has no keys, HMAC, signatures, or ciphers."
+	cryptoGap     = "Crypto has random values and digests, and the experimental Crypto adds HMAC and signatures; neither has ciphers or key generation."
+	cryptoKeys    = "It takes keys as bytes, a secret in a Redacted: raw for HMAC, PKCS#8 and SPKI DER for ECDSA P-256 and Ed25519; it has no ciphers."
 	processExit   = "Let main return or fail: NodeRuntime.runMain, which runs it, exits with 0 when it succeeds and 1 when it fails."
 	processEvents = "NodeRuntime.runMain handles SIGINT and SIGTERM; Effect has no service for other process events."
 )
@@ -274,9 +288,9 @@ var fileSystemAPIs = map[string]platformAPI{
 	"rmdir":             {"FileSystem", "FileSystem.remove(path)", ""},
 	"unlink":            {"FileSystem", "FileSystem.remove(path)", ""},
 	"stat":              {"FileSystem", "FileSystem.stat(path)", ""},
-	"lstat":             {note: "FileSystem.stat follows symbolic links, so it does not replace lstat."},
+	"lstat":             {"FileSystem", "FileSystem.lstat(path)", ""},
 	"exists":            {"FileSystem", "FileSystem.exists(path)", ""},
-	"access":            {"FileSystem", "FileSystem.access(path)", "FileSystem.access checks only that a path is readable or writable."},
+	"access":            {"FileSystem", "FileSystem.access(path)", "The experimental FileSystem's access(path, { executable: true }) also checks that the file can run."},
 	"readdir":           {"FileSystem", "FileSystem.readDirectory(path)", "FileSystem.readDirectory returns names; FileSystem.stat gives each one's type."},
 	"opendir":           {"FileSystem", "FileSystem.readDirectory(path)", ""},
 	"readlink":          {"FileSystem", "FileSystem.readLink(path)", ""},
