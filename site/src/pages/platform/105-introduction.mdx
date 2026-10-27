@@ -42,11 +42,11 @@ Each Node.js or web call has an Effect replacement, which needs no import. EK440
 | `crypto.randomUUID` | `Crypto.randomUUIDv4()` | `NodeServices.layer` |
 | `crypto.subtle.digest` | `Crypto.digest("SHA-256", bytes)` | `NodeServices.layer` |
 | `process.argv` | `Stdio.args()` | `NodeServices.layer` |
-| `os.hostname` | `Experimental.Process.hostname()` | `NodeServices.layer` |
-| `process.kill` | `Experimental.Process.kill(pid, { killSignal })` | `NodeServices.layer` |
-| `fs.constants.X_OK` | `Experimental.FileSystem.access(path, { executable: true })` | `NodeServices.layer` |
-| `crypto.createHmac` | `Experimental.Crypto.hmac("SHA-256", key, data)` | `NodeServices.layer` |
-| `navigator.locks` | `Experimental.Locks.hold(name)` | `BrowserLocks.layer` |
+| `os.hostname` | `Experimental.Process.hostname()` | `ExperimentalNodeServices.layer` |
+| `process.kill` | `Experimental.Process.kill(pid, { killSignal })` | `ExperimentalNodeServices.layer` |
+| `fs.constants.X_OK` | `Experimental.FileSystem.access(path, { executable: true })` | `ExperimentalNodeServices.layer` |
+| `crypto.createHmac` | `Experimental.Crypto.hmac("SHA-256", key, data)` | `ExperimentalNodeServices.layer` |
+| `navigator.locks` | `Experimental.Locks.hold(name)` | `ExperimentalBrowserLocks.layer` |
 | `process.env` | `Config.String("NAME")()` | none |
 | `console.log` | `Console.log(message)` | none |
 | `setTimeout` | `sleep("1 second")` | none |
@@ -56,7 +56,7 @@ Each Node.js or web call has an Effect replacement, which needs no import. EK440
 
 Call a service through its module's name, as in `Crypto.randomUUIDv4()`; `ChildProcess`, `HttpClient`, `HttpRouter`, and `FetchHttpClient` are in scope too. `NodeServices.layer` provides `FileSystem`, `Path`, `Crypto`, `Stdio`, `Terminal`, and `ChildProcessSpawner`; `BunServices.layer` from `@effect/platform-bun` is Bun's. The platform import provides the platform's bundle to `main`; provide every other layer inside `main`. Effect's runtime provides the prelude's services itself.
 
-Where Effect has no service yet, as for `os.hostname()`, `process.pid`, an execute-permission check, HMAC and signatures, or `navigator.locks`, EK4402 names the experimental service VibeLang adds, such as `Experimental.Process.pid()` ([Experimental platform APIs](/vibelang-features/118-experimental-platform-apis)), whose layers come from `vibelang-runtime/experimental/platform-node`, `-bun`, or `-browser`. There, `NodeServices.layer` is `@effect/platform-node`'s bundle plus the experimental `FileSystem`, `Crypto`, and `Process`, so it replaces Effect's in `main`. Where nothing covers the call yet, as for `os.uptime()`, EK4402 says to escape to TypeScript: a `module` block or a `.ts` file that imports the API, or a hatch around a web global, as in `sync(() => document.title)`. [Platform globals](/platform/platform-globals) answers every Node.js and web global.
+Where Effect has no service yet, as for `os.hostname()`, `process.pid`, an execute-permission check, HMAC and signatures, or `navigator.locks`, EK4402 names the experimental service VibeLang adds, such as `Experimental.Process.pid()` ([Experimental platform APIs](/vibelang-features/118-experimental-platform-apis)), whose layers come from `vibelang-runtime/experimental/platform-node`, `-bun`, or `-browser`. There, `ExperimentalNodeServices.layer` is `@effect/platform-node`'s bundle plus the experimental `FileSystem`, `Crypto`, and `Process`, so it replaces Effect's in `main`. Where nothing covers the call yet, as for `os.uptime()`, EK4402 says to escape to TypeScript: a `module` block or a `.ts` file that imports the API, or a hatch around a web global, as in `sync(() => document.title)`. [Platform globals](/platform/platform-globals) answers every Node.js and web global.
 
 ## Installing runtime-specific packages
 
@@ -126,7 +126,7 @@ The entry provides `BunServices.layer` from `@effect/platform-bun`. Only the pla
 
 ## Starting `main` in a browser
 
-`import "vibelang/platform/browser"` names the browser: `main` runs with `@effect/platform-browser`'s `BrowserRuntime.runMain`, the compiled module imports nothing of Node's, and a `main` that needs `Experimental.Crypto` or `Experimental.Locks` gets `BrowserServices.layer` from `vibelang-runtime/experimental/platform-browser`. EK3205 names any other service `main` needs. A page never says which module it started, so in a browser the compiled module does not run `main`, and the page's script starts it:
+`import "vibelang/platform/browser"` names the browser: `main` runs with `@effect/platform-browser`'s `BrowserRuntime.runMain`, the compiled module imports nothing of Node's, and a `main` that needs `Experimental.Crypto` or `Experimental.Locks` gets `ExperimentalBrowserServices.layer` from `vibelang-runtime/experimental/platform-browser`. EK3205 names any other service `main` needs. A page never says which module it started, so in a browser the compiled module does not run `main`, and the page's script starts it:
 
 ```vibe
 // app.vibe
@@ -141,10 +141,10 @@ export function main() {
 ```vibe
 // page.vibe
 import { BrowserRuntime } from "@effect/platform-browser"
-import { BrowserCrypto } from "vibelang-runtime/experimental/platform-browser"
+import { ExperimentalBrowserCrypto } from "vibelang-runtime/experimental/platform-browser"
 import { main } from "./app.vibe"
 
-BrowserRuntime.runMain(Effect.provide(main(), BrowserCrypto.layer))
+BrowserRuntime.runMain(Effect.provide(main(), ExperimentalBrowserCrypto.layer))
 ```
 
 The page loads `page.vibe`'s JavaScript as a module script, bundled or not, and the runner call at its top level starts `main`, as a top-level runner call does in any module. `BrowserRuntime.runMain` interrupts `main` when the page is discarded. A host that says which module it started, such as Bun, runs a browser `main` itself, with `BrowserRuntime.runMain`.

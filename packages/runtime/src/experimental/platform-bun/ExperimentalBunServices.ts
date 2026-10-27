@@ -12,7 +12,7 @@ import type * as FileSystem from "../FileSystem.js"
 import * as CryptoExtension from "../internal/crypto.js"
 import * as FileSystemExtension from "../internal/nodeFileSystem.js"
 import type * as Process from "../Process.js"
-import * as BunProcess from "./BunProcess.js"
+import * as ExperimentalBunProcess from "./ExperimentalBunProcess.js"
 
 /**
  * The services of `@effect/platform-bun`'s `BunServices` and the
@@ -20,7 +20,7 @@ import * as BunProcess from "./BunProcess.js"
  *
  * @since 0.0.11
  */
-export type BunServices =
+export type ExperimentalBunServices =
   | EffectBunServices.BunServices
   | Crypto.Crypto
   | FileSystem.FileSystem
@@ -34,11 +34,11 @@ export type BunServices =
  *
  * @since 0.0.11
  */
-export const layer: Layer.Layer<BunServices> = Layer.provideMerge(
+export const layer: Layer.Layer<ExperimentalBunServices> = Layer.provideMerge(
   Layer.mergeAll(
     CryptoExtension.layer,
     FileSystemExtension.layer,
-    BunProcess.layer
+    ExperimentalBunProcess.layer
   ),
   EffectBunServices.layer
 )

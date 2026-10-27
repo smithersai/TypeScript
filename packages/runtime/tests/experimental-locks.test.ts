@@ -6,8 +6,8 @@ import * as Option from "effect/Option"
 import * as PlatformError from "effect/PlatformError"
 import { existsSync } from "node:fs"
 import { Locks } from "vibelang-runtime/experimental"
-import { BrowserLocks, BrowserServices } from "vibelang-runtime/experimental/platform-browser"
-import { NodeLocks } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalBrowserLocks, ExperimentalBrowserServices } from "vibelang-runtime/experimental/platform-browser"
+import { ExperimentalNodeLocks } from "vibelang-runtime/experimental/platform-node"
 
 const packageDir = new URL("..", import.meta.url).pathname
 
@@ -106,7 +106,7 @@ test("Locks: query fills in what the lock manager leaves out", async () => {
 
 test("Locks: the navigator.locks layers are a defect where there is none, as in Bun", async () => {
   expect((globalThis as { readonly navigator?: { readonly locks?: unknown } }).navigator?.locks).toBeUndefined()
-  for (const layer of [BrowserLocks.layer, NodeLocks.layer, BrowserServices.layer]) {
+  for (const layer of [ExperimentalBrowserLocks.layer, ExperimentalNodeLocks.layer, ExperimentalBrowserServices.layer]) {
     const exit = await Effect.runPromiseExit(Effect.provide(Effect.service(Locks.Locks), layer))
     expect(Exit.isFailure(exit) && Exit.hasDies(exit)).toBe(true)
     expect(String(exit)).toContain("The Locks layer needs navigator.locks")

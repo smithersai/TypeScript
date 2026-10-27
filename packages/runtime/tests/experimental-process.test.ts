@@ -4,8 +4,8 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as PlatformError from "effect/PlatformError"
 import { Process } from "vibelang-runtime/experimental"
-import { BunProcess, BunServices as ExperimentalBunServices } from "vibelang-runtime/experimental/platform-bun"
-import { NodeProcess, NodeServices as ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalBunProcess, ExperimentalBunServices } from "vibelang-runtime/experimental/platform-bun"
+import { ExperimentalNodeProcess, ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
 import { observe } from "./fixtures/process-scenarios.ts"
 
 const facts = {
@@ -47,7 +47,7 @@ const expectObserved = (observed: any) => {
 }
 
 test("Process: Bun's layer reads this process and signals real children", async () => {
-  expectObserved(await Effect.runPromise(observe.pipe(Effect.provide(Layer.merge(BunServices.layer, BunProcess.layer)))))
+  expectObserved(await Effect.runPromise(observe.pipe(Effect.provide(Layer.merge(BunServices.layer, ExperimentalBunProcess.layer)))))
 }, 30_000)
 
 test("Process: Node.js's layer reads this process and signals real children", () => {
@@ -63,7 +63,7 @@ test("Process: the platform bundles provide the Node.js and Bun layers", async (
   const pid = Effect.flatMap(Effect.service(Process.Process), (process) => process.pid)
   expect(await Effect.runPromise(Effect.provide(pid, ExperimentalNodeServices.layer))).toBe(process.pid)
   expect(await Effect.runPromise(Effect.provide(pid, ExperimentalBunServices.layer))).toBe(process.pid)
-  expect(NodeProcess.layer).toBe(BunProcess.layer)
+  expect(ExperimentalNodeProcess.layer).toBe(ExperimentalBunProcess.layer)
 })
 
 test("Process: the layer is a defect without a host process object", async () => {
@@ -71,7 +71,7 @@ test("Process: the layer is a defect without a host process object", async () =>
   const exit = await (async () => {
     Object.defineProperty(globalThis, "process", { value: undefined, configurable: true, writable: true })
     try {
-      return await Effect.runPromiseExit(Effect.provide(Effect.service(Process.Process), NodeProcess.layer))
+      return await Effect.runPromiseExit(Effect.provide(Effect.service(Process.Process), ExperimentalNodeProcess.layer))
     } finally {
       Object.defineProperty(globalThis, "process", { value: saved, configurable: true, writable: true })
     }
@@ -92,7 +92,7 @@ test("Process: process groups are refused on Windows", async () => {
         isRunning: (yield* Effect.flip(host.isRunning(process.pid, { group: true }))).reason,
         alone: yield* host.isRunning(process.pid)
       }
-    }).pipe(Effect.provide(NodeProcess.layer)))
+    }).pipe(Effect.provide(ExperimentalNodeProcess.layer)))
     expect(observed).toMatchObject({
       platform: "win32",
       kill: { _tag: "BadArgument", module: "Process", method: "kill" },

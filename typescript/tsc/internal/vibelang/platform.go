@@ -54,8 +54,8 @@ const nodeServices = `NodeServices.layer from "@effect/platform-node", or BunSer
 // The layers of the experimental services (D313), which provide Effect's
 // services of the same names too.
 const (
-	experimentalServices = `NodeServices.layer from "vibelang-runtime/experimental/platform-node", or BunServices.layer from "vibelang-runtime/experimental/platform-bun"`
-	experimentalCrypto   = `NodeServices.layer from "vibelang-runtime/experimental/platform-node", BunServices.layer from "vibelang-runtime/experimental/platform-bun", or BrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser"`
+	experimentalServices = `ExperimentalNodeServices.layer from "vibelang-runtime/experimental/platform-node", or ExperimentalBunServices.layer from "vibelang-runtime/experimental/platform-bun"`
+	experimentalCrypto   = `ExperimentalNodeServices.layer from "vibelang-runtime/experimental/platform-node", ExperimentalBunServices.layer from "vibelang-runtime/experimental/platform-bun", or ExperimentalBrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser"`
 )
 
 // platformServices are the Effect APIs that replace platform APIs (Chapter 11), by
@@ -118,7 +118,7 @@ var platformServices = map[string]*platformService{
 	"ExperimentalCrypto":     {"the experimental Crypto service", `Experimental.Crypto.hmac("SHA-256", key, data)`, "", experimentalCrypto},
 	"ExperimentalProcess":    {"the experimental Process service", "Experimental.Process.pid()", "", experimentalServices},
 	"ExperimentalLocks": {"the experimental Locks service", "Experimental.Locks.hold(name)", "",
-		`BrowserLocks.layer from "vibelang-runtime/experimental/platform-browser"; NodeLocks.layer from "vibelang-runtime/experimental/platform-node" locks only within one Node.js process`},
+		`ExperimentalBrowserLocks.layer from "vibelang-runtime/experimental/platform-browser"; ExperimentalNodeLocks.layer from "vibelang-runtime/experimental/platform-node" locks only within one Node.js process`},
 	"import": {"an import declaration", `import { name } from "./module.ts"`, "", ""},
 	"export": {"an export declaration", "export const name = value", "", ""},
 }

@@ -12,9 +12,9 @@
  * Every fact is an Effect, as `Stdio.args` is, so a test replaces it with
  * {@link layerTest}. `kill` and `isRunning` fail with a `PlatformError`.
  *
- * Layers: `NodeProcess.layer` from `vibelang-runtime/experimental/platform-node`
- * and `BunProcess.layer` from `vibelang-runtime/experimental/platform-bun`,
- * also in those modules' `NodeServices.layer` and `BunServices.layer`.
+ * Layers: `ExperimentalNodeProcess.layer` from `vibelang-runtime/experimental/platform-node`
+ * and `ExperimentalBunProcess.layer` from `vibelang-runtime/experimental/platform-bun`,
+ * also in those modules' `ExperimentalNodeServices.layer` and `ExperimentalBunServices.layer`.
  * Browsers and Workers have no process to read, so they have no layer.
  *
  * @experimental

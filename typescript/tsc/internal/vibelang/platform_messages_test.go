@@ -28,7 +28,7 @@ declare var document: { title: string }`
 const (
 	provideNodeServices = `Provide it in main with NodeServices.layer from "@effect/platform-node", or BunServices.layer from "@effect/platform-bun".`
 	provideCrypto       = `Provide it in main with NodeServices.layer from "@effect/platform-node", BunServices.layer from "@effect/platform-bun", or BrowserCrypto.layer from "@effect/platform-browser".`
-	provideExperimental = `Provide it in main with NodeServices.layer from "vibelang-runtime/experimental/platform-node", or BunServices.layer from "vibelang-runtime/experimental/platform-bun".`
+	provideExperimental = `Provide it in main with ExperimentalNodeServices.layer from "vibelang-runtime/experimental/platform-node", or ExperimentalBunServices.layer from "vibelang-runtime/experimental/platform-bun".`
 	noServiceYet        = "Effect, VibeLang's standard library, has no service for it yet, so escape to TypeScript for now."
 	allowEK4403         = `To allow it, set "EK4403": "warning" or "off" in "vibelang": { "diagnostics": { ... } } at the top level of tsconfig.json.`
 )
@@ -154,7 +154,7 @@ export const run = () => homedir()`, []string{
 		{"experimental locks", `export const run = (name: string) => navigator.locks.request(name, () => undefined)`, []string{
 			"navigator.locks is platform code, which VibeLang code does not use directly.",
 			"Use the experimental Locks service:   Experimental.Locks.hold(name)",
-			`Provide it in main with BrowserLocks.layer from "vibelang-runtime/experimental/platform-browser"; NodeLocks.layer from "vibelang-runtime/experimental/platform-node" locks only within one Node.js process.`,
+			`Provide it in main with ExperimentalBrowserLocks.layer from "vibelang-runtime/experimental/platform-browser"; ExperimentalNodeLocks.layer from "vibelang-runtime/experimental/platform-node" locks only within one Node.js process.`,
 			"A Semaphore locks only within one program.",
 		}},
 		{"gap with a near miss", `import { once } from "node:events"
@@ -177,13 +177,13 @@ export const run = () => constants.O_NONBLOCK`, []string{
 export const run = (key: Uint8Array) => createHmac("sha256", key)`, []string{
 			"createHmac from node:crypto is platform code, which a .vibe file does not import as a value.",
 			`Use the experimental Crypto service:   Experimental.Crypto.hmac("SHA-256", key, data)`,
-			`Provide it in main with NodeServices.layer from "vibelang-runtime/experimental/platform-node", BunServices.layer from "vibelang-runtime/experimental/platform-bun", or BrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser".`,
+			`Provide it in main with ExperimentalNodeServices.layer from "vibelang-runtime/experimental/platform-node", ExperimentalBunServices.layer from "vibelang-runtime/experimental/platform-bun", or ExperimentalBrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser".`,
 			"Experimental.Crypto.hmac takes the key as Redacted bytes and all the data in one call.",
 		}},
 		{"experimental signatures", `export const run = (key: CryptoKey, data: Uint8Array) => crypto.subtle.sign("Ed25519", key, data)`, []string{
 			"crypto.subtle is platform code, which VibeLang code does not use directly.",
 			`Use the experimental Crypto service:   Experimental.Crypto.sign("Ed25519", privateKey, data)`,
-			`Provide it in main with NodeServices.layer from "vibelang-runtime/experimental/platform-node", BunServices.layer from "vibelang-runtime/experimental/platform-bun", or BrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser".`,
+			`Provide it in main with ExperimentalNodeServices.layer from "vibelang-runtime/experimental/platform-node", ExperimentalBunServices.layer from "vibelang-runtime/experimental/platform-bun", or ExperimentalBrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser".`,
 			"It takes keys as bytes, a secret in a Redacted: raw for HMAC, PKCS#8 and SPKI DER for ECDSA P-256 and Ed25519; it has no ciphers.",
 		}},
 		{"gap of a property", `export const run = () => process.umask()`, []string{

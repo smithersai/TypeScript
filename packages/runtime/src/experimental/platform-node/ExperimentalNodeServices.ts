@@ -1,7 +1,7 @@
 /**
  * The Node platform bundle with the `Experimental` services (D313).
  * `Locks` is left out: Node.js's locks coordinate one process's threads,
- * not processes, so a program provides `NodeLocks.layer` itself.
+ * not processes, so a program provides `ExperimentalNodeLocks.layer` itself.
  *
  * @experimental
  * @since 0.0.11
@@ -13,7 +13,7 @@ import type * as FileSystem from "../FileSystem.js"
 import * as CryptoExtension from "../internal/crypto.js"
 import * as FileSystemExtension from "../internal/nodeFileSystem.js"
 import type * as Process from "../Process.js"
-import * as NodeProcess from "./NodeProcess.js"
+import * as ExperimentalNodeProcess from "./ExperimentalNodeProcess.js"
 
 /**
  * The services of `@effect/platform-node`'s `NodeServices` and the
@@ -21,7 +21,7 @@ import * as NodeProcess from "./NodeProcess.js"
  *
  * @since 0.0.11
  */
-export type NodeServices =
+export type ExperimentalNodeServices =
   | EffectNodeServices.NodeServices
   | Crypto.Crypto
   | FileSystem.FileSystem
@@ -35,11 +35,11 @@ export type NodeServices =
  *
  * @since 0.0.11
  */
-export const layer: Layer.Layer<NodeServices> = Layer.provideMerge(
+export const layer: Layer.Layer<ExperimentalNodeServices> = Layer.provideMerge(
   Layer.mergeAll(
     CryptoExtension.layer,
     FileSystemExtension.layer,
-    NodeProcess.layer
+    ExperimentalNodeProcess.layer
   ),
   EffectNodeServices.layer
 )

@@ -8,9 +8,9 @@ import type { PlatformError } from "effect/PlatformError"
 import type * as Scope from "effect/Scope"
 import { Locks, Process } from "vibelang-runtime/experimental"
 import { Locks as LocksModule } from "vibelang-runtime/experimental/Locks"
-import { BrowserLocks, BrowserServices } from "vibelang-runtime/experimental/platform-browser"
-import { BunProcess, BunServices } from "vibelang-runtime/experimental/platform-bun"
-import { NodeLocks, NodeProcess, NodeServices } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalBrowserLocks, ExperimentalBrowserServices } from "vibelang-runtime/experimental/platform-browser"
+import { ExperimentalBunProcess, ExperimentalBunServices } from "vibelang-runtime/experimental/platform-bun"
+import { ExperimentalNodeLocks, ExperimentalNodeProcess, ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
 import { Process as ProcessModule } from "vibelang-runtime/experimental/Process"
 
 const host = Effect.service(Process.Process)
@@ -24,7 +24,7 @@ Effect.flatMap(host, (process) => process.kill(42, { killSignal: "SIGNOPE" }))
 // @ts-expect-error kill can fail, and succeeds with nothing.
 const failing: Effect.Effect<string, never, Process.Process> = Effect.flatMap(host, (process) => process.kill(1))
 const processLayers: ReadonlyArray<Layer.Layer<Process.Process>> = [
-  NodeProcess.layer, BunProcess.layer, NodeServices.layer, BunServices.layer, Process.layerTest({ pid: Effect.succeed(7 as never) })
+  ExperimentalNodeProcess.layer, ExperimentalBunProcess.layer, ExperimentalNodeServices.layer, ExperimentalBunServices.layer, Process.layerTest({ pid: Effect.succeed(7 as never) })
 ]
 const sameKey: typeof Process.Process = ProcessModule
 
@@ -33,7 +33,7 @@ const held: Effect.Effect<Locks.Held, PlatformError, Locks.Locks | Scope.Scope> 
 const tried: Effect.Effect<Option.Option<Locks.Held>, PlatformError, Locks.Locks | Scope.Scope> = Effect.flatMap(locks, (locks) => locks.tryHold("a"))
 const snapshot: Effect.Effect<Locks.LockSnapshot, PlatformError, Locks.Locks> = Effect.flatMap(locks, (locks) => locks.query)
 const lost: Effect.Effect<void, PlatformError, Locks.Locks | Scope.Scope> = Effect.flatMap(held, (held) => held.lost)
-const lockLayers: ReadonlyArray<Layer.Layer<Locks.Locks>> = [BrowserLocks.layer, NodeLocks.layer, BrowserServices.layer, Locks.layerTest()]
+const lockLayers: ReadonlyArray<Layer.Layer<Locks.Locks>> = [ExperimentalBrowserLocks.layer, ExperimentalNodeLocks.layer, ExperimentalBrowserServices.layer, Locks.layerTest()]
 const overLockManager: Locks.Locks = Locks.make(navigator.locks)
 const sameLocksKey: typeof Locks.Locks = LocksModule
 void [pid, platform, memory, killed, running, failing, processLayers, sameKey, held, tried, snapshot, lost, lockLayers, overLockManager, sameLocksKey]

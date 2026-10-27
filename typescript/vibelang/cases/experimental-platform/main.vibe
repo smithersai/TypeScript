@@ -2,7 +2,7 @@
 // FileSystem and Crypto extend Effect's services, and the experimental Node
 // bundle provides them and Effect's from one implementation. Each addition
 // runs here on the real file system and WebCrypto.
-import { NodeServices } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
 import { isLink, kind, size } from "./links.vibe"
 
 function hex(bytes: Uint8Array) {
@@ -36,7 +36,7 @@ export function inspect(dir: string) {
 
 // expect-result: {"link":"SymbolicLink","isLink":true,"kind":"SymbolicLink","followed":false,"size":4,"denied":"PermissionDenied","mode":"600","mac":"5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"}
 export function main() {
-  provide NodeServices.layer {
+  provide ExperimentalNodeServices.layer {
     using dir = Experimental.FileSystem.FileSystem.makeTempDirectoryScoped()
     return inspect(dir)
   }

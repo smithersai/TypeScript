@@ -21,11 +21,11 @@ Provide a platform layer in `main`. The layers live beside Effect's platform pac
 
 | Module | Layers |
 | --- | --- |
-| `vibelang-runtime/experimental/platform-node` | `NodeServices.layer`: `@effect/platform-node`'s bundle plus `FileSystem`, `Crypto` and `Process`; `NodeFileSystem.layer`, `NodeCrypto.layer`, `NodeProcess.layer`; `NodeLocks.layer`, within one process |
-| `vibelang-runtime/experimental/platform-bun` | `BunServices.layer`: `@effect/platform-bun`'s bundle plus `FileSystem`, `Crypto` and `Process`; `BunFileSystem.layer`, `BunCrypto.layer`, `BunProcess.layer` |
-| `vibelang-runtime/experimental/platform-browser` | `BrowserServices.layer`: `Crypto` and `Locks`; `BrowserCrypto.layer`, `BrowserLocks.layer` |
+| `vibelang-runtime/experimental/platform-node` | `ExperimentalNodeServices.layer`: `@effect/platform-node`'s bundle plus `FileSystem`, `Crypto` and `Process`; `ExperimentalNodeFileSystem.layer`, `ExperimentalNodeCrypto.layer`, `ExperimentalNodeProcess.layer`; `ExperimentalNodeLocks.layer`, within one process |
+| `vibelang-runtime/experimental/platform-bun` | `ExperimentalBunServices.layer`: `@effect/platform-bun`'s bundle plus `FileSystem`, `Crypto` and `Process`; `ExperimentalBunFileSystem.layer`, `ExperimentalBunCrypto.layer`, `ExperimentalBunProcess.layer` |
+| `vibelang-runtime/experimental/platform-browser` | `ExperimentalBrowserServices.layer`: `Crypto` and `Locks`; `ExperimentalBrowserCrypto.layer`, `ExperimentalBrowserLocks.layer` |
 
-The experimental `NodeServices.layer` replaces `@effect/platform-node`'s: it provides every service Effect's does. The runtime lists `@effect/platform-node`, `@effect/platform-bun` and `@effect/platform-browser` as optional peer dependencies: install the one your program runs on. Failures are Effect's `PlatformError`, as for Effect's services.
+`ExperimentalNodeServices.layer` replaces `@effect/platform-node`'s `NodeServices.layer`: it provides every service Effect's does. The runtime lists `@effect/platform-node`, `@effect/platform-bun` and `@effect/platform-browser` as optional peer dependencies: install the one your program runs on. Failures are Effect's `PlatformError`, as for Effect's services.
 
 ## FileSystem
 
@@ -36,8 +36,8 @@ The experimental `NodeServices.layer` replaces `@effect/platform-node`'s: it pro
 | `file.chmod(mode)` | Changes the permissions of the file the handle opened, even after its path was renamed or replaced | `FileHandle.chmod` |
 
 ```vibe
-// run: provide NodeServices.layer { Console.log(JSON.stringify(runnable())) }
-import { NodeServices } from "vibelang-runtime/experimental/platform-node"
+// run: provide ExperimentalNodeServices.layer { Console.log(JSON.stringify(runnable())) }
+import { ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
 
 function canRun(path: string) {
   Experimental.FileSystem.access(path, { executable: true })
@@ -78,8 +78,8 @@ In tests, `Experimental.FileSystem.layerNoop({ ... })` provides a stub for both 
 The signature algorithms are `"ECDSA-P256-SHA256"`, whose signatures are 64 bytes, r then s, as WebCrypto writes them, and `"Ed25519"`. A key of the wrong kind fails with `BadArgument`, whose message names no key bytes. Secret keys are `Redacted`, so logs and errors print `<redacted>`. One WebCrypto implementation serves every platform.
 
 ```vibe
-// run: provide NodeServices.layer { Console.log(signature(Redacted.make(new TextEncoder().encode("Jefe")), "what do ya want for nothing?")) }
-import { NodeServices } from "vibelang-runtime/experimental/platform-node"
+// run: provide ExperimentalNodeServices.layer { Console.log(signature(Redacted.make(new TextEncoder().encode("Jefe")), "what do ya want for nothing?")) }
+import { ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
 
 function signature(secret: Redacted<Uint8Array>, body: string) {
   return Hex.encode(Experimental.Crypto.hmac("SHA-256", secret, new TextEncoder().encode(body)))
@@ -93,10 +93,10 @@ function signature(secret: Redacted<Uint8Array>, body: string) {
 
 ```vibe
 // alive.vibe
-import { NodeServices } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
 
 export function main() {
-  provide NodeServices.layer {
+  provide ExperimentalNodeServices.layer {
     const pid = Experimental.Process.pid()
     Console.log(Experimental.Process.isRunning(pid))
   }
@@ -124,7 +124,7 @@ The user's home directory is Effect's own, `UserDirectories.home()`, which needs
 
 ```vibe
 // stop.vibe
-import { NodeServices } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
 
 function stop(pid: number) {
   if (!Experimental.Process.isRunning(pid)) return "already stopped"
@@ -133,7 +133,7 @@ function stop(pid: number) {
 }
 
 export function main() {
-  provide NodeServices.layer {
+  provide ExperimentalNodeServices.layer {
     using child = ChildProcessSpawner.spawn(ChildProcess.make("sleep", ["30"]))
     Console.log(stop(child.pid))
     Console.log(Experimental.Process.kill(4194000) catch (e) => e.reason._tag)
@@ -143,7 +143,7 @@ export function main() {
 // Output: NotFound
 ```
 
-`Experimental.Process.kill(pid, { killSignal, group })` sends `killSignal`, `"SIGTERM"` by default, one of Effect's `ChildProcess.Signal` names. `Experimental.Process.isRunning(pid, { group })` sends signal 0: a process that belongs to another user still runs, and so does a child that exited before its parent reaped it. `group: true` signals the process group whose id is `pid`, as `ChildProcessSpawner` starts each child in one. A child the program spawned also stops with its handle's `kill()`; `Experimental.Process.kill` reaches any process, such as one named in a pid file. One `NodeServices.layer` provides both `ChildProcessSpawner` and `Process`.
+`Experimental.Process.kill(pid, { killSignal, group })` sends `killSignal`, `"SIGTERM"` by default, one of Effect's `ChildProcess.Signal` names. `Experimental.Process.isRunning(pid, { group })` sends signal 0: a process that belongs to another user still runs, and so does a child that exited before its parent reaped it. `group: true` signals the process group whose id is `pid`, as `ChildProcessSpawner` starts each child in one. A child the program spawned also stops with its handle's `kill()`; `Experimental.Process.kill` reaches any process, such as one named in a pid file. One `ExperimentalNodeServices.layer` provides both `ChildProcessSpawner` and `Process`.
 
 Both fail with a `PlatformError` whose reason says why:
 
@@ -192,7 +192,7 @@ export function lead(name: string) {
 
 A held lock belongs to the block's scope: `using` releases it when the block ends, and a closed or crashed tab releases its locks, which hands each to the next tab waiting. Interrupting a wait withdraws the request. `held.lost()` completes when another context steals the lock. A lock manager that refuses a request fails it with a `PlatformError`: `BadArgument` for a name that starts with `-`, `PermissionDenied` where the page is not a secure context.
 
-`BrowserLocks.layer`, also in `BrowserServices.layer`, uses `navigator.locks`. Node.js has Web Locks too, but they coordinate the main thread and the worker threads of one process, never two processes, so `NodeLocks.layer` is not in the Node.js bundle: provide it only for locks within one process. Bun has no Web Locks and no layer. `Experimental.Locks.layerTest()` grants every request at once and never loses a lock; pass the members a test needs, as above.
+`ExperimentalBrowserLocks.layer`, also in `ExperimentalBrowserServices.layer`, uses `navigator.locks`. Node.js has Web Locks too, but they coordinate the main thread and the worker threads of one process, never two processes, so `ExperimentalNodeLocks.layer` is not in the Node.js bundle: provide it only for locks within one process. Bun has no Web Locks and no layer. `Experimental.Locks.layerTest()` grants every request at once and never loses a lock; pass the members a test needs, as above.
 
 ## When Effect ships them
 

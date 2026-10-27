@@ -12,10 +12,10 @@
  * `WebLock` service Smithers runs its browser engine on, in Effect's style,
  * until Effect ships its own.
  *
- * Layers: `BrowserLocks.layer` from `vibelang-runtime/experimental/platform-browser`
- * (also in its `BrowserServices.layer`) over `navigator.locks`, across the
+ * Layers: `ExperimentalBrowserLocks.layer` from `vibelang-runtime/experimental/platform-browser`
+ * (also in its `ExperimentalBrowserServices.layer`) over `navigator.locks`, across the
  * tabs and workers of one origin;
- * `NodeLocks.layer` from `vibelang-runtime/experimental/platform-node` over
+ * `ExperimentalNodeLocks.layer` from `vibelang-runtime/experimental/platform-node` over
  * Node.js's `navigator.locks`, across the threads of one process only, never
  * other processes. Bun has no Web Locks, so it has no layer.
  *

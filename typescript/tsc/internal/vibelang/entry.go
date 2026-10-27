@@ -90,9 +90,9 @@ var nodeRuntime = platformBundle{platformNodeModule, "NodeRuntime"}
 
 // entryPlatforms are the platforms a platform import can name.
 var entryPlatforms = []entryPlatform{
-	{"node", nodeRuntime, platformBundle{platformNodeModule, "NodeServices"}, platformBundle{"vibelang-runtime/experimental/platform-node", "NodeServices"}},
-	{"bun", nodeRuntime, platformBundle{"@effect/platform-bun", "BunServices"}, platformBundle{"vibelang-runtime/experimental/platform-bun", "BunServices"}},
-	{"browser", platformBundle{"@effect/platform-browser", "BrowserRuntime"}, platformBundle{"@effect/platform-browser", "BrowserServices"}, platformBundle{"vibelang-runtime/experimental/platform-browser", "BrowserServices"}},
+	{"node", nodeRuntime, platformBundle{platformNodeModule, "NodeServices"}, platformBundle{"vibelang-runtime/experimental/platform-node", "ExperimentalNodeServices"}},
+	{"bun", nodeRuntime, platformBundle{"@effect/platform-bun", "BunServices"}, platformBundle{"vibelang-runtime/experimental/platform-bun", "ExperimentalBunServices"}},
+	{"browser", platformBundle{"@effect/platform-browser", "BrowserRuntime"}, platformBundle{"@effect/platform-browser", "BrowserServices"}, platformBundle{"vibelang-runtime/experimental/platform-browser", "ExperimentalBrowserServices"}},
 }
 
 // entryRuntime returns the runtime whose runMain runs file's main when its

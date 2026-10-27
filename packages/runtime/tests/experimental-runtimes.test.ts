@@ -14,7 +14,7 @@ import { chmodSync, renameSync, statSync, symlinkSync, writeFileSync } from "nod
 import { join } from "node:path"
 import { Effect, Redacted } from "effect"
 import { Crypto, FileSystem, Process } from "vibelang-runtime/experimental"
-import { ${platform === "node" ? "NodeServices" : "BunServices"} as Services } from "vibelang-runtime/experimental/platform-${platform}"
+import { ${platform === "node" ? "ExperimentalNodeServices" : "ExperimentalBunServices"} as Services } from "vibelang-runtime/experimental/platform-${platform}"
 const dir = ${JSON.stringify(dir)}
 writeFileSync(join(dir, "target"), "")
 symlinkSync("target", join(dir, "link"))
@@ -76,10 +76,10 @@ test("a browser bundle of the Experimental namespace has no Node module and runs
     writeFileSync(join(dir, "browser.js"), `
       import { Effect, Redacted } from "effect"
       import { Crypto } from "vibelang-runtime/experimental"
-      import { BrowserCrypto } from "vibelang-runtime/experimental/platform-browser"
+      import { ExperimentalBrowserCrypto } from "vibelang-runtime/experimental/platform-browser"
       const mac = Effect.flatMap(Effect.service(Crypto.Crypto), (crypto) =>
         crypto.hmac("SHA-256", Redacted.make(new TextEncoder().encode("Jefe")), new TextEncoder().encode("what do ya want for nothing?")))
-      console.log(Array.from(await Effect.runPromise(Effect.provide(mac, BrowserCrypto.layer)), (b) => b.toString(16).padStart(2, "0")).join(""))
+      console.log(Array.from(await Effect.runPromise(Effect.provide(mac, ExperimentalBrowserCrypto.layer)), (b) => b.toString(16).padStart(2, "0")).join(""))
     `)
     writeFileSync(join(dir, "root.js"), `import { Effect, $bind } from "vibelang-runtime"; console.log(Effect.runSync($bind(42)))`)
     const bundle = async (entry: string) => {

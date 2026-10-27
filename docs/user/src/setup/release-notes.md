@@ -428,7 +428,7 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
     directory is Effect's `UserDirectories.home()`. Browsers have no
     `Process` layer.
   - `Experimental.Locks` holds Web Locks with `hold`, `tryHold` and `query`.
-    Node.js's `NodeLocks.layer` locks only within one process; Bun has no
+    Node.js's `ExperimentalNodeLocks.layer` locks only within one process; Bun has no
     layer.
 - The experimental `FileSystem` and `Crypto` keys are class services, as
   Effect declares them. Their implementations, `Experimental.FileSystem.Service`
@@ -436,9 +436,9 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   the services are not Effect's: a layer of Effect's `FileSystem` or `Crypto`
   does not provide them.
 - `vibelang-runtime/experimental/platform-node`, `-bun` and `-browser` hold
-  the layers. `NodeServices.layer` and `BunServices.layer` there are the
+  the layers. `ExperimentalNodeServices.layer` and `ExperimentalBunServices.layer` there are the
   platform bundles plus `FileSystem`, `Crypto` and `Process`, and
-  `BrowserServices.layer` provides `Crypto` and `Locks`. A layer of a
+  `ExperimentalBrowserServices.layer` provides `Crypto` and `Locks`. A layer of a
   service that extends Effect's provides the experimental service and
   Effect's from one implementation.
 - `vibelang-runtime` lists `@effect/platform-node`, `@effect/platform-bun` and

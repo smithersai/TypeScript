@@ -8,5 +8,5 @@ import { Process } from "../Process.js"
 // experimental bundle provided them.
 export const layer = Layer.mergeAll(
   Layer.succeed(Process, { pid: Effect.succeed(42) }),
-  Layer.succeed(Extended, FileSystem.makeNoop({ readFileString: (file) => Effect.succeed(`${file} read through the experimental NodeServices.layer`) }))
+  Layer.succeed(Extended, FileSystem.makeNoop({ readFileString: (file) => Effect.succeed(`${file} read through ExperimentalNodeServices.layer`) }))
 )

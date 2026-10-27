@@ -9,8 +9,8 @@ import { chmodSync, constants, mkdtempSync, readFileSync, renameSync, rmSync, st
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { FileSystem } from "vibelang-runtime/experimental"
-import { BunFileSystem, BunServices } from "vibelang-runtime/experimental/platform-bun"
-import { NodeFileSystem, NodeServices } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalBunFileSystem, ExperimentalBunServices } from "vibelang-runtime/experimental/platform-bun"
+import { ExperimentalNodeFileSystem, ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
 // The implementation behind both layers, for the platforms this host is not.
 import { extend } from "../dist/experimental/internal/nodeFileSystem.js"
 
@@ -34,10 +34,10 @@ const mkfifo = (path: string) => {
 }
 
 const layers = [
-  ["NodeFileSystem", NodeFileSystem.layer],
-  ["BunFileSystem", BunFileSystem.layer],
-  ["NodeServices", NodeServices.layer],
-  ["BunServices", BunServices.layer]
+  ["ExperimentalNodeFileSystem", ExperimentalNodeFileSystem.layer],
+  ["ExperimentalBunFileSystem", ExperimentalBunFileSystem.layer],
+  ["ExperimentalNodeServices", ExperimentalNodeServices.layer],
+  ["ExperimentalBunServices", ExperimentalBunServices.layer]
 ] as const
 
 for (const [name, layer] of layers) {
@@ -170,7 +170,7 @@ for (const [name, layer] of layers) {
 }
 
 test("open with nonBlocking fails with BadArgument where the platform lacks O_NONBLOCK, as noFollow does", async () => {
-  const base = await Effect.runPromise(Effect.provide(Effect.service(EffectFileSystem.FileSystem), NodeFileSystem.layer))
+  const base = await Effect.runPromise(Effect.provide(Effect.service(EffectFileSystem.FileSystem), ExperimentalNodeFileSystem.layer))
   writeFileSync(join(dir, "file"), "")
   for (const [host, options, option] of [
     [{ platform: "win32", constants }, { nonBlocking: true }, "nonBlocking"],

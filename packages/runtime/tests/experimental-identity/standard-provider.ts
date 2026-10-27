@@ -7,7 +7,7 @@ import * as Effect from "effect/Effect"
 import type * as PlatformError from "effect/PlatformError"
 import * as Redacted from "effect/Redacted"
 import { Crypto } from "vibelang-runtime/experimental/Crypto"
-import { NodeServices as ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
 
 const needsExperimental = Effect.gen(function*() {
   const crypto = yield* Crypto

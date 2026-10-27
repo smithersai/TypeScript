@@ -5,9 +5,9 @@ import * as Layer from "effect/Layer"
 import * as PlatformError from "effect/PlatformError"
 import * as Redacted from "effect/Redacted"
 import { Crypto } from "vibelang-runtime/experimental"
-import { BrowserCrypto } from "vibelang-runtime/experimental/platform-browser"
-import { BunCrypto, BunServices } from "vibelang-runtime/experimental/platform-bun"
-import { NodeCrypto, NodeServices } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalBrowserCrypto } from "vibelang-runtime/experimental/platform-browser"
+import { ExperimentalBunCrypto, ExperimentalBunServices } from "vibelang-runtime/experimental/platform-bun"
+import { ExperimentalNodeCrypto, ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
 
 const hex = (text: string) => Uint8Array.from(Buffer.from(text, "hex"))
 const toHex = (bytes: Uint8Array) => Buffer.from(bytes).toString("hex")
@@ -47,11 +47,11 @@ const p256 = {
 }
 
 const layers = [
-  ["NodeCrypto", NodeCrypto.layer],
-  ["BunCrypto", BunCrypto.layer],
-  ["BrowserCrypto", BrowserCrypto.layer],
-  ["NodeServices", NodeServices.layer],
-  ["BunServices", BunServices.layer],
+  ["ExperimentalNodeCrypto", ExperimentalNodeCrypto.layer],
+  ["ExperimentalBunCrypto", ExperimentalBunCrypto.layer],
+  ["ExperimentalBrowserCrypto", ExperimentalBrowserCrypto.layer],
+  ["ExperimentalNodeServices", ExperimentalNodeServices.layer],
+  ["ExperimentalBunServices", ExperimentalBunServices.layer],
   ["layerTest", Crypto.layerTest()]
 ] as const
 
@@ -107,10 +107,10 @@ for (const [name, layer] of layers) {
   })
 }
 
-test("NodeCrypto: Effect's key and the experimental key share Effect's Node implementation", async () => {
+test("ExperimentalNodeCrypto: Effect's key and the experimental key share Effect's Node implementation", async () => {
   const [effect, experimental] = await Effect.runPromise(Effect.provide(
     Effect.all([Effect.service(EffectCrypto.Crypto), Effect.service(Crypto.Crypto)]),
-    NodeCrypto.layer
+    ExperimentalNodeCrypto.layer
   ))
   expect(experimental.digest).toBe(effect.digest)
   expect(experimental.randomBytes).toBe(effect.randomBytes)

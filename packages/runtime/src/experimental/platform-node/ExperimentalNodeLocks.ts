@@ -1,7 +1,7 @@
 /**
  * The experimental `Locks` service for Node.js, over Node.js's own Web Locks
  * (`navigator.locks`). They coordinate the main thread and the worker
- * threads of one process, never two processes, so `NodeServices.layer`
+ * threads of one process, never two processes, so `ExperimentalNodeServices.layer`
  * leaves them out: a program opts in with this layer.
  *
  * @experimental

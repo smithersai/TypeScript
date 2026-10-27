@@ -3,7 +3,7 @@ import * as Redacted from "effect/Redacted";
 import { Experimental } from "vibelang-runtime";
 import * as Effect from "effect/Effect";
 import * as runtime from "vibelang-runtime";
-import { BrowserServices as BrowserServices } from "vibelang-runtime/experimental/platform-browser";
+import { ExperimentalBrowserServices as ExperimentalBrowserServices } from "vibelang-runtime/experimental/platform-browser";
 import { BrowserRuntime as BrowserRuntime } from "@effect/platform-browser";
 export function main() {
     return Effect.fnUntraced(function* main() {
@@ -11,4 +11,4 @@ export function main() {
         yield* Console.log(mac.length);
     }).apply(this, arguments);
 }
-runtime.$entry(import.meta.main, import.meta.url, main, () => BrowserRuntime.runMain(Effect.provide(main(), BrowserServices.layer)));
+runtime.$entry(import.meta.main, import.meta.url, main, () => BrowserRuntime.runMain(Effect.provide(main(), ExperimentalBrowserServices.layer)));

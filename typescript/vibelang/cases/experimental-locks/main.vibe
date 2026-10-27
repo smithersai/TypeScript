@@ -1,6 +1,6 @@
 // expect-result: {"held":1,"tried":false,"stolen":true,"refused":"BadArgument"}
 import { Locks } from "vibelang-runtime/experimental/Locks"
-import { NodeLocks } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalNodeLocks } from "vibelang-runtime/experimental/platform-node"
 
 function contend() {
   using held = Locks.hold("experimental-locks")
@@ -21,7 +21,7 @@ function reserved() {
 }
 
 export function main() {
-  provide NodeLocks.layer {
+  provide ExperimentalNodeLocks.layer {
     return { ...contend(), stolen: steal(), refused: reserved() catch (e) => e.reason._tag }
   }
 }

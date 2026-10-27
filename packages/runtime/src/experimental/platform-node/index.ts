@@ -7,8 +7,8 @@
  * @experimental
  * @since 0.0.11
  */
-export * as NodeCrypto from "./NodeCrypto.js"
-export * as NodeFileSystem from "./NodeFileSystem.js"
-export * as NodeLocks from "./NodeLocks.js"
-export * as NodeProcess from "./NodeProcess.js"
-export * as NodeServices from "./NodeServices.js"
+export * as ExperimentalNodeCrypto from "./ExperimentalNodeCrypto.js"
+export * as ExperimentalNodeFileSystem from "./ExperimentalNodeFileSystem.js"
+export * as ExperimentalNodeLocks from "./ExperimentalNodeLocks.js"
+export * as ExperimentalNodeProcess from "./ExperimentalNodeProcess.js"
+export * as ExperimentalNodeServices from "./ExperimentalNodeServices.js"

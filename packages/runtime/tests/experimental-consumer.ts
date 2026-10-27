@@ -11,9 +11,9 @@ import { Experimental } from "vibelang-runtime"
 import { Crypto, FileSystem } from "vibelang-runtime/experimental"
 import * as CryptoModule from "vibelang-runtime/experimental/Crypto"
 import * as FileSystemModule from "vibelang-runtime/experimental/FileSystem"
-import { BrowserCrypto } from "vibelang-runtime/experimental/platform-browser"
-import { BunCrypto, BunFileSystem, BunServices } from "vibelang-runtime/experimental/platform-bun"
-import { NodeCrypto, NodeFileSystem, NodeServices } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalBrowserCrypto } from "vibelang-runtime/experimental/platform-browser"
+import { ExperimentalBunCrypto, ExperimentalBunFileSystem, ExperimentalBunServices } from "vibelang-runtime/experimental/platform-bun"
+import { ExperimentalNodeCrypto, ExperimentalNodeFileSystem, ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node"
 
 // The aggregate, the subpaths and the prelude's namespace are one module each.
 const sameFileSystem: typeof FileSystemModule = Experimental.FileSystem
@@ -49,13 +49,13 @@ Effect.flatMap(Crypto.Crypto.asEffect(), (crypto) => crypto.sign("RSA", Redacted
 
 // Each platform layer provides the experimental service and Effect's.
 const layers: ReadonlyArray<Layer.Layer<FileSystem.FileSystem | EffectFileSystem.FileSystem>> = [
-  NodeFileSystem.layer, BunFileSystem.layer, FileSystem.layerNoop({})
+  ExperimentalNodeFileSystem.layer, ExperimentalBunFileSystem.layer, FileSystem.layerNoop({})
 ]
 const cryptoLayers: ReadonlyArray<Layer.Layer<Crypto.Crypto | EffectCrypto.Crypto>> = [
-  NodeCrypto.layer, BunCrypto.layer, BrowserCrypto.layer, Crypto.layerTest()
+  ExperimentalNodeCrypto.layer, ExperimentalBunCrypto.layer, ExperimentalBrowserCrypto.layer, Crypto.layerTest()
 ]
-const bundles: ReadonlyArray<Layer.Layer<NodeServices.NodeServices | BunServices.BunServices>> = [NodeServices.layer, BunServices.layer]
-const run: Effect.Effect<readonly [EffectFileSystem.File.Info, boolean], PlatformError.PlatformError> = Effect.scoped(Effect.provide(program, NodeServices.layer))
+const bundles: ReadonlyArray<Layer.Layer<ExperimentalNodeServices.ExperimentalNodeServices | ExperimentalBunServices.ExperimentalBunServices>> = [ExperimentalNodeServices.layer, ExperimentalBunServices.layer]
+const run: Effect.Effect<readonly [EffectFileSystem.File.Info, boolean], PlatformError.PlatformError> = Effect.scoped(Effect.provide(program, ExperimentalNodeServices.layer))
 void [layers, cryptoLayers, bundles, run]
 
 // The experimental requirements have identities of their own: Effect's

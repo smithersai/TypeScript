@@ -1,5 +1,5 @@
 // expect-result: {"pid":true,"platform":true,"running":true,"missing":"NotFound","refused":"BadArgument","fake":"win32"}
-import { NodeProcess } from "vibelang-runtime/experimental/platform-node"
+import { ExperimentalNodeProcess } from "vibelang-runtime/experimental/platform-node"
 import { layerTest, Process } from "vibelang-runtime/experimental/Process"
 
 function observe() {
@@ -20,7 +20,7 @@ function fakePlatform() {
 }
 
 export function main() {
-  provide NodeProcess.layer {
+  provide ExperimentalNodeProcess.layer {
     return { ...observe(), fake: fakePlatform() }
   }
 }

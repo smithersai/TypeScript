@@ -6,6 +6,6 @@
  * @experimental
  * @since 0.0.11
  */
-export * as BrowserCrypto from "./BrowserCrypto.js"
-export * as BrowserLocks from "./BrowserLocks.js"
-export * as BrowserServices from "./BrowserServices.js"
+export * as ExperimentalBrowserCrypto from "./ExperimentalBrowserCrypto.js"
+export * as ExperimentalBrowserLocks from "./ExperimentalBrowserLocks.js"
+export * as ExperimentalBrowserServices from "./ExperimentalBrowserServices.js"

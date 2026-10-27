@@ -1,6 +1,6 @@
 // Observes the experimental Locks service against a real lock manager: Chromium's
-// navigator.locks through BrowserLocks.layer (locks-browser.ts), and Node.js's through
-// NodeLocks.layer (locks-node.ts). Ported from the cases of Smithers' WebLock suite.
+// navigator.locks through ExperimentalBrowserLocks.layer (locks-browser.ts), and Node.js's through
+// ExperimentalNodeLocks.layer (locks-node.ts). Ported from the cases of Smithers' WebLock suite.
 import * as Cause from "effect/Cause"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"

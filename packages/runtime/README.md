@@ -209,14 +209,14 @@ platform, host name and other facts, `kill` and `isRunning`) and
 `vibelang-runtime/experimental/Locks` (Web Locks: `hold`, `tryHold` and
 `query`). Each service has its own key; `FileSystem` and `Crypto` are
 supersets of Effect's interfaces. The layers are in
-`vibelang-runtime/experimental/platform-node` (`NodeServices`,
-`NodeFileSystem`, `NodeCrypto`, `NodeProcess`, `NodeLocks`), `-bun`
-(`BunServices`, `BunFileSystem`, `BunCrypto`, `BunProcess`) and `-browser`
-(`BrowserServices`, `BrowserCrypto`, `BrowserLocks`). A layer of a service
+`vibelang-runtime/experimental/platform-node` (`ExperimentalNodeServices`,
+`ExperimentalNodeFileSystem`, `ExperimentalNodeCrypto`, `ExperimentalNodeProcess`, `ExperimentalNodeLocks`), `-bun`
+(`ExperimentalBunServices`, `ExperimentalBunFileSystem`, `ExperimentalBunCrypto`, `ExperimentalBunProcess`) and `-browser`
+(`ExperimentalBrowserServices`, `ExperimentalBrowserCrypto`, `ExperimentalBrowserLocks`). A layer of a service
 that extends Effect's provides the experimental service and Effect's service
-of the same name from one implementation. `NodeServices` and `BunServices`
+of the same name from one implementation. `ExperimentalNodeServices` and `ExperimentalBunServices`
 are Effect's bundles plus `FileSystem`, `Crypto` and `Process`;
-`BrowserServices` provides `Crypto` and `Locks`; `NodeLocks`, which locks
+`ExperimentalBrowserServices` provides `Crypto` and `Locks`; `ExperimentalNodeLocks`, which locks
 within one process only, is in no bundle. Install the matching
 `@effect/platform-*` package, an optional peer dependency. The
 platform-neutral modules import only `effect`, and the service keys are pure,

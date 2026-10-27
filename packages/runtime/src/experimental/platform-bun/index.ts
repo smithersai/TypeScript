@@ -7,7 +7,7 @@
  * @experimental
  * @since 0.0.11
  */
-export * as BunCrypto from "./BunCrypto.js"
-export * as BunFileSystem from "./BunFileSystem.js"
-export * as BunProcess from "./BunProcess.js"
-export * as BunServices from "./BunServices.js"
+export * as ExperimentalBunCrypto from "./ExperimentalBunCrypto.js"
+export * as ExperimentalBunFileSystem from "./ExperimentalBunFileSystem.js"
+export * as ExperimentalBunProcess from "./ExperimentalBunProcess.js"
+export * as ExperimentalBunServices from "./ExperimentalBunServices.js"
