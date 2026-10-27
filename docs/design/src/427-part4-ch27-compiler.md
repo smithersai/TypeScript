@@ -255,7 +255,10 @@ export declare namespace Users {
 }
 ```
 
-A default service uses `ReferenceKey`. Declaration transforms add type imports
+A default service uses `ReferenceKey`. A service inside a namespace is written
+the same way inside the namespace's body, without `declare`; the body then
+exports its members explicitly and ends with `export {}`, which keeps the base
+constant out of the namespace's exports. Declaration transforms add type imports
 for prelude names, preserve D12's callback parameters, and write source
 specifiers as `.js` (Chapter 26). TypeScript consumers need only the `.js`,
 `.d.ts`, `effect`, and runtime packages. A TypeScript class implements the

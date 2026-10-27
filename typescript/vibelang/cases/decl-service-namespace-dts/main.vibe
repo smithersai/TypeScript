@@ -1,0 +1,24 @@
+// A service inside a namespace has the declaration a top-level service has
+// (D45): an interface branded with its key and a class whose static side is
+// the runtime's ServiceKey, written inside the namespace's body, so
+// TypeScript code provides N.Users as it provides a top-level service.
+// consumer/src/main.ts does that; run.mjs compiles and runs it.
+export namespace N {
+  export service Users {
+    name: string
+  }
+  service Hidden {
+    secret: string
+  }
+  export const greeting = "hello"
+}
+
+export namespace Outer.Inner {
+  export service Clock {
+    now(): number!!
+  }
+}
+
+export function greet() {
+  return `${N.greeting} ${N.Users().name} at ${Outer.Inner.Clock.now()}`
+}
