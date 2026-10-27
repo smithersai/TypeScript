@@ -1,0 +1,5 @@
+// expect: TS2322
+service Prefix: string {
+  static readonly default = 42
+}
+export function example() { return Prefix() }

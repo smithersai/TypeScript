@@ -22,7 +22,10 @@ import (
 // A requirement that leaks this way is a service the member looks up when it
 // is called, in the caller's Context, which the contract does not declare.
 
-func init() { fileChecks = append(fileChecks, checkProviders) }
+func init() {
+	fileChecks = append(fileChecks, checkProviders)
+	checker.RegisterInitializerContextualTypeHook(serviceDefaultShape)
+}
 
 func checkProviders(c *checker.Checker, file *ast.SourceFile) {
 	var visit func(node *ast.Node) bool
@@ -34,6 +37,8 @@ func checkProviders(c *checker.Checker, file *ast.SourceFile) {
 			checkProviderClass(c, node)
 		case ast.IsCallExpression(node):
 			checkLayerProgram(c, node)
+		case ast.IsPropertyDeclaration(node):
+			checkServiceDefault(c, node)
 		}
 		return node.ForEachChild(visit)
 	}
@@ -43,12 +48,58 @@ func checkProviders(c *checker.Checker, file *ast.SourceFile) {
 // checkProviderObject checks each method and function-valued property of
 // object against the type its contextual type gives that member.
 func checkProviderObject(c *checker.Checker, object *ast.Node) {
+	initializer := object
+	for initializer.Parent != nil && ast.IsParenthesizedExpression(initializer.Parent) {
+		initializer = initializer.Parent
+	}
+	if declaration := initializer.Parent; declaration != nil && ast.IsPropertyDeclaration(declaration) && declaration.Initializer() == initializer {
+		if shape := serviceDefaultShape(c, declaration); shape != nil {
+			checkDefaultMembers(c, object, declaration, shape)
+			return
+		}
+	}
 	contextual := c.GetContextualType(object, checker.ContextFlagsNone)
 	if contextual == nil {
 		return
 	}
 	checkProviderMembers(c, object, providerName(object), serviceNameOf(c, contextual), func(member *ast.Node) *checker.Type {
 		return c.GetContextualTypeForObjectLiteralElement(member, checker.ContextFlagsNone)
+	})
+}
+
+// A default supplies the service without adding it to R, so it must satisfy
+// exactly the same implementation shape and member contracts as Layer.succeed.
+func serviceDefaultShape(c *checker.Checker, declaration *ast.Node) *checker.Type {
+	if !ast.IsPropertyDeclaration(declaration) || !ast.IsStatic(declaration) ||
+		!ast.HasSyntacticModifier(declaration, ast.ModifierFlagsReadonly) ||
+		declaration.Name() == nil || !ast.IsIdentifier(declaration.Name()) || declaration.Name().Text() != "default" ||
+		classKindOf(declaration.Parent) != serviceClass {
+		return nil
+	}
+	if shape := serviceShape(declaration.Parent); shape != nil {
+		if serviceShapeSelfReference(c, declaration.Parent) != nil {
+			return nil // the service declaration reports the self-reference
+		}
+		return c.GetTypeFromTypeNode(shape)
+	}
+	return c.GetDeclaredTypeOfSymbol(declaration.Parent.Symbol())
+}
+
+func checkServiceDefault(c *checker.Checker, declaration *ast.Node) {
+	shape := serviceDefaultShape(c, declaration)
+	if shape == nil || declaration.Initializer() == nil {
+		return
+	}
+	c.CheckExpressionAssignableTo(declaration.Initializer(), shape)
+	if object := variableObject(c, ast.GetContainingFunction(declaration), declaration.Initializer()); object != nil {
+		checkDefaultMembers(c, object, declaration, shape)
+	}
+}
+
+func checkDefaultMembers(c *checker.Checker, object, declaration *ast.Node, shape *checker.Type) {
+	owner := declaration.Parent.Name().Text()
+	checkProviderMembers(c, object, owner+".default", owner, func(member *ast.Node) *checker.Type {
+		return c.GetTypeOfPropertyOfType(shape, member.Name().Text())
 	})
 }
 

@@ -1,0 +1,7 @@
+// expect: EK3207
+service Count { value: number }
+const CountLive = Layer.succeed(Count, { value: 1 })
+
+export function example(flag: boolean) {
+  provide (flag ? CountLive : "not a layer") { return 0 }
+}

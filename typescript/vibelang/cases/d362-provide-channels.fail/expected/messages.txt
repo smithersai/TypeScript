@@ -1,0 +1,8 @@
+First | Second can escape union
+union needs InputA | InputB
+First can escape optional
+optional needs InputA
+optional needs Optional
+Second can escape rest
+rest needs InputB
+rest needs Optional

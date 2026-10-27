@@ -1,0 +1,15 @@
+// expect: EK3201
+service Left { left: number }
+service Right { right: number }
+const LeftLive = Layer.succeed(Left, { left: 1 })
+
+function tuple(providers: [Layer.Layer<Left>, ...Layer.Layer<Right>[]]) {
+  provide providers { return Left().left + Right().right }
+}
+
+function spread(providers: Layer.Layer<Right>[]) {
+  provide [LeftLive, ...providers] { return Left().left + Right().right }
+}
+
+Effect.runFork(() => tuple([LeftLive]))
+Effect.runFork(() => spread([]))

@@ -30190,6 +30190,9 @@ func (c *Checker) getContextualTypeForVariableLikeDeclaration(declaration *ast.N
 	if typeNode != nil {
 		return c.getTypeFromTypeNode(typeNode)
 	}
+	if t := c.initializerContextualTypeFromHooks(declaration); t != nil {
+		return t
+	}
 	switch declaration.Kind {
 	case ast.KindParameter:
 		return c.getContextuallyTypedParameterType(declaration)

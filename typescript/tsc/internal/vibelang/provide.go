@@ -114,94 +114,166 @@ func (a *analyzer) provideFlow(block *ast.Node) *effectInfo {
 	return info
 }
 
-// providerChannels returns what a provide block's layer expression provides,
-// fails with, and needs. Like Effect.provide, it accepts a Layer, a Context,
-// or an array of layers, whose channels join.
-// providerChannelsOf returns what a provide block's provider expression
-// provides, fails with, and needs. An array literal, such as the list that
-// provide A, Clock = testClock { ... } becomes (D173), is read element by
-// element: its own type merges the elements into one union, and because a
-// layer is contravariant in what it provides, Layer<Names> | Layer<never>
-// reduces to Layer<never>, which would provide nothing.
-func providerChannelsOf(c *checker.Checker, layer *ast.Node) (provided, errors, needs *checker.Type) {
-	list := ast.SkipParentheses(layer)
-	if !ast.IsArrayLiteralExpression(list) || core.Some(list.AsArrayLiteralExpression().Elements.Nodes, ast.IsSpreadElement) {
-		return providerChannels(c, c.GetTypeAtLocation(layer))
-	}
-	var outs, errs, ins []*checker.Type
-	for _, element := range list.AsArrayLiteralExpression().Elements.Nodes {
-		out, e, in := providerChannels(c, c.GetTypeAtLocation(element))
-		if out == nil {
-			return providerChannels(c, c.GetTypeAtLocation(layer))
-		}
-		outs = append(outs, out)
-		if e != nil {
-			errs = append(errs, e)
-		}
-		if in != nil {
-			ins = append(ins, in)
-		}
-	}
-	join := func(types []*checker.Type) *checker.Type {
-		if len(types) == 0 {
-			return nil
-		}
-		return c.GetUnionType(types)
-	}
-	return join(outs), join(errs), join(ins)
+// providerInfo records the services present on every path, and all possible
+// construction errors and inputs (D362). nonempty counts required list elements.
+type providerInfo struct {
+	provided, errors, needs *checker.Type
+	valid, nonempty         bool
+	layer                   bool // every alternative is one layer, usable as a list element
 }
 
-func providerChannels(c *checker.Checker, t *checker.Type) (provided, errors, needs *checker.Type) {
+func emptyProvider(c *checker.Checker) providerInfo {
+	never := c.GetNeverType()
+	return providerInfo{provided: never, errors: never, needs: never, valid: true}
+}
+
+// combineProviders joins a list's outputs, but intersects a union's outputs:
+// only one union member is present at run time. Both add every member's E/R.
+func combineProviders(c *checker.Checker, parts []providerInfo, union bool) providerInfo {
+	result := emptyProvider(c)
+	result.layer = len(parts) > 0
 	var outs, errs, ins []*checker.Type
-	var add func(t *checker.Type) bool
-	add = func(t *checker.Type) bool {
-		// Split a union first: its merged variance struct would read as one
-		// layer that provides the intersection of the members' services.
-		if t.Flags()&checker.TypeFlagsUnion != 0 {
-			for _, member := range unionMembers(t) {
-				if !add(member) {
-					return false
-				}
-			}
-			return true
-		}
-		if out, e, in := layerChannels(c, t); out != nil {
-			outs, errs, ins = append(outs, out), append(errs, e), append(ins, in)
-			return true
-		}
-		if services := contextServices(c, t); services != nil {
-			outs = append(outs, services)
-			return true
-		}
-		if checker.IsTupleType(t) {
-			for _, element := range c.GetTypeArguments(t) {
-				if !add(element) {
-					return false
-				}
-			}
-			return true
-		}
-		if c.IsArrayType(t) {
-			return add(c.GetElementTypeOfArrayType(t))
-		}
-		return false
+	for _, part := range parts {
+		result.valid = result.valid && part.valid
+		result.layer = result.layer && part.layer
+		result.nonempty = result.nonempty || part.nonempty
+		outs = append(outs, part.provided)
+		errs = append(errs, part.errors)
+		ins = append(ins, part.needs)
 	}
-	if !add(t) || len(outs) == 0 {
-		return nil, nil, nil
-	}
-	join := func(types []*checker.Type) *checker.Type {
-		var present []*checker.Type
-		for _, t := range types {
-			if t != nil {
-				present = append(present, t)
-			}
+	if union && len(parts) > 0 {
+		result.provided = c.GetIntersectionType(outs)
+		result.nonempty = true
+		for _, part := range parts {
+			result.nonempty = result.nonempty && part.nonempty
 		}
-		if len(present) == 0 {
-			return nil
-		}
-		return c.GetUnionType(present)
+	} else {
+		result.provided = c.GetUnionType(outs)
 	}
-	return join(outs), join(errs), join(ins)
+	result.errors, result.needs = c.GetUnionType(errs), c.GetUnionType(ins)
+	if !result.valid {
+		result.provided = c.GetNeverType()
+	}
+	return result
+}
+
+// providerExpression reads array literals element by element (D175): their
+// inferred element union can erase a layer's outputs through contravariance.
+func providerExpression(c *checker.Checker, expression *ast.Node) providerInfo {
+	list := ast.SkipParentheses(expression)
+	if !ast.IsArrayLiteralExpression(list) {
+		return providerType(c, c.GetTypeAtLocation(expression))
+	}
+	var parts []providerInfo
+	for _, element := range list.AsArrayLiteralExpression().Elements.Nodes {
+		if ast.IsSpreadElement(element) {
+			parts = append(parts, providerSpread(c, c.GetTypeAtLocation(element.Expression())))
+		} else {
+			part := providerExpression(c, element)
+			part.valid = part.valid && part.layer
+			parts = append(parts, part)
+		}
+	}
+	result := combineProviders(c, parts, false)
+	result.valid = result.valid && result.nonempty
+	result.layer = false // the list itself is not a layer
+	return result
+}
+
+func providerChannelsOf(c *checker.Checker, expression *ast.Node) (provided, errors, needs *checker.Type) {
+	info := providerExpression(c, expression)
+	return info.provided, info.errors, info.needs
+}
+
+func providerType(c *checker.Checker, t *checker.Type) providerInfo {
+	result := emptyProvider(c)
+	if t == nil || t.Flags()&checker.TypeFlagsAnyOrUnknown != 0 {
+		result.valid = false
+		return result
+	}
+	if t.Flags()&checker.TypeFlagsInstantiable != 0 {
+		if constraint := c.GetBaseConstraintOfType(t); constraint != nil && constraint != t {
+			return providerType(c, constraint)
+		}
+	}
+	if t.Flags()&checker.TypeFlagsUnion != 0 {
+		var parts []providerInfo
+		for _, member := range t.Types() {
+			parts = append(parts, providerType(c, member))
+		}
+		return combineProviders(c, parts, true)
+	}
+	if out, e, in := layerChannels(c, t); out != nil && e != nil && in != nil {
+		return providerInfo{provided: out, errors: e, needs: in, valid: true, nonempty: true, layer: true}
+	}
+	if services := contextServices(c, t); services != nil {
+		result.provided, result.nonempty = services, true
+		return result
+	}
+	if checker.IsTupleType(t) {
+		result = providerTuple(c, t)
+		result.valid = result.valid && result.nonempty
+		return result
+	}
+	result.valid = false // an array's element type promises no element is present
+	return result
+}
+
+func providerTuple(c *checker.Checker, t *checker.Type) providerInfo {
+	var parts []providerInfo
+	flags := t.TargetTupleType().ElementFlags()
+	for i, element := range c.GetTypeArguments(t) {
+		var part providerInfo
+		switch {
+		case flags[i]&checker.ElementFlagsVariadic != 0:
+			part = providerSpread(c, element)
+		case flags[i]&checker.ElementFlagsRequired != 0:
+			part = providerType(c, element)
+		default:
+			part = providerType(c, c.RemoveMissingOrUndefinedType(element))
+			part.provided, part.nonempty = c.GetNeverType(), false
+		}
+		if flags[i]&checker.ElementFlagsVariadic == 0 {
+			part.valid = part.valid && part.layer
+		}
+		parts = append(parts, part)
+	}
+	result := combineProviders(c, parts, false)
+	result.layer = false
+	return result
+}
+
+// A spread array contributes E/R, but promises no outputs. Required tuple
+// elements keep their outputs, even beside an array spread in the same list.
+func providerSpread(c *checker.Checker, t *checker.Type) providerInfo {
+	if t.Flags()&checker.TypeFlagsInstantiable != 0 {
+		if constraint := c.GetBaseConstraintOfType(t); constraint != nil && constraint != t {
+			return providerSpread(c, constraint)
+		}
+	}
+	if t.Flags()&checker.TypeFlagsUnion != 0 {
+		var parts []providerInfo
+		for _, member := range t.Types() {
+			parts = append(parts, providerSpread(c, member))
+		}
+		return combineProviders(c, parts, true)
+	}
+	if checker.IsTupleType(t) {
+		return providerTuple(c, t)
+	}
+	if c.IsArrayType(t) {
+		element := c.GetElementTypeOfArrayType(t)
+		if element.Flags()&checker.TypeFlagsNever != 0 {
+			return emptyProvider(c)
+		}
+		part := providerType(c, element)
+		part.valid = part.valid && part.layer
+		part.provided, part.nonempty = c.GetNeverType(), false
+		return part
+	}
+	result := emptyProvider(c)
+	result.valid = false
+	return result
 }
 
 // contextServices returns the services a Context<Services> holds, or nil
@@ -282,34 +354,82 @@ func checkProvideBlocks(c *checker.Checker, file *ast.SourceFile) {
 	file.AsNode().ForEachChild(visit)
 }
 
-// checkProvideProviders checks the provider expression with Effect.provide's
-// ordinary overloads. Its curried form checks the same providers without moving
-// the block's statements into a function, where return, break and continue
-// would have different targets. Keep the original argument nodes so TypeScript
-// checks array literals element by element and reports errors at the providers.
+// checkProvideProviders reports EK3207 for a provider whose type cannot
+// promise a layer, a Context, or a non-empty list on every path (D362).
 func checkProvideProviders(c *checker.Checker, file *ast.SourceFile) {
-	module := effectModuleNamespace(c, file, "Effect")
-	if module == nil {
-		return
-	}
-	provide := c.GetTypeOfPropertyOfType(c.GetTypeOfSymbol(module), "provide")
-	if provide == nil {
-		return
-	}
-	f := ast.NewNodeFactory(ast.NodeFactoryHooks{})
 	var visit func(n *ast.Node) bool
 	visit = func(n *ast.Node) bool {
 		if isProvideBlock(n) {
-			layer := provideLayer(n)
-			callee := f.NewSyntheticExpression(provide, false /*isSpread*/, nil /*tupleNameSource*/)
-			call := f.NewCallExpression(callee, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{layer}), ast.NodeFlagsNone)
-			call.Loc, call.Parent = layer.Loc, layer.Parent
-			callee.Loc, callee.Parent = layer.Loc, call
-			c.GetTypeOfExpressionBeforeWidening(call)
+			provider := provideLayer(n)
+			if !providerExpression(c, provider).valid {
+				report(c, provider, EK3207)
+			}
+		} else if provider, _ := effectProvideArguments(c, n); provider != nil && !providerExpression(c, provider).valid {
+			report(c, provider, EK3207)
 		}
 		return n.ForEachChild(visit)
 	}
 	file.AsNode().ForEachChild(visit)
+}
+
+// effectProvideArguments distinguishes Effect.provide(self, provider) from
+// Effect.provide(provider, options), using the resolved overload's parameters.
+func effectProvideArguments(c *checker.Checker, call *ast.Node) (provider, self *ast.Node) {
+	if !ast.IsCallExpression(call) || !isVibeLangFile(ast.GetSourceFileOfNode(call)) ||
+		!isExportOf(c, call, "effect", "Effect", []string{"provide"}) {
+		return nil, nil
+	}
+	signature := c.GetResolvedSignature(call)
+	args := call.Arguments()
+	if signature == nil || len(signature.Parameters()) == 0 || len(args) == 0 {
+		return nil, nil
+	}
+	if signature.Parameters()[0].Name() == "self" {
+		if len(args) < 2 {
+			return nil, nil
+		}
+		return args[1], args[0]
+	}
+	return args[0], nil
+}
+
+// Effect's tuple overload extracts outputs from Layers[number], which joins
+// alternatives and optional/rest elements. D362 instead uses only guaranteed
+// outputs, in both direct and curried calls, including a stored curried function.
+func providedCallType(c *checker.Checker, call *ast.Node, t *checker.Type) *checker.Type {
+	if t == nil {
+		return t
+	}
+	provider, self := effectProvideArguments(c, call)
+	if provider == nil {
+		return t
+	}
+	info := providerExpression(c, provider)
+	result := func(returned, program *checker.Type) *checker.Type {
+		if !isEffectType(c, returned) || !isEffectType(c, program) {
+			return returned
+		}
+		return c.NewTypeReference(effectInterface(c, returned), []*checker.Type{
+			channelType(c, returned, "_A"),
+			c.GetUnionType([]*checker.Type{channelType(c, program, "_E"), info.errors}),
+			c.GetUnionType([]*checker.Type{c.ExcludeType(channelType(c, program, "_R"), info.provided), info.needs}),
+		})
+	}
+	if self != nil {
+		program := c.GetTypeAtLocation(self)
+		if signature := singleCallSignature(c, program); signature != nil {
+			program = c.GetReturnTypeOfSignature(signature)
+		} else if analyzerFor(c).isByName(self) {
+			program = analyzerFor(c).byNameType(self, program)
+		}
+		return result(t, program)
+	}
+	signature := singleCallSignature(c, t)
+	if signature == nil || len(signature.Parameters()) != 1 {
+		return t
+	}
+	returned := result(c.GetReturnTypeOfSignature(signature), c.GetTypeOfSymbol(signature.Parameters()[0]))
+	return c.NewFunctionType(nil, []*checker.Signature{c.SignatureWithReturnType(signature, returned)})
 }
 
 // checkProvideSpelling reports EK1009, a warning, at a provide block written

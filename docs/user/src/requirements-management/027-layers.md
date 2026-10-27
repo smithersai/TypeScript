@@ -27,6 +27,8 @@ function report(title: string) {
 
 On this page, `Printer` depends on `Settings`, and `Reports` on both. `Layer.Layer<Out, E, In>` gives the services produced, construction failures, and construction requirements; the global `Layer` namespace holds the constructors and that type.
 
+A `provide` block accepts a layer, a `Context`, or a non-empty list or tuple of layers. It removes only services supplied on every path: a union supplies the services common to all members, and optional tuple elements and array spreads supply no guaranteed services. Every possible construction error and input remains in the contract. A potentially empty array value, an invalid union member, `any`, or `unknown` is EK3207. Provider expressions run once, in source order, before any layer builds; repeating the same layer value builds it once.
+
 ## Preventing dependency leakage
 
 ```vibe

@@ -66,6 +66,8 @@ function readImplementation() {
 // Output: ticket-23 23
 ```
 
+A service can declare `static readonly default` to supply an implementation without a provider. The initializer is checked against the service shape, with the same member failure and call-time requirement checks as `Layer.succeed`: a shape mismatch is a TypeScript error, an excess failure is EK2001, and an undeclared call-time requirement is EK3101.
+
 `Sequence.next()` looks up the service and runs the method; `Sequence()` returns the implementation, to capture it or read value members. Supply every requirement before running the program. A missing provide at an entry `main` produces warning EK3205 by default; the starter sets EK3205 to `"error"`, so the build stops.
 
 ```vibe

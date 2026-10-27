@@ -1,0 +1,22 @@
+// expect: EK2001 EK2002
+error First
+error Second
+service InputA { a: number }
+service InputB { b: number }
+service Output { value: number }
+service Optional { extra: number }
+declare const first: Layer.Layer<Output, First, InputA>
+declare const second: Layer.Layer<Output, Second, InputB>
+
+// Both possible construction errors and inputs must survive the union.
+export function union(flag: boolean): number!! {
+  provide (flag ? first : second) { return Output().value }
+}
+
+// Optional/rest elements can run, adding E/R, but promise no outputs.
+export function optional(providers: [Layer.Layer<Output>, Layer.Layer<Optional, First, InputA>?]): number!! {
+  provide providers { return Optional().extra }
+}
+export function rest(providers: [Layer.Layer<Output>, ...Layer.Layer<Optional, Second, InputB>[]]): number!! {
+  provide providers { return Optional().extra }
+}

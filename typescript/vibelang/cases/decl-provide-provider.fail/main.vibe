@@ -1,4 +1,4 @@
-// expect: TS2769
+// expect: EK3207
 export function main() {
   const notALayer = "x"
   provide notALayer {

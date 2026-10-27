@@ -1,0 +1,47 @@
+// expect-result: {"common":1,"tuple":3,"spread":1,"context":4,"default":5,"events":["eval:layer","eval:value","eval:layer"],"builds":1,"provided":6}
+service Common { shared: number }
+service Left { left: number }
+service Right { right: number }
+const CommonLive = Layer.succeed(Common, { shared: 1 })
+const LeftLive = Layer.succeed(Left, { left: 2 })
+const RightLive = Layer.succeed(Right, { right: 3 })
+
+service Default {
+  next(value: number): number!!
+  static readonly default = { next(value) { return value + 1 } }
+}
+
+function common(flag: boolean): number!! {
+  const provider = flag ? Layer.mergeAll(CommonLive, LeftLive) : Layer.mergeAll(CommonLive, RightLive)
+  provide provider { return Common().shared }
+}
+
+function tuple(): number!! {
+  const providers: readonly [Layer.Layer<Common>, Layer.Layer<Left>] = [CommonLive, LeftLive]
+  provide providers { return Common().shared + Left().left }
+}
+
+function spread(): number!! {
+  const extra: Layer.Layer<Right>[] = []
+  const required: readonly [Layer.Layer<Common>] = [CommonLive]
+  provide [...extra, ...required, Layer.empty] { return Common().shared }
+}
+
+function context(): number!! {
+  provide Context.make(Common, { shared: 4 }) { return Common().shared }
+}
+
+export function main() {
+  const events: string[] = []
+  const live = Layer.effect(Left) { events.push("build"); return { left: 2 } }
+  function layer() { events.push("eval:layer"); return live }
+  function value() { events.push("eval:value"); return { right: 4 } }
+  let provided = 0
+  provide layer(), Right = value(), layer() {
+    provided = Left().left + Right().right
+  }
+  return {
+    common: common(true), tuple: tuple(), spread: spread(), context: context(), default: Default.next(4),
+    events: events.slice(0, 3), builds: events.filter((event) => event === "build").length, provided
+  }
+}

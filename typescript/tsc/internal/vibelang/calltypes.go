@@ -12,6 +12,7 @@ import (
 // inline through its $direct variant has its success type anywhere in a .vibe
 // file (plain.go). Every other call keeps its type.
 func callExpressionType(c *checker.Checker, call *ast.Node, t *checker.Type) *checker.Type {
+	t = providedCallType(c, call, t)
 	if !isInvocation(call) || holdsProgram(c, call) || !inLowerableBody(call) && analyzerFor(c).directCallee(call) == nil {
 		return t
 	}
@@ -146,7 +147,7 @@ func programChannelType(c *checker.Checker, t *checker.Type, name string) *check
 // D24 still decides from the present branch's exact type, never from a
 // structural Effect subtype or a union containing data (D270).
 func runningCallResult(c *checker.Checker, call *ast.Node, sig *checker.Signature) *checker.Type {
-	t := c.GetReturnTypeOfSignature(sig)
+	t := providedCallType(c, call, c.GetReturnTypeOfSignature(sig))
 	if !ast.IsOptionalChain(call) {
 		return t
 	}

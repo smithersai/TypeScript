@@ -46,3 +46,29 @@ func (c *Checker) NewOptionalReadonlyPropertyType(name string, t *Type) *Type {
 	c.valueSymbolLinks.Get(property).resolvedType = t
 	return c.newAnonymousType(nil, ast.SymbolTable{name: property}, nil, nil, nil)
 }
+
+// InitializerContextualTypeHook supplies an initializer's contextual type when
+// its declaration has no written annotation. It returns nil for other declarations.
+type InitializerContextualTypeHook func(c *Checker, declaration *ast.Node) *Type
+
+var initializerContextualTypeHooks []InitializerContextualTypeHook
+
+// RegisterInitializerContextualTypeHook registers an in-tree extension at init.
+func RegisterInitializerContextualTypeHook(hook InitializerContextualTypeHook) {
+	initializerContextualTypeHooks = append(initializerContextualTypeHooks, hook)
+}
+
+func (c *Checker) initializerContextualTypeFromHooks(declaration *ast.Node) *Type {
+	for _, hook := range initializerContextualTypeHooks {
+		if t := hook(c, declaration); t != nil {
+			return t
+		}
+	}
+	return nil
+}
+
+// CheckExpressionAssignableTo checks an implementation against a supplied
+// shape, retaining TypeScript's member-level explanation of a mismatch.
+func (c *Checker) CheckExpressionAssignableTo(node *ast.Node, target *Type) {
+	c.checkTypeAssignableToAndOptionallyElaborate(c.checkExpressionCached(node), target, node, node, nil, nil)
+}
