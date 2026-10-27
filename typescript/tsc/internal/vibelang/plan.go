@@ -23,6 +23,7 @@ type plan struct {
 	returns                    map[*ast.Node]bool       // returned Effect subtypes executed at an Effect return boundary
 	converts                   map[*ast.Node]conversion // function values converted where they are passed
 	prelude                    []string                 // prelude names the file uses as values (prelude.go)
+	intrinsics                 map[*ast.Node]bool       // intrinsics a source binding would capture, reached through the lowering's own import (prelude.go)
 	servicePlan
 	plainPlan
 	trustedPlan
@@ -73,6 +74,7 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 	}
 	r.WithChecker(func(c *checker.Checker) {
 		p.prelude = preludeUses(c, file)
+		p.intrinsics = preludeStateOf(c).intrinsics
 		p.ownExports = moduleExportNames(c, file.Symbol)
 		a := analyzerFor(c)
 		var visit func(node *ast.Node) bool

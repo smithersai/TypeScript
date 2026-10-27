@@ -24,6 +24,13 @@ import (
 // local declaration or import shadows a prelude name, and .ts files never see
 // the prelude. The emitted JavaScript imports each prelude name the file uses
 // as a value: the Effect modules from effect, the rest from the runtime.
+//
+// The names the parser writes for its forms, such as the $is of a match or
+// the TaggedError an error extends, are intrinsics
+// (ast.NodeFlagsVibeLangIntrinsic): they mean the prelude's export whatever
+// the file declares, so no source binding can capture them. Where a source
+// binding of another meaning is in scope, the lowering reaches the export
+// through an import of its own (recordIntrinsic, intrinsicReference).
 
 // runtimeModule is the package that holds the prelude and the helpers that
 // generated code calls.
@@ -167,7 +174,7 @@ func mayUsePrelude(file *ast.SourceFile) (prelude bool, root bool, barrels []str
 	visit = func(node *ast.Node) bool {
 		if ast.IsIdentifier(node) {
 			name := node.Text()
-			if declared[name] {
+			if declared[name] && node.Flags&ast.NodeFlagsVibeLangIntrinsic == 0 {
 				return false
 			}
 			if _, ok := preludeModules[name]; ok {
@@ -333,6 +340,11 @@ type preludeState struct {
 	uses     map[*ast.SourceFile]map[string]bool        // prelude names each .vibe file uses as values
 	typeUses map[*ast.SourceFile]map[string]bool        // prelude names each .vibe file's declaration file writes (declarations.go)
 	typeRefs map[*ast.Node]bool                         // the identifiers that write those names
+
+	// intrinsics are the intrinsics that a source binding of another meaning
+	// would capture, which the lowering reaches through its own import
+	// (recordIntrinsic).
+	intrinsics map[*ast.Node]bool
 }
 
 type preludeStateKey struct{}
@@ -398,7 +410,47 @@ func resolvePreludeName(c *checker.Checker, location *ast.Node, name string, mea
 		return nil
 	}
 	if isValueReference(location, name, meaning) && !isLoweredHatchCallee(location) && !isClauseCallee(location) && !isRemovedPrimitiveMarker(location) && !isServiceShapeFactory(location) {
+		if location.Flags&ast.NodeFlagsVibeLangIntrinsic != 0 {
+			recordIntrinsic(c, state, file, location, name, meaning, symbol)
+		} else {
+			recordPreludeUse(state, file, name)
+		}
+	}
+	return symbol
+}
+
+// recordIntrinsic records how the emitted JavaScript reaches symbol, the
+// prelude export that location, an intrinsic named name, means. The name
+// written where location stands binds what source code there would bind:
+// the prelude's import when no scope declares name, which is recorded as a
+// use; a binding of the same export, such as an import of Schema from
+// effect, which serves as it is; or another binding, which would capture it,
+// so location is recorded for the lowering to reach symbol through an import
+// of its own (intrinsicReference). An interface's heritage, such as a schema's
+// Schema.Schema.Type, is erased, so it needs neither.
+func recordIntrinsic(c *checker.Checker, state *preludeState, file *ast.SourceFile, location *ast.Node, name string, meaning ast.SymbolFlags, symbol *ast.Symbol) {
+	if ast.FindAncestor(location, ast.IsInterfaceDeclaration) != nil {
+		return
+	}
+	lexical := c.ResolveLexicalName(name, location.Parent, meaning)
+	switch {
+	case lexical == symbol:
 		recordPreludeUse(state, file, name)
+	case lexical != nil && aliasTarget(c, lexical) == aliasTarget(c, symbol):
+	default:
+		if state.intrinsics == nil {
+			state.intrinsics = map[*ast.Node]bool{}
+		}
+		state.intrinsics[location] = true
+	}
+}
+
+// aliasTarget returns the symbol that symbol, an alias or not, stands for.
+func aliasTarget(c *checker.Checker, symbol *ast.Symbol) *ast.Symbol {
+	if symbol.Flags()&ast.SymbolFlagsAlias != 0 {
+		if target := c.GetAliasedSymbol(symbol); target != nil {
+			return target
+		}
 	}
 	return symbol
 }

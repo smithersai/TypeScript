@@ -280,6 +280,14 @@ func (c *Checker) suggestBeforeGlobals(location *ast.Node, name string, meaning 
 	return c.getSpellingSuggestionForName(name, allowed, meaning)
 }
 
+// ResolveLexicalName returns the symbol that name, written where location
+// stands, resolves to, without marking the symbol used: what a source
+// reference there would mean. A VibeLang intrinsic, which ignores the scopes
+// around it, asks what its spelling would capture.
+func (c *Checker) ResolveLexicalName(name string, location *ast.Node, meaning ast.SymbolFlags) *ast.Symbol {
+	return c.resolveName(location, name, meaning, nil /*nameNotFoundMessage*/, false /*isUse*/, false /*excludeGlobals*/)
+}
+
 func (c *Checker) resolveBeforeGlobals(location *ast.Node, name string, meaning ast.SymbolFlags) *ast.Symbol {
 	for _, hook := range nameResolutionHooks {
 		if symbol := hook(c, location, name, meaning); symbol != nil {

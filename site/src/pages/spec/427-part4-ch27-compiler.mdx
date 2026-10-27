@@ -93,6 +93,11 @@ source binding. A module that exports a name spelled like a variant, such as
 The parser's names follow the same rule: the const or parameter that holds a
 `match` or `is` subject (`$match1`, `$is2`), an extractor's values and the
 labels it writes take the next free number when the file spells theirs.
+The prelude exports that the parser's forms call or extend, such as `$is`,
+`$awaitAll` or `TaggedError`, are intrinsics: they mean the prelude's export
+whatever the file declares. Where a source binding of another meaning would
+capture one, the emitted JavaScript reaches the export through the lowering's
+own import, as `runtime.$is`.
 An Effect function's generator carries the function's name for stack traces
 (D36) but binds none: a named function expression that refers to itself, in
 its body or a parameter default, forwards to the generator as a declaration

@@ -17,6 +17,13 @@ import (
 // generated name is never its base by right: it is fresh, spelled by no
 // identifier of the source file. The lowering's references to it are written
 // with the same name, so a source binding cannot capture them either.
+//
+// The prelude exports that the parser's forms call or extend, such as $is,
+// $awaitAll or TaggedError, are intrinsics, not generated bindings: the
+// checker resolves them to the prelude's exports whatever the file declares
+// (ast.NodeFlagsVibeLangIntrinsic), and where a source binding of another
+// meaning would capture one, the lowering reaches the export through an
+// import of its own, which no source binding shadows (reachIntrinsics).
 
 // freshNames gives the bindings the lowering introduces in one file their
 // names (freshName).
@@ -54,6 +61,38 @@ func (n *freshNames) freshName(base string) string {
 // spelled reports whether an identifier of the source file is spelled name.
 func (n *freshNames) spelled(name string) bool {
 	return n.file != nil && n.file.HasIdentifier(name)
+}
+
+// reachIntrinsics returns node, the lowered file, with each intrinsic that a
+// source binding would capture where it stands (recordIntrinsic) written as a
+// reference through the lowering's own import (intrinsicReference).
+func (tx *lowering) reachIntrinsics(node *ast.Node) *ast.Node {
+	if len(tx.plan.intrinsics) == 0 {
+		return node
+	}
+	ec := tx.EmitContext()
+	visitor := ec.NewNodeVisitor(nil)
+	visitor.Visit = func(n *ast.Node) *ast.Node {
+		if ast.IsIdentifier(n) && n.Flags&ast.NodeFlagsVibeLangIntrinsic != 0 && tx.plan.intrinsics[ec.MostOriginal(n)] {
+			return tx.intrinsicReference(n)
+		}
+		return visitor.VisitEachChild(n)
+	}
+	return visitor.VisitEachChild(node)
+}
+
+// intrinsicReference returns the expression that reaches the prelude export
+// that node, an intrinsic, names through an import of the lowering's own,
+// whose name is fresh: runtime.$is for the runtime's helpers, and the
+// module's namespace, Schema_1, for an Effect module.
+func (tx *lowering) intrinsicReference(node *ast.Node) *ast.Node {
+	if module := preludeModules[node.Text()]; module != "" && module != runtimeModule {
+		return tx.moduleNamespace(module)
+	}
+	reference := tx.runtimeMember(node.Text())
+	tx.EmitContext().SetOriginal(reference, node)
+	reference.Loc = node.Loc
+	return reference
 }
 
 // freshName returns the name of the binding that base names in the file being

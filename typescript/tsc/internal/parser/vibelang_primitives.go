@@ -57,7 +57,7 @@ func (p *Parser) parseVibeLangMaskBlock() *ast.Node {
 	form := VibeSyntax{Kind: VibeSyntaxBlockStatement, Word: anchor, Head: anchor}
 	p.nextToken()
 	p.rejectVibeLangBlockDo(word)
-	callee := p.vibelangSynthesized(p.factory.NewIdentifier("$"+word+vibelangMaskBlockLabel), anchor)
+	callee := p.vibelangIntrinsic("$"+word+vibelangMaskBlockLabel, anchor)
 	call := p.vibelangSynthesized(p.factory.NewCallExpression(callee, nil /*questionDotToken*/, nil /*typeArguments*/, p.newNodeList(anchor, nil), ast.NodeFlagsNone), anchor)
 	marker := p.vibelangSynthesized(p.factory.NewExpressionStatement(call), anchor)
 	statements := []*ast.Node{marker}

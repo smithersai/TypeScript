@@ -106,7 +106,7 @@ func (p *Parser) parseVibeLangJoin() *ast.Node {
 	p.nextToken() // join
 	operand := p.parseSimpleUnaryExpression()
 	p.recordVibeSyntax(VibeSyntax{Kind: VibeSyntaxPrefix, Word: anchor, Range: core.NewTextRange(anchor.Pos(), operand.End())})
-	callee := p.vibelangSynthesized(p.factory.NewIdentifier("$join"), anchor)
+	callee := p.vibelangIntrinsic("$join", anchor)
 	return p.finishNode(p.factory.NewCallExpression(callee, nil, nil, p.newNodeList(operand.Loc, []*ast.Node{operand}), ast.NodeFlagsNone), pos)
 }
 
@@ -157,7 +157,7 @@ func (p *Parser) parseVibeLangAwait() *ast.Node {
 	anchor := p.tokenRange()
 	p.nextToken() // await
 	operand := p.parseSimpleUnaryExpression()
-	callee := p.vibelangSynthesized(p.factory.NewIdentifier("$await"), anchor)
+	callee := p.vibelangIntrinsic("$await", anchor)
 	call := p.finishNode(p.factory.NewCallExpression(callee, nil, nil, p.newNodeList(operand.Loc, []*ast.Node{operand}), ast.NodeFlagsNone), pos)
 	return call
 }
@@ -211,7 +211,7 @@ func (p *Parser) parseVibeLangAwaitOperation() *ast.Node {
 	word := core.NewTextRange(anchor.Pos(), p.nodePos())
 	operand := p.parseSimpleUnaryExpression()
 	p.recordVibeSyntax(VibeSyntax{Kind: VibeSyntaxPrefix, Word: word, Range: core.NewTextRange(anchor.Pos(), operand.End())})
-	callee := p.vibelangSynthesized(p.factory.NewIdentifier(helper), anchor)
+	callee := p.vibelangIntrinsic(helper, anchor)
 	return p.finishNode(p.factory.NewCallExpression(callee, nil, nil, p.newNodeList(operand.Loc, []*ast.Node{operand}), ast.NodeFlagsNone), pos)
 }
 
@@ -305,7 +305,7 @@ func (p *Parser) parseVibeLangSelect() *ast.Node {
 		args = append(args, p.vibelangProgramArrow(nil, c.program, c.anchor))
 	}
 	args[0] = p.vibelangSynthesized(p.factory.NewKeywordExpression(core.IfElse(hasDefault, ast.KindTrueKeyword, ast.KindFalseKeyword)), anchor)
-	callee := p.vibelangSynthesized(p.factory.NewIdentifier("$select"), anchor)
+	callee := p.vibelangIntrinsic("$select", anchor)
 	call := p.vibelangSpanning(p.factory.NewCallExpression(callee, nil, nil, p.newNodeList(anchor, args), ast.NodeFlagsNone), anchor)
 	declaration := p.vibelangSynthesized(p.factory.NewVariableDeclaration(selected(anchor), nil, nil, call), anchor)
 	list := p.vibelangSynthesized(p.factory.NewVariableDeclarationList(p.newNodeList(anchor, []*ast.Node{declaration}), ast.NodeFlagsConst), anchor)
@@ -488,7 +488,7 @@ func (p *Parser) parseVibeLangConcurrentFor(pos int) *ast.Node {
 	if limit == nil {
 		limit = p.vibelangSynthesized(p.factory.NewIdentifier("undefined"), anchor)
 	}
-	callee := p.vibelangSynthesized(p.factory.NewIdentifier("$forConcurrent"), anchor)
+	callee := p.vibelangIntrinsic("$forConcurrent", anchor)
 	call := p.vibelangSpanning(p.factory.NewCallExpression(callee, nil, nil, p.newNodeList(core.NewTextRange(items.Pos(), body.End()), []*ast.Node{items, limit, arrow}), ast.NodeFlagsNone), core.NewTextRange(anchor.Pos(), body.End()))
 	return p.finishNode(p.factory.NewExpressionStatement(call), pos)
 }

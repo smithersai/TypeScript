@@ -54,7 +54,7 @@ func (p *Parser) parseServiceShapeDeclaration(pos int, jsdoc jsdocScannerInfo, m
 	p.recordVibeSyntax(form)
 
 	span := core.NewTextRange(colon.Pos(), shape.End())
-	factory := p.vibelangSynthesized(p.factory.NewIdentifier(ServiceShapeFactory), colon)
+	factory := p.vibelangIntrinsic(ServiceShapeFactory, colon)
 	base := p.vibelangSpanning(p.factory.NewExpressionWithTypeArguments(factory, p.newNodeList(shape.Loc, []*ast.Node{shape})), span)
 	clause := p.vibelangSpanning(p.factory.NewHeritageClause(ast.KindExtendsKeyword, p.newNodeList(span, []*ast.Node{base})), span)
 	abstract := p.vibelangSynthesized(p.factory.NewModifier(ast.KindAbstractKeyword), word)

@@ -644,7 +644,7 @@ func (p *Parser) patternErrorCall(code int, detail string, at core.TextRange) *a
 	if detail != "" {
 		args = append(args, p.mString(detail, at))
 	}
-	return p.mCall(p.mIdent("$patternError", at), args, at)
+	return p.mCall(p.vibelangIntrinsic("$patternError", at), args, at)
 }
 
 // cloneIdentExpression writes a new copy of expr, an identifier expression:
@@ -788,7 +788,7 @@ func (p *Parser) knownTest(known knownMatcher, path matchPath, at core.TextRange
 func (p *Parser) matcherTest(pat *pattern, path matchPath) *ast.Node {
 	at := pat.anchor
 	span := core.NewTextRange(at.Pos(), max(at.End(), pat.expr.End()))
-	return p.mCall(p.mIdent("$is", at), []*ast.Node{pat.expr, path()}, span)
+	return p.mCall(p.vibelangIntrinsic("$is", at), []*ast.Node{pat.expr, path()}, span)
 }
 
 // compilePattern appends the steps that match pat against path to steps.
@@ -865,7 +865,7 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 					copies = append(copies, name())
 				}
 				keys := p.vibelangSpanning(p.factory.NewArrayLiteralExpression(p.newNodeList(at, copies), false), at)
-				return p.mCall(p.mIdent("$rest", at), []*ast.Node{path(), keys}, at)
+				return p.mCall(p.vibelangIntrinsic("$rest", at), []*ast.Node{path(), keys}, at)
 			}
 			p.compilePattern(pat.rest, restPath, steps, ctx)
 		}
@@ -915,12 +915,12 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 					}
 				}
 				first = false
-				return p.mCall(p.mIdent("$extract", at), []*ast.Node{m, path()}, at)
+				return p.mCall(p.vibelangIntrinsic("$extract", at), []*ast.Node{m, path()}, at)
 			}
 		} else {
 			p.vibelangMatchTemps++
 			name := "$extracted" + strconv.Itoa(p.vibelangMatchTemps)
-			*steps = append(*steps, matchStep{decl: p.mConst(p.mTemp(name, at), ast.NodeFlagsConst, p.mCall(p.mIdent("$extract", at), []*ast.Node{matcher, path()}, at), at)})
+			*steps = append(*steps, matchStep{decl: p.mConst(p.mTemp(name, at), ast.NodeFlagsConst, p.mCall(p.vibelangIntrinsic("$extract", at), []*ast.Node{matcher, path()}, at), at)})
 			extracted = func() *ast.Node { return p.mTemp(name, at) }
 		}
 		test(p.mBinary(extracted(), ast.KindExclamationEqualsEqualsToken, p.mKeyword(ast.KindFalseKeyword, at), at))
@@ -1072,7 +1072,7 @@ func (p *Parser) matchStatements(info *matchInfo, success func(value *ast.Node, 
 		out = append(out, p.mBlock(p.emitSteps(steps, success(arm.value, span), arm.anchor), span))
 	}
 	if !defaulted {
-		noMatch := p.mCall(p.mIdent("$noMatch", info.anchor), []*ast.Node{path()}, info.anchor)
+		noMatch := p.mCall(p.vibelangIntrinsic("$noMatch", info.anchor), []*ast.Node{path()}, info.anchor)
 		out = append(out, unmatched(noMatch, info.anchor))
 	}
 	return out

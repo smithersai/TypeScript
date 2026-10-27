@@ -367,7 +367,7 @@ func (p *Parser) vibelangErrorHeritage(base *ast.Node, loc core.TextRange) []*as
 // with a _tag field of type T.
 func (p *Parser) vibelangErrorRoot(d *errorDeclaration) []*ast.Node {
 	fields := p.vibelangErrorFields(d)
-	callee := p.vibelangSynthesized(p.factory.NewIdentifier("TaggedError"), d.name.Loc)
+	callee := p.vibelangIntrinsic("TaggedError", d.name.Loc)
 	var tagType *ast.Node
 	if d.tag != nil {
 		// The field stays among the fields, which Readonly<A> gives the
@@ -467,7 +467,7 @@ func (p *Parser) vibelangSchemaErrorRegistration(d *errorDeclaration) *ast.Node 
 		return nil
 	}
 	at := d.name.Loc
-	callee := p.vibelangSynthesized(p.factory.NewIdentifier(helper), at)
+	callee := p.vibelangIntrinsic(helper, at)
 	this := p.vibelangSynthesized(p.factory.NewKeywordExpression(ast.KindThisKeyword), at)
 	call := p.vibelangSynthesized(p.factory.NewCallExpression(callee, nil, nil, p.newNodeList(at, []*ast.Node{this}), ast.NodeFlagsNone), at)
 	statement := p.vibelangSynthesized(p.factory.NewExpressionStatement(call), at)
@@ -481,7 +481,7 @@ func (p *Parser) vibelangSchemaErrorRegistration(d *errorDeclaration) *ast.Node 
 // constructor, a constructor that takes them with what the base takes.
 func (p *Parser) vibelangErrorSubclass(d *errorDeclaration) ([]*ast.Node, []*ast.Node) {
 	expression := d.base.Expression()
-	callee := p.vibelangSynthesized(p.factory.NewIdentifier("$errorSubclass"), expression.Loc)
+	callee := p.vibelangIntrinsic("$errorSubclass", expression.Loc)
 	tag := p.vibelangSynthesized(p.factory.NewStringLiteral(d.name.Text(), ast.TokenFlagsNone), d.name.Loc)
 	call := p.vibelangSpanning(p.factory.NewCallExpression(callee, nil, nil, p.newNodeList(expression.Loc, []*ast.Node{expression, tag}), ast.NodeFlagsNone), expression.Loc)
 	base := p.vibelangSpanning(p.factory.NewExpressionWithTypeArguments(call, d.base.AsExpressionWithTypeArguments().TypeArguments), d.base.Loc)

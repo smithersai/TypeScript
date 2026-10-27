@@ -309,7 +309,7 @@ func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 }
 
 func (tx *lowering) visitSourceFile(file *ast.SourceFile) *ast.Node {
-	visited := tx.Visitor().VisitEachChild(file.AsNode())
+	visited := tx.reachIntrinsics(tx.Visitor().VisitEachChild(file.AsNode()))
 	tx.markProgramArrows(visited)
 	if tx.plan.entry != nil {
 		// Run main when the host starts this module (entry.go).

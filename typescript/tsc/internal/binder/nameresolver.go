@@ -35,6 +35,11 @@ func (r *NameResolver) Resolve(location *ast.Node, name string, meaning ast.Symb
 	var grandparent *ast.Node
 	originalLocation := location // needed for did-you-mean error reporting, which gathers candidates starting from the original location
 	nameIsConst := name == "const"
+	if location != nil && location.Flags&ast.NodeFlagsVibeLangIntrinsic != 0 {
+		// A VibeLang intrinsic names a prelude export whatever the scopes
+		// around it declare: ResolveBeforeGlobals supplies it.
+		location = nil
+	}
 loop:
 	for location != nil {
 		if nameIsConst && ast.IsConstAssertion(location) {

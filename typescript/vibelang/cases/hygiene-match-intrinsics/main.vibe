@@ -1,0 +1,36 @@
+// expect-result: ["other","No match arm matched 2","No match arm matched 2"]
+// A match calls the runtime's $is to test a class pattern and $noMatch when
+// no arm matches. They are the runtime's, whatever the file declares: a
+// module-level or local binding spelled the same is a binding of its own.
+const $is = (_: unknown, __: unknown): boolean => true
+const $noMatch = (_: unknown): string => "captured"
+
+error Bad { id: string }
+
+function classOf(value: unknown) {
+  return match (value) { when Bad: "bad"; default: "other" }
+}
+
+function classify(n: number) {
+  return match (n) { when 1: "one" }
+}
+
+function nested(n: number) {
+  const $noMatch = (_: unknown): string => "captured"
+  return match (n) { when 1: "one" }
+}
+
+// The unmatched subject is a defect; a hatch reads its message.
+export function main() {
+  const unmatched = sync((outer: (n: number) => string, inner: (n: number) => string) => {
+    const message = (f: (n: number) => string) => {
+      try {
+        return f(2)
+      } catch (e) {
+        return (e as Error).message
+      }
+    }
+    return [message(outer), message(inner)]
+  }, classify, nested)
+  return [classOf(42), ...unmatched]
+}

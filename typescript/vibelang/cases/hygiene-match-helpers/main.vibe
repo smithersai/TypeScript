@@ -1,0 +1,20 @@
+// expect-result: [["user","B"],[true,false]]
+// A match writes a const for its subject and calls the runtime's $is for a
+// variable pattern. A local spelled like either keeps its own meaning: the
+// arm reads the local, and the pattern tests with the runtime's $is.
+function captured(x: "a" | "b") {
+  const $match1 = "user"
+  const $match2 = "user"
+  return [match (x) { when "a": $match1; when "b": "B"; }, match ("b" as "a" | "b") { when "a": $match2; when "b": "B"; }]
+}
+
+const expected = 42
+
+function helper(x: number) {
+  const $is = (a: unknown, b: unknown): boolean => false
+  return match (x) { when expected: true; default: false; }
+}
+
+export function main() {
+  return [captured("a"), [helper(42), helper(7)]]
+}

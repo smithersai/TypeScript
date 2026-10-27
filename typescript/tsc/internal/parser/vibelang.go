@@ -111,6 +111,18 @@ func (p *Parser) vibelangSynthesized(node *ast.Node, anchor core.TextRange) *ast
 	return node
 }
 
+// vibelangIntrinsic writes a reference to name, a prelude export that one of
+// the parser's forms calls or extends, such as $is or TaggedError, at
+// anchor. It is an intrinsic (ast.NodeFlagsVibeLangIntrinsic): the checker
+// resolves it to the prelude's export whatever the scopes around it declare,
+// and the lowering reaches that export through an import of its own where a
+// source binding would capture the name.
+func (p *Parser) vibelangIntrinsic(name string, anchor core.TextRange) *ast.Node {
+	id := p.vibelangSynthesized(p.factory.NewIdentifier(name), anchor)
+	id.Flags |= ast.NodeFlagsVibeLangIntrinsic
+	return id
+}
+
 // vibelangSpanning finishes node, which has no source text of its own but holds
 // source nodes, at loc, the range its source children cover, so the language
 // service still descends into them.
@@ -347,7 +359,7 @@ func (p *Parser) parseServiceDeclaration(pos int, jsdoc jsdocScannerInfo, modifi
 	}
 	var heritage *ast.NodeList
 	if control {
-		base := p.vibelangSynthesized(p.factory.NewIdentifier("Control"), word)
+		base := p.vibelangIntrinsic("Control", word)
 		expression := p.vibelangSynthesized(p.factory.NewExpressionWithTypeArguments(base, nil), word)
 		clause := p.vibelangSynthesized(p.factory.NewHeritageClause(ast.KindExtendsKeyword, p.newNodeList(word, []*ast.Node{expression})), word)
 		heritage = p.newNodeList(word, []*ast.Node{clause})
@@ -449,7 +461,7 @@ func (p *Parser) parseLayerDeclaration(pos int, jsdoc jsdocScannerInfo, modifier
 		arrow := p.vibelangSynthesized(p.factory.NewToken(ast.KindEqualsGreaterThanToken), word)
 		argument = p.vibelangSpanning(p.factory.NewArrowFunction(nil, nil, p.newNodeList(core.NewTextRange(bodyStart, bodyStart), nil), nil, nil, arrow, block), body)
 	}
-	layer := p.vibelangSynthesized(p.factory.NewIdentifier("Layer"), word)
+	layer := p.vibelangIntrinsic("Layer", word)
 	constructor := p.vibelangSynthesized(p.factory.NewIdentifier(method), word)
 	callee := p.vibelangSynthesized(p.factory.NewPropertyAccessExpression(layer, nil, constructor, ast.NodeFlagsNone), word)
 	span := core.NewTextRange(service.Pos(), bodyEnd)
@@ -677,7 +689,7 @@ func (p *Parser) vibelangProviders(expression *ast.Node) *ast.Node {
 			continue
 		}
 		services = true
-		callee := p.vibelangSynthesized(p.factory.NewIdentifier("$provideService"), key.Loc)
+		callee := p.vibelangIntrinsic("$provideService", key.Loc)
 		label := p.vibelangSynthesized(p.factory.NewStringLiteral(name.Text(), ast.TokenFlagsNone), key.Loc)
 		args := p.newNodeList(item.Loc, []*ast.Node{key, label, value})
 		items[i] = p.vibelangSpanning(p.factory.NewCallExpression(callee, nil /*questionDotToken*/, nil /*typeArguments*/, args, ast.NodeFlagsNone), item.Loc)
@@ -823,7 +835,7 @@ func (p *Parser) vibelangCatchChain(clauses []*ast.Node, causeMode bool) *ast.No
 	}
 	anchor := clauseAnchor(clause)
 	typeNode := catch.VariableDeclaration.Type()
-	guard := p.vibelangSynthesized(p.factory.NewIdentifier("$isFailure"), anchor)
+	guard := p.vibelangIntrinsic("$isFailure", anchor)
 	caught := p.vibelangSynthesized(p.factory.NewIdentifier(vibelangCaughtName), anchor)
 	test := p.vibelangSpanning(p.factory.NewCallExpression(guard, nil, p.newNodeList(typeNode.Loc, []*ast.Node{typeNode}), p.newNodeList(anchor, []*ast.Node{caught}), ast.NodeFlagsNone), typeNode.Loc)
 	var rest *ast.Node
@@ -983,7 +995,7 @@ func (p *Parser) parseHandleClause() vibelangHandleClause {
 	continuation := p.vibelangSynthesized(p.factory.NewBindingElement(nil /*dotDotDotToken*/, nil /*propertyName*/, k, nil /*initializer*/), open)
 	elements := p.newNodeList(core.NewTextRange(open.Pos(), max(parameters.End(), open.End())), append([]*ast.Node{continuation}, parameters.Nodes...))
 	pattern := p.vibelangSpanning(p.factory.NewBindingPattern(ast.KindArrayBindingPattern, elements), header)
-	callee := p.vibelangSynthesized(p.factory.NewIdentifier(vibelangClauseName), anchor)
+	callee := p.vibelangIntrinsic(vibelangClauseName, anchor)
 	call := p.vibelangSpanning(p.factory.NewCallExpression(callee, nil /*questionDotToken*/, nil /*typeArguments*/, p.newNodeList(operation.Loc, []*ast.Node{operation}), ast.NodeFlagsNone), core.NewTextRange(anchor.Pos(), operation.End()))
 	span := core.NewTextRange(anchor.Pos(), header.End())
 	declaration := p.vibelangSpanning(p.factory.NewVariableDeclaration(pattern, nil /*exclamationToken*/, nil /*typeNode*/, call), span)
@@ -1166,7 +1178,7 @@ func (p *Parser) parseSchemaDeclaration(pos int, jsdoc jsdocScannerInfo, modifie
 // not nil, synthesized at anchor.
 func (p *Parser) vibelangSchemaMember(object *ast.Node, name string, anchor core.TextRange) *ast.Node {
 	if object == nil {
-		object = p.vibelangSynthesized(p.factory.NewIdentifier("Schema"), anchor)
+		object = p.vibelangIntrinsic("Schema", anchor)
 	}
 	member := p.vibelangSynthesized(p.factory.NewIdentifier(name), anchor)
 	return p.vibelangSynthesized(p.factory.NewPropertyAccessExpression(object, nil /*questionDotToken*/, member, ast.NodeFlagsNone), anchor)
