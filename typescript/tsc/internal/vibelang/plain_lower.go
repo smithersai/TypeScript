@@ -217,10 +217,19 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 	var heapCall *ast.Node
 	var extra []*ast.Node
 	if simple {
+		// The heap call stands at the top of a body that binds the source
+		// parameters and declarations, which may shadow the function's name:
+		// it then reaches the function through a forwarder of fresh name.
+		target := name
+		if ownNameShadowed(node) {
+			target = tx.freshName(name + "$effect")
+			forward := f.NewReturnStatement(call(member(f.NewIdentifier(name), "apply"), f.NewThisExpression(), f.NewIdentifier("arguments")))
+			extra = append(extra, f.NewFunctionDeclaration(nil, nil, f.NewIdentifier(target), nil, f.NewNodeList(nil), nil, nil, f.NewBlock(f.NewNodeList([]*ast.Node{forward}), true)))
+		}
 		if usesThis(node.Body()) {
-			heapCall = call(member(f.NewIdentifier(name), "call"), append([]*ast.Node{f.NewThisExpression()}, args...)...)
+			heapCall = call(member(f.NewIdentifier(target), "call"), append([]*ast.Node{f.NewThisExpression()}, args...)...)
 		} else {
-			heapCall = call(f.NewIdentifier(name), args...)
+			heapCall = call(f.NewIdentifier(target), args...)
 		}
 	} else {
 		heapCall = call(member(f.NewIdentifier(name), "apply"), f.NewThisExpression(), f.NewIdentifier("arguments"))
@@ -293,6 +302,29 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 	}
 	statements = append(statements, f.NewExpressionStatement(call(member(budget, "register"), registration...)))
 	return f.NewSyntaxList(append(statements, tx.directMarker(node)...))
+}
+
+// ownNameShadowed reports whether fn's parameters, or the declarations of its
+// body outside nested functions, bind fn's own name. It may answer true for
+// a name that a nested block declares, which only costs a forwarder.
+func ownNameShadowed(fn *ast.Node) bool {
+	name := fn.Name().Text()
+	var visit func(node *ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		switch {
+		case ast.IsIdentifier(node):
+			return node.Text() == name && ast.IsDeclarationName(node)
+		case isFunctionBoundary(node):
+			return node.Name() != nil && visit(node.Name())
+		}
+		return node.ForEachChild(visit)
+	}
+	for _, parameter := range fn.Parameters() {
+		if visit(parameter.Name()) {
+			return true
+		}
+	}
+	return fn.Body() != nil && fn.Body().ForEachChild(visit)
 }
 
 // directMarker returns the statements that follow a plain function's two

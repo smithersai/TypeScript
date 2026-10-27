@@ -83,7 +83,8 @@ Names the lowering introduces are hygienic. A plain function's `$direct`,
 `work$try`, and a declaration file's `Users_base` are spelled by no identifier
 of the file: the name takes a `$1`, `$2`, ... suffix when the source spells it.
 So no source binding captures generated code, and generated code captures no
-source binding. A module that exports a name spelled like a variant, such as
+source binding; where generated code inside a plain function must name the
+function and the body shadows that name, it calls a forwarder of fresh name. A module that exports a name spelled like a variant, such as
 `double$direct` beside a plain `double`, exports the variant as
 `double$direct$1`, and its importers compute the same name from its exports.
 The parser's names follow the same rule: the const or parameter that holds a
