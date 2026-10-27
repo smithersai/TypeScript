@@ -160,6 +160,7 @@ func TestSyntaxEK4405(t *testing.T) {
 func TestSyntaxEK1010(t *testing.T) {
 	checkSyntaxDiagnostic(t, 1010, "function f() { return sync((x: any) => throw x ?? 1, 0) }", "throw x", "throw takes only x here, so the rest of the expression would not be thrown; write throw (…) to throw the whole expression.", "function f() { return sync((x: any) => { throw x ?? 1 }, 0) }")
 	checkSyntaxFixture(t, "throw-operator-precedence", 1010, 3)
+	checkSyntaxFixture(t, "throw-trailing-precedence", 1010, 3)
 	var expressions []string
 	for _, op := range []string{"+", "-", "*", "/", "%", "**", "<<", ">>", ">>>", "<", "<=", ">", ">=", "==", "!=", "===", "!==", "&", "|", "^", "&&", "||", "??", "in", "instanceof", "=", "+=", "**=", "??=", "&&=", "||="} {
 		expressions = append(expressions, "throw x "+op+" x")
@@ -167,6 +168,14 @@ func TestSyntaxEK1010(t *testing.T) {
 	expressions = append(expressions, "throw x ? 1 : 2", "throw x as any", "throw x satisfies any", "throw x |> %", "throw x |> x(1)(%)")
 	for _, expr := range expressions {
 		checkSyntaxDiagnostic(t, 1010, "function f(x: any) { return "+expr+" }", "throw x", "throw takes only x here, so the rest of the expression would not be thrown; write throw (…) to throw the whole expression.", "function f(x: any) { return throw (x ? 1 : 2) }")
+	}
+	// A throw that ends an operator's left operand or a conditional's
+	// condition: x ?? throw x ? 1 : 2 is (x ?? throw x) ? 1 : 2.
+	for _, expr := range []string{
+		"x ?? throw x ? 1 : 2", "x || throw x || 1", "x && throw x ? 1 : 2", "x ?? throw x as any",
+		"x || throw x satisfies any", "x ?? throw x |> %", "x ?? throw x |> x(1)(%)", "x ? 1 : x ?? throw x ? 1 : 2",
+	} {
+		checkSyntaxDiagnostic(t, 1010, "function f(x: any) { return "+expr+" }", "throw x", "throw takes only x here, so the rest of the expression would not be thrown; write throw (…) to throw the whole expression.", "function f(x: any) { return x ?? throw (x ? 1 : 2) }")
 	}
 	for _, tc := range []struct{ expression, span, operand string }{
 		{"throw (x) + 1", "throw (x)", "(x)"},
@@ -198,6 +207,7 @@ func TestSyntaxEK1010(t *testing.T) {
 		"throw (x ?? 1)", "throw (x as any)", "throw (x satisfies any)", "throw (x |> x(1)(%))", "(throw x) |> x(1)(%)",
 		"(throw x) ?? 1", "(throw x) ? 1 : 2", "(throw x) as any", "(throw x) satisfies any",
 		"(throw x, 1)", "(() => { throw x })() ?? 1", "do { throw x } ?? 1",
+		"(x ?? throw x) ? 1 : 2", "x ?? (throw x) ? 1 : 2", "(x ?? throw x, 1)", "x ? 1 : x ?? throw x", "[x ?? throw x, 1]",
 	} {
 		source := "function f(x: any) { return " + expr + " }"
 		for _, d := range Project(source, testContext).Diagnostics {

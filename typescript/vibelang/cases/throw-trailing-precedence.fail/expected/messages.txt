@@ -1,0 +1,1 @@
+throw takes only c here, so the rest of the expression would not be thrown; write throw (…) to throw the whole expression.

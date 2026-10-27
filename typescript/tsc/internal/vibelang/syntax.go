@@ -104,38 +104,13 @@ func isAtModuleTopLevel(node *ast.Node) bool {
 // throwExpressionPrecedenceOperand recognizes D186's parser-generated
 // (() => { throw operand })() by both its shape and its source keyword.
 // A handwritten IIFE starts with '(' instead; do/match IIFEs have other
-// keywords. Inspect the immediate parent so parentheses around the throw
-// itself remain explicit, and right operands/conditional arms stay legal.
+// keywords. It returns the operand only where an operator applies to more
+// than the throw (throwOperandEndsOperator).
 func throwExpressionPrecedenceOperand(file *ast.SourceFile, node *ast.Node) *ast.Node {
 	if node.Kind != ast.KindCallExpression || node.Parent == nil || node.Pos() < 0 || node.End() > len(file.Text()) {
 		return nil
 	}
-	parent := node.Parent
-	switch parent.Kind {
-	case ast.KindBinaryExpression:
-		binary := parent.AsBinaryExpression()
-		if binary.Left != node || binary.OperatorToken.Kind == ast.KindCommaToken {
-			return nil
-		}
-	case ast.KindConditionalExpression:
-		if parent.AsConditionalExpression().Condition != node {
-			return nil
-		}
-	case ast.KindAsExpression, ast.KindSatisfiesExpression:
-		if parent.Expression() != node {
-			return nil
-		}
-	case ast.KindPropertyAccessExpression:
-		// D272 normalizes throw x |> f(args)(%) to (throw x).pipe(f(args)).
-		// Its generated 'pipe' name is anchored on '|', unlike a written member.
-		if parent.Expression() != node || parent.Name().Text() != "pipe" {
-			return nil
-		}
-		operator := scanner.GetRangeOfTokenAtPosition(file, parent.Name().Pos())
-		if file.Text()[operator.Pos():operator.End()] != "|" {
-			return nil
-		}
-	default:
+	if !throwOperandEndsOperator(file, node) {
 		return nil
 	}
 	keyword := scanner.GetRangeOfTokenAtPosition(file, node.Pos())
@@ -155,6 +130,49 @@ func throwExpressionPrecedenceOperand(file *ast.SourceFile, node *ast.Node) *ast
 		return nil
 	}
 	return statements[0].Expression()
+}
+
+// throwOperandEndsOperator reports whether text after node, a throw
+// expression, belongs to an operator that the throw's unary operand leaves
+// out: node, or an expression that node ends, is a binary operator's left
+// operand (except comma), a conditional's condition, or the operand of as or
+// satisfies. `x ?? throw c ? a : b` is `(x ?? throw c) ? a : b`, so it
+// throws only c, as `throw c ? a : b` does. Parentheses end the search, so a
+// parenthesized throw or operand stays explicit, and right operands and
+// conditional arms stay legal.
+func throwOperandEndsOperator(file *ast.SourceFile, node *ast.Node) bool {
+	for ; node.Parent != nil; node = node.Parent {
+		parent := node.Parent
+		switch parent.Kind {
+		case ast.KindBinaryExpression:
+			binary := parent.AsBinaryExpression()
+			if binary.Left == node {
+				return binary.OperatorToken.Kind != ast.KindCommaToken
+			}
+			// node ends the right operand, so it ends parent too.
+		case ast.KindConditionalExpression:
+			conditional := parent.AsConditionalExpression()
+			if conditional.Condition == node {
+				return true
+			}
+			if conditional.WhenFalse != node {
+				return false // : closes the first arm
+			}
+		case ast.KindAsExpression, ast.KindSatisfiesExpression:
+			return parent.Expression() == node
+		case ast.KindPropertyAccessExpression:
+			// D272 normalizes throw x |> f(args)(%) to (throw x).pipe(f(args)).
+			// Its generated 'pipe' name is anchored on '|', unlike a written member.
+			if parent.Expression() != node || parent.Name().Text() != "pipe" {
+				return false
+			}
+			operator := scanner.GetRangeOfTokenAtPosition(file, parent.Name().Pos())
+			return file.Text()[operator.Pos():operator.End()] == "|"
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // EK1010 checks parser-generated throw expressions even in a hatch's
