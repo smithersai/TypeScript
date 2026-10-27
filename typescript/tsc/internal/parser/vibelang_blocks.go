@@ -160,6 +160,10 @@ func (p *Parser) isStartOfVibeLangBlockParam(expression *ast.Node) bool {
 	if p.token != ast.KindOpenBraceToken || p.hasPrecedingLineBreak() || p.vibelangNoBlockParams || !p.isVibeLangFile() {
 		return false
 	}
+	return isVibeLangBlockParamHead(expression)
+}
+
+func isVibeLangBlockParamHead(expression *ast.Node) bool {
 	switch expression.Kind {
 	case ast.KindIdentifier, ast.KindPropertyAccessExpression, ast.KindCallExpression:
 		return expression.Flags&ast.NodeFlagsOptionalChain == 0

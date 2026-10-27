@@ -78,6 +78,10 @@ func TestRegistryMatchesSpec(t *testing.T) {
 	if !slices.Contains(want, int32(3207)) {
 		want = append(want, 3207)
 	}
+	// D376 lists EK1022 below the registry table until the spec lane updates it.
+	if !slices.Contains(want, int32(1022)) && strings.Contains(string(spec), "**EK1022**") {
+		want = append(want, 1022)
+	}
 	var got []int32
 	for code := range registry {
 		got = append(got, code)

@@ -164,7 +164,7 @@ function tryUsing() {
 }
 
 function nested() {
-  events.push("before")
+  events.push("before");
   {
     using inner = resource("inner")
     events.push(`in ${inner}`)

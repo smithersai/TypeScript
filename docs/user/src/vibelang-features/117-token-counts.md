@@ -18,9 +18,9 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | Load | Tokens |
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,113 |
-| The skill and the [cheat sheet](115-cheat-sheet.md) | 14,648 |
-| The skill and the user guide (134 pages) | 241,338 |
-| The user guide alone | 236,225 |
+| The skill and the [cheat sheet](115-cheat-sheet.md) | 14,705 |
+| The skill and the user guide (134 pages) | 241,395 |
+| The user guide alone | 236,282 |
 | The specification (33 chapters) | 145,028 |
 | The decision log, `docs/design/DECISIONS.md` | 92,744 |
 
@@ -262,10 +262,10 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Producers](112-producers.md) | 1,307 |
 | [Building an HTTP API](113-building-an-http-api.md) | 1,375 |
 | [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,755 |
-| [Cheat sheet](115-cheat-sheet.md) | 9,535 |
+| [Cheat sheet](115-cheat-sheet.md) | 9,592 |
 | [Pattern matching with match and is](116-match-and-is.md) | 3,753 |
 | [Experimental platform APIs](118-experimental-platform-apis.md) | 3,219 |
-| **All 7 pages** | **25,971** |
+| **All 7 pages** | **26,028** |
 
 ### Specification
 

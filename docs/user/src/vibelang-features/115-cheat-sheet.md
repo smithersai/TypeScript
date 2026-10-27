@@ -718,7 +718,7 @@ function label(id: string) {
 // Output: short
 ```
 
-**Blocks after calls** ([block params](https://github.com/samuelgoto/proposal-block-params)). The block is the call's program; it needs `return` for a value.
+**Blocks after calls** ([block params](https://github.com/samuelgoto/proposal-block-params)). The block is the call's program; it needs `return` for a value. The block starts on the call's line: a `{` that starts a line after a statement ending in a name, a member access or a call is EK1022. Join the lines to pass the block, or end the statement with `;` to start a block statement.
 
 ```ts effect
 // fragment

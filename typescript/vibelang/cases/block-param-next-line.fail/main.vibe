@@ -1,0 +1,14 @@
+// expect: EK1022 EK1022
+function once(program: () => string!!) {
+  return program()
+}
+
+function returned() {
+  return once
+  { return "x" }
+}
+
+export function spanned() {
+  withSpan("x")
+  { return "x" }
+}

@@ -1,0 +1,25 @@
+// expect-result: ["before","inner","after","case","default"]
+const events: string[] = [];
+{ events.push("before") }
+
+export function main() {
+  const label = String("inner");
+  {
+    const scoped = label
+    events.push(scoped)
+  }
+  events.push("after");
+  { const scoped = "unused" }
+  switch (events.length) {
+    case 3:
+      events.push("case");
+      { const scoped = "case" }
+      break
+  }
+  switch (events.length) {
+    default:
+      events.push("default");
+      { const scoped = "default" }
+  }
+  return events
+}

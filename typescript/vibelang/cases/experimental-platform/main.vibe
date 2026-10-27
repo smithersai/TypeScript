@@ -14,7 +14,7 @@ export function inspect(dir: string) {
   fs.writeFileString(`${dir}/data`, "1234")
   fs.chmod(`${dir}/data`, 0o644)
   fs.symlink("data", `${dir}/link`)
-  const denied = Effect.flip(fs.access(`${dir}/data`, { executable: true })).reason._tag
+  const denied = Effect.flip(fs.access(`${dir}/data`, { executable: true })).reason._tag;
   {
     using file = fs.open(`${dir}/data`, { flag: "r+", noFollow: true, nonBlocking: true })
     fs.rename(`${dir}/data`, `${dir}/moved`)

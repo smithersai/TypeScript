@@ -190,7 +190,7 @@ function pending() {
 ```vibe
 // run: nestedLifetimes(); observeOwnership()
 function nestedLifetimes() {
-  using outer = openBuffer("session")
+  using outer = openBuffer("session");
   {
     using inner = openBuffer("request")
     Console.log(`${outer.label}/${inner.label}`)
