@@ -30079,6 +30079,11 @@ func (c *Checker) getTypeOfPropertyOrIndexSignatureOfType(t *Type, name string) 
  * @returns the contextual type of an expression.
  */
 func (c *Checker) getContextualType(node *ast.Node, contextFlags ContextFlags) *Type {
+	// A single expression can recursively request thousands of parent contexts.
+	// Poll here as well as between source elements so cancellation can unwind it.
+	if c.isCanceled() {
+		return nil
+	}
 	if node.Flags&ast.NodeFlagsInWithStatement != 0 {
 		// We cannot answer semantic questions within a with block, do not proceed any further
 		return nil
