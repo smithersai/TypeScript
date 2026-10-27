@@ -300,7 +300,7 @@ const AppLive = wire(UsersLive, MailerLive, DatabaseLive, DatabaseConfigLive)
 // Layer<Users | Mailer | Database | DatabaseConfig, ConfigError | ConnectError, never>
 ```
 
-`wire` reads each provider's inputs and outputs from its `Layer<Out, E, In>` type, orders them, and generates the composition on the left. Its value is the errors: today Effect reports a missing provider only as a leftover requirement where you run the program, silently picks one of two providers for the same service, and hangs on some cycles. `wire` reports all three at compile time:
+`wire` reads each provider's inputs and outputs from its `Layer<Out, E, In>` type, orders them, and generates the composition on the left; the argument expressions still run in the order written, each once. Its value is the errors: today Effect reports a missing provider only as a leftover requirement where you run the program, silently picks one of two providers for the same service, and hangs on some cycles. `wire` reports all three at compile time:
 
 ```text
 error EK3201: no provider for Smtp.

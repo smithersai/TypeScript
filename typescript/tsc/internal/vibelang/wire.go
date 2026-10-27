@@ -306,15 +306,14 @@ func (p *servicePlan) planWire(c *checker.Checker, call *ast.Node) {
 }
 
 // visitWireCall emits a wire call with its arguments in dependency order.
+// The argument expressions still run in source order, each once (order.go):
+// only the layers they make change places.
 func (tx *lowering) visitWireCall(node *ast.Node) *ast.Node {
-	order := tx.plan.wireOrders[node]
 	visited := tx.Visitor().VisitNodes(node.ArgumentList())
-	arguments := make([]*ast.Node, len(order))
-	for k, i := range order {
-		arguments[k] = visited.Nodes[i]
-	}
+	callee := tx.Visitor().VisitNode(node.Expression())
+	arguments := tx.inOrder(visited.Nodes, node.Arguments(), tx.plan.wireOrders[node])
 	f := tx.Factory()
-	return f.UpdateCallExpression(node.AsCallExpression(), tx.Visitor().VisitNode(node.Expression()), nil /*questionDotToken*/, node.TypeArgumentList(), f.NewNodeList(arguments), ast.NodeFlagsNone)
+	return f.UpdateCallExpression(node.AsCallExpression(), callee, nil /*questionDotToken*/, node.TypeArgumentList(), f.NewNodeList(arguments), ast.NodeFlagsNone)
 }
 
 // A runnerSite is where a runner gets the program checkProgram checks.

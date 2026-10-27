@@ -158,6 +158,9 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 			}
 			p.planPlain(a, node)
 			p.planServiceNode(c, node)
+			if p.wireOrders[node] != nil {
+				p.noteStable(c, node.Arguments()...) // arguments emitted in another order (order.go)
+			}
 			p.planExhaustiveMatch(c, node) // D294 (match_lower.go)
 			p.planVariantTest(c, node)     // D307 (data_lower.go)
 			node.ForEachChild(visit)

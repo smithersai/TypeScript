@@ -19,9 +19,9 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,113 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,705 |
-| The skill and the user guide (134 pages) | 244,530 |
-| The user guide alone | 239,417 |
-| The specification (33 chapters) | 166,277 |
+| The skill and the user guide (134 pages) | 244,582 |
+| The user guide alone | 239,469 |
+| The specification (33 chapters) | 166,290 |
 | The decision log, `docs/design/DECISIONS.md` | 107,236 |
 
 ## Effect TypeScript beside VibeLang
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **23,696** |
-| [Release notes](../setup/release-notes.md) | 23,696 |
-| **All 15 pages** | **42,842** |
+| **Upgrade** | **23,748** |
+| [Release notes](../setup/release-notes.md) | 23,748 |
+| **All 15 pages** | **42,894** |
 
 ### Guides
 
@@ -272,11 +272,11 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | Page | Tokens |
 | --- | ---: |
 | [Introduction](../../../design/src/000-intro.md) | 1,791 |
-| **Part I. The language by example** | **46,837** |
+| **Part I. The language by example** | **46,850** |
 | [1. A first look](../../../design/src/101-part1-ch01-first-look.md) | 2,169 |
 | [2. Functions and calls](../../../design/src/102-part1-ch02-functions.md) | 1,895 |
 | [3. Errors: the E channel](../../../design/src/103-part1-ch03-errors.md) | 4,939 |
-| [4. Dependency injection: the R channel](../../../design/src/104-part1-ch04-di.md) | 6,373 |
+| [4. Dependency injection: the R channel](../../../design/src/104-part1-ch04-di.md) | 6,386 |
 | [5. Programs as values: retry, timeout, and pipe](../../../design/src/105-part1-ch05-programs.md) | 3,508 |
 | [6. Resources](../../../design/src/106-part1-ch06-resources.md) | 3,172 |
 | [7. Concurrency](../../../design/src/107-part1-ch07-concurrency.md) | 4,273 |
@@ -310,6 +310,6 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Appendices** | **18,900** |
 | [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 10,397 |
 | [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,503 |
-| **All 33 pages** | **166,277** |
+| **All 33 pages** | **166,290** |
 
 <!-- token-counts: end -->

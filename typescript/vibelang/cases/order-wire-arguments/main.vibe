@@ -1,0 +1,26 @@
+// expect-result: {"made":["a","b"],"value":"ab"}
+// wire passes its layers in the order their services need, but evaluates the
+// expressions that make them in the order written, each once (chapter 13).
+service A { value: string }
+service B { value: string }
+
+const made: string[] = []
+
+function a(): Layer.Layer<A> {
+  made.push("a")
+  return Layer.succeed(A, { value: "a" })
+}
+
+function b(): Layer.Layer<B, never, A> {
+  made.push("b")
+  return Layer.effect(B) { return { value: A().value + "b" } }
+}
+
+export function main() {
+  const layer = wire(a(), b())
+  let value = ""
+  provide layer {
+    value = B().value
+  }
+  return { made, value }
+}
