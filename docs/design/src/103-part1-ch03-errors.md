@@ -2,7 +2,7 @@
 
 #### Throwing a typed error
 
-Errors are the tagged error classes you use today. `error InvalidId { raw: string }` is short for `class InvalidId extends TaggedError("InvalidId")<{ readonly raw: string }> {}`; `TaggedError`, Effect's `Data.TaggedError`, is in scope in every `.vibe` file. The tag is the class name, every field is readonly, and `error Timeout` declares an error without fields (D126). Errors that must be serialized use `Schema.TaggedError`. In an Effect function, `throw` adds the error to E.
+Errors are the tagged error classes you use today. `error InvalidId { raw: string }` is short for `class InvalidId extends TaggedError("InvalidId")<{ readonly raw: string }> {}`; `TaggedError`, Effect's `Data.TaggedError`, is in scope in every `.vibe` file. The tag is the class name, every field is readonly, and `error Timeout` declares an error without fields (D126). Errors that must be serialized use `schema error` (D279). In an Effect function, `throw` adds the error to E.
 
 ```ts effect
 class InvalidId extends Data.TaggedError("InvalidId")<{ readonly raw: string }> {}
@@ -25,7 +25,31 @@ function parseId(raw: string) {
 
 Callee errors flow up the same way: a function's E is everything it throws plus everything its callees can fail with, minus what it catches.
 
-In an Effect function you can throw any value; it joins E with its static type, as with `Effect.fail`: `throw new Error("bad")` adds `Error`, and `throw "bad"` adds `string`. Tagged error classes are the convention because `catch` tells them apart with `instanceof` or `_tag`.
+In an Effect function you can throw any value; it joins E with its static type, as with `Effect.fail`: `throw new Error("bad")` adds `Error`, and `throw "bad"` adds `string`. Throwing a `Cause` rethrows every reason it holds, as `Effect.failCause` does (Chapter 17). Tagged error classes are the convention because `catch` tells them apart with `instanceof` or `_tag`.
+
+#### Error classes and families
+
+An `error` declaration is a class with full class semantics: it may declare a constructor, methods, accessors, and statics, and it may extend another error (D278). A **family** is an error class and every error that extends it, directly or through other errors. Two rules govern a family:
+
+- **Each class carries its own tag.** A base whose subclasses carry their own tags declares its tag type with a field named `_tag` (D304): `error AppError { _tag: string; code: string }`. Each instance's tag is its own class's name. An `abstract error` has no instances of its own. A subclass may be declared in any file, as with any class, so a family whose base has a `_tag` typed `string`, or is abstract, is **open**: no file lists all of its members (D345). A `match` over such a base needs `default` (below).
+- **A subclass sets its own fields** (D347). A subclass that declares fields and no constructor takes one object holding its base's fields and its own. Its generated constructor's parameter has the base constructor's parameter type, with the type arguments the subclass gives its base, plus the subclass's own fields. The constructor passes that object to the base's constructor, then sets each of its own declared fields that the object has, in declaration order, reading each once, as TypeScript initializes a subclass's fields after `super()` returns. A base constructor that rebuilds its argument therefore cannot lose the subclass's fields. A subclass whose base's constructor takes anything but one object of fields is EK2118: write its constructor. A subclass that writes its own constructor sets its own fields.
+
+```ts es
+error AppError {
+  _tag: string
+  code: string
+  constructor(args: { code: string }) {
+    super({ code: args.code.trim() })        // rebuilds the object: only code reaches TaggedError
+  }
+}
+
+error Throttled extends AppError { retryAfter: number }
+
+function demo() {
+  const e = new Throttled({ code: " 429 ", retryAfter: 5 })
+  return [e._tag, e.code, e.retryAfter]      // ["Throttled", "429", 5]
+}
+```
 
 #### Catching
 
@@ -69,7 +93,9 @@ function lookupOrGuest(raw: string) {
 // User!InvalidId!Users
 ```
 
-An arm names an error class, or several with `or`, and tests for instances, so it also matches tagged errors from other packages, such as `Schema.SchemaError`. A `match` without `default` must handle every failure the `try` block can raise (EK4701), so a complete match needs no rethrow. As a statement, `if (e is UserNotFound) { ... }` tests one class, and TypeScript narrows `e` after it. The earlier catch clause that names a type, `catch (e: UserNotFound)` (D131), still compiles but is retired: it draws warning EK2112, whose quick fix writes the `match`.
+An arm names an error class, or several with `or`, and tests for instances, so it also matches tagged errors from other packages, such as `Schema.SchemaError`. A `match` without `default` must handle every failure the `try` block can raise (EK4701, below), so a complete match needs no rethrow. As a statement, `if (e is UserNotFound) { ... }` tests one class, and TypeScript narrows `e` after it. The earlier catch clause that names a type, `catch (e: UserNotFound)` (D131), still compiles but is retired: it draws warning EK2112, whose quick fix writes the `match`.
+
+The catch binding may be a pattern, `catch ({ id })`. The pattern runs after the catch has recovered the failure, so what its defaults can fail with is not handled by the same catch: it joins the function's E (Chapter 17's catch rule).
 
 #### Catching in an expression
 
@@ -90,7 +116,7 @@ function nameOrReason(raw: string) {
 // string!!Users
 ```
 
-The left side runs inside the catch; the fallback runs only when it fails. Defects and interrupts pass through, as with the statement. The value is the left side's or the handler's, and E is what the fallback or handler lets escape: the `match` above handles every failure, so none escapes; `default: throw e` would pass on the rest. `catch` binds looser than `??` and `||`, tighter than `? :` and assignment, and associates left, so `a() catch b() catch c` tries each in turn (D237). Effect's combinators still work, and a call in a program position is passed by name (D147): `Effect.catchTag(Users.find(id), "UserNotFound", () => guest)`.
+The left side runs inside the catch, as a `try` block does; the fallback runs only when it fails. Defects and interrupts pass through, as with the statement. The value is the left side's or the handler's, and E is what the fallback or handler lets escape: the `match` above handles every failure, so none escapes; `default: throw e` would pass on the rest. `catch` binds looser than `??` and `||`, tighter than `? :` and assignment, and associates left, so `a() catch b() catch c` tries each in turn (D237). Effect's combinators still work and take a program, written `() =>`: `Effect.catchTag(() => Users.find(id), "UserNotFound", () => guest)`.
 
 #### Promising that nothing escapes
 
@@ -106,7 +132,7 @@ export function safeLookup(raw: string): User!!Users {
 }
 ```
 
-Without the `try`, you get Chapter 2's error, `EK2001: InvalidId can escape safeLookup`.
+Without the `try`, you get Chapter 2's error, `EK2001: InvalidId can escape safeLookup`. The promise covers expected failures, not crashes: E bounds the `Fail` reasons that can leave a function, and defects and interruption are outside it (Chapter 17's E guarantee).
 
 #### Cleanup with `finally`
 
@@ -132,6 +158,8 @@ function report(id: string) {
 }
 ```
 
+A `finally` that fails while the block is already failing adds its failure to the cause; it never replaces the block's failure, as `Effect.ensuring` and `Effect.onExit` never do. Unlike JavaScript's `finally`, this holds in every function, including one that compiles to plain JavaScript (Chapter 17's finalization rule). A `return`, `break`, or `continue` that leaves a `finally` block is EK2006.
+
 For cleanup that acquires and releases a resource, use `using` (Chapter 6).
 
 #### Failures, defects, and interruption
@@ -152,7 +180,7 @@ function lookupAudited(id: string) {
 }
 ```
 
-Here the exit carries both the `UserNotFound` and the crash. Effect 4.0.6 makes the expected failure a defect beside the crash (D305), so neither `catch` nor `Effect.catch` recovers. Both propagate the whole cause. An expected failure beside an interruption is caught when no defect is present (D306).
+`catch` handles an expected failure only when nothing else went wrong. Here the exit carries both the `UserNotFound` and the crash, so the `UserNotFound` becomes a defect of the same error (D305), the `catch` block does not run, and the whole failure propagates, crash included. `Effect.catch` does the same on Effect 4.0.6.
 
 | What happened | Example | In E? | Caught by `catch`? | Runs `finally`? |
 | --- | --- | --- | --- | --- |
@@ -161,9 +189,9 @@ Here the exit carries both the `UserNotFound` and the crash. Effect 4.0.6 makes 
 | Interruption | a timeout, a cancelled request, a parent shutdown | No | No | Yes |
 | An expected failure plus a defect | `lookupAudited` above | No: the failure becomes a defect (D305) | No: the whole exit propagates | Yes |
 | An expected failure plus an interruption | a joined fiber, interrupted while its cleanup failed | Yes | Yes: `e` is the first, and the interruption is dropped (D306) | Yes |
-| Several expected failures | both branches of `Effect.race` failed | Yes | Yes: `e` is the first | Yes |
+| Several expected failures | a `finally` that threw while its block was failing; both branches of `Effect.race` failed | Yes | Yes: `e` is the first | Yes |
 
-`catch` does not catch bugs or cancellation, because that would hide them. Handle defects deliberately with Effect's tools at a boundary: `Effect.catchDefect(() => risky(), …)`. To declare an expected failure impossible here, make it a defect: `const id = Effect.orDie(() => parseId(raw))`. To see every failure in an exit, use `Effect.catchCause` or `Effect.exit`. Chapter 17 states the full rules.
+`catch` does not catch bugs or cancellation, because that would hide them. Handle defects deliberately with Effect's tools at a boundary: `Effect.catchDefect(() => risky(), …)`. To declare an expected failure impossible here, make it a defect: `const id = Effect.orDie(() => parseId(raw))`. To see every failure in an exit, use `Effect.catchCause` or `exit`. Chapter 17 states the full rules.
 
 #### Coming from `Effect.gen`
 
@@ -205,11 +233,11 @@ function admin(users: ReadonlyArray<{ admin: boolean; name: string }>) {
 // string!NoAdmin!
 ```
 
-Its operand is a unary expression, as in the proposal's grammar, so an operator after it applies to more than the throw. EK1010 refuses a throw that is, or ends, a binary operator's left operand (except comma), a conditional's condition, or the operand of `as` or `satisfies`: `x ?? throw c ? a : b` is `(x ?? throw c) ? a : b` and throws only `c`. Write `x ?? throw (c ? a : b)`.
+Its operand is a unary expression, as in the proposal's grammar, so an operator after it applies to more than the throw. EK1010 refuses a throw that is, or ends, a binary operator's left operand (except comma), a conditional's condition, or the operand of `as` or `satisfies`: `x ?? throw c ? a : b` is `(x ?? throw c) ? a : b` and throws only `c`. Write `x ?? throw (c ? a : b)`. A parameter default runs where no failure can be raised, so a throw expression there is EK1001, as any failing default is: compute the value in the body (D350).
 
 #### Matching errors and outcomes
 
-`match` and `is` come from the TC39 [pattern matching](https://github.com/tc39/proposal-pattern-matching) proposal (D206, D211). An `error` class is a pattern that matches its own instances (D215), and `Option`, `Exit`, and `Result` have matchers that bind their contents (D208):
+`match` and `is` come from the TC39 [pattern matching](https://github.com/tc39/proposal-pattern-matching) proposal (D206, D211). An `error` class is a pattern that matches its own instances and its subclasses' (D215), and `Option`, `Exit`, and `Result` have matchers that bind their contents (D208):
 
 ```ts es
 function describe(failure: NotFound | Timeout) {
@@ -220,7 +248,7 @@ function describe(failure: NotFound | Timeout) {
 }
 
 function firstFailure(id: string) {
-  const outcome = exit(getUser(id))
+  const outcome = exit(() => getUser(id))
   if (outcome is Exit.Failure(let cause) && Cause.hasFails(cause)) return Cause.pretty(cause)
   return "ok"
 }
@@ -228,4 +256,32 @@ function firstFailure(id: string) {
 
 A data type's variant is a pattern too (D307, Chapter 11): `when Delivery.Sent { let tracking }` tests the tag and binds the fields its braces list.
 
-The parser writes both as conditionals TypeScript narrows, so each arm sees its own type and can call Effect functions (D214). Each reads its subject once, before any pattern, as `switch` reads its discriminant. A match without `default` over a finite union must cover every case: omitting `Timeout` above is EK4701 (D209). The same `match` handles a propagating failure, inside `catch (e)`, and a failure or Exit held as a value.
+The parser writes both as conditionals TypeScript narrows, so each arm sees its own type and can call Effect functions (D214). Each reads its subject once, before any pattern, as `switch` reads its discriminant. The same `match` handles a propagating failure, inside `catch (e)`, and a failure or Exit held as a value.
+
+**Exhaustiveness** (D346). A `match` without `default` must cover its subject, or it is EK4701. It can cover only a subject whose declared type is a finite union of concrete cases: literal types, `boolean`, `null`, `undefined`, and `void`; a `data` type or its variants; `Option`, `Exit`, `Result`, and their cases; and concrete classes with a literal tag, such as an `error` without a `_tag` field. The compiler removes what each arm matches from that union, as TypeScript narrows it: a literal arm removes its literal; a data variant, or a case of `Option`, `Exit`, or `Result`, removes that case; a class arm removes its class and every class below it. An arm with a guard, `when X if (…)`, removes nothing, because a guard can fail. What is left after the last arm must be `never`, and EK4701 names what is left.
+
+Every other subject is **open**, and a `match` over it needs `default`, or an arm that matches every value: an open family's base (an `error` whose `_tag` is typed `string`, or an `abstract error`), another class that code anywhere may extend, such as `Error`, `unknown`, `any`, `object`, a type parameter, and a `string` or `number` without a literal type, such as a `_tag` typed `string` matched by tag literals. An arm that names an open class itself, or a class above it, matches every value of that type, as `when String:` matches every `string`; arms that name only its subclasses never cover it, because another file may declare one more. EK4701 names the open type and offers two fixes: add `default`, or narrow the subject's declared type to the union of concrete classes the match handles. A function whose callers should handle its failures exhaustively declares that union as its E, as Effect users write `Effect<number, Denied | Busy>`.
+
+```ts es
+error PaymentError { _tag: string; code: string }
+error Declined extends PaymentError { reason: string }
+error Expired extends PaymentError {}
+
+function message(e: PaymentError) {
+  return match (e) {
+    when Declined: "declined";
+    when Expired: "expired";
+  }
+}
+```
+
+```text
+error EK4701: this match has no default, but PaymentError is an open family: any file may extend it.
+  payments.vibe:6:10   return match (e) {
+  Add a default arm:                      default: "payment failed";
+  or narrow the subject to what you handle:   function message(e: Declined | Expired)
+```
+
+With `e: Declined | Expired`, both classes have literal tags, the two arms remove both, and the match needs no `default`. A function that throws only these declares `number!Declined | Expired`, and a `catch` around its call checks the same way.
+
+Inside `catch (e)`, the subject is the try block's expected failures, and the same law applies; there the quick fix for EK4701 writes `default: throw e`, which passes the rest on with their types. A class pattern still tests `instanceof`, or the class's custom matcher, at run time (D213, D215), because a type cannot prove what those return: a value outside its declared type, which only a cast, `any`, or a structural copy of an instance can make, fails the match with the proposal's `TypeError`, a defect. A match the compiler proves exhaustive may skip its last arm's branch (D294), but it still makes every read and call that arm's test would make, such as a getter in a matcher expression or a shape pattern's property read; proving coverage proves nothing about what a test does.

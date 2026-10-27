@@ -26,9 +26,34 @@ function readReport(path: string) {
 
 `Files.open` returns a scoped resource: `FileHandle!IOError!Scope`. The block that declares `using` supplies the `Scope`, so `Scope` is not in `readReport`'s requirements. Several `using` declarations release in reverse order.
 
-A call that runs an Effect is an acquisition even when its result has no `Symbol.dispose`; it receives the block Scope. Other initializers must be Disposable, `null`, or `undefined`. A Disposable result also runs `[Symbol.dispose]()` at block exit. If its Effect release already disposes it, this disposes it twice (D94). To register one protected release for a JavaScript Disposable, acquire a plain holder with `Effect.acquireRelease(() => ({ value: open() }), (holder) => holder.value[Symbol.dispose]())`, bind that holder with `using`, and use `holder.value`. The holder has no disposal method, so only the registered release disposes the value, including when interruption is pending at the end of acquisition (D25). An AsyncDisposable result without `Symbol.dispose` gets an awaited `[Symbol.asyncDispose]()` at block exit, unless its acquisition registered a release of its own.
+#### Exactly one release
 
-In `for (using item of values)`, each iteration owns a Scope region, including `using` and `fork` inside its body (D95). The item is released after the body's resources, before closing an iterator, producer, or Stream on early exit. In `for (using h = acquire(); condition; step)`, the head is acquired once in a Scope region around the whole loop and released when that loop exits, in reverse declaration order. Both forms release on success, typed failure, defect, interruption, and jumps out of their region. Labels retain their JavaScript `break` and `continue` targets. `for concurrent` takes `const` in its head; put `using` inside its body for per-item ownership. `for await` is EK1003: `for...of` over a producer or Stream already waits.
+Every `using` declaration releases its resource exactly once, and exactly one party owns that release (D342). The initializer decides which party:
+
+| Initializer | Example | Who releases it | What `using` adds |
+| --- | --- | --- | --- |
+| A **scoped acquisition**: an expression whose requirements include `Scope` | `Files.open(path)`, `Effect.acquireRelease(…)`, `Effect.acquireDisposable(…)` | The acquisition, through the release it registers in the block's Scope | Nothing: it supplies the block's Scope, and adds no release, no disposal call, and no mask |
+| Any other expression, whose value is a `Disposable`, an `AsyncDisposable`, `null`, or `undefined` | `new TempDir()`, `openDisposable()` | `using`, through one disposal it registers | One disposal, registered before any interruption can arrive |
+
+**A scoped acquisition owns its release.** `using` evaluates the initializer with the block's Scope as its Scope. The acquisition registers its own release, and it decides whether cancellation can reach the acquisition (below). `using` never calls `[Symbol.dispose]` or `[Symbol.asyncDispose]` on a scoped acquisition's value, even when the value has one: a scoped acquisition that returns a `Disposable` disposes it itself, as `Effect.acquireDisposable` does. So this closes the file once:
+
+```ts es
+function firstLine(path: string) {
+  using file = Effect.acquireRelease(
+    () => openFile(path),                       // returns a Disposable
+    (file) => file[Symbol.dispose]()            // the acquisition's release: the only one
+  )
+  return file.readLine()
+}
+```
+
+**Otherwise `using` owns the disposal.** The value must be a `Disposable`, an `AsyncDisposable`, `null`, or `undefined`; anything else is TypeScript's TS2850. `using` reads the value's disposal method once, when it registers it: `[Symbol.asyncDispose]` if the value has one, otherwise `[Symbol.dispose]`, as ECMAScript's `await using` and `Effect.acquireDisposable` choose (D343). At block exit it calls that method, with the value as `this`, and waits for a returned promise. Replacing the method on the value later changes nothing. `null` and `undefined` register nothing. A value with neither method, which only a cast can produce, fails at the declaration with a `TypeError`, a defect, as ECMAScript's `using` does.
+
+**No interruption separates a value from its release.** When evaluating the initializer cannot pause, the value and its registration happen in one step, so no interruption can arrive between them. When it can pause, because it calls an Effect function, `using` holds interruption off from the start of the initializer until the disposal is registered, as `Effect.acquireDisposable` holds it off around its acquisition. A pending interruption is delivered right after, and the release runs. To let cancellation reach a long wait, define the resource as a scoped acquisition that passes `{ interruptible: true }` (below).
+
+**The release runs once.** It runs when the block exits by any path: return, jump, expected failure, defect, interruption, or abandonment. It runs with interruption held off, after the releases of `using` declarations and forked fibers that come later in the block. A release that throws or rejects is a defect, and the finalization rule combines it with the block's own failure (Chapter 17). Prior art agrees on once: ECMAScript's `DisposableStack`, C#'s `using`, Python's `with`, and Effect's `acquireRelease` each run one release per acquisition.
+
+In `for (using item of values)`, each iteration owns a Scope region, including `using` and `fork` inside its body (D95). The item is released after the body's resources, before closing an iterator, producer, or Stream on early exit. In `for (using h = acquire(); condition; step)`, the head is acquired once in a Scope region around the whole loop and released when that loop exits, in reverse declaration order. Both forms release on success, typed failure, defect, interruption, and jumps out of their region. Labels retain their JavaScript `break` and `continue` targets. `for concurrent` takes `const` in its head; put `using` inside its body for per-item ownership. `for await` is EK1003: `for...of` over a producer or Stream already waits. `using` at a module's top level is EK1004.
 
 #### Who owns a resource
 
@@ -60,6 +85,10 @@ function compareLogs(a: string, b: string) {
 // Diff!IOError!Files; both files close when compareLogs returns
 ```
 
+`Scope` in a contract is an obligation, not a proof: it says who must close a resource, and the compiler checks that someone does. It does not stop a value from outliving its scope. A handle that a block acquired with `using` and then returns is already closed when the caller receives it, and using it fails as the resource fails, typically with a defect.
+
+A `using` in a layer block's setup follows the same rule: it belongs to the setup's block, so its resource is released when the setup returns, before any member runs (D344). A resource that must live as long as the layer is acquired without `using`, in the layer's own Scope (Chapter 4).
+
 #### Defining a resource
 
 Write the acquire and release steps with Effect's `acquireRelease`:
@@ -76,7 +105,7 @@ function lease(name: string) {
 
 The release is registered before anything else can happen, so a cancelled request never leaks a lock. By default the acquire step is also masked: an interruption that arrives while it runs waits for it to finish, then the release runs. That suits a quick step such as taking a lock or opening a file. An acquisition that waits on the outside world, such as a connection that may never complete, passes `{ interruptible: true }` so cancellation reaches the wait, as the adapter below does.
 
-`using` adds no policy of its own: it supplies the block's Scope, and the resource's `acquireRelease` decides whether acquisition can be interrupted.
+For a scoped acquisition, `using` adds no policy of its own: it supplies the block's Scope, and the resource's `acquireRelease` decides whether acquisition can be interrupted (D25). `using` holds interruption off only for an initializer whose disposal it owns, as the rules above say.
 
 #### Resources and handlers
 
@@ -115,7 +144,7 @@ function session(host: string) {
 }
 
 function sessionWithin(host: string) {
-  return timeout(session(host), "2 seconds")    // cancels a connect that hangs
+  return timeout(() => session(host), "2 seconds")    // cancels a connect that hangs
 }
 ```
 
