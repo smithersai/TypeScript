@@ -14,10 +14,13 @@ import (
 // there has no block to release it in: EK1004 (Chapter 6). D271 exempts
 // explicit JavaScript iterator generators and their own body syntax.
 
+var EK1017 = message(1017, errorCategory, "provide is a statement; write provide layer { statements } and return from inside its block.")
+
 var EK1015 = message(1015, errorCategory, "Calls run in VibeLang; remove yield*.")
 
 func init() {
 	registry[EK1015.Code] = EK1015
+	registry[EK1017.Code] = EK1017
 	fileChecks = append(fileChecks, checkSyntax, checkThrowExpressionPrecedence)
 }
 

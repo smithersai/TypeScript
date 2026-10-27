@@ -1,0 +1,7 @@
+// expect: EK1017 EK1017 EK1017 EK1017
+export function f() {
+  const n = provide Layer.empty { return 1 }
+  return provide Layer.empty { return n }
+}
+export function g() { return [provide Layer.empty { return 1 }] }
+export function h() { return String(provide Layer.empty { return 1 }) }

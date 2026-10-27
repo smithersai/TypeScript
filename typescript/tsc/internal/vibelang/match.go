@@ -161,6 +161,8 @@ func reportPatternError(c *checker.Checker, file *ast.SourceFile, call *ast.Node
 	}
 	at := call.Expression().Loc
 	switch code {
+	case 1017:
+		reportAt(c, file, at, EK1017)
 	case 4702:
 		reportAt(c, file, at, EK4702)
 	case 4703:

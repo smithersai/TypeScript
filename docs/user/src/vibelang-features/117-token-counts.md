@@ -21,7 +21,7 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,478 |
 | The skill and the user guide (134 pages) | 236,255 |
 | The user guide alone | 231,191 |
-| The specification (33 chapters) | 108,883 |
+| The specification (33 chapters) | 108,918 |
 | The decision log, `docs/design/DECISIONS.md` | 70,804 |
 
 ## Effect TypeScript beside VibeLang
@@ -301,15 +301,15 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 3,903 |
 | [25. Implementation strategies and costs](../../../design/src/325-part3-ch25-strategies.md) | 1,926 |
 | [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 3,057 |
-| **Part IV. The compiler** | **12,734** |
+| **Part IV. The compiler** | **12,769** |
 | [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 1,687 |
-| [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 11,047 |
+| [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 11,082 |
 | **Part V. Decisions** | **15,181** |
 | [29. Decisions](../../../design/src/529-part5-ch29-decisions.md) | 12,555 |
 | [30. Risks and experiments](../../../design/src/530-part5-ch30-risks.md) | 2,626 |
 | **Appendices** | **13,067** |
 | [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 4,826 |
 | [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,241 |
-| **All 33 pages** | **108,883** |
+| **All 33 pages** | **108,918** |
 
 <!-- token-counts: end -->

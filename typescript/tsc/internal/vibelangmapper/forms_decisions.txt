@@ -1885,6 +1885,7 @@ typescript/vibelang/cases/provide-generic-requirement/main.vibe:12:15 lambda eff
 typescript/vibelang/cases/provide-generic-requirement/main.vibe:19:25 lambda effectFn annotation
 typescript/vibelang/cases/provide-generic-requirement/main.vibe:19:52 byname program annotation
 typescript/vibelang/cases/provide-generic-requirement/main.vibe:6:27 lambda effectFn fallback
+typescript/vibelang/cases/provide-named-block-argument/main.vibe:3:50 block appended/program annotation
 typescript/vibelang/cases/provide-stream-loop/main.vibe:9:59 lambda effectFn table
 typescript/vibelang/cases/recursion-bridge/main.vibe:19:32 lambda plain table
 typescript/vibelang/cases/recursion-bridge/main.vibe:22:43 lambda plain table

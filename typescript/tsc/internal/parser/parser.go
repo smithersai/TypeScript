@@ -5789,6 +5789,15 @@ func (p *Parser) parseTemplateSpan(isTaggedTemplate bool) *ast.Node {
 }
 
 func (p *Parser) parsePrimaryExpression() *ast.Expression {
+	// A parenthesized call may name a user's function with a block argument.
+	// Only the statement spelling here was previously invalid syntax.
+	if p.isStartOfVibeLangProvide() && !p.lookAhead((*Parser).nextTokenIsOpenParen) {
+		keyword := p.tokenRange()
+		p.parseVibeLangProvideStatement()
+		// Consume the whole invalid expression so the checker can explain the
+		// statement form once, rather than a cascade of punctuation errors.
+		return p.patternErrorCall(1017, "", keyword)
+	}
 	if p.isStartOfVibeLangMatch() {
 		return p.parseVibeLangMatch() // match (subject) { when ...: ...; } (vibelang_match.go)
 	}
