@@ -51,7 +51,18 @@ export const message = Effect.runSync(greet("Vite"))
 
 ## 4. Test with Vitest
 
-Create `vitest.config.ts`, or add the plugin and the `include` pattern to the project's existing Vitest configuration.
+The starter's app project excludes test sources. Create `tsconfig.test.json` so Vitest checks and compiles them too:
+
+```json
+{
+  "extends": "./tsconfig.json",
+  "exclude": []
+}
+```
+
+If the app uses `tsconfig.app.json`, extend that file instead. Keep the test project's `include` broad enough to select both the app and its tests.
+
+Create `vitest.config.ts`, or add the plugin and the `include` pattern to the project's existing Vitest configuration. Pass the test project to the plugin:
 
 ```ts
 // TypeScript (.ts)
@@ -60,7 +71,7 @@ import { defineConfig } from "vitest/config"
 import vibelang from "vibelang-vite"
 
 export default defineConfig({
-  plugins: [vibelang()],
+  plugins: [vibelang({ project: "tsconfig.test.json" })],
   test: { include: ["src/**/*.test.vibe"] }
 })
 ```
@@ -84,7 +95,17 @@ Run `npx vitest run`. Tests need no prior build. The output includes:
       Tests  1 passed (1)
 ```
 
-If a test starts a Node process that runs the project's source, such as a command-line program, pass `vibelang({ register: true })`. The plugin adds `vibelang/register` to the tests' `NODE_OPTIONS`, so that process imports `.vibe` modules too, whatever its working directory. Any `NODE_OPTIONS` the configuration or the environment already sets is kept.
+If a test starts a Node process that runs the project's source, such as a command-line program, pass `vibelang({ project: "tsconfig.test.json", register: true })`. The plugin adds `vibelang/register` to the tests' `NODE_OPTIONS`, so that process imports `.vibe` modules too, whatever its working directory. Any `NODE_OPTIONS` the configuration or the environment already sets is kept.
+
+### Node's test runner and Jest
+
+For `node --test`, write a `.test.ts` suite that imports `.vibe` modules and runs their programs with `Effect.runSync` or `Effect.runPromise`. Include the suite in `tsconfig.test.json`, install `@types/node`, and add `"node"` to that project's `compilerOptions.types` (keeping any existing entries). Load the source hook and select that project:
+
+```sh
+VIBELANG_PROJECT=tsconfig.test.json node --import vibelang/register --test src/greet.test.ts
+```
+
+The repository does not provide a Jest transformer for `.vibe` sources. Use Vitest for `.test.vibe` suites.
 
 ## 5. Build
 

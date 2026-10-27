@@ -234,3 +234,27 @@ test("a native compiler named bin/vibelang is executed without Node", async (t) 
   }, await readFile(file, "utf8"), file)
   assert.match(result.code, /Effect\.succeed/)
 })
+
+test("documented Vitest setup includes tests excluded by the app project", async (t) => {
+  const root = await fixture(t)
+  const docs = await readFile(join(packageRoot, "../../docs/user/src/setup/vite.md"), "utf8")
+  const section = docs.split("## 4. Test with Vitest")[1]
+  const snippet = section.match(/```ts\n([\s\S]*?)```/)[1]
+  await writeFile(join(root, "vitest.config.ts"), snippet.replace(
+    'from "vibelang-vite"', `from ${JSON.stringify(join(packageRoot, "src/index.js"))}`
+  ))
+  const config = JSON.parse(await readFile(join(root, "tsconfig.json"), "utf8"))
+  config.include = ["src"]
+  config.exclude = ["src/**/*.test.vibe"]
+  await writeFile(join(root, "tsconfig.json"), JSON.stringify(config))
+  await writeFile(join(root, "tsconfig.test.json"), '{"extends":"./tsconfig.json","exclude":[]}')
+  await mkdir(join(root, "src"))
+  await writeFile(join(root, "src/greet.vibe"), 'export function greet(name: string) { return `Hello, ${name}!` }\n')
+  await writeFile(join(root, "src/greet.test.vibe"), `import { assert, it } from "@effect/vitest"
+import { greet } from "./greet.vibe"
+it.effect("greets") { assert.strictEqual(greet("Vite"), "Hello, Vite!") }
+`)
+  const result = await runVitest(root)
+  assert.equal(result.code, 0, result.output)
+  assert.match(result.output, /1 passed/)
+})
