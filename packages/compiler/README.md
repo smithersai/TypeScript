@@ -252,3 +252,7 @@ node --test packages/compiler/test/*.test.mjs
 
 A checkout's launcher prefers `native/vibelang`, so projects that link to the
 checkout use a rebuilt compiler without reinstalling.
+
+### Bun runtime watch limitation
+
+With Bun 1.4.1, `bun --watch --preload vibelang/bun` does not reliably restart after a `.vibe` save. The preload compiles once per process and does not invalidate that result during watch. For development, use the starter's `npm run dev` or `bun run dev`: its compiler watch and Node process rebuild and restart the app.

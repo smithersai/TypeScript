@@ -8,3 +8,12 @@ test("CLI reference watch distinguishes selected inputs from the reference graph
   assert.match(text, /vibelang -b -w/)
   assert.match(text, /selected project/)
 })
+
+test("both Bun loader entry points disclose the observed watch limit and dev alternative", () => {
+  for (const path of ["packages/compiler/README.md", "docs/user/src/setup/vibelang-cli.md"]) {
+    const text = read(path)
+    assert.match(text, /Bun 1\.4\.1.*`bun --watch --preload vibelang\/bun`/)
+    assert.match(text, /does not reliably restart/)
+    assert.match(text, /bun run dev/)
+  }
+})
