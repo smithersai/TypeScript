@@ -71,7 +71,9 @@ func checkPatterns(c *checker.Checker, file *ast.SourceFile) {
 // cases at the $noMatch call that ends its arms.
 func checkExhaustive(c *checker.Checker, file *ast.SourceFile, call *ast.Node) {
 	declared, left := matchRemainder(c, call)
-	if declared == nil || left.Flags()&checker.TypeFlagsNever != 0 {
+	// Flow analysis already reported its complexity limit. Its error sentinel
+	// is neither evidence of a missing case nor a proof of exhaustiveness.
+	if declared == nil || left == c.GetErrorType() || left.Flags()&checker.TypeFlagsNever != 0 {
 		return
 	}
 	declaredText, leftText := c.TypeToString(declared), c.TypeToString(left)
