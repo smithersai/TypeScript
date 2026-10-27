@@ -38,7 +38,21 @@ Precisely, E is the type of every expected failure a cause can hold. A defect be
 | `User!NotFound` on a function with a body | `Effect<User, NotFound, infer R>`: R comes from the body |
 | `User!NotFound` without a body | `Effect<User, NotFound, never>` |
 
-An empty slot is `never`; dependencies left out entirely are inferred on a function with a body and `never` everywhere else. Unions bind inside a slot, so `User!NotFound | Timeout!Db` fails with `NotFound | Timeout`. A function type, a conditional type, or an Effect type inside a slot needs parentheses, and so does an object type after a `!`: a `{` there starts the function's body, so `User!NotFound! { ... }` has no dependencies. Hovers and messages about `.vibe` code show contracts in this form; declaration files keep `Effect.Effect<A, E, R>`, so TypeScript callers are unaffected.
+An empty slot is `never`. Dependencies left out entirely are inferred on a function with a body and `never` everywhere else. Unions and intersections bind inside a slot, as do postfix `[]`, indexed access, and the prefix operators `keyof` and `typeof`. A slot's type starts on the same line as its `!`. An object type after a `!` needs parentheses: a `{` there starts the function's body, so `User!NotFound! { ... }` has no dependencies.
+
+Function and conditional types keep their TypeScript structure within a slot. A `!` after a function's return type belongs to that return type. A conditional after a slot's type belongs to that slot. Parentheses delimit a slot that contains a function, conditional, or Effect type, or make the whole contract the subject of an outer type operator:
+
+| Written | Parsed as |
+| --- | --- |
+| `A!E!R[]` | `Effect<A, E, R[]>` |
+| `T["value"]!E!R["dep"]` | `Effect<T["value"], E, R["dep"]>` |
+| `keyof T!E!typeof source` | `Effect<keyof T, E, typeof source>` |
+| `A \| B!E1 \| E2!R` | `Effect<A \| B, E1 \| E2, R>` |
+| `() => A!E!R` | `() => Effect<A, E, R>` |
+| `A!E!R extends X ? Y : Z` | `Effect<A, E, R extends X ? Y : Z>` |
+| `(A!E!R) extends X ? Y : Z` | `Effect<A, E, R> extends X ? Y : Z` |
+
+Hovers and messages about `.vibe` code show contracts in the `!` form. Declaration files keep `Effect.Effect<A, E, R>`, so TypeScript callers are unaffected.
 
 `Effect<A, E, R>` is accepted everywhere too, including `infer` slots (D57), and means what it means in TypeScript: a type argument left out is `never`, so `Effect<User>` is `User!!` and `Effect<User, NotFound>` is `User!NotFound!` (D308, D309). With all channels written, the two spellings mean the same type. This specification and the guides write the `!` form. Omitted channels can differ: `User!NotFound` on a function with a body infers R, while `Effect<User, NotFound>` checks it as `never`.
 
@@ -70,6 +84,16 @@ error EK2002: welcome needs Mailer, but its contract says R = Users.
 A call to a function with a complete written contract contributes that contract's E and R, even when the body needs less (D73).
 
 The contract has exactly three channels. Whether a function can pause is a separate fact the compiler tracks, its control class (Chapter 15).
+
+#### Assignability
+
+`A!E!R` is an alias of Effect's type and is covariant in all three channels. Widening A, E, or R preserves assignability. For example, `A!E1!R1` is assignable to `A!E1 | E2!R1 | R2`. A function's parameter types still follow TypeScript's function variance rules.
+
+A service type carries the optional readonly property `"~vibelang/service"` whose literal value is its derived key (Chapter 4). Two service types with different keys are not directly assignable even when their members match. An implementation is checked structurally against the service's shape. For `service Name: Shape`, `Name` is the branded key type and `Shape` is the implementation type. The brand is optional: erasing it through a structural type and assigning that unbranded shape back can lose the distinction between services.
+
+An `error` declaration creates a runtime class with a literal `_tag` and readonly fields. Ordinary TypeScript structural typing applies. Two packages' error classes with the same tag and public fields can be mutually assignable, while their constructors and `instanceof` tests remain distinct. Class patterns narrow by derivation and retain their runtime test even in an exhaustive match (D294). A structurally accepted instance of another class can therefore fail that test with a `TypeError`. Cases `match-class-patterns` and `match-class-patterns.fail` cover class matching.
+
+A `data` declaration names Effect's `Data.TaggedEnum` union (D307). Its variants are structural types determined by their `_tag` and readonly fields. Matching variant shapes from different packages are assignable, with no brand added by the data declaration's name. A generic data type follows TypeScript's variance for each type parameter's use in its fields.
 
 #### Declarations without bodies
 
@@ -159,7 +183,7 @@ function visitEntry(path: string) {
 
 Checked once in source order, `visitDir` meets `visitEntry` before `visitEntry` has a contract and misses `Locked`; the recheck adds it. The prototype compiler reaches the same contracts by re-checking the whole program (`prototype/esc/FINDINGS.md`). The single-pass experiment found this case, in its `isEven` and `isOdd` probe, the only one needing a second check (`prototype/single-pass/RESULTS.md`). A follows TypeScript's rule: when A depends on the function's own result, the contract must be written (EK2102).
 
-A contract may write A and leave E or R to the fixpoint, as `number!Neg` leaves R (D57). A call of the function in its own body that stands for its value, such as an operand, a condition, a receiver, an index or an unannotated initializer, has type A while the fixpoint runs:
+A contract may write A and leave E or R to the fixpoint, as `number!Neg` leaves R (D57). A call of the function in its own body that stands for its value, such as an arithmetic or comparison operand, a condition, a receiver, an index or an unannotated initializer, has type A while the fixpoint runs:
 
 ```ts es
 function fact(n: number): number!Neg {

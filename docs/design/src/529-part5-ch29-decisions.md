@@ -44,7 +44,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D12 | A callback type without a contract accepts any contract; unchanged by D57 | Settled decision 2 forbids reading it as `never` | 16 |
 | D13 | `catch` handles a cause only when it holds no defect; a failure beside a defect is a defect (D305), and one beside an interruption is caught (D306) | K14a-K14d | 3, 17, 26 |
 | D14 | Only `using` acquisitions belong to the block | An acquisition without using belongs to its caller | 6, 23, 26 |
-| D15 | A failure during cleanup is never dropped | Cleanup failures remain visible under interruption; K12a-K12e | 17, 21 |
+| D15 | A failure during VibeLang's own cleanup is preserved, with D256's limit at Effect operators | Cleanup failures remain visible under interruption; K12a-K12e | 17, 21 |
 | D16 | v0 exposes `handle`, `resume`, `resumeWith`, `abandon`; `transfer` stays in the standard library | K13 bounds a transfer by its fiber, and G3 remains | 9, 21 |
 | D17 | `resumeWith` runs code whose R is `never` | Injected requirements resolve in the capture-time Context | 9, 20 |
 | D18 | A clause whose last step is `resume` compiles to the tail-resume shape | Returning a tail-resume request removes the clause frame; K11a-K11d | 20, 26 |

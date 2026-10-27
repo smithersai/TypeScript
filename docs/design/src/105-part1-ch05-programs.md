@@ -117,13 +117,13 @@ function syncEverything(stores: ReadonlyArray<Store>) {
 To capture inputs at call time for a TypeScript caller, declare an Effect return and return a program (D269):
 
 ```ts es
-export const capture = (input: { mutable value: number }): Effect.Effect<number, never, never> => {
+export const capture = (input: { mutable value: number }): number!! => {
   const snapshot = input.value
   return () => snapshot
 }
 ```
 
-The factory body runs as plain JavaScript at the call, so changing `input.value` after `capture(input)` does not change the snapshot its program returns. The returned program can run repeatedly. Every path must return a program; Effects and service lookups belong inside it (EK2115, EK2116). Where TypeScript returned `Effect.fail(e)`, write `return () => { throw e }`; an outer `throw e` would throw synchronously.
+The factory body runs as plain JavaScript at the call, so changing `input.value` after `capture(input)` does not change the snapshot its program returns. The returned program can run repeatedly. Every path must return a program; Effects and service lookups belong inside it (EK2115, EK2116). Where TypeScript returned `Effect.fail(e)`, write `return () => { throw e }`; an outer `throw e` is EK2115. Case `factory-body-throw.fail` pins this rejection.
 
 A declared Effect const holds an initializer at any scope: `const p: Effect.Effect<number> = capture(input)` calls the factory once and stores its result. `retry(p, policy)` reuses that snapshot; `retry(capture(input), policy)` passes the call by name and takes a fresh snapshot per attempt. Without a declared Effect return, the earlier `makeSync` example keeps its meaning.
 
