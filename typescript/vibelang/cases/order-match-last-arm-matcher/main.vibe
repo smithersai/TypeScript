@@ -1,0 +1,25 @@
+// expect-result: ["waiting",1]
+// A match that D209 proves exhaustive may leave out its last arm's test
+// (D294), but not code the test runs: the getter that reads this arm's data
+// type still runs once, as it does when the match has a default arm.
+data State { Ready; Waiting }
+
+let reads = 0
+
+const registry = {
+  get State(): typeof State {
+    reads++
+    return State
+  }
+}
+
+function label(x: State) {
+  return match (x) {
+    when State.Ready: "ready";
+    when registry.State.Waiting: "waiting";
+  }
+}
+
+export function main() {
+  return [label(State.Waiting()), reads]
+}

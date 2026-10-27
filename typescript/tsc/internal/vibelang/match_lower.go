@@ -34,9 +34,11 @@ import (
 //
 // The check is a call, not a branch, so tests that reach every arm still
 // cover every branch. The arm's declarations, its bindings and any extracted
-// values, still run, so its names are bound as before. A match over any other
-// type keeps the tests and $noMatch, which throws the proposal's TypeError at
-// run time.
+// values, still run, so its names are bound as before. A test that runs code
+// the type does not prove away, such as a getter that a matcher reads in
+// `when registry.State.Waiting`, is checked the same way, so that code still
+// runs (erasableTest). A match over any other type keeps the tests and
+// $noMatch, which throws the proposal's TypeError at run time.
 
 // exhaustivePlan records what the lowering leaves out of the matches D209
 // proves exhaustive in one file.
@@ -84,7 +86,7 @@ func (p *exhaustivePlan) planExhaustiveMatch(c *checker.Checker, node *ast.Node)
 		if test.Kind != ast.KindIfStatement || test.AsIfStatement().ElseStatement != nil {
 			return
 		}
-		if checked {
+		if checked || !erasableTest(c, test.AsIfStatement().Expression) {
 			p.checked[test] = subject
 		} else {
 			p.untested[test] = true
@@ -124,6 +126,69 @@ func callsMatcher(c *checker.Checker, node *ast.Node) bool {
 		}
 	}
 	return node.ForEachChild(func(child *ast.Node) bool { return callsMatcher(c, child) })
+}
+
+// erasableTest reports whether leaving out test, a last arm's test that D209
+// proves, leaves out no code: it reads names, literals, and properties that
+// are no accessors, and calls only the guards the parser writes (Array.isArray,
+// Option.isSome and the like) and a data variant's test of a data type that a
+// stable name holds (D307). Reading a matcher through a getter runs code.
+func erasableTest(c *checker.Checker, node *ast.Node) bool {
+	switch node.Kind {
+	case ast.KindIdentifier, ast.KindThisKeyword, ast.KindTrueKeyword, ast.KindFalseKeyword, ast.KindNullKeyword,
+		ast.KindStringLiteral, ast.KindNumericLiteral, ast.KindBigIntLiteral, ast.KindNoSubstitutionTemplateLiteral:
+		return true
+	case ast.KindParenthesizedExpression, ast.KindTypeOfExpression:
+		return erasableTest(c, node.Expression())
+	case ast.KindPrefixUnaryExpression:
+		return erasableTest(c, node.AsPrefixUnaryExpression().Operand)
+	case ast.KindBinaryExpression:
+		binary := node.AsBinaryExpression()
+		switch binary.OperatorToken.Kind {
+		case ast.KindEqualsEqualsEqualsToken, ast.KindExclamationEqualsEqualsToken, ast.KindGreaterThanEqualsToken,
+			ast.KindAmpersandAmpersandToken, ast.KindBarBarToken, ast.KindInKeyword:
+			return erasableTest(c, binary.Left) && erasableTest(c, binary.Right)
+		}
+	case ast.KindPropertyAccessExpression:
+		return erasableTest(c, node.Expression()) && !readsAccessor(c, c.GetSymbolAtLocation(node.Name()))
+	case ast.KindElementAccessExpression:
+		argument := node.AsElementAccessExpression().ArgumentExpression
+		symbol := c.GetSymbolAtLocation(argument)
+		return erasableTest(c, node.Expression()) && erasableTest(c, argument) && (symbol != nil || argument.Kind == ast.KindNumericLiteral) && !readsAccessor(c, symbol)
+	case ast.KindCallExpression:
+		arguments := node.Arguments()
+		if dataVariantTest(c, node) != "" {
+			return stableValue(c, arguments[0].Expression()) && erasableTest(c, arguments[1])
+		}
+		callee := node.Expression()
+		if !ast.IsPropertyAccessExpression(callee) || callee.Expression().Flags&ast.NodeFlagsReparsed == 0 || !ast.IsIdentifier(callee.Expression()) {
+			return false
+		}
+		for _, argument := range arguments {
+			if !erasableTest(c, argument) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// readsAccessor reports whether reading the property symbol, which a type
+// may describe through its declarations, can run a getter.
+func readsAccessor(c *checker.Checker, symbol *ast.Symbol) bool {
+	if symbol == nil {
+		return false
+	}
+	if symbol.Flags()&ast.SymbolFlagsAccessor != 0 {
+		return true
+	}
+	for _, declaration := range symbol.Declarations() {
+		if ast.IsAccessor(declaration) {
+			return true
+		}
+	}
+	return false
 }
 
 // withoutUnusedNoMatch removes $noMatch from names, a file's prelude uses,

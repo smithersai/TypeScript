@@ -283,7 +283,7 @@ function describe(failure: Missing | Other) {
 error EK4701: This match does not handle every case of Missing | Other: Other is left.
 ```
 
-A match that handles every case needs no `default`, and tests that reach every arm cover every branch. When its arms test only literals, shapes, `String` and the other primitive classes, `Option`, `Exit` or `Result`, its last arm runs without testing its pattern; a value outside the declared type, which only an unsound cast or `any` can produce, takes it, so write `default: throw …` to reject one at run time instead. A class, a custom matcher or another named matcher decides at run time what a type can't prove: a structural object of a class type is no instance. When an arm tests one, the last arm keeps its test without adding a branch, and a value that fails it throws a `TypeError`.
+A match that handles every case needs no `default`, and tests that reach every arm cover every branch. When its arms test only literals, shapes, `String` and the other primitive classes, `Option`, `Exit` or `Result`, its last arm runs without testing its pattern, though code the pattern runs, such as a getter that returns its matcher, still runs; a value outside the declared type, which only an unsound cast or `any` can produce, takes it, so write `default: throw …` to reject one at run time instead. A class, a custom matcher or another named matcher decides at run time what a type can't prove: a structural object of a class type is no instance. When an arm tests one, the last arm keeps its test without adding a branch, and a value that fails it throws a `TypeError`.
 
 For any other type, a match without `default` that no arm fits throws a `TypeError` when it runs, as the proposal specifies.
 

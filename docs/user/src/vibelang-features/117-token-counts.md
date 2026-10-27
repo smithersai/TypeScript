@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,113 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,705 |
-| The skill and the user guide (134 pages) | 244,866 |
-| The user guide alone | 239,753 |
+| The skill and the user guide (134 pages) | 244,920 |
+| The user guide alone | 239,807 |
 | The specification (33 chapters) | 166,290 |
 | The decision log, `docs/design/DECISIONS.md` | 107,236 |
 
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **24,032** |
-| [Release notes](../setup/release-notes.md) | 24,032 |
-| **All 15 pages** | **43,178** |
+| **Upgrade** | **24,068** |
+| [Release notes](../setup/release-notes.md) | 24,068 |
+| **All 15 pages** | **43,214** |
 
 ### Guides
 
@@ -263,9 +263,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Building an HTTP API](113-building-an-http-api.md) | 1,375 |
 | [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,755 |
 | [Cheat sheet](115-cheat-sheet.md) | 9,592 |
-| [Pattern matching with match and is](116-match-and-is.md) | 3,753 |
+| [Pattern matching with match and is](116-match-and-is.md) | 3,771 |
 | [Experimental platform APIs](118-experimental-platform-apis.md) | 3,219 |
-| **All 7 pages** | **26,108** |
+| **All 7 pages** | **26,126** |
 
 ### Specification
 
