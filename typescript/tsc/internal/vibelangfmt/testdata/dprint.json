@@ -6,6 +6,8 @@
   "newLineKind": "lf",
   "typescript": {
     "semiColons": "asi",
+    "module.sortImportDeclarations": "maintain",
+    "module.sortExportDeclarations": "maintain",
     "quoteStyle": "alwaysDouble",
     "trailingCommas": "never",
     "operatorPosition": "maintain",

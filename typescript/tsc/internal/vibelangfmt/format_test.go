@@ -440,10 +440,10 @@ func TestFormatRefusesChangedPrograms(t *testing.T) {
 func TestSameProgram(t *testing.T) {
 	t.Parallel()
 	cases := []struct{ name, before, after, message string }{
-		{"import order", "import { b } from \"./b\"\nimport { a } from \"a\"\n", "import { a } from \"a\"\nimport { b } from \"./b\"\n", ""},
-		{"export declaration order", "export { b } from \"./b\"\nexport * from \"./a\"\n", "export * from \"./a\"\nexport { b } from \"./b\"\n", ""},
-		{"module reference order", "export { a as b } from text\nexport * from config\n", "export * from config\nexport { a as b } from text\n", ""},
-		{"module body import order", "module text {\n  import { b } from \"./b\"\n  import { a } from \"a\"\n}\n", "module text {\n  import { a } from \"a\"\n  import { b } from \"./b\"\n}\n", ""},
+		{"import order", "import { b } from \"./b\"\nimport { a } from \"a\"\n", "import { a } from \"a\"\nimport { b } from \"./b\"\n", "1:"},
+		{"export declaration order", "export { b } from \"./b\"\nexport * from \"./a\"\n", "export * from \"./a\"\nexport { b } from \"./b\"\n", "1:"},
+		{"module reference order", "export { a as b } from text\nexport * from config\n", "export * from config\nexport { a as b } from text\n", "1:"},
+		{"module body import order", "module text {\n  import { b } from \"./b\"\n  import { a } from \"a\"\n}\n", "module text {\n  import { a } from \"a\"\n  import { b } from \"./b\"\n}\n", "became"},
 		{"module body", "module text {\n  export const v = a + b\n}\n", "module text {\n  export const v = a - b\n}\n", "module text: 2:20: operator"},
 		{"module body syntax", "module text {\n  export const v = 1\n}\n", "module text {\n  export const v = (\n}\n", "module text: vibelang format: 2:21"},
 		{"module reference", "import { a } from text\n", "import { a } from texts\n", "1:19: \"./vibelang-format.vibe.text.js\" became"},
@@ -466,7 +466,7 @@ func TestSameProgram(t *testing.T) {
 }
 
 // TestFormatModuleBodyAsTypeScript checks that a module declaration's body
-// formats exactly as the same statements in a .ts file, imports sorted,
+// formats exactly as the same statements in a .ts file, imports preserved,
 // indented one level inside the braces.
 func TestFormatModuleBodyAsTypeScript(t *testing.T) {
 	formatter := dprintFormatter(t)
@@ -475,8 +475,8 @@ func TestFormatModuleBodyAsTypeScript(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(alone, "import { a } from \"a\"\nimport { b } from \"./b.ts\"\n") {
-		t.Fatalf("dprint does not sort the imports of a .ts file:\n%s", alone)
+	if !strings.HasPrefix(alone, "import { b } from \"./b.ts\"\nimport { a } from \"a\"\n") {
+		t.Fatalf("dprint changed the import order of a .ts file:\n%s", alone)
 	}
 	got, err := Format("x.vibe", "module text {\n"+body+"}\n", formatter)
 	if err != nil {
@@ -538,6 +538,12 @@ func TestFormatModuleCases(t *testing.T) {
 				t.Fatal(err)
 			}
 			once, err := Format(input, string(source), formatter)
+			if strings.HasPrefix(string(source), "// expect: EK4408\n") {
+				if err == nil || !strings.Contains(err.Error(), "a module declaration needs a name") {
+					t.Fatalf("expected the nameless-module syntax refusal, got %v", err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatal(err)
 			}

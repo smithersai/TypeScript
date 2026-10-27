@@ -19,7 +19,7 @@ import (
 // as a .ts file of its own and writes the result between the braces. The
 // body is TypeScript and holds no VibeLang forms. An identifier module
 // specifier, from text, is written as the string "./$vtext", which dprint
-// sorts with the file's relative imports, and decodes back to text.
+// formats as a string and decodes back to text, without reordering imports.
 
 // moduleBody is the body of a module declaration: the text between its braces.
 type moduleBody struct {

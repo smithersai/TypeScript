@@ -1,0 +1,5 @@
+import "vibelang/platform/node"
+import { b } from "./b.ts"
+import { a } from "./a.ts"
+import { events } from "./events.ts"
+export function main() { Console.log(a,b,events.join(",")) }

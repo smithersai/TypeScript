@@ -58,9 +58,9 @@ func prefix(fileName string, err error) error {
 // SameProgram reports how after, a .vibe file, differs from before as a
 // program: its syntax tree and the tree of each module declaration's body,
 // ignoring parentheses, the braces around a single statement that is the
-// body of an if, else, or loop, the order of imports and of export
-// declarations, and the order of import and export specifiers, which a
-// formatter may change. It returns nil when they are the same.
+// body of an if, else, or loop, and the order of import and export
+// specifiers. Declaration order participates in module evaluation and stays
+// significant. It returns nil when they are the same.
 func SameProgram(before, after string) error {
 	a := parser.ParseSourceFile(vibeOptions, before, core.ScriptKindTS)
 	b := parser.ParseSourceFile(vibeOptions, after, core.ScriptKindTS)
@@ -120,9 +120,6 @@ func (c *comparer) same(a, b *ast.Node) error {
 	if sortsChildren(a) {
 		aChildren = sortedByKey(aChildren)
 		bChildren = sortedByKey(bChildren)
-	} else {
-		aChildren = sortDeclarationRuns(aChildren)
-		bChildren = sortDeclarationRuns(bChildren)
 	}
 	for i := range aChildren {
 		if err := c.same(aChildren[i], bChildren[i]); err != nil {
@@ -227,26 +224,4 @@ func sortedByKey(nodes []*ast.Node) []*ast.Node {
 	sorted := slices.Clone(nodes)
 	slices.SortStableFunc(sorted, func(a, b *ast.Node) int { return strings.Compare(key(a), key(b)) })
 	return sorted
-}
-
-// sortDeclarationRuns sorts each run of consecutive import declarations and
-// each run of consecutive export declarations, export { } and export *, which
-// a formatter may reorder.
-func sortDeclarationRuns(nodes []*ast.Node) []*ast.Node {
-	result := slices.Clone(nodes)
-	for i := 0; i < len(result); {
-		kind := result[i].Kind
-		if kind != ast.KindImportDeclaration && kind != ast.KindExportDeclaration {
-			i++
-			continue
-		}
-		j := i
-		for j < len(result) && result[j].Kind == kind {
-			j++
-		}
-		run := sortedByKey(result[i:j])
-		copy(result[i:j], run)
-		i = j
-	}
-	return result
 }

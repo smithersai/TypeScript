@@ -72,7 +72,7 @@ test("dprint formats a module declaration's body as TypeScript and keeps identif
     const fmt = run(dir, "fmt")
     assert.equal(fmt.status, 0, fmt.stdout + fmt.stderr)
     assert.equal(readFileSync(join(dir, "m.vibe"), "utf8"),
-      "import { clean } from text\nimport { suffix } from \"./suffix.ts\"\n\nmodule text {\n  import { a } from \"a\"\n  import { b } from \"./b.ts\"\n  export function clean(value: string): string {\n    return value.trim() + a + b\n  }\n}\n\nexport * from text\nexport function tidy(value: string): string!! {\n  return sync(() => clean(value) + suffix)\n}\n")
+      "import { clean } from text\nimport { suffix } from \"./suffix.ts\"\n\nmodule text {\n  import { b } from \"./b.ts\"\n  import { a } from \"a\"\n  export function clean(value: string): string {\n    return value.trim() + a + b\n  }\n}\n\nexport * from text\nexport function tidy(value: string): string!! {\n  return sync(() => clean(value) + suffix)\n}\n")
     const again = run(dir, "check")
     assert.equal(again.status, 0, again.stdout + again.stderr)
   } finally {

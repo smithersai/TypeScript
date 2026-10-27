@@ -1,12 +1,12 @@
 // Module declarations (D283): each body formats as a .ts file of its own,
 // indented inside its braces, and identifier specifiers stay identifiers.
-import { Schedule } from "effect"
 import { clean, type Cleaned } from text
 import { suffix } from "./suffix.ts"
+import { Schedule } from "effect"
 
 module text {
-  import { Effect, String as Str } from "effect"
   import { suffix } from "./suffix.ts"
+  import { Effect, String as Str } from "effect"
 
   export interface Cleaned {
     readonly value: string
@@ -53,8 +53,8 @@ module setup {}
 
 import setup
 import * as settings from config
-export * from config
 export { clean as tidy } from text
+export * from config
 
 error Unclean { reason: string }
 
