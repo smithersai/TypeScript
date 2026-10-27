@@ -21,7 +21,7 @@ service Users {
 `service Users { ... }` declares a service that does the job of the class on the left. Its members have no bodies (D128, D223). It is short for `abstract class Users { ... }` in which every member without a body is abstract and every value member is also readonly; static members, such as a layer, stay as written (D128). The older spelling `service class Users { ... }` still compiles, with warning EK2120. An abstract class whose instance members are all abstract is a service however it is written. The compiler checks each rule:
 
 - **What makes a class a service.** In a `.vibe` file, a class is a service when it is `abstract`, has no `extends` clause and no type parameters, and every instance member is abstract: methods with full contracts, and `abstract readonly` values. Static members are allowed and stay on the class. An abstract class with a concrete instance member is an ordinary class.
-- **Identity.** Effect identifies a service by its key string, and two services with the same string silently share a slot. The compiler derives the key from the package, module path, and class name (`@acme/app/src/users#Users`) and rejects a duplicate anywhere in the program (EK3001).
+- **Identity.** Effect identifies a service by its key string, and two services with the same string silently share a slot. The compiler derives the key from the package, module path, and class name (`@acme/app/src/users#Users`) and rejects a duplicate anywhere in the program (EK3001). Two installed copies of one package version are one declaration to TypeScript (D427) and carry one key, so they are one service, as Effect's key string makes them at run time.
 - **Each service is its own type.** TypeScript compares types by shape, so two services with the same members would be one type: providing one would type-check as providing the other, and the program would die at run time with `Service not found`. As a type, a service's name is nominal: nothing but that service satisfies it (below, D361).
 - **Contracts are written out.** A service has no body to infer from, so each method states its contract, `A!E!R` or `Effect<A, E, R>` (EK2101, Chapter 14).
 - **A service is a key, not a base class.** `extends Users` (EK3002), `new Users()` (EK3003), `instanceof Users` (EK3004), and a generic service class (EK3005) are errors. Implement a service with an object literal or a class that `implements Users`, which checks the class against the service's shape.
@@ -203,7 +203,7 @@ service Sessions {
   get(token: string): Session | undefined!!
   set(token: string, session: Session): void!!
 
-  static make() {
+  static make(): Sessions.Shape {                // plain: Layer.sync calls it synchronously (D397)
     const entries = new Map<string, Session>()
     return {
       get: (token: string) => entries.get(token),

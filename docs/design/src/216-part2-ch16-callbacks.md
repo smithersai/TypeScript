@@ -18,6 +18,16 @@ const sizes = mapAll(words, (w) => w.length)             // number[]!!
 
 The rule covers a parameter of any function, method, or function expression, a call argument or not, and only a parameter [Rule] (D68, D398). E and R are type parameters of the function that has the parameter: added channel parameters are named E and R, then E2 and R2 for another callback (D68), and default to `never`, so a call that omits an optional callback adds no failure and needs nothing. An optional call, `f?.(a)`, runs the callback when it is present, as `f(a)` does. A contract-less function type anywhere else, as the type of a variable, a property, an interface's method or field, an element, or a return, has no function to carry its channels, so it means what TypeScript means, a plain function type: a function that can pause or fail there is EK4301, and a contract written there says what it may do, as in `onSave: (doc: Doc) => void!SaveError!Store`.
 
+**Naming the channels in a written contract** [Rule] (D434). A contract written on the function that has such a parameter names the channels D68 adds as `E` and `R`, then `E2` and `R2` for the second contract-less callback parameter, in parameter order; the names are in scope in its return annotation and its other parameter types. So a member that runs a callback passes the callback's channels through:
+
+```ts es
+service Tx {
+  run<A>(work: () => A): A!TxError | E!R
+}
+```
+
+A written contract that does not name them keeps its meaning: a body that calls the callback is EK2001 and EK2002, since the callback's failures and requirements would escape it, and a declaration without a body promises that no implementation calls it. Where the signature's annotation or parameter types name `E`, `R`, `E2`, or `R2` while a type parameter of that name is already in scope there, declared by the signature or an enclosing declaration, the name is EK2130, whose repair writes the callback's channels as type parameters of the author's choosing: `run<A, F, Q>(work: () => A!F!Q): A!TxError | F!Q`.
+
 The rule follows the language a function type is written in, not how it is spelled (D331). A function type written in a `.vibe` file gains the channels in a parameter position, whether it is written in place or through a type alias or an interface that a `.vibe` file declares: an alias means what the type it names means, so extracting one changes nothing.
 
 ```ts es
@@ -44,7 +54,7 @@ function withRetry<A>(times: number, program: () => A) {
 
 #### Callbacks into JavaScript
 
-A JavaScript function such as `Array.prototype.map` calls its callback synchronously, on a stack frame the runtime cannot pause or capture. A callback passed where a plain function type is expected must therefore compile to plain JavaScript (Chapter 15), with no Effect operation and E = `never`; anything else is EK4301 (Chapter 10). The same holds for a named VibeLang function passed as a value: `stores.map(makeSync)` passes `makeSync`'s plain form, and a function without one is rejected.
+A JavaScript function such as `Array.prototype.map` calls its callback synchronously, on a stack frame the runtime cannot pause or capture. A callback passed where a plain function type is expected must therefore compile to plain JavaScript (Chapter 15), with no Effect operation and E = `never`; anything else is EK4301 (Chapter 10). The same holds for a named VibeLang function passed as a value: `stores.map(makeSync)` passes `makeSync`'s plain form, since its own form is plain, and a function whose own form is Effect is rejected, an Effect-annotated one included, even where the compiler gives it a plain variant for its calls (Chapter 13, D421).
 
 #### Which Effect combinators run their argument on another fiber
 

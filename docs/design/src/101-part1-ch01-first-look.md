@@ -64,7 +64,7 @@ export function welcome(id: string) {
 
 Four things changed:
 
-- **`welcome` is a plain function.** No `Effect.fn`, no generator, no `yield*`. Calling `Users.find(id)` runs it and returns the `User`; if it fails, `welcome` fails with the same error.
+- **`welcome` is an ordinary function declaration.** No `Effect.fn`, no generator, no `yield*`. Calling `Users.find(id)` runs it and returns the `User`; if it fails, `welcome` fails with the same error.
 - **A service is a `service` declaration.** `service Users`, an abstract class, replaces the `Context.Service` class, with no key string and no `Context` import. You call `Users.find(id)` without first getting the service with `yield* Users` (Chapter 4).
 - **The contract is inferred.** `welcome` is `string!UserNotFound | MailError!Users | Mailer`: it succeeds with a `string`, can fail with either error, and needs both services. Write the contract only when you want the compiler to check it (Chapter 2).
 - **Errors are the same classes.** `error UserNotFound { id: string }` declares a class that extends `TaggedError`, Effect's `Data.TaggedError`, in scope without an import.
@@ -80,7 +80,7 @@ Every `.vibe` file has this prelude in scope, so the program above needs no impo
 | `Scope` | Effect's `Scope` module, and the type `Scope` (Effect's `Scope.Scope`) |
 | `TaggedError` | Effect's `Data.TaggedError` |
 | `Control` | The base class of control operations (Chapter 9) |
-| `pipe`, `wire`, `fork`, `forkIn`, `detach`, `handle`, `resume`, `resumeWith`, `abandon`, `customMatcher` | VibeLang's built-ins, each introduced at first use |
+| `pipe`, `wire`, `fork`, `join`, `forkIn`, `detach`, `handle`, `resume`, `resumeWith`, `abandon`, `customMatcher` | VibeLang's built-ins, each introduced at first use; `fork` and `join` are the keywords' own bindings, used only under those names (D432) |
 | `sync`, `try`, `callback` | Boundary hatches: their first argument is self-contained TypeScript, and values reach it as inputs (D148, D229) |
 | `Resume<A, E>` | The callback hatch's resume parameter type (Chapter 10, D230) |
 | `runPromise`, `runFork`, `runSync`, `runCallback` | Effect's runners, the way back in from TypeScript (D150) |

@@ -149,7 +149,7 @@ vibelang/smoke.sh vibelang-infer   # one case
 
 #### Research and drafts
 
-- `docs/design/DECISIONS.md`: the decision log, D1-D420, the record of why each rule is what it is (D360).
+- `docs/design/DECISIONS.md`: the decision log, D1-D444, the record of why each rule is what it is (D360).
 - `docs/research/effect4-runtime.md`: Effect 4.0.5 runtime facts, with 23 scripts in `experiments/scripts/runtime-facts/`. Scripts written for this design live in `experiments/scripts/`.
 - `docs/research/continuation-prior-art.md`: OCaml 5, Kotlin, Swift, Loom, WasmFX, Koka, Effekt, Effection, js_of_ocaml, and the papers.
 - `docs/research/vibelang.md`: the earlier VibeLang project's `main` (`c60eca97`) and the unmerged checkpoint (`ebe89a2b`).
@@ -221,15 +221,15 @@ No word VibeLang adds is reserved. Each is a keyword only in the position the ta
 | `mutable` | Before a property or index signature's name on the same line, in an interface or object type (D134) | Declarations |
 | `module` | At the start of a top-level statement, followed on the same line by an identifier and `{` (D283) | ModuleDeclaration |
 | `try` | Followed by `(` where an expression starts: a call of the hatch; followed by `{`, TypeScript's try statement (D149) | TypeScript's call |
-| `fork` | Followed on the same line by an identifier, `this`, `new`, `super`, `await`, `{`, or `(` (D166, D391) | ForkExpression |
-| `join` | Followed on the same line by an identifier, `this`, `{`, `(`, or, after white space, `[`; `join[i]` without the space is an element access (D225, D391) | JoinExpression |
+| `fork` | Followed on the same line by an identifier other than `as`, `satisfies`, `in`, `instanceof`, or `is`, or by `this`, `new`, `super`, `await`, `{`, or `(` (D166, D391, D443) | ForkExpression |
+| `join` | Followed on the same line by an identifier other than `as`, `satisfies`, `in`, `instanceof`, or `is`, or by `this`, `{`, `(`, or, after white space, `[`; `join[i]` without the space is an element access (D225, D391, D443) | JoinExpression |
 | `await` `.` `all`, `allSettled`, `race`, `any` | Always; a plain `await` parses as TypeScript's and is EK4601-EK4604 (D196, D226) | AwaitOperation |
 | `provide` | At the start of a statement, followed on the same line by a provider or `(` (D172) | ProvideStatement |
 | `uninterruptible`, `interruptible`, `restore` | At the start of a statement, followed on the same line by `{` (D180) | MaskStatement |
 | `concurrent` | After `for` on the same line (D169) | ForConcurrentStatement |
 | `handle` | After a try statement's block or another handle clause (D132) | HandleClause |
 | `catch` | After an expression; after a try block it is TypeScript's (D236) | CatchExpression |
-| `match` | Followed, with no line break, by a parenthesized expression and, on the same line, `{` and then `when`, `default`, or `}` (D206) | MatchExpression |
+| `match` | Followed, with no line break, by a parenthesized expression, then by `{` on the same line, whose next token, on any line, is `when`, `default`, or `}` (D206, D443) | MatchExpression |
 | `when`, `default` | At the start of a match arm | MatchArm |
 | `is` | After an operand of a relational operator, as `instanceof` (D211) | RelationalExpression |
 | `and`, `or`, `not`, `let`, `if` | Inside a pattern | Pattern |
@@ -422,8 +422,9 @@ The terms the rules use. A term defined here means only this in a rule.
 | Term | Meaning |
 | --- | --- |
 | Abandonment | Ending a captured continuation without resuming it: its owner unwinds it as an interruption, running its finalizers (Chapters 20, 21) |
+| `AsData<T>` | The runtime's alias `type AsData<T> = T`, which declaration emit writes at a return type that rule R reads as data in the source, so a declaration consumer's call returns data too (Chapter 13, D426) |
 | Call that runs | A call whose callee's declared return type is definitely an `Effect`, or whose callee is itself an Effect value, `p()`: it runs the program on the current fiber and evaluates to its success value (Chapter 13) |
-| Closed class | A class whose arm covers its type in an exhaustive match: an `error` declaration, or an error class of the pinned `effect`, that neither declares nor inherits its own `[Symbol.hasInstance]` or `[customMatcher]`; an `error` declaration's type is nominal (Chapter 3, D407) |
+| Closed class | A class whose arm covers its type in an exhaustive match: an `error` declaration, or an error class of the pinned `effect`, that neither declares nor inherits its own `[Symbol.hasInstance]` or `[customMatcher]`; an `error` declaration's type is nominal. Its arm counts only where its package resolves to one installed copy (Chapter 3, D407, D427) |
 | Contextual keyword | A word that is a keyword only in the position the grammar gives, such as `fork` before its operand, and an identifier elsewhere (Grammar) |
 | Cause | Effect's record of why a program did not succeed: an ordered list of reasons, each a Fail (an expected failure), a Die (a defect), or an Interrupt (Chapter 17) |
 | Cold | Of a program: building it runs none of its work, and each run starts its work afresh |
@@ -431,11 +432,11 @@ The terms the rules use. A term defined here means only this in a rule.
 | Contract | A function's `Effect<A, E, R>`, written as `A!E!R` or `Effect<A, E, R>`, or inferred: its success type, expected failures, and requirements (Chapter 14) |
 | Control operation | A member of a `control` declaration: a request a handler answers, which may capture the continuation (Chapter 9) |
 | Data type | A `data` declaration, or a tagged union declared with `Data.taggedEnum`: a closed set of tagged variants (Chapter 11) |
-| Declared return type | The return type written in the declaration a call's resolved signature comes from, with every type parameter in scope there left uninstantiated (Chapter 13, D393) |
+| Declared return type | The return type written in the declaration a call's resolved signature comes from, or the one TypeScript infers for that declaration where none is written, with every type parameter in scope there left uninstantiated (Chapter 13, D393, D438) |
 | Definitely an Effect | Of a type: the `Effect` interface with any type arguments, written directly or through an alias; a conditional whose every branch is definitely an Effect or `never`; or a union whose every member is. Never a type parameter, `any`, `unknown`, an intersection, or a type that extends `Effect` (Chapter 13, rule R) |
-| Destination | Where a function or a value lands and is typed: the parameter of the signature a call resolves to, a declared variable, field, or return type, or a field of a contextually typed object literal (Chapter 13, rule F) |
+| Destination | Where a function or a value lands and is typed: the parameter of the signature a call resolves to, a declared variable, field, or return type, a field of a contextually typed object literal, or an element of a contextually typed array literal (Chapter 13, rule F) |
 | Defect | A failure no contract lists: a bug or an unlisted foreign exception. It is a Die reason, outside E, and `catch` does not receive it (Chapter 17) |
-| Direct variant | The plain-JavaScript form of a function that performs no Effect operation, which VibeLang callers call instead of its Effect form (Chapter 15) |
+| Direct variant | The plain-JavaScript copy of a function that performs no Effect operation, which VibeLang callers call instead of its Effect form; for an Effect-contract function, an optimization of its calls that no destination receives (Chapter 15, D421) |
 | Evaluate | To compute an expression's value, once, in source order. The value may be a program, which evaluating does not run |
 | Expected failure | A value thrown with `throw`, or failed with by a callee: a Fail reason, in E, which `catch` receives (Chapter 3) |
 | Foreign code | Code the compiler does not check: TypeScript and JavaScript functions, a hatch's or a `module` declaration's body, and a package consumed through declarations alone |
@@ -447,11 +448,11 @@ The terms the rules use. A term defined here means only this in a rule.
 | Layer | Effect's `Layer<Out, E, In>`: a recipe that builds the services `Out`, may fail with `E`, and needs `In` (Chapter 4) |
 | Live binding | An import that reads the exporting binding's current value at each use, as an ECMAScript import does (Chapter 26) |
 | Observation | What a run of a program shows the world: its exit and Cause, its effects outside the program in order and number, its bindings, its lifetimes, and its suspension points. Two programs are observationally equivalent when every observation is the same (Chapter 26) |
-| Own form | A function's form before any destination is read: the form its return annotation names, or, without one, plain when it is eligible for the plain form and Effect otherwise (Chapter 13, rule F) |
-| Plain function | A function that compiles to plain JavaScript: it performs no Effect operation, cannot fail with an expected failure, and needs no service (Chapter 15) |
-| Plain marker | The type-only `$plain` member a declaration file gives a function that compiles to plain JavaScript, naming its plain call signature (Chapter 27, D384, D411) |
+| Own form | A function's own form, which no destination's return type changes: the form its return annotation names, or, without one, plain when it is eligible for the plain form with its parameter types and Effect otherwise (Chapter 13, rule F, D421, D422) |
+| Plain function | A function whose own form is plain, with a plain return annotation or unannotated and eligible: it compiles to plain JavaScript, performs no Effect operation, cannot fail with an expected failure, and needs no service (Chapter 15) |
+| Plain marker | The type-only `$plain` member a declaration file gives a function whose own form is plain, naming its plain call signature; an Effect-contract function has none (Chapter 27, D384, D411, D421) |
 | Prelude | The names every `.vibe` file has in scope without an import: the runtime's exports and Effect's modules (Chapter 1) |
-| Producer | What a `function*` call returns: a `Stream` value that carries a cold program yielding values one at a time; `for...of` runs that program on its own fiber, and any other consumer through the adapter (Chapter 8, D402) |
+| Producer | What a `function*` call returns: a `Stream` value that carries a cold program yielding values one at a time; `for...of` runs that program on the loop's fiber, and any other consumer through the adapter (Chapter 8, D402) |
 | Protocol method | A method JavaScript calls by name without reading a declaration: `toString`, `toLocaleString`, `valueOf`, `toJSON`, `then`, or a method keyed by a well-known symbol or one of the pinned `effect`'s protocol symbols; checked as a plain function (Chapter 10, D397) |
 | Program | A cold value that runs when something runs it: an `Effect`, or a function with no required parameters, which becomes an `Effect` where one is expected (Chapters 5, 13) |
 | Provider | What removes services from R: a layer, a non-empty list of layers, a `Context`, or `Key = value` (Chapter 4) |

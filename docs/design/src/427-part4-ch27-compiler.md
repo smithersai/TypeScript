@@ -12,8 +12,8 @@ export declare namespace double {
 
 The compiler writes ordinary TypeScript declarations with Effect contracts.
 TypeScript consumers call an Effect-returning function; VibeLang consumers
-run that Effect through an ordinary call, and pass the plain form where a plain
-function is expected. The implementation is in
+run that Effect through an ordinary call, and pass the plain form of a function
+whose declaration carries the marker where a plain function is expected. The implementation is in
 `typescript/tsc/internal/vibelang/`; `typescript/VIBELANG.md` lists its hooks,
 acceptance cases, and remaining limitations.
 
@@ -93,10 +93,11 @@ function preferred to one that converts it to a program (rule F, D380, D392).
 The hooks check each argument against the picked signature in the form Chapter
 13 gives the argument, so the order of overloads never decides a function
 argument's form or when an expression is evaluated. A return in a
-program is checked against the Effect's success type. Function values and
-collections of programs convert to Effects where a parameter expects them
-(D7, D49); the conversion changes a program's representation, never when its
-body runs. D10 eligibility is a greatest fixpoint over the callee group. D12
+program is checked against the Effect's success type. Function values, and
+the elements of array and object literals, convert to Effects where a
+parameter expects them (D7, D49, D423); the conversion changes a function's
+representation, never when its body runs, and traverses no collection that an
+argument only names. D10 eligibility is a greatest fixpoint over the callee group. D12
 callback parameters carry inferred E and R type parameters.
 
 D52 requires recursive E and R inference inside a call-graph component; the
@@ -118,7 +119,7 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 
 | Runtime helper | Purpose |
 | --- | --- |
-| `$programs` | Convert collections of program functions |
+| `$programs` | Convert the functions a spread supplies to an array or object literal where programs are expected, as the spread reads them (D423) |
 | `$catch`, `$finally` | Expected-failure handling and cleanup |
 | `$expected`, `$caught` | A plain function's typed throw, and its catch's filter that rethrows defects (D54, D282); with them the combining form that a failing `finally` or iterator close uses in plain code, which carries two defects across a JavaScript frame as a `SuppressedError` (D340, D341) |
 | `$region`, `$using`, `$fork` | Block-owned scopes, resources, and children |
@@ -146,30 +147,50 @@ against it may rely on [Rule] (D366).
    the same producer value a VibeLang caller receives: a TypeScript consumer
    pulls it through the adapter, and a VibeLang consumer of the declaration
    that iterates it with `for...of` runs it on the loop's fiber, as a source
-   consumer does (Chapter 10, D402).
+   consumer does (Chapter 10, D402). Where declaration emit writes a
+   signature from an inferred type, and rule R reads a call of it as data in
+   the source while the type it writes is definitely an Effect, it writes
+   that return type as `AsData<T>`, so the consumer's call returns data too
+   (Chapter 13, D426).
 2. **More conservative, never different.** A declaration cannot prove what a
    body does: that a plain function never throws, or that a function whose R
    names a control operation never moves it to another fiber. A consumer that
    sees only declarations treats such a function as foreign code (EK4401,
-   EK4202) where a consumer of the source would not, except a function whose
-   declaration carries the plain marker (rule 3), which it calls as a trusted
-   plain call whose exceptions are defects. It never runs or types a call
-   differently.
-3. **The plain form.** A function that compiles to plain JavaScript, one with
-   a plain return annotation and an eligible unannotated one alike, carries
-   the plain marker in its declaration: a type-only `$plain` member of a
+   EK4202) where a consumer of the source would not, except a function or
+   method that a plain marker names (rule 3), which it calls as a trusted
+   plain call: an exception of a class the marker lists, which only a
+   `trusted` value's marker does, is an expected failure (D399, D400), and
+   any other is a defect (D431). It never runs or types a call differently.
+3. **The plain form.** A function whose own form is plain (Chapter 13, rule
+   F), one with a plain return annotation and an eligible unannotated one
+   alike, carries the plain marker in its declaration: a type-only `$plain` member of a
    namespace merged with it, whose type is its plain call signature (D384,
    D411). It declares no value, so stock TypeScript rejects `double.$plain(2)`
    as it rejects any use of a type as a value, and no consumer can call what
    the run time does not supply. An unannotated one's plain variant is a
    property of the exported function object at run time, `f[$direct]` (D268),
-   which survives re-exports, aliases, default exports, and CommonJS. A
-   consumer of the declaration passes the plain form wherever a plain
-   function is expected, as a consumer of the source does, so
-   `[1, 2].map(double)` is `[2, 4]` either way. A function whose declaration
-   has no marker is an Effect function to its consumers, and passing it where
-   a plain function is expected is EK4301. A call of the function may use
-   either form: both produce the same observations. No generated function,
+   which survives re-exports, aliases, default exports, and CommonJS; the
+   marker goes with the declaration under another name, through `export *`,
+   as a default export, and through a `const` bound to it, which declaration
+   emit gives a merged namespace of its own. A consumer of the declaration
+   passes the plain form wherever a plain function is expected, as a consumer
+   of the source does, so `[1, 2].map(double)` is `[2, 4]` either way. A
+   function with an Effect contract carries no marker, even where the
+   compiler gives it a plain variant for its calls, since its own form is
+   Effect: passing it where a plain function is expected is EK4301 to both
+   consumers (D421). A function whose declaration has no marker is an Effect
+   function to its consumers, and passing it where a plain function is
+   expected is EK4301. A call of the function may use either form: both
+   produce the same observations. A class, or an exported object, whose
+   methods include plain ones carries one marker for them: a type-only
+   `$plain` member of the namespace merged with the class or the `const`,
+   whose type is the union of those methods' names, `type $plain = "format" |
+   "toString"`, and a `$plainStatic` member for its plain static methods. A
+   consumer of the declaration calls a named method as a trusted plain call;
+   a method not named is an Effect method or foreign code, by its declared
+   type (D431). A `trusted(impl, [Errors])` value's marker is its type, the
+   runtime's `Trusted<F, Errors>`, which records its plain call signature
+   and its listed error classes (D400). No generated function,
    such as a direct variant, a region, or a helper, is a public export.
 4. **Standard TypeScript.** A declaration file is TypeScript that stock
    TypeScript checks with `skipLibCheck: false`: an Effect type is written
@@ -186,7 +207,11 @@ against it may rely on [Rule] (D366).
 A round-trip suite holds the compiler to rule 1: it compiles a stock
 TypeScript consumer and a VibeLang consumer of each case's emitted
 declarations alone, across aliases and re-exports, recursive inference,
-generic callbacks, services and providers, data variants, and error families.
+generic callbacks, services and providers, data variants, and error families,
+and, for the rules the third review added, an Effect-annotated and an eligible
+unannotated function passed to `map`, a contextually typed `(x) => x.run()`,
+a class with plain methods, and exported compositions and extracted methods
+(D421, D422, D426, D431).
 
 Services emit as runtime key classes with the identifier and shape that
 Chapter 4 defines (D361), so ordinary TypeScript can provide the service and

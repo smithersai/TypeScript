@@ -2,6 +2,8 @@
 
 This part is for reviewing how VibeLang runs: how the features of Parts I and II execute on Effect 4's fiber runtime, what Effect already provides, what a small runtime extension (the **kernel**) adds, and which tests check each claim. Claims carry tags:
 
+Its snippets follow Part I's conventions (Chapter 1): one without an enclosing function sits inside one, since a module's top level cannot run a program.
+
 | Tag | Meaning |
 | --- | --- |
 | **[Effect]** | Verified in `effect@4.0.5` source (`experiments/node_modules/effect/src` at the time, cited as `file:line`) or by an Effect-only test (F1-F10, conformance tests D01-D05, K15a); the tests and the kernel laws run on the pinned `effect@4.0.6` |

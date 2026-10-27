@@ -89,9 +89,24 @@ The contract has exactly three channels. Whether a function can pause is a separ
 
 `A!E!R` is an alias of Effect's type and is covariant in all three channels. Widening A, E, or R preserves assignability. For example, `A!E1!R1` is assignable to `A!E1 | E2!R1 | R2`. A function's parameter types still follow TypeScript's function variance rules.
 
+**An Effect never satisfies a plain function type** [Rule] (D430). TypeScript lets `() => Effect<void>` stand where `() => void` is expected, and a caller of the plain type would drop the program unrun. So in a `.vibe` file, wherever TypeScript checks one type against another, in an assignment, an argument, a return, an initializer, or an `implements` clause, a call signature or method of the target whose return type is neither definitely an Effect nor a union with such a member, a plain function type, is not matched by a source signature or method whose return type is definitely an Effect: that check is EK4301. Rule F's conversions apply first, so a function value whose own form is plain still reaches a plain destination as its plain variant; this rule checks the rest, an object's methods, a class's instances, and a function value known only by its type. A class meets a plain member only through a plain method: one with a plain annotation, a protocol method, or one that implements that member of an interface or base class its class declares (D397). An object literal's method is a function at its field's destination (rule F), so one written where a plain member is expected takes its plain own form or is EK4301.
+
+```ts es
+interface Resettable { reset(): void }
+
+class Counter {
+  n = 5
+  reset() { this.n = 0 }                  // unannotated: an Effect method (D397)
+}
+
+const target: Resettable = new Counter()  // EK4301: a caller of reset() would drop its program
+```
+
+Write `class Counter implements Resettable`, which makes `reset` plain, or annotate it, `reset(): void`. The same check rejects passing `[new Counter()]` to a TypeScript function that takes `Array<{ reset(): void }>`.
+
 A service's name, as a type, is its identifier: the service's members plus a required phantom brand whose type is the service's derived key (Chapter 4, D361). A type is assignable to the identifier only if it carries that brand, so two services with the same members are different types, and no structural type, `{ get(): number!! }` included, stands for either. An implementation has the service's shape, `Users.Shape`, and is checked against it. For `service Name: Shape`, `Name` is the identifier and `Shape` the implementation's type.
 
-An `error` declaration creates a runtime class with a literal `_tag` and readonly fields, and its type is nominal (D407): the compiler gives it a private member that no code names, as TypeScript makes every class with a private member nominal, and its declaration file writes that member. Two packages' error classes with the same tag and fields are therefore different types, as their constructors and `instanceof` tests are, and so are two installed copies of one package's class. A subclass is assignable to its base, as any subclass is. Class patterns narrow by derivation and keep their run-time test in every arm of every match (D405). Cases `match-class-patterns` and `match-class-patterns.fail` cover class matching.
+An `error` declaration creates a runtime class with a literal `_tag` and readonly fields, and its type is nominal (D407): the compiler gives it a private member that no code names, as TypeScript makes every class with a private member nominal, and its declaration file writes that member. Two packages' error classes with the same tag and fields are therefore different types, as their constructors and `instanceof` tests are. Two installed copies of one package version are not: TypeScript gives them one type while the run time has two constructors, so a class arm counts toward exhaustiveness only where the class's package resolves to one installed copy (Chapter 3, D427). A subclass is assignable to its base, as any subclass is. Class patterns narrow by derivation and keep their run-time test in every arm of every match (D405). Cases `match-class-patterns` and `match-class-patterns.fail` cover class matching.
 
 A `data` declaration names Effect's `Data.TaggedEnum` union (D307). Its variants are structural types determined by their `_tag` and readonly fields. Matching variant shapes from different packages are assignable, with no brand added by the data declaration's name. A generic data type follows TypeScript's variance for each type parameter's use in its fields.
 
@@ -111,7 +126,7 @@ error EK2101: Rates.lookup has no body to infer from, so its contract must be wr
   Write number!Errors!Dependencies; use number!! if it cannot fail and needs nothing.
 ```
 
-A service's value members are not calls, so they take any type: `abstract readonly baseUrl: string`. Callback parameter types are the one exception to written contracts: there a missing contract means "any contract", not an empty one (Chapter 16).
+A service's value members are not calls, so they take any type: `abstract readonly baseUrl: string`. Callback parameter types are the one exception to written contracts: there a missing contract means "any contract", not an empty one, and a written contract names those channels `E` and `R` (Chapter 16, D434).
 
 #### Partial annotations
 

@@ -21,7 +21,7 @@ function greeting(id: string) {
 
 #### Calling runs the function
 
-A call works the way a TypeScript developer reads it with an implicit `await`: its arguments are evaluated, left to right, then the function runs where the call stands, and the call's value is the function's success value. If the callee fails, the caller fails with the same error unless it catches it (Chapter 3). There is no `yield*` or `await`. Whether a call runs depends on the declared return type of the signature it resolves to, an Effect or not, and overloads resolve as TypeScript resolves them; nothing else changes when it runs: not the parameter it fills, not an annotation on the variable that receives it, not the order of overloads (Chapter 13).
+A call works the way a TypeScript developer reads it with an implicit `await`: its arguments are evaluated, left to right, then the function runs where the call stands, and the call's value is the function's success value. If the callee fails, the caller fails with the same error unless it catches it (Chapter 3). There is no `yield*` or `await`. Whether a call runs depends on the declared return type of the signature it resolves to, an Effect or not, and overloads resolve as TypeScript resolves them: where two overloads accept the same arguments, the first one decides, as it decides whether a TypeScript call returns a `Promise`. Nothing else changes when it runs: not the parameter it fills, not an annotation on the variable that receives it; and the order of overloads never changes the form a function argument takes (Chapter 13).
 
 ```ts effect
 const userName = Effect.fn("userName")(function* (id: string) {
