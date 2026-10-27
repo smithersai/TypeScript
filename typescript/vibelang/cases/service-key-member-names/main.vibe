@@ -1,0 +1,14 @@
+// expect-result: {"name":"Ada","length":3,"prototype":"p","call":"c","toString":"t","key":"k","pipe":"|","className":"Person"}
+// A service may declare members named like the key's own: Person() reads
+// them from the implementation. At the module's top level, Person.name keeps
+// its TypeScript meaning, the class's name (D90).
+service Person { name: string; length: number; prototype: string; call: string; toString: string; key: string; pipe: string }
+
+export const className = Person.name
+
+export function main() {
+  provide Person = { name: "Ada", length: 3, prototype: "p", call: "c", toString: "t", key: "k", pipe: "|" } {
+    const person = Person()
+    return { name: person.name, length: person.length, prototype: person.prototype, call: person.call, toString: person.toString, key: person.key, pipe: person.pipe, className }
+  }
+}
