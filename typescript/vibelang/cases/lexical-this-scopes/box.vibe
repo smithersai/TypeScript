@@ -1,0 +1,33 @@
+// An Effect arrow's body runs in a generator, which keeps the arrow's this
+// wherever JavaScript evaluates code in the arrow's scope: in its parameter
+// defaults and in a class's extends clause. An Effect method's body keeps
+// the method's this in a class's extends clause too.
+class Base {
+  value = 42
+}
+
+export class Box {
+  value = 42
+  Base = Base
+
+  fromDefault() {
+    return (n = this.value) => {
+      const tick = Effect.sync(() => 0)
+      return n
+    }
+  }
+
+  fromExtends() {
+    return () => {
+      const tick = Effect.sync(() => 0)
+      const C = class extends this.Base {}
+      return new C().value
+    }
+  }
+
+  method() {
+    const tick = Effect.sync(() => 0)
+    const C = class extends this.Base {}
+    return new C().value
+  }
+}

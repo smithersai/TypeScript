@@ -117,20 +117,18 @@ func (tx *lowering) perRunMethod(node *ast.Node, parameters *ast.NodeList, body 
 }
 
 // usesThis reports whether body refers to this, looking into arrow
-// functions, which share their enclosing function's this, but not into other
-// functions or classes. super counts: a super call that the lowering moves
-// into a generator passes this as its receiver (frames_lower.go).
+// functions, which share their enclosing function's this, and into what a
+// class evaluates where it is defined, such as its extends clause and
+// computed member names, but not into other functions, class fields or
+// static blocks (bindsFrame). super counts: a super call that the lowering
+// moves into a generator passes this as its receiver (frames_lower.go).
 func usesThis(body *ast.Node) bool {
 	var visit func(node *ast.Node) bool
 	visit = func(node *ast.Node) bool {
-		switch {
-		case node.Kind == ast.KindThisKeyword, node.Kind == ast.KindSuperKeyword:
+		if node.Kind == ast.KindThisKeyword || node.Kind == ast.KindSuperKeyword {
 			return true
-		case node.Kind == ast.KindArrowFunction:
-		case isFunctionBoundary(node):
-			return false
 		}
-		return node.ForEachChild(visit)
+		return node.ForEachChild(func(child *ast.Node) bool { return !bindsFrame(node, child) && visit(child) })
 	}
-	return visit(body)
+	return body != nil && visit(body)
 }

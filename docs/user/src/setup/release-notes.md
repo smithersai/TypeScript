@@ -116,6 +116,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - An entry could pick a platform layer from the runtime's development dependencies. It now resolves platform packages from the entry's project.
 - `const fs = FileSystem; fs.writeFileString(...)` gave an unexplained missing-property error. The message now suggests `FileSystem()` or a direct service call.
 - Platform diagnostics could recommend a hatch for an API that has a service. They now point to Effect's `lstat` and home-directory APIs or the [experimental replacements](#experimental-platform-apis).
+- An Effect arrow that read `this` only in a parameter default or a class's `extends` clause, or an Effect method that read it only in an `extends` clause, lost `this` and failed with a `TypeError`. Both now keep the enclosing `this`.
 
 #### Runtime
 

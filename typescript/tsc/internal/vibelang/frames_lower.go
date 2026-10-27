@@ -87,6 +87,26 @@ func findFrameReferences(file *ast.SourceFile) frameReferences {
 	return refs
 }
 
+// bindsFrame reports whether node binds this, arguments, new.target and
+// super for child, one of its children, as JavaScript scopes them: a
+// function that is not an arrow binds them for its parameters and body, a
+// class static block for its body, and a class field for its initializer.
+// Everything else is evaluated where node is: an arrow function, a class's
+// extends clause and decorators, and a member's computed name.
+func bindsFrame(node, child *ast.Node) bool {
+	switch {
+	case node.Kind == ast.KindArrowFunction:
+		return false
+	case node.Kind == ast.KindClassStaticBlockDeclaration:
+		return true
+	case node.Kind == ast.KindPropertyDeclaration:
+		return child == node.Initializer()
+	case ast.IsFunctionLike(node):
+		return child != node.Name() && !ast.IsModifierLike(child)
+	}
+	return false
+}
+
 // isSuperProperty reports whether node is super.name or super[key].
 func isSuperProperty(node *ast.Node) bool {
 	return node != nil && (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && node.Expression().Kind == ast.KindSuperKeyword

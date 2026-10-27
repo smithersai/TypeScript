@@ -627,12 +627,12 @@ func (tx *lowering) lowerProgram(node *ast.Node) *ast.Node {
 	return lowered
 }
 
-// keepsThis reports whether node is an arrow function that refers to this.
-// An arrow function sees its enclosing function's this, but the generator
-// function that replaces it has its own, so the lowering passes the arrow's
-// this on.
+// keepsThis reports whether node is an arrow function that refers to this,
+// in its parameters or its body. An arrow function sees its enclosing
+// function's this, but the generator function that replaces it has its own,
+// so the lowering passes the arrow's this on.
 func keepsThis(node *ast.Node) bool {
-	return node.Kind == ast.KindArrowFunction && usesThis(node.Body())
+	return node.Kind == ast.KindArrowFunction && usesThis(node)
 }
 
 // generatorOf returns `function* (params) { body }` for node, with node's

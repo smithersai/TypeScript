@@ -1434,6 +1434,11 @@ typescript/vibelang/cases/layer-effect-member-contract/main.vibe:17:43 block app
 typescript/vibelang/cases/layer-effect-member-contract/main.vibe:18:12 lambda effectFn service
 typescript/vibelang/cases/layer-effect-member-contract/main.vibe:21:43 block applied/program table
 typescript/vibelang/cases/layer-effect-member-contract/main.vibe:23:18 lambda choice fallback
+typescript/vibelang/cases/lexical-this-scopes/box.vibe:14:12 lambda choice fallback
+typescript/vibelang/cases/lexical-this-scopes/box.vibe:15:32 lambda plain table
+typescript/vibelang/cases/lexical-this-scopes/box.vibe:21:12 lambda choice fallback
+typescript/vibelang/cases/lexical-this-scopes/box.vibe:22:32 lambda plain table
+typescript/vibelang/cases/lexical-this-scopes/box.vibe:29:30 lambda plain table
 typescript/vibelang/cases/lsrules-style.fail/main.vibe:21:26 lambda plain fallback
 typescript/vibelang/cases/lsrules-style.fail/main.vibe:25:53 lambda plain table
 typescript/vibelang/cases/lsrules-style.fail/main.vibe:25:98 lambda plain table
