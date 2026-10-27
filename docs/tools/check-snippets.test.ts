@@ -80,6 +80,25 @@ test.skipIf(!existsSync(compiler))("checks shared declarations, schema type/valu
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
+test.skipIf(!existsSync(compiler))("an explicit fragment's syntax error hides no other block's error", async () => {
+  const root = mkdtempSync(join(tmpdir(), "snippet-check-test-"))
+  const check = async (lines: string[]) => {
+    writeFileSync(join(root, "page.md"), lines.join("\n"))
+    const output = join(root, "report.json")
+    const child = Bun.spawn(["bun", join(import.meta.dir, "check-snippets.ts"), "--root", root, "--compiler", relative(process.cwd(), compiler), "--json", output], { stdout: "pipe", stderr: "pipe" })
+    const status = await child.exited
+    const [page] = JSON.parse(readFileSync(output, "utf8")).pages
+    return { status, blocks: page.blocks.map((b: any) => [b.status, b.diagnostics.map((d: any) => d.code)]) }
+  }
+  try {
+    expect(await check([
+      "```vibe", "const invalid: number = 'text'", "```",
+      "```vibe", "// fragment", "export function name() { ... }", "```"
+    ])).toEqual({ status: 1, blocks: [["fail", ["TS2322"]], ["fragment", []]] })
+    expect(await check(["```vibe", "// fragment", "const = ;", "```"])).toEqual({ status: 0, blocks: [["fragment", []]] })
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
 
 test("filename captions include TypeScript companions and only use the first two lines", () => {
   const blocks = extract([

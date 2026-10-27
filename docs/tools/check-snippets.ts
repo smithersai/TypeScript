@@ -204,7 +204,7 @@ export function linkModules(temp: string) {
 // prepared, as a project: one module per block, whose prefix imports the
 // names that earlier blocks declare, and a tsconfig.json that lists them.
 // offsets holds the number of prefix lines in each module.
-export function writeProject(dir: string, blocks: Block[], options: { exportFunctions?: boolean } = {}): { filenames: Map<number, string>; offsets: Map<string, number> } {
+export function writeProject(dir: string, blocks: Block[], options: { exportFunctions?: boolean; omitFragments?: boolean } = {}): { filenames: Map<number, string>; offsets: Map<string, number> } {
   const ts = typescript()
   mkdirSync(dir)
   writeFileSync(join(dir, "package.json"), '{"type":"module","name":"docs-snippets"}')
@@ -308,7 +308,7 @@ export function writeProject(dir: string, blocks: Block[], options: { exportFunc
   writeFileSync(join(dir, "tsconfig.json"), JSON.stringify({ compilerOptions: {
     strict: true, target: "ESNext", module: "NodeNext", moduleResolution: "NodeNext",
     skipLibCheck: true, noEmit: true, types: [], rewriteRelativeImportExtensions: true
-  }, files: [...filenames.values()] }))
+  }, files: blocks.filter(block => !(options.omitFragments && block.fragment)).map(block => filenames.get(block.number)!) }))
   return { filenames, offsets }
 }
 
@@ -446,9 +446,13 @@ async function main() {
       const blocks = extract(readFileSync(page, "utf8"), { hatchExamples: [join(repo, "docs/user/llms-essentials.md"), join(repo, "templates/app/AGENTS.md")].includes(page) })
       if (!blocks.length) continue
       const dir = join(temp, String(++index))
-      const { filenames, offsets } = writeProject(dir, blocks)
-      const child = Bun.spawn([compiler, "--noEmit", "--pretty", "false", "-p", join(dir, "tsconfig.json")], { cwd: dir, stdout: "pipe", stderr: "pipe" })
-      const [stdout, stderr, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
+      // An explicit fragment opts out of the check, so it stays out of the
+      // program: TypeScript reports no semantic error in a program with a
+      // syntax error, and a fragments would hide every other blocks.
+      const { filenames, offsets } = writeProject(dir, blocks, { omitFragments: true })
+      const compiled = blocks.some(block => !block.fragment)
+      const child = compiled ? Bun.spawn([compiler, "--noEmit", "--pretty", "false", "-p", join(dir, "tsconfig.json")], { cwd: dir, stdout: "pipe", stderr: "pipe" }) : undefined
+      const [stdout, stderr, code] = child ? await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]) : ["", "", 0]
       const output = `${stdout}\n${stderr}`
       if (keep) writeFileSync(join(dir, "compiler.log"), output)
       const parsed = parseDiagnostics(output)

@@ -78,7 +78,7 @@ func TestPlatformDocsTable(t *testing.T) {
 // platformGlobalAnswer returns what the guide's page on platform globals says
 // replaces name, a platform global or a member of one, read from the tables
 // EK4402 reads: the Effect, experimental, or browser API's example, or the
-// escape to TypeScript with its reason.
+// escape to TypeScript with its reason; "" when the tables give no answer.
 func platformGlobalAnswer(name string) string {
 	root, member, _ := strings.Cut(name, ".")
 	var members []string
@@ -95,13 +95,15 @@ func platformGlobalAnswer(name string) string {
 	if api.note != "" {
 		return "escape to TypeScript for now: " + api.note
 	}
-	return "escape to TypeScript for now: Effect has no service for it"
+	return ""
 }
 
 // TestPlatformGlobalsDocumented checks the guide's page on platform globals
-// against the tables EK4402 reads (D310): a row for every platform global
-// and every member the tables answer, each saying what EK4402 says, and each
-// example in a code block that the snippet checker compiles.
+// against the tables EK4402 reads (D310): every platform global has an answer,
+// an Effect API, an experimental service, or the escape to TypeScript with its
+// reason, and the page has a row for every platform global and every member
+// the tables answer, each saying what EK4402 says. The docs tools' test
+// platform-globals.test.ts checks that each row's example compiles on the page.
 func TestPlatformGlobalsDocumented(t *testing.T) {
 	var names []string
 	for name := range platformGlobals {
@@ -116,31 +118,41 @@ func TestPlatformGlobalsDocumented(t *testing.T) {
 	slices.Sort(names)
 	var want []string
 	for _, name := range names {
-		want = append(want, "| `"+name+"` | "+platformGlobalAnswer(name)+" |")
+		answer := platformGlobalAnswer(name)
+		if answer == "" {
+			t.Errorf("%s is not in a .vibe file's scope, and the tables give no answer: name an Effect API, an experimental service, or the reason to escape to TypeScript", name)
+		}
+		want = append(want, "| `"+name+"` | "+answer+" |")
 	}
 	page, err := os.ReadFile("../../../../docs/user/src/platform/platform-globals.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var got, blocks []string
-	inBlock := false
+	var got []string
 	for _, line := range strings.Split(string(page), "\n") {
-		switch {
-		case strings.HasPrefix(line, "```"):
-			inBlock = !inBlock && strings.HasPrefix(line, "```vibe")
-		case inBlock:
-			blocks = append(blocks, line)
-		case strings.HasPrefix(line, "| `"):
+		if strings.HasPrefix(line, "| `") {
 			got = append(got, line)
 		}
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("the page's table is\n%s\nEK4402's tables give\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	code := strings.Join(blocks, "\n")
-	for _, row := range want {
-		if example := regexp.MustCompile("\\| `([^`]*)` \\|$").FindStringSubmatch(row); example != nil && !strings.Contains(code, example[1]) {
-			t.Errorf("no vibe block on the page runs %s", example[1])
+}
+
+// TestPlatformGlobalAnswerRequired checks that a platform global the tables
+// do not answer, such as a name added to platformGlobals with no service and
+// no note, has no answer for the page, so TestPlatformGlobalsDocumented fails
+// until one is written.
+func TestPlatformGlobalAnswerRequired(t *testing.T) {
+	if answer := platformGlobalAnswer("unansweredGlobal"); answer != "" {
+		t.Errorf("a global the tables do not answer gets %q", answer)
+	}
+	if answer := platformGlobalAnswer("unansweredGlobal.member"); answer != "" {
+		t.Errorf("a member of a global the tables do not answer gets %q", answer)
+	}
+	for _, name := range []string{"document", "process.exit", "Worker"} {
+		if platformGlobalAnswer(name) == "" {
+			t.Errorf("%s has no answer", name)
 		}
 	}
 }

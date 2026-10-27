@@ -97,7 +97,7 @@ Declarations export like TypeScript declarations: `export data Shape { Circle { 
 - Resources: `using` in the block that owns them: `resource-management/029-introduction`. For a Disposable with an explicit release, acquire `{ value: disposable }` and release `holder.value`; binding the Disposable itself also calls `Symbol.dispose`.
 - Data: `schema` declarations; `Schema.Struct` for checks, transformations and exact optional keys: `schema/087-basic-usage`. A tagged union is a `data` declaration, matched by variant: `data-types/073-data`.
 - Matching: `vibelang-features/116-match-and-is`. Handlers: `vibelang-features/111-control-operations-and-handlers`. Producers: `vibelang-features/112-producers`.
-- Platform services and each Node.js or web call's replacement: `platform/105-introduction`.
+- Platform services: `platform/105-introduction`; each Node.js or web global's replacement: `platform/platform-globals`.
 - TypeScript at the edges: hatches, trust, factories: `vibelang-features/114-vibelang-for-effect-users`.
 - Every form beside its Effect code: `vibelang-features/115-cheat-sheet`. The rules: `spec/`.
 

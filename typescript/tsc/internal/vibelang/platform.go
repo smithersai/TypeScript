@@ -120,7 +120,7 @@ var platformServices = map[string]*platformService{
 	"ExperimentalLocks": {"the experimental Locks service", "Experimental.Locks.hold(name)", "",
 		`BrowserLocks.layer from "vibelang-runtime/experimental/platform-browser"; NodeLocks.layer from "vibelang-runtime/experimental/platform-node" locks only within one Node.js process`},
 	"import": {"an import declaration", `import { name } from "./module.ts"`, "", ""},
-	"export": {"an export declaration", "export function name() { ... }", "", ""},
+	"export": {"an export declaration", "export const name = value", "", ""},
 }
 
 // platformAPI says what replaces a platform API.

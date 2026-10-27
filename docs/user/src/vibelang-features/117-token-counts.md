@@ -17,12 +17,12 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 
 | Load | Tokens |
 | --- | ---: |
-| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 4,982 |
-| The skill and the [cheat sheet](115-cheat-sheet.md) | 14,582 |
-| The skill and the user guide (133 pages) | 225,916 |
-| The user guide alone | 220,934 |
+| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 4,988 |
+| The skill and the [cheat sheet](115-cheat-sheet.md) | 14,588 |
+| The skill and the user guide (133 pages) | 226,047 |
+| The user guide alone | 221,059 |
 | The specification (33 chapters) | 108,221 |
-| The decision log, `docs/design/DECISIONS.md` | 69,662 |
+| The decision log, `docs/design/DECISIONS.md` | 69,684 |
 
 ## Effect TypeScript beside VibeLang
 
@@ -243,15 +243,15 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Equivalence](../schema/102-equivalence.md) | 770 |
 | [Formatter](../schema/103-formatter.md) | 541 |
 | [Schema Compilers](../schema/104-compilers.md) | 2,110 |
-| **Platform** | **11,514** |
+| **Platform** | **11,639** |
 | [Introduction](../platform/105-introduction.md) | 2,151 |
 | [FileSystem](../platform/106-file-system.md) | 1,190 |
 | [Path](../platform/107-path.md) | 927 |
 | [PlatformLogger](../platform/108-platformlogger.md) | 752 |
 | [Runtime](../platform/109-runtime.md) | 1,219 |
 | [Terminal](../platform/110-terminal.md) | 1,511 |
-| [Platform globals in VibeLang](../platform/platform-globals.md) | 3,764 |
-| **All 99 pages** | **138,711** |
+| [Platform globals in VibeLang](../platform/platform-globals.md) | 3,889 |
+| **All 99 pages** | **138,836** |
 
 ### VibeLang features
 
