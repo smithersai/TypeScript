@@ -1,0 +1,35 @@
+error Missing
+
+function leaf() {
+  yieldNow()
+  throw new Missing()
+}
+
+function middle() {
+  yieldNow()
+  return leaf()
+}
+
+export function main() {
+  yieldNow()
+  return middle()
+}
+
+export const beforeRead = read
+
+export function read(this: { value: number }, add: number, unused = 1) {
+  yieldNow()
+  return [this.value + add, arguments.length, unused]
+}
+
+import { defaults } from "./defaults.ts"
+
+export function defaulted(value = ++defaults.count) {
+  yieldNow()
+  return value
+}
+
+export function recursive(n: number, value: { ok: number } | undefined): Effect<number> {
+  if (n > 0) return recursive(n - 1, value)
+  return value!.ok
+}

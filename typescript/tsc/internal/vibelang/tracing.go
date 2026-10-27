@@ -86,7 +86,7 @@ func isExportedFunction(c *checker.Checker, file *ast.SourceFile, fn *ast.Node) 
 
 // wrapFunction returns `Effect.fnUntraced(generator)` in place of node, or
 // `Effect.fn("name")(generator)` when node has a span.
-func (tx *lowering) wrapFunction(node *ast.Node, generator *ast.Node) *ast.Node {
+func (tx *lowering) wrapFunction(node *ast.Node, generator *ast.Node, pipeables ...*ast.Node) *ast.Node {
 	name, traced := tx.plan.spans[node]
 	if !traced {
 		return tx.wrapGenerator("fnUntraced", node, generator)
@@ -99,7 +99,7 @@ func (tx *lowering) wrapFunction(node *ast.Node, generator *ast.Node) *ast.Node 
 		f.NewNodeList([]*ast.Node{f.NewStringLiteral(name, ast.TokenFlagsNone)}),
 		ast.NodeFlagsNone,
 	)
-	lowered := f.NewCallExpression(fn, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{generator}), ast.NodeFlagsNone)
+	lowered := f.NewCallExpression(fn, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList(append([]*ast.Node{generator}, pipeables...)), ast.NodeFlagsNone)
 	tx.EmitContext().SetOriginal(lowered, node)
 	lowered.Loc = node.Loc
 	return lowered
@@ -120,4 +120,67 @@ func (tx *lowering) traceMethod(node *ast.Node, effect *ast.Node) *ast.Node {
 		f.NewNodeList([]*ast.Node{effect, f.NewStringLiteral(name, ast.TokenFlagsNone)}),
 		ast.NodeFlagsNone,
 	)
+}
+
+// forwardedTrace captures a declaration's caller before invoking Effect.fn.
+// Effect.fn captures only two JS frames; the forwarding declaration consumes
+// the caller's slot. A pipeable runs inside fn's logical frame, so replace
+// only its stack supplier and keep fn's span, definition frame and parent.
+// The declaration still owns its identity, name, length, this and arguments;
+// its generator still evaluates parameters lazily, once per execution.
+func (tx *lowering) forwardedTrace(node *ast.Node) (statements, pipeables []*ast.Node) {
+	if _, traced := tx.plan.spans[node]; !traced {
+		return nil, nil
+	}
+	f := tx.Factory()
+	property := func(value *ast.Node, name string) *ast.Node {
+		return f.NewPropertyAccessExpression(value, nil, f.NewIdentifier(name), ast.NodeFlagsNone)
+	}
+	call := func(value *ast.Node, args ...*ast.Node) *ast.Node {
+		return f.NewCallExpression(value, nil, nil, f.NewNodeList(args), ast.NodeFlagsNone)
+	}
+	binding := func(name, value *ast.Node, flags ast.NodeFlags) *ast.Node {
+		return tx.generated(f.NewVariableStatement(nil, f.NewVariableDeclarationList(f.NewNodeList([]*ast.Node{
+			f.NewVariableDeclaration(name, nil, nil, value),
+		}), flags)))
+	}
+	assign := func(left, right *ast.Node) *ast.Node {
+		return f.NewExpressionStatement(f.NewBinaryExpression(nil, left, nil, f.NewToken(ast.KindEqualsToken), right))
+	}
+	// Match Effect's opt-out and bounded stack capture. Reading the stack is
+	// lazy so Node applies source maps when a failure renders the frame.
+	errorClass := property(f.NewIdentifier("globalThis"), "Error")
+	limit := f.NewUniqueName("traceLimit")
+	trace := f.NewUniqueName("trace")
+	stackLimit := property(errorClass, "stackTraceLimit")
+	// Reflect.set also works when Error is frozen: like Effect's guarded
+	// setter, it leaves a non-writable limit alone instead of throwing.
+	setLimit := func(value *ast.Node) *ast.Node {
+		return f.NewExpressionStatement(call(property(property(f.NewIdentifier("globalThis"), "Reflect"), "set"), errorClass, f.NewStringLiteral("stackTraceLimit", ast.TokenFlagsNone), value))
+	}
+	statements = append(statements, binding(limit, stackLimit, ast.NodeFlagsConst), binding(trace, nil, ast.NodeFlagsLet))
+	statements = append(statements, tx.generated(f.NewIfStatement(
+		f.NewBinaryExpression(nil, limit, nil, f.NewToken(ast.KindExclamationEqualsEqualsToken), f.NewNumericLiteral("0", ast.TokenFlagsNone)),
+		f.NewBlock(f.NewNodeList([]*ast.Node{
+			setLimit(f.NewNumericLiteral("2", ast.TokenFlagsNone)),
+			assign(trace, f.NewNewExpression(errorClass, nil, f.NewNodeList(nil))),
+			setLimit(limit),
+		}), true), nil)))
+
+	// trace?.stack?.split("\n")[2]?.trim() is Effect's two-frame cleaner,
+	// with the capture in the declaration itself rather than its callee.
+	stack := f.NewPropertyAccessExpression(trace, f.NewToken(ast.KindQuestionDotToken), f.NewIdentifier("stack"), ast.NodeFlagsOptionalChain)
+	split := f.NewPropertyAccessExpression(stack, f.NewToken(ast.KindQuestionDotToken), f.NewIdentifier("split"), ast.NodeFlagsOptionalChain)
+	lines := f.NewCallExpression(split, nil, nil, f.NewNodeList([]*ast.Node{f.NewStringLiteral("\n", ast.TokenFlagsNone)}), ast.NodeFlagsOptionalChain)
+	line := f.NewElementAccessExpression(lines, nil, f.NewNumericLiteral("2", ast.TokenFlagsNone), ast.NodeFlagsOptionalChain)
+	trim := f.NewPropertyAccessExpression(line, f.NewToken(ast.KindQuestionDotToken), f.NewIdentifier("trim"), ast.NodeFlagsOptionalChain)
+	clean := f.NewCallExpression(trim, nil, nil, f.NewNodeList(nil), ast.NodeFlagsOptionalChain)
+	frame := f.NewUniqueName("frame")
+	replace := tx.generated(tx.arrow([]*ast.Node{f.NewParameterDeclaration(nil, nil, frame, nil, nil, nil)}, f.NewObjectLiteralExpression(f.NewNodeList([]*ast.Node{
+		f.NewSpreadAssignment(frame),
+		f.NewPropertyAssignment(nil, f.NewIdentifier("stack"), nil, nil, tx.generated(tx.arrow(nil, clean))),
+	}), false)))
+	effect := f.NewUniqueName("effect")
+	update := call(property(tx.effectName(), "updateService"), effect, property(tx.moduleNamespace("effect/References"), "CurrentStackFrame"), replace)
+	return statements, []*ast.Node{tx.generated(tx.arrow([]*ast.Node{f.NewParameterDeclaration(nil, nil, effect, nil, nil, nil)}, update))}
 }

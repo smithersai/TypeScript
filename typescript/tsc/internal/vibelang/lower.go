@@ -726,7 +726,8 @@ func (tx *lowering) visitEffectFunctionDeclaration(node *ast.Node) *ast.Node {
 	}
 	// The declaration stands for the source function; the generator it
 	// forwards to maps to no source position (generated.go).
-	lowered := tx.wrapFunction(node, tx.generatedFunctions(tx.generatorFrom(node, loweredParameters, loweredBody)))
+	capture, pipeables := tx.forwardedTrace(node)
+	lowered := tx.wrapFunction(node, tx.generatedFunctions(tx.generatorFrom(node, loweredParameters, loweredBody)), pipeables...)
 
 	// Forward all arguments without evaluating the source parameters twice.
 	// Placeholder parameters preserve fnUntraced's observable function length.
@@ -752,6 +753,7 @@ func (tx *lowering) visitEffectFunctionDeclaration(node *ast.Node) *ast.Node {
 		}
 		statements = append(statements, f.NewExpressionStatement(f.NewStringLiteralFromNode(statement.Expression())))
 	}
+	statements = append(statements, capture...)
 	statements = append(statements, tx.generated(f.NewReturnStatement(call)))
 	body := f.NewBlock(f.NewNodeList(statements), true /*multiLine*/)
 	return tx.effectFunctionDeclaration(node, f.NewNodeList(parameters), body)
