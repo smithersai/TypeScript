@@ -2271,6 +2271,11 @@ typescript/vibelang/cases/tsforms-catch-fixed/main.vibe:47:28 lambda effectFn ta
 typescript/vibelang/cases/tsforms-catch-fixed/main.vibe:47:41 lambda dual fallback
 typescript/vibelang/cases/tsforms-catch-fixed/main.vibe:48:12 lambda effectFn table
 typescript/vibelang/cases/tsforms-catch-fixed/main.vibe:48:27 lambda effectFn table
+typescript/vibelang/cases/tsforms-catch-succeed-fixed/main.vibe:4:33 lambda effectFn table
+typescript/vibelang/cases/tsforms-catch-succeed-fixed/main.vibe:4:43 lambda effectFn table
+typescript/vibelang/cases/tsforms-catch-succeed-fixed/main.vibe:4:56 lambda dual fallback
+typescript/vibelang/cases/tsforms-catch-succeed/main.vibe:4:49 byname program table
+typescript/vibelang/cases/tsforms-catch-succeed/main.vibe:4:65 lambda effectFn table
 typescript/vibelang/cases/tsforms-catch/main.vibe:24:26 byname program table
 typescript/vibelang/cases/tsforms-catch/main.vibe:24:47 lambda effectFn table
 typescript/vibelang/cases/tsforms-catch/main.vibe:28:27 byname program table

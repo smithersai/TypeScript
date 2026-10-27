@@ -195,8 +195,20 @@ func catchCombinatorRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.
 	}
 	values := make([]string, len(handlers))
 	for i, h := range handlers {
-		value, _ := runningText(c, file, h.value)
-		if strings.HasPrefix(value, "{") || isCommaExpression(h.value) {
+		// The handler runs in the new arm. Strip safe succeed wrappers now:
+		// the parser represents match arms with synthesized returns, where
+		// the general direct-form fixer cannot replace a value afterward.
+		valueNode := h.value
+		for ast.IsCallExpression(valueNode) && valueNode.TypeArguments() == nil && !ast.IsOptionalChain(valueNode) && len(valueNode.Arguments()) == 1 && !ast.IsSpreadElement(valueNode.Arguments()[0]) && isEffectFunction(c, valueNode.Expression(), "Effect", "succeed") {
+			argument := valueNode.Arguments()[0]
+			t := c.GetTypeAtLocation(argument)
+			if isEffectType(c, t) || isEffectValueType(c, t) {
+				break // succeed can hold a cold program as data
+			}
+			valueNode = argument
+		}
+		value, _ := runningText(c, file, valueNode)
+		if strings.HasPrefix(value, "{") || isLowPrecedence(valueNode) {
 			value = "(" + value + ")"
 		}
 		values[i] = value

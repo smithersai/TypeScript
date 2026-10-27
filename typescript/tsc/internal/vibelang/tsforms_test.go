@@ -57,6 +57,23 @@ func TestTypeScriptFormQuickFixes(t *testing.T) {
 		{"succeed in an Effect-typed arrow", 4834, "export const read: () => Effect.Effect<{ ok: boolean }> = () => Effect.succeed({ ok: true })", "export const read: () => Effect.Effect<{ ok: boolean }> = () => ({ ok: true })"},
 		{"fail in an Effect-typed arrow", 4834, "error Gone\nexport const gone: () => Effect.Effect<never, Gone> = () => Effect.fail(new Gone())", "error Gone\nexport const gone: () => Effect.Effect<never, Gone> = () => throw new Gone()"},
 		// EK4835 (D289)
+		{"catchTag keeps succeed of a cold program", 4835, `error Gone
+function fail() { throw new Gone() }
+const job: number!! = () => 1
+export function recover() { return Effect.catchTag(fail(), "Gone", () => Effect.succeed(job)) }`, `error Gone
+function fail() { throw new Gone() }
+const job: number!! = () => 1
+export function recover() { return fail() catch (e) => match (e) { when Gone: Effect.succeed(job); } }`},
+		{"catchTag simplifies succeed object", 4835, `error Gone
+function fail() { throw new Gone() }
+export function recover() { return Effect.catchTag(fail(), "Gone", () => Effect.succeed({ ok: true })) }`, `error Gone
+function fail() { throw new Gone() }
+export function recover() { return fail() catch (e) => match (e) { when Gone: ({ ok: true }); } }`},
+		{"catch fallback simplifies conditional succeed", 4835, `error Gone
+function fail() { throw new Gone() }
+export function recover(flag: boolean) { return Effect.catch(fail(), () => Effect.succeed(flag ? 1 : 2)) }`, `error Gone
+function fail() { throw new Gone() }
+export function recover(flag: boolean) { return fail() catch (flag ? 1 : 2) }`},
 		{"catchTag of a declared error", 4835, "error Gone { id: number }\nfunction find(id: number): string!Gone { throw new Gone({ id }) }\nexport function describe(id: number) { return Effect.catchTag(find(id), \"Gone\", (e) => `gone ${e.id}`) }", "error Gone { id: number }\nfunction find(id: number): string!Gone { throw new Gone({ id }) }\nexport function describe(id: number) { return find(id) catch (e) => match (e) { when Gone: `gone ${e.id}`; } }"},
 		{"catchTags", 4835, "error Gone\nerror Slow\nfunction find(id: number): string!Gone | Slow { if (id < 0) throw new Slow(); throw new Gone() }\nexport function both(id: number) { return Effect.catchTags(find(id), { Gone: () => \"gone\", Slow: () => \"slow\" }) }", "error Gone\nerror Slow\nfunction find(id: number): string!Gone | Slow { if (id < 0) throw new Slow(); throw new Gone() }\nexport function both(id: number) { return find(id) catch (e) => match (e) { when Gone: \"gone\"; when Slow: \"slow\"; } }"},
 		{"catchTag of a structural tag", 4835, "class Tagged { readonly _tag = \"Tagged\" as const }\nfunction fail(): string!Tagged { throw new Tagged() }\nexport function recover() { return Effect.catchTag(fail(), \"Tagged\", () => \"ok\") }", "class Tagged { readonly _tag = \"Tagged\" as const }\nfunction fail(): string!Tagged { throw new Tagged() }\nexport function recover() { return fail() catch (e) => match (e) { when { _tag: \"Tagged\" }: \"ok\"; } }"},

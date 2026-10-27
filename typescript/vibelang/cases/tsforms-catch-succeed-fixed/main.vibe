@@ -1,0 +1,4 @@
+// expect-result: 1
+error Missing { id: string }
+function g() { throw new Missing({ id: "x" }) }
+export function main() { return g() catch (e) => match (e) { when Missing: 1; } }
