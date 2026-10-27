@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import { test } from "node:test"
 const read = path => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8")
 
@@ -70,4 +70,14 @@ test("framework recipes retain VibeLang checking and run Effects before renderin
 test("declaration consumers have an explicit stock TypeScript compatibility floor", () => {
   const text = read("docs/user/src/getting-started/004-installation.md")
   for (const part of ["TypeScript 5.7 or later", "effect@4.0.6", "Uint8Array<ArrayBuffer>", "consumer requirement", "skipLibCheck"]) assert.ok(text.includes(part), part)
+})
+
+test("every EK code the skill names is one the compiler reports", () => {
+  const dir = "typescript/tsc/internal/vibelang"
+  const sources = readdirSync(new URL(`../../${dir}`, import.meta.url)).filter(name => name.endsWith(".go") && !name.endsWith("_test.go"))
+  const codes = new Set(sources.flatMap(name => [...read(`${dir}/${name}`).matchAll(/\bmessage\((\d{4}),/g)].map(m => `EK${m[1]}`)))
+  assert.ok(codes.has("EK2001") && codes.has("EK4801") && codes.has("EK4836"), "the registry scan found the compiler's codes")
+  const named = [...read("packages/compiler/skills/vibelang/SKILL.md").matchAll(/\bEK\d{4}\b/g)].map(m => m[0])
+  assert.ok(named.length > 20)
+  assert.deepEqual(named.filter(code => !codes.has(code)), [])
 })

@@ -5,7 +5,7 @@ description: Write, edit or review VibeLang (.vibe files), Effect programs in Ty
 
 # VibeLang
 
-A `.vibe` file is TypeScript in which every function is an Effect. Read and write it as Effect code; that reading is never wrong. `vibelang` (a TypeScript 7 compiler) checks `.vibe` and `.ts` files together and emits JavaScript and declarations. `EK1234` is a VibeLang diagnostic. Pages named below are routes on https://vibelang.sh.
+A `.vibe` file is TypeScript in which every function is an Effect. Read and write it as Effect code; that reading is never wrong. `vibelang` (a TypeScript 7 compiler) checks `.vibe` and `.ts` files together and emits JavaScript and declarations. `EK2001` is a VibeLang diagnostic. Pages named below are routes on https://vibelang.sh.
 
 ## The model
 
