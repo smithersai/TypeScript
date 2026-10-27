@@ -38,7 +38,7 @@ Precisely, E is the type of every expected failure a cause can hold. A defect be
 | `User!NotFound` on a function with a body | `Effect<User, NotFound, infer R>`: R comes from the body |
 | `User!NotFound` without a body | `Effect<User, NotFound, never>` |
 
-An empty slot is `never`. Dependencies left out entirely are inferred on a function with a body and `never` everywhere else. Unions and intersections bind inside a slot, as do postfix `[]`, indexed access, and the prefix operators `keyof` and `typeof`. A slot's type starts on the same line as its `!`. An object type after a `!` needs parentheses: a `{` there starts the function's body, so `User!NotFound! { ... }` has no dependencies.
+An empty slot is `never`. Dependencies left out entirely are inferred on a function with a body and `never` everywhere else. Unions and intersections bind inside a slot, as do postfix `[]`, indexed access, and the prefix operators `keyof` and `typeof`, so `User!NotFound | Timeout!Db` fails with `NotFound | Timeout`. A slot's type starts on the same line as its `!`. An object type after a `!` needs parentheses: a `{` there starts the function's body, so `User!NotFound! { ... }` has no dependencies.
 
 Function and conditional types keep their TypeScript structure within a slot. A `!` after a function's return type belongs to that return type. A conditional after a slot's type belongs to that slot. Parentheses delimit a slot that contains a function, conditional, or Effect type, or make the whole contract the subject of an outer type operator:
 
@@ -54,7 +54,8 @@ Function and conditional types keep their TypeScript structure within a slot. A 
 
 Hovers and messages about `.vibe` code show contracts in the `!` form. Declaration files keep `Effect.Effect<A, E, R>`, so TypeScript callers are unaffected.
 
-`Effect<A, E, R>` is accepted everywhere too, including `infer` slots (D57), and means what it means in TypeScript: a type argument left out is `never`, so `Effect<User>` is `User!!` and `Effect<User, NotFound>` is `User!NotFound!` (D308, D309). With all channels written, the two spellings mean the same type. This specification and the guides write the `!` form. Omitted channels can differ: `User!NotFound` on a function with a body infers R, while `Effect<User, NotFound>` checks it as `never`.
+
+`Effect<A, E, R>` is accepted everywhere too, including `infer` slots (D57), and means what it means in TypeScript: a type argument left out is `never`, so `Effect<User>` is `User!!` and `Effect<User, NotFound>` is `User!NotFound!` (D308, D309). The two spellings name the same type wherever every channel is written, and this specification and the guides write the `!` form. They differ in one place, by a visible token: `User!NotFound`, with its last `!` and R left out, on a function with a body infers R, while `Effect<User, NotFound>` checks R as `never`, as does `User!NotFound!` (D335).
 
 #### Checking a written contract
 
@@ -81,7 +82,7 @@ error EK2002: welcome needs Mailer, but its contract says R = Users.
 | Requirements | Every requirement that remains must be in R | EK2002 |
 | Width | A contract may be wider than the body needs, never narrower | EK2001, EK2002 |
 
-A call to a function with a complete written contract contributes that contract's E and R, even when the body needs less (D73).
+A call contributes its callee's contract as declared. Each channel a contract writes is what callers see, even when the body needs less, and each channel it leaves to inference is what the body needs (D73, D335). So callers of `function find(id: string): User!NotFound { … }` see E = `NotFound` and the body's R.
 
 The contract has exactly three channels. Whether a function can pause is a separate fact the compiler tracks, its control class (Chapter 15).
 
@@ -183,7 +184,7 @@ function visitEntry(path: string) {
 
 Checked once in source order, `visitDir` meets `visitEntry` before `visitEntry` has a contract and misses `Locked`; the recheck adds it. The prototype compiler reaches the same contracts by re-checking the whole program (`prototype/esc/FINDINGS.md`). The single-pass experiment found this case, in its `isEven` and `isOdd` probe, the only one needing a second check (`prototype/single-pass/RESULTS.md`). A follows TypeScript's rule: when A depends on the function's own result, the contract must be written (EK2102).
 
-A contract may write A and leave E or R to the fixpoint, as `number!Neg` leaves R (D57). A call of the function in its own body that stands for its value, such as an arithmetic or comparison operand, a condition, a receiver, an index or an unannotated initializer, has type A while the fixpoint runs:
+A contract may write A and leave E or R to the fixpoint, as `number!Neg` leaves R (D57). A call of the function in its own body runs, as every call does (Chapter 13), so it has type A while the fixpoint runs:
 
 ```ts es
 function fact(n: number): number!Neg {
@@ -194,6 +195,6 @@ function fact(n: number): number!Neg {
 // number!Neg!never
 ```
 
-Where a call of itself could hold the program instead, as an argument or a logical operand can, or where the function is generic, TypeScript needs the contract before the fixpoint has its channels, so the contract must write every channel; EK2102's note gives it, such as `number!Neg!Audit`.
+Where the function is generic, TypeScript needs the contract before the fixpoint has its channels, so the contract must write every channel; EK2102's note gives it, such as `number!Neg!Audit`.
 
 EK2102 applies to functions that run Effects. Pure recursion keeps TypeScript's TS7023 when its return type depends on itself; a plain annotation fixes it (D72). The current checker also needs contracts in some cached-type cycles that the fixpoint model alone would solve. A cycle through a callback uses the checker's single type for that call, and generic-call inference does not fill `infer` channels in a lambda (F3's known gaps).

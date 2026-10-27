@@ -16,7 +16,20 @@ const sizes = mapAll(words, (w) => w.length)             // number[]!!
 
 `f`'s type says nothing about errors or services, so `mapAll` passes through whatever its callback does: a missing contract on a callback parameter means "inferred from each call's argument", never "cannot fail, needs nothing". To restrict a callback, write its contract: `f: (a: A) => B!!`. D12 stands alongside D57: `infer` selects inferred channels in the return annotation of a function with a body, but introduces no inference in parameter types or aliases. In a callback parameter, `(a: A) => Effect<B>` keeps TypeScript's defaults, meaning `(a: A) => Effect<B, never, never>`, while `(a: A) => B` accepts any contract.
 
-The rule also covers declarations, methods, and function expressions that are not call arguments. Added channel parameters are named E and R, then E2 and R2 for another callback (D68), and default to `never`, so a call that omits an optional callback adds no failure and needs nothing. An optional call, `f?.(a)`, runs the callback when it is present, as `f(a)` does. A contract-less callback cannot be called inside a synchronous JavaScript callback such as a `sort` comparator, or passed on as one, as in `xs.find(p)`: it can pause and has no plain form, so either is EK4301. Call it in a `for...of` loop instead, or give the parameter a named function type, such as a type alias or `Predicate.Predicate<T>`: only a function type written in place gains a contract, so a named one keeps TypeScript's meaning and takes plain functions.
+The rule also covers declarations, methods, and function expressions that are not call arguments. Added channel parameters are named E and R, then E2 and R2 for another callback (D68), and default to `never`, so a call that omits an optional callback adds no failure and needs nothing. An optional call, `f?.(a)`, runs the callback when it is present, as `f(a)` does.
+
+The rule follows the language a function type is written in, not how it is spelled (D331). A function type written in a `.vibe` file gains the channels, whether it is written in place or through a type alias or an interface that a `.vibe` file declares: an alias means what the type it names means, so extracting one changes nothing.
+
+```ts es
+type Visit = (node: Node) => void
+
+function walkAll(nodes: ReadonlyArray<Node>, visit: Visit) {
+  for (const node of nodes) visit(node)
+}
+// <E, R>(nodes: ReadonlyArray<Node>, visit: (node: Node) => void!E!R) => void!E!R
+```
+
+A function type that TypeScript declares, in a `.ts` file, a library, or a `module` declaration (D283), keeps TypeScript's meaning wherever it is used: a plain function. `Predicate.Predicate<T>` and `LazyArg<A>` are such types. A contract-less callback can pause and has no plain form, so it cannot be called inside a synchronous JavaScript callback such as a `sort` comparator, or passed on as one, as in `xs.find(p)`: either is EK4301. Call it in a `for...of` loop instead, or give the parameter a plain function type that TypeScript declares, such as `Predicate.Predicate<T>`.
 
 The declaration file writes the polymorphism out, as the comment shows, so a TypeScript caller passes a callback returning an `Effect` and wraps a plain one: `mapAll(words, (w) => Effect.succeed(w.length))`.
 
@@ -39,8 +52,8 @@ A control operation must be handled on the fiber that performs it (Chapter 9), s
 
 ```ts es
 try {
-  retry(Approval.approve("a"), Schedule.recurs(2))     // same fiber: reaches the handler
-  timeout(Approval.approve("b"), "1 second")           // other fiber: EK4201
+  retry(() => Approval.approve("a"), Schedule.recurs(2))     // same fiber: reaches the handler
+  timeout(() => Approval.approve("b"), "1 second")           // other fiber: EK4201
 } handle Approval.approve(_request) {
   resume(true)
 }
