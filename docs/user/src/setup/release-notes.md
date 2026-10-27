@@ -117,6 +117,10 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
   operand or a conditional's condition: `x ?? throw c ? a : b` is
   `(x ?? throw c) ? a : b` and throws only `c`. Write
   `x ?? throw (c ? a : b)`.
+- EK2118 now also reports a subclass that declares fields and no
+  constructor when its base's constructor takes a string, a number, a
+  boolean or a list, rather than one object of fields; before, the first
+  `new` of the subclass was TS2345.
 
 ## 0.0.10
 

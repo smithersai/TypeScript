@@ -1,0 +1,38 @@
+// expect: EK2118 TS2345
+// A subclass that declares fields and no constructor passes them to its
+// base's constructor as one object; these bases take a string, a number or
+// a list instead (D278).
+error Base {
+  _tag: string
+  code: number
+
+  constructor(raw: string) {
+    super({ code: raw.length })
+  }
+}
+
+export error Sub extends Base { path: string }
+
+export function main() { return new Sub({ code: 1, path: "x" }) }
+
+error Counted {
+  _tag: string
+  code: number
+
+  constructor(code: number | boolean) {
+    super({ code: Number(code) })
+  }
+}
+
+export error CountedSub extends Counted { extra: number }
+
+error Listed {
+  _tag: string
+  code: number
+
+  constructor(parts: ReadonlyArray<string>) {
+    super({ code: parts.length })
+  }
+}
+
+export error ListedSub extends Listed { extra: number }

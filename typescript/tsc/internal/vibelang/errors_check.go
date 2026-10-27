@@ -262,8 +262,8 @@ func errorTagField(class *ast.Node, form errorForm) *ast.Node {
 }
 
 // checkErrorConstructor reports EK2118 when the constructor that the parser
-// writes for a subclass with fields takes never: its base's constructor does
-// not take one object of fields.
+// writes for a subclass with fields shows that its base's constructor does
+// not take one object of fields (takesNoFieldObject).
 func checkErrorConstructor(c *checker.Checker, class *ast.Node, baseName string) {
 	for _, member := range class.Members() {
 		if !ast.IsConstructorDeclaration(member) || member.Flags&ast.NodeFlagsReparsed == 0 {
@@ -273,13 +273,34 @@ func checkErrorConstructor(c *checker.Checker, class *ast.Node, baseName string)
 		if len(parameters) != 1 || parameters[0].Type() == nil {
 			return
 		}
-		if t := c.GetTypeFromTypeNode(parameters[0].Type()); t != nil && t.Flags()&checker.TypeFlagsNever != 0 {
+		if t := c.GetTypeFromTypeNode(parameters[0].Type()); t != nil && takesNoFieldObject(c, t) {
 			d := report(c, class.Name(), EK2118, class.Name().Text(), baseName)
 			note(d, "Write a constructor for {0} that calls super with what {1} takes and sets the fields.", class.Name().Text(), baseName)
 			cover(c, class.Name())
 		}
 		return
 	}
+}
+
+// takesNoFieldObject reports whether t, the parameter type that the parser
+// writes for a subclass's constructor, $ErrorArgs<typeof Base, Pick<Sub, ...>>,
+// shows that the base's constructor takes no object of fields: never when it
+// takes other arguments, and an intersection with a primitive or an array
+// when it takes one of those, as string & Pick<Sub, "path"> does for
+// constructor(raw: string). A base that takes one of several types gives a
+// union, which shows it when every member does.
+func takesNoFieldObject(c *checker.Checker, t *checker.Type) bool {
+	switch {
+	case t.Flags()&checker.TypeFlagsNever != 0:
+		return true
+	case t.Flags()&checker.TypeFlagsUnion != 0:
+		return !slices.ContainsFunc(t.Types(), func(member *checker.Type) bool { return !takesNoFieldObject(c, member) })
+	case t.Flags()&checker.TypeFlagsIntersection != 0:
+		return slices.ContainsFunc(t.Types(), func(part *checker.Type) bool {
+			return part.Flags()&checker.TypeFlagsPrimitive != 0 || c.IsArrayLikeType(part)
+		})
+	}
+	return false
 }
 
 // isSchemaErrorFields reports whether node is the object of field schemas
