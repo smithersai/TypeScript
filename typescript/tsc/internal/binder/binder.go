@@ -1175,7 +1175,11 @@ func (b *Binder) bindVariableDeclarationOrBindingElement(node *ast.Node) {
 		switch {
 		case ast.IsVariableDeclarationInitializedToRequire(node):
 			b.declareSymbolAndAddToSymbolTable(node, ast.SymbolFlagsAlias, ast.SymbolFlagsAliasExcludes)
-		case ast.IsBlockOrCatchScoped(node):
+		case ast.IsBlockOrCatchScoped(node) && !ast.IsPartOfParameterDeclaration(node):
+			// A parameter's bindings stay parameters. VibeLang marks the
+			// parameter that holds a for concurrent loop's const binding
+			// const (parser/vibelang_fibers.go): its names are constants,
+			// not block-scoped variables.
 			b.bindBlockScopedDeclaration(node, ast.SymbolFlagsBlockScopedVariable, ast.SymbolFlagsBlockScopedVariableExcludes)
 		case ast.IsPartOfParameterDeclaration(node):
 			// It is safe to walk up parent chain to find whether the node is a destructuring parameter declaration

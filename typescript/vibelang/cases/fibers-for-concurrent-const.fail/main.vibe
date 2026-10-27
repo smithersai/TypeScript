@@ -1,0 +1,23 @@
+// expect: TS2588 TS2588 TS2588
+// A for concurrent loop's head declares its binding as a for...of loop's
+// does (D169): a const binding, destructured or not, cannot be assigned, and
+// a let binding can.
+export function main() {
+  for concurrent(1) (const n of [1, 2]) {
+    n = 99
+  }
+  for concurrent(1) (const { value } of [{ value: 1 }]) {
+    value = 2
+  }
+  for concurrent(1) (const [first] of [[1]]) {
+    first = 3
+  }
+  for concurrent(1) (let n of [1, 2]) {
+    n = n + 1
+    Console.log(n)
+  }
+  for concurrent(1) (let { value = 0 } of [{ value: 1 }]) {
+    value = value + 1
+    Console.log(value)
+  }
+}

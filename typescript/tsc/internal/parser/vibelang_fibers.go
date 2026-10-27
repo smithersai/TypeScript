@@ -463,6 +463,10 @@ func (p *Parser) parseVibeLangConcurrentFor(pos int) *ast.Node {
 	forKeyword := scanner.SkipTrivia(p.sourceText, pos)
 	p.recordVibeSyntax(VibeSyntax{Kind: VibeSyntaxForConcurrent, Word: core.NewTextRange(forKeyword, forKeyword+len("for")), Head: core.NewTextRange(anchor.Pos(), p.nodePos()), Range: core.NewTextRange(forKeyword, p.nodePos())})
 	p.parseExpected(ast.KindOpenParenToken)
+	declarationKind := ast.NodeFlagsConst
+	if p.token == ast.KindLetKeyword {
+		declarationKind = ast.NodeFlagsLet
+	}
 	if p.token == ast.KindConstKeyword || p.token == ast.KindLetKeyword {
 		p.nextToken()
 	} else {
@@ -483,6 +487,10 @@ func (p *Parser) parseVibeLangConcurrentFor(pos int) *ast.Node {
 	}
 	p.rewriteConcurrentJumps(body, false /*inSwitch*/)
 	parameter := p.vibelangSpanning(p.factory.NewParameterDeclaration(nil, nil, binding, nil, nil, nil), binding.Loc)
+	// The item's binding keeps the kind its head declares: a const binding,
+	// destructured or not, is a constant, so assigning it is TS2588, as in
+	// a for...of loop.
+	parameter.Flags |= declarationKind & ast.NodeFlagsConst
 	arrow := p.vibelangProgramArrow([]*ast.Node{parameter}, body, ofKeyword)
 	arrow.Flags |= ast.NodeFlagsVibeLang // a for concurrent body (fibers.go)
 	if limit == nil {
