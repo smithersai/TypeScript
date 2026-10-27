@@ -265,6 +265,12 @@ func errorTagField(class *ast.Node, form errorForm) *ast.Node {
 // writes for a subclass with fields shows that its base's constructor does
 // not take one object of fields (takesNoFieldObject).
 func checkErrorConstructor(c *checker.Checker, class *ast.Node, baseName string) {
+	if _, base := errorFormOf(class); fieldlessGeneratedErrorBase(c, base) {
+		// The lowering calls super() and assigns the subclass fields. Only the
+		// parser-written super(args) has this argument diagnostic.
+		cover(c, class.Name())
+		return
+	}
 	for _, member := range class.Members() {
 		if !ast.IsConstructorDeclaration(member) || member.Flags&ast.NodeFlagsReparsed == 0 {
 			continue
@@ -326,4 +332,44 @@ func checkSchemaErrorFields(c *checker.Checker, file *ast.SourceFile, fields *as
 		}
 		checkSchemaValue(c, file, value, fields)
 	}
+}
+
+// fieldlessGeneratedErrorBase recognizes only a root error with no field
+// object and no written constructor, including bases imported from .vibe.
+// A written constructor remains the owner's decision (EK2118).
+func fieldlessGeneratedErrorBase(c *checker.Checker, base *ast.Node) bool {
+	if base == nil {
+		return false
+	}
+	symbol := c.GetSymbolAtLocation(base)
+	if symbol == nil {
+		return false
+	}
+	if symbol.Flags()&ast.SymbolFlagsAlias != 0 {
+		symbol = c.GetAliasedSymbol(symbol)
+	}
+	if symbol == nil {
+		return false
+	}
+	for _, decl := range symbol.Declarations() {
+		form, _ := errorFormOf(decl)
+		if form != errorFormRoot {
+			continue
+		}
+		for _, member := range decl.Members() {
+			if ast.IsConstructorDeclaration(member) {
+				return false
+			}
+		}
+		fields := ast.GetClassExtendsHeritageElement(decl).TypeArguments()
+		if len(fields) == 1 && ast.IsTypeLiteralNode(fields[0]) {
+			for _, field := range fields[0].Members() {
+				if field.Name() == nil || field.Name().Text() != "_tag" {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	return false
 }

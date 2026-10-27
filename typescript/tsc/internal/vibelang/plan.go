@@ -13,13 +13,14 @@ const effectTypeID = "~effect/Effect"
 
 // plan records what the lowering does to one .vibe file.
 type plan struct {
-	effects      map[*ast.Node]bool       // functions lowered to Effect.fnUntraced generators
-	programs     map[*ast.Node]bool       // lambdas lowered to Effect.gen programs (design D7)
-	runs         map[*ast.Node]bool       // calls in those functions emitted as yield*
-	heldPrograms map[*ast.Node]bool       // held values in by-name result positions
-	returns      map[*ast.Node]bool       // returned Effect subtypes executed at an Effect return boundary
-	converts     map[*ast.Node]conversion // function values converted where they are passed
-	prelude      []string                 // prelude names the file uses as values (prelude.go)
+	fieldlessErrorConstructors map[*ast.Node]bool
+	effects                    map[*ast.Node]bool       // functions lowered to Effect.fnUntraced generators
+	programs                   map[*ast.Node]bool       // lambdas lowered to Effect.gen programs (design D7)
+	runs                       map[*ast.Node]bool       // calls in those functions emitted as yield*
+	heldPrograms               map[*ast.Node]bool       // held values in by-name result positions
+	returns                    map[*ast.Node]bool       // returned Effect subtypes executed at an Effect return boundary
+	converts                   map[*ast.Node]conversion // function values converted where they are passed
+	prelude                    []string                 // prelude names the file uses as values (prelude.go)
 	servicePlan
 	plainPlan
 	trustedPlan
@@ -51,6 +52,7 @@ func (p *plan) conversionOf(node *ast.Node) conversion { return p.converts[node]
 func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 	p := &plan{effects: map[*ast.Node]bool{}, programs: map[*ast.Node]bool{}, runs: map[*ast.Node]bool{}, heldPrograms: map[*ast.Node]bool{}, converts: map[*ast.Node]conversion{}, servicePlan: newServicePlan(), plainPlan: newPlainPlan(), trustedPlan: newTrustedPlan(), tracingPlan: newTracingPlan(), scopePlan: newScopePlan()}
 	p.returns = map[*ast.Node]bool{}
+	p.fieldlessErrorConstructors = map[*ast.Node]bool{}
 	p.handlerPlan = newHandlerPlan()
 	p.hatches = map[*ast.Node]hatchForm{}
 	p.failureTags = map[*ast.Node][]string{}
@@ -71,6 +73,13 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 		a := analyzerFor(c)
 		var visit func(node *ast.Node) bool
 		visit = func(node *ast.Node) bool {
+			if form, base := errorFormOf(node); form == errorFormSubclass && fieldlessGeneratedErrorBase(c, base) {
+				for _, member := range node.Members() {
+					if ast.IsConstructorDeclaration(member) && member.Flags&ast.NodeFlagsReparsed != 0 {
+						p.fieldlessErrorConstructors[member] = true
+					}
+				}
+			}
 			if isLowerable(node) && (a.isEffect(node) || a.onPlainCycle(node)) {
 				if isLambda(node) && a.finalForm(node) == formProgram {
 					p.programs[node] = true

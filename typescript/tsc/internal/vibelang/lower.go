@@ -152,6 +152,27 @@ func (tx *lowering) visitSource(node *ast.Node) *ast.Node {
 
 func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 	switch {
+	case tx.plan.fieldlessErrorConstructors[node]:
+		f := tx.Factory()
+		super := f.NewExpressionStatement(f.NewCallExpression(f.NewKeywordExpression(ast.KindSuperKeyword), nil, nil, f.NewNodeList(nil), ast.NodeFlagsNone))
+		statements := []*ast.Node{super}
+		// The parser's Pick<Sub, "field" | ...> names exactly the declared
+		// input fields. Do not copy extra properties such as _tag from an
+		// otherwise assignable fields object.
+		keys := node.Parameters()[0].Type().TypeArguments()[1].TypeArguments()[1]
+		fields := []*ast.Node{keys}
+		if keys.Kind == ast.KindUnionType {
+			fields = keys.AsUnionTypeNode().Types.Nodes
+		}
+		for _, field := range fields {
+			name := field.AsLiteralTypeNode().Literal.Text()
+			target := f.NewElementAccessExpression(f.NewThisExpression(), nil, f.NewStringLiteral(name, ast.TokenFlagsNone), ast.NodeFlagsNone)
+			value := f.NewElementAccessExpression(f.NewIdentifier("args"), nil, f.NewStringLiteral(name, ast.TokenFlagsNone), ast.NodeFlagsNone)
+			statements = append(statements, f.NewExpressionStatement(f.NewBinaryExpression(nil, target, nil, f.NewToken(ast.KindEqualsToken), value)))
+		}
+		result := f.UpdateConstructorDeclaration(node.AsConstructorDeclaration(), node.Modifiers(), nil, node.AsConstructorDeclaration().Parameters, nil, nil, f.NewBlock(f.NewNodeList(statements), true))
+		tx.EmitContext().SetOriginal(result, node)
+		return result
 	case tx.plan.unreachable[node]:
 		return nil // the $noMatch of a match D209 proves exhaustive (D294, match_lower.go)
 	case tx.plan.untested[node]:
