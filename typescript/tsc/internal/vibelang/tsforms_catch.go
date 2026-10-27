@@ -21,11 +21,8 @@ import (
 // Effect.catchTag(self, "Tag", handler) and Effect.catchTags(self, { Tag:
 // handler, … }) become one arm per tag and rethrow only unhandled failures. An arm
 // tests the failure's _tag with an object pattern, { _tag: "Tag" }, which is
-// what catchTag tests; when the failures of that tag are the instances of one
-// error class the file names, whose declaration fixes the tag (an error
-// declaration, or a class extending TaggedError or Schema.TaggedError with
-// that tag), and no other failure extends it, the arm names the class
-// instead, as idiomatic VibeLang does. Effect.catch(self, handler) becomes
+// what catchTag tests. Static class types are structural and do not prove a
+// runtime prototype. Effect.catch(self, handler) becomes
 // the catch expression with the handler. The left side runs inside the catch
 // as the program argument did (D147); an Effect value is called to run it.
 // A handler must be an arrow function with at most one plain parameter and an
@@ -275,7 +272,7 @@ func catchCombinatorRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.
 		}
 		var arms []string
 		for i, tag := range tags {
-			pattern, ok := catchPattern(c, call, failures, tag)
+			pattern, ok := catchPattern(c, failures, tag)
 			if !ok {
 				return nil
 			}
@@ -401,85 +398,15 @@ func catchFailures(c *checker.Checker, call *ast.Node) []*checker.Type {
 	return failures
 }
 
-// catchPattern returns the match pattern that tests a failure for tag: the
-// name of the one error class whose instances carry it, or { _tag: "tag" }.
-func catchPattern(c *checker.Checker, at *ast.Node, failures []*checker.Type, tag string) (string, bool) {
-	var tagged, others []*checker.Type
+// catchPattern keeps catchTag's structural predicate, including for values
+// whose static type names an error class but whose prototype does not.
+func catchPattern(c *checker.Checker, failures []*checker.Type, tag string) (string, bool) {
 	for _, failure := range failures {
 		if literal := c.GetTypeOfPropertyOfType(failure, "_tag"); literal != nil && literal.IsStringLiteral() && literal.AsLiteralType().Value() == tag {
-			tagged = append(tagged, failure)
-		} else {
-			others = append(others, failure)
+			return "{ _tag: " + strconv.Quote(tag) + " }", true
 		}
 	}
-	if len(tagged) == 0 {
-		return "", false // catchTag of a tag the program cannot fail with
-	}
-	object := "{ _tag: " + strconv.Quote(tag) + " }"
-	symbol := tagged[0].Symbol()
-	if symbol == nil || slices.ContainsFunc(tagged[1:], func(t *checker.Type) bool { return t.Symbol() != symbol }) {
-		return object, true
-	}
-	class := symbol.ValueDeclaration()
-	if class == nil || !ast.IsClassDeclaration(class) || class.Name() == nil || declaredErrorTag(c, class) != tag {
-		return object, true
-	}
-	for _, other := range others {
-		if derivesFrom(c, other, symbol) {
-			return object, true
-		}
-	}
-	name := class.Name().Text()
-	resolved := c.ResolveName(name, at, ast.SymbolFlagsValue, false)
-	if resolved != nil && resolved.Flags()&ast.SymbolFlagsAlias != 0 {
-		resolved = c.GetAliasedSymbol(resolved)
-	}
-	if resolved != symbol {
-		return object, true
-	}
-	return name, true
-}
-
-// declaredErrorTag returns the tag that class's declaration gives every
-// instance: an error declaration's name, or the literal tag of the
-// TaggedError or Schema.TaggedError it extends; or "".
-func declaredErrorTag(c *checker.Checker, class *ast.Node) string {
-	extends := ast.GetClassExtendsHeritageElement(class)
-	if extends == nil || !ast.IsCallExpression(extends.Expression()) {
-		return ""
-	}
-	call := extends.Expression()
-	if call.Expression().Flags&ast.NodeFlagsReparsed != 0 && ast.IsIdentifier(call.Expression()) && call.Expression().Text() == "TaggedError" {
-		return class.Name().Text() // an error declaration
-	}
-	parts := errorClassOf(c, ast.GetSourceFileOfNode(class), class)
-	if (parts.base == taggedErrorBase || parts.base == schemaErrorBase) && parts.tag != nil && ast.IsStringLiteralLike(parts.tag) {
-		return parts.tag.Text()
-	}
-	return ""
-}
-
-// derivesFrom reports whether t is an instance of a class that extends the
-// class base declares.
-func derivesFrom(c *checker.Checker, t *checker.Type, base *ast.Symbol) bool {
-	seen := map[*checker.Type]bool{}
-	var walk func(t *checker.Type) bool
-	walk = func(t *checker.Type) bool {
-		if t == nil || seen[t] || t.Flags()&checker.TypeFlagsObject == 0 {
-			return false
-		}
-		seen[t] = true
-		if t.Symbol() == base {
-			return true
-		}
-		for _, b := range c.GetBaseTypes(t) {
-			if walk(b) {
-				return true
-			}
-		}
-		return false
-	}
-	return walk(t)
+	return "", false
 }
 
 // catchNeedsParentheses reports whether a catch expression that replaces call

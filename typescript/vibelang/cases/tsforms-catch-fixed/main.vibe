@@ -1,8 +1,8 @@
 // expect-result: {"described":["Ada","missing 0"],"both":["missing","slow"],"any":"failed Timeout","nested":"to","tagged":"by tag","plain":"plain"}
 // Effect's catch combinators draw EK4835 (D289); the fix writes a catch
-// expression with one arm per tag. An arm names the error class when the
-// class's declaration fixes the tag, and tests _tag otherwise, as catchTag
-// does. tsforms-catch-fixed is what vibelang --fix writes.
+// expression with one arm per tag. Each arm tests _tag structurally,
+// including when a static type names an error class, as catchTag does.
+// tsforms-catch-fixed is what vibelang --fix writes.
 error Missing { id: number }
 error Timeout
 
@@ -21,11 +21,14 @@ function tagged(): string!Tagged {
 }
 
 function describe(id: number) {
-  return find(id) catch (e) => match (e) { when Missing: `missing ${e.id}`; default: throw e; }
+  return find(id) catch (e) => match (e) { when { _tag: "Missing" }: `missing ${e.id}`; default: throw e; }
 }
 
 function both(id: number) {
-  return find(id) catch (e) => match (e) { when Missing: "missing"; when Timeout: "slow"; }
+  return find(id) catch (e) => match (e) {
+    when { _tag: "Missing" }: "missing";
+    when { _tag: "Timeout" }: "slow";
+  }
 }
 
 function any(id: number) {
@@ -33,8 +36,8 @@ function any(id: number) {
 }
 
 function nested(id: number) {
-  return (find(id) catch (e) => match (e) { when Missing: "nf"; default: throw e; }) catch (e) => match (e) {
-    when Timeout: "to";
+  return (find(id) catch (e) => match (e) { when { _tag: "Missing" }: "nf"; default: throw e; }) catch (e) => match (e) {
+    when { _tag: "Timeout" }: "to";
   }
 }
 
