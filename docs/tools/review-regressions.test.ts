@@ -34,3 +34,8 @@ test("process exit replacements clarify status codes beside the compiler-backed 
   expect(note).toMatch(/return 3.*still exits 0/)
   expect(note).toMatch(/Return normally for exit 0,[\s\S]*fail for exit 1,[\s\S]*interrupt for exit 130/)
 })
+
+test("the contributor compiler-semantics command installs runtime dependencies first", () => {
+  const row = read("CONTRIBUTING.md").split("\n").find(line => line.startsWith("| Compiler semantics |")) || ""
+  expect(row).toMatch(/cd packages\/runtime && bun install.*cd typescript && sh vibelang\/smoke\.sh/)
+})

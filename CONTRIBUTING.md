@@ -52,7 +52,7 @@ The compiler cases and the doc snippet check also need the pinned packages in `e
 | Change | Check |
 | --- | --- |
 | Install, compiler, runtime or starter | `sh scripts/e2e.sh` |
-| Compiler semantics | `(cd typescript && sh vibelang/smoke.sh)` |
+| Compiler semantics | `(cd packages/runtime && bun install) && (cd typescript && sh vibelang/smoke.sh --jobs 8)` |
 | Compiler package | `(cd packages/compiler && node --test test/*.test.mjs)` |
 | Doc code blocks | `bun docs/tools/check-snippets.ts` |
 | Examples | `sh scripts/check-examples.sh` |
@@ -90,4 +90,4 @@ Start with [good first issues](https://github.com/smithersai/vibelang/issues?q=i
 
 Ask with the [question form](https://github.com/smithersai/vibelang/issues/new?template=question.yml). Report a vulnerability privately, never in an issue: see [SECURITY.md](.github/SECURITY.md).
 
-<sub>2,323 tokens (o200k_base, js-tiktoken 1.0.21), counted by the [docs flow](.smithers/flows/docs/flow.ts).</sub>
+<sub>2,336 tokens (o200k_base, js-tiktoken 1.0.21), counted by the [docs flow](.smithers/flows/docs/flow.ts).</sub>

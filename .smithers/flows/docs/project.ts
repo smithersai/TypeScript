@@ -44,7 +44,7 @@ export const layout: readonly (readonly [path: string, responsibility: string])[
 
 export const tests: readonly (readonly [change: string, command: string])[] = [
   ["Install, compiler, runtime or starter", "`{{e2e}}`"],
-  ["Compiler semantics", "`(cd typescript && sh vibelang/smoke.sh)`"],
+  ["Compiler semantics", "`(cd packages/runtime && bun install) && (cd typescript && sh vibelang/smoke.sh --jobs 8)`"],
   ["Compiler package", "`(cd packages/compiler && node --test test/*.test.mjs)`"],
   ["Doc code blocks", "`bun docs/tools/check-snippets.ts`"],
   ["Examples", "`sh scripts/check-examples.sh`"],
