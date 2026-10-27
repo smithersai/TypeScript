@@ -670,6 +670,10 @@ export const sidebar = [
           {
             "text": "Terminal",
             "link": "/platform/110-terminal"
+          },
+          {
+            "text": "Platform globals in VibeLang",
+            "link": "/platform/platform-globals"
           }
         ]
       }

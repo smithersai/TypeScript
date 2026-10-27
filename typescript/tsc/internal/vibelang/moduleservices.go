@@ -28,8 +28,9 @@ import (
 // other member the module lacks is read from the export. The rule holds for
 // every Effect module the file reaches by its own name: through the prelude
 // (D146, D310), as a module of a namespace the prelude supplies
-// (Experimental.FileSystem), or through an import from effect
-// (import { Prompt } from "effect/ai"). It reads the declarations, not a list.
+// (Experimental.FileSystem), or through an import from effect or an @effect
+// package (import { Prompt } from "effect/ai", import { Clipboard } from
+// "@effect/platform-browser"). It reads the declarations, not a list.
 //
 // The lowering writes the export where the source wrote the module, and a
 // declaration file writes the type Option as Option.Option, which stock
@@ -159,7 +160,7 @@ func moduleAliasReached(c *checker.Checker, name *ast.Node, meaning ast.SymbolFl
 }
 
 // isEffectImport reports whether symbol is a binding that an import from
-// effect or one of its modules declares.
+// effect, one of its modules, or one of Effect's @effect packages declares.
 func isEffectImport(symbol *ast.Symbol) bool {
 	if symbol.Flags()&ast.SymbolFlagsAlias == 0 {
 		return false
@@ -168,7 +169,7 @@ func isEffectImport(symbol *ast.Symbol) bool {
 		for node := declaration; node != nil; node = node.Parent {
 			if ast.IsImportDeclaration(node) {
 				specifier := node.ModuleSpecifier()
-				return specifier != nil && ast.IsStringLiteral(specifier) && (specifier.Text() == "effect" || strings.HasPrefix(specifier.Text(), "effect/"))
+				return specifier != nil && ast.IsStringLiteral(specifier) && (specifier.Text() == "effect" || strings.HasPrefix(specifier.Text(), "effect/") || strings.HasPrefix(specifier.Text(), "@effect/"))
 			}
 		}
 	}

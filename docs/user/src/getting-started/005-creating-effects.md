@@ -47,11 +47,14 @@ function token() {
 // Output: 16
 ```
 
-Platform work goes through Effect's services, not through a wrapper of your own. `Crypto.randomBytes(16)` replaces `crypto.getRandomValues`: the module's name `Crypto` names its service. An entry file's platform import, `import "vibelang/platform/node"`, provides its platform layer to `main` (D312); a program run another way provides it, here `NodeServices.layer`. For each Node.js or web call, EK4402 names the service, its import, and its layer.
+Platform work goes through Effect's services, not through a wrapper of your own. `Crypto.randomBytes(16)` replaces `crypto.getRandomValues`: the module's name `Crypto` names its service. An entry file's platform import, `import "vibelang/platform/node"`, provides its platform layer to `main` (D312); a program run another way provides it, here `NodeServices.layer`. For each Node.js or web call, EK4402 names the service and its layer; [Platform globals](../platform/platform-globals.md) lists them all.
 
 ```vibe
 // run: Console.log(freeBlocks(".") > 0)
-import { statfsSync } from "node:fs"
+module fs {
+  export { statfsSync } from "node:fs"
+}
+import { statfsSync } from fs
 
 error StatFailed {
   cause: unknown
@@ -65,7 +68,7 @@ function freeBlocks(path: string) {
 // Output: true
 ```
 
-A platform API that neither Effect nor VibeLang's [experimental platform APIs](../vibelang-features/118-experimental-platform-apis.md) cover, such as `statfs`, which reports a file system's free space, needs a boundary hatch. `try((path) => statfsSync(path).bavail, path)` turns an exception into the expected failure `Cause.UnknownError`, and a function in second place, as above, gives the failure a domain name.
+A platform API that neither Effect nor VibeLang's [experimental platform APIs](../vibelang-features/118-experimental-platform-apis.md) cover, such as `statfs`, which reports a file system's free space, needs a boundary hatch. A `.vibe` file imports no Node.js value directly (D310), so a `module` block imports `statfsSync`. `try((path) => statfsSync(path).bavail, path)` turns an exception into the expected failure `Cause.UnknownError`, and a function in second place, as above, gives the failure a domain name.
 
 The hatch's first argument is plain TypeScript, evaluated when the Effect runs: calls in it are not Effects, and platform APIs are allowed. It is self-contained: it may use its own parameters and locals, globals, imports, and the file's error declarations, but no other binding of the `.vibe` file, such as the parameter `size`. Pass such a value as an input, an argument after the function and the error mapper; it fills the function's first parameter. EK4405 reports a binding read from outside; its quick fix passes the binding as an input.
 

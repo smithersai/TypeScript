@@ -1,6 +1,5 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { NodeHttpServer } from "@effect/platform-node"
-import { createServer } from "node:http"
 
 export schema CreateUser { name: string }
 export error NameTaken { name: string }
@@ -40,8 +39,13 @@ export function createUser() {
 export const Routes = HttpRouter.add("POST", "/users", createUser())
 export const App = HttpRouter.provideRequest(UsersLive)(Routes)
 
-// NodeHttpServer runs Node's createServer itself; .vibe code passes it as a
-// value, which runs nothing (D108).
+// NodeHttpServer runs Node's createServer itself. A .vibe file imports no
+// Node.js value directly (D310), so a module block brings it in.
+module node {
+  export { createServer } from "node:http"
+}
+import { createServer } from node
+
 const Server = NodeHttpServer.layer(createServer, { port: 3000 })
 const Live = Layer.provide(HttpRouter.serve(App), Server)
 

@@ -22,11 +22,12 @@ export const local = (globalThis: { process: { env: { TMPDIR: string } } }): str
 			continue
 		}
 		count++
-		if !strings.Contains(diagnosticWithNotes(d), "env") || !strings.Contains(diagnosticWithNotes(d), "Config") {
+		if !strings.Contains(diagnosticWithNotes(d), "process") || !strings.Contains(diagnosticWithNotes(d), "Config") {
 			t.Errorf("wrong replacement: %s", diagnosticWithNotes(d))
 		}
 	}
-	if count != 4 {
-		t.Fatalf("got %d platform diagnostics, want 4", count)
+	// held holds process as a value, which is platform code too (D310).
+	if count != 5 {
+		t.Fatalf("got %d platform diagnostics, want 5", count)
 	}
 }

@@ -1,8 +1,8 @@
 // expect: EK4402
 /// <reference path="./node-types/index.d.ts" />
-// D108: each platform API names the Effect service that replaces it, the
-// import that brings the service in, and the layer that provides it. An API that
-// Effect lacks names VibeLang's experimental service, or runs in a hatch, never in a wrapper.
+// D108, D310: each platform API names the Effect service that replaces it,
+// which needs no import, and the layer that provides it. An API that Effect
+// lacks names VibeLang's experimental service, never a wrapper module.
 import * as path from "node:path"
 import { execFileSync } from "node:child_process"
 import { randomBytes } from "node:crypto"

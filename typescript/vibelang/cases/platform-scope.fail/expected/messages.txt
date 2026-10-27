@@ -1,0 +1,4 @@
+readFileSync from fs is platform code, which a .vibe file does not import as a value.
+node:http is platform code, which VibeLang code does not import.
+require is platform code, which VibeLang code does not use directly.
+  Use an import declaration:   import { name } from "./module.ts"

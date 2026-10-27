@@ -78,6 +78,31 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
   `Transferable` and `Worker` lose their bare names; alias one in a `.ts`
   file to use it.
 
+### Platform code
+
+- Node.js reaches a `.vibe` file only through Effect's services or by
+  escaping to TypeScript (D310). Node's globals (`process`, `Buffer`,
+  `require`, `__dirname`, ...) and the web's globals that do I/O or read the
+  clock or randomness (`fetch`, timers, `console`, `crypto`, `performance`,
+  `localStorage`, ...) are no longer in scope in `.vibe`, holding one as a
+  value included, and a `.vibe` file no longer imports a `node:*` or bare
+  Node.js module as a value. Each is EK4402, which names the replacement.
+  `import type` from them, ECMAScript's built-ins, the web's pure helpers
+  (`URL`, `TextEncoder`, `structuredClone`, `AbortController`, ...), and
+  `.ts` files are unchanged. [Platform globals](../platform/platform-globals.md)
+  lists every answer. How to fix each kind:
+
+  | You wrote | Write instead |
+  | --- | --- |
+  | `import { join } from "node:path"` and the like | the Effect service with no import: `Path.join(directory, name)`, `FileSystem.readFileString(path)`, `ChildProcessSpawner.string(ChildProcess.make(command, args))` |
+  | `process.env.NAME` | `Config.String("NAME")()` |
+  | `process.argv`, `process.cwd()` | `Stdio.args()`, `Path.resolve()` |
+  | `process.pid`, `os.hostname()`, `fs.lstat` | VibeLang's experimental services, such as `Experimental.Process.pid()` |
+  | `console.log`, `setTimeout`, `crypto.randomUUID()` | `Console.log`, `sleep`, `Crypto.randomUUIDv4()` |
+  | `Buffer.from(text)` | `new TextEncoder().encode(text)`, or `Base64` and `Hex` |
+  | a Node.js value an Effect API takes, such as `createServer` | a `module` block that imports it: `module node { export { createServer } from "node:http" }`, then `import { createServer } from node` |
+  | a Node.js API nothing covers yet | the same `module` block or a `.ts` file, called through a hatch |
+
 ## 0.0.10
 
 Update `vibelang`, `vibelang-runtime` and the bundler plugin together. This

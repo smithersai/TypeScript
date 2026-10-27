@@ -1,0 +1,26 @@
+// expect: EK4402
+/// <reference path="./types-node/index.d.ts" />
+// D310: Node.js's globals, and the web's that do I/O or read the clock or
+// randomness, are not in scope in a .vibe file, and a .vibe file does not
+// import a Node.js built-in as a value. Each use, a value held included, is
+// EK4402 with its replacement; a type-only import, a hatch, a module block,
+// and a .ts file keep TypeScript's globals.
+import { readFileSync } from "fs"
+import "node:http"
+import type { Server } from "node:http"
+import { hostOf } from "./host.ts"
+
+export const bytes = (text: string) => Buffer.from(text)
+export const load = (id: string) => require(id)
+export const here = () => __dirname
+export const logger = console
+export const timer = setTimeout
+export const server = (s: Server) => s
+
+// Allowed: TypeScript's escapes.
+export const pid = () => sync(() => process.pid)
+module host {
+  export const cwd = () => process.cwd()
+}
+import { cwd } from host
+export const both = () => [cwd(), hostOf()]

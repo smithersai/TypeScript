@@ -4,6 +4,6 @@ export const direct = (): string | undefined => process.env.TMPDIR
 export const viaGlobal = (): string | undefined => globalThis.process?.env?.TMPDIR
 export const viaGlobalPlain = (): string | undefined => globalThis.process.env.TMPDIR
 export const viaBracket = (): string | undefined => globalThis["process"].env.TMPDIR
-// Passing the process object as a value runs nothing (D108).
+// Holding the process object as a value is platform code too (D310).
 export const held = globalThis.process
 export const local = (globalThis: { process: { env: { TMPDIR: string } } }): string => globalThis.process.env.TMPDIR

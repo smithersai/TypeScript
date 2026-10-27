@@ -5,7 +5,7 @@ description: "VibeLang reaches files, paths, processes, HTTP, randomness, and te
 
 # Introduction to Effect Platform
 
-VibeLang reaches files, paths, processes, HTTP, randomness, and terminals through Effect's platform services. Write the application against those services; the file that exports `main` names its platform once, and the entry provides that platform's implementations to `main`. A `.vibe` file never runs a `node:*` API or a browser global itself (EK4402), and it needs no wrapper of its own around one.
+VibeLang reaches files, paths, processes, HTTP, randomness, and terminals through Effect's platform services. Write the application against those services; the file that exports `main` names its platform once, and the entry provides that platform's implementations to `main`. Node's globals and the web's I/O globals are not in scope in a `.vibe` file, and it imports no `node:*` module as a value (EK4402); it needs no wrapper of its own around one.
 
 ## Using platform services
 
@@ -28,35 +28,35 @@ Call a service through its module's name, with no import: `FileSystem.readFileSt
 
 ## Replacing Node.js and web calls
 
-Each Node.js or web call has an Effect replacement. EK4402 and EK4403 name it, its import, and its layer:
+Each Node.js or web call has an Effect replacement, which needs no import. EK4402 and EK4403 name it and its layer:
 
-| Call | Effect | Import from | Layer |
-| --- | --- | --- | --- |
-| `fs.readFile` | `FileSystem.readFileString(path)` | `effect/FileSystem` | `NodeServices.layer` |
-| `os.tmpdir` | `FileSystem.makeTempDirectory()` | `effect/FileSystem` | `NodeServices.layer` |
-| `path.join` | `Path.join(directory, name)` | `effect/Path` | `NodeServices.layer` |
-| `process.cwd` | `Path.resolve()` | `effect/Path` | `NodeServices.layer` |
-| `child_process.execFileSync` | `ChildProcessSpawner.string(ChildProcess.make(command, args))` | `effect/process/ChildProcessSpawner` | `NodeServices.layer` |
-| `fetch` | `HttpClient.get(url)` | `effect/http` | `FetchHttpClient.layer` |
-| `http.createServer` | `HttpRouter.serve(app)` | `effect/http` | `NodeHttpServer.layer(createServer, { port })` |
-| `crypto.randomUUID` | `Crypto.randomUUIDv4()` | `effect/Crypto` | `NodeServices.layer` |
-| `crypto.subtle.digest` | `Crypto.digest("SHA-256", bytes)` | `effect/Crypto` | `NodeServices.layer` |
-| `process.argv` | `Stdio.args()` | `effect/Stdio` | `NodeServices.layer` |
-| `os.hostname` | `Process.hostname()` | `vibelang-runtime/experimental/Process` | `NodeServices.layer` |
-| `process.kill` | `Process.kill(pid, { killSignal })` | `vibelang-runtime/experimental/Process` | `NodeServices.layer` |
-| `fs.constants.X_OK` | `FileSystem.access(path, { executable: true })` | `vibelang-runtime/experimental/FileSystem` | `NodeServices.layer` |
-| `crypto.createHmac` | `Crypto.hmac("SHA-256", key, data)` | `vibelang-runtime/experimental/Crypto` | `NodeServices.layer` |
-| `navigator.locks` | `Locks.hold(name)` | `vibelang-runtime/experimental/Locks` | `BrowserLocks.layer` |
-| `process.env` | `Config.String("NAME")()` | the prelude | none |
-| `console.log` | `Console.log(message)` | the prelude | none |
-| `setTimeout` | `sleep("1 second")` | the prelude | none |
-| `Date.now` | `Clock.currentTimeMillis()` | the prelude | none |
-| `performance.now` | `Number(Clock.monotonicTimeNanos()) / 1e6` | the prelude | none |
-| `Math.random` | `Random.next()` | the prelude | none |
+| Call | Effect | Layer |
+| --- | --- | --- |
+| `fs.readFile` | `FileSystem.readFileString(path)` | `NodeServices.layer` |
+| `os.tmpdir` | `FileSystem.makeTempDirectory()` | `NodeServices.layer` |
+| `path.join` | `Path.join(directory, name)` | `NodeServices.layer` |
+| `process.cwd` | `Path.resolve()` | `NodeServices.layer` |
+| `child_process.execFileSync` | `ChildProcessSpawner.string(ChildProcess.make(command, args))` | `NodeServices.layer` |
+| `fetch` | `HttpClient.get(url)` | `FetchHttpClient.layer` |
+| `http.createServer` | `HttpRouter.serve(app)` | `NodeHttpServer.layer(createServer, { port })` |
+| `crypto.randomUUID` | `Crypto.randomUUIDv4()` | `NodeServices.layer` |
+| `crypto.subtle.digest` | `Crypto.digest("SHA-256", bytes)` | `NodeServices.layer` |
+| `process.argv` | `Stdio.args()` | `NodeServices.layer` |
+| `os.hostname` | `Experimental.Process.hostname()` | `NodeServices.layer` |
+| `process.kill` | `Experimental.Process.kill(pid, { killSignal })` | `NodeServices.layer` |
+| `fs.constants.X_OK` | `Experimental.FileSystem.access(path, { executable: true })` | `NodeServices.layer` |
+| `crypto.createHmac` | `Experimental.Crypto.hmac("SHA-256", key, data)` | `NodeServices.layer` |
+| `navigator.locks` | `Experimental.Locks.hold(name)` | `BrowserLocks.layer` |
+| `process.env` | `Config.String("NAME")()` | none |
+| `console.log` | `Console.log(message)` | none |
+| `setTimeout` | `sleep("1 second")` | none |
+| `Date.now` | `Clock.currentTimeMillis()` | none |
+| `performance.now` | `Number(Clock.monotonicTimeNanos()) / 1e6` | none |
+| `Math.random` | `Random.next()` | none |
 
-Import a service from the module the table names, by its own name: `import { Crypto } from "effect/Crypto"`. `ChildProcess.make` needs `import * as ChildProcess from "effect/process/ChildProcess"` too, and `HttpClient`, `HttpRouter`, and `FetchHttpClient` are named imports of `effect/http`. `NodeServices.layer` provides `FileSystem`, `Path`, `Crypto`, `Stdio`, `Terminal`, and `ChildProcessSpawner`; `BunServices.layer` from `@effect/platform-bun` is Bun's. The platform import provides the platform's bundle to `main`; provide every other layer inside `main`. Effect's runtime provides the prelude's services itself.
+Call a service through its module's name, as in `Crypto.randomUUIDv4()`; `ChildProcess`, `HttpClient`, `HttpRouter`, and `FetchHttpClient` are in scope too. `NodeServices.layer` provides `FileSystem`, `Path`, `Crypto`, `Stdio`, `Terminal`, and `ChildProcessSpawner`; `BunServices.layer` from `@effect/platform-bun` is Bun's. The platform import provides the platform's bundle to `main`; provide every other layer inside `main`. Effect's runtime provides the prelude's services itself.
 
-Where Effect has no service yet, as for `os.hostname()`, `process.pid`, an execute-permission check, HMAC and signatures, or `navigator.locks`, EK4402 names the experimental service VibeLang adds ([Experimental platform APIs](/vibelang-features/118-experimental-platform-apis)), whose layers come from `vibelang-runtime/experimental/platform-node`, `-bun`, or `-browser`. There, `NodeServices.layer` is `@effect/platform-node`'s bundle plus the experimental `FileSystem`, `Crypto`, and `Process`, so it replaces Effect's in `main`. Where neither has one, as for `os.uptime()`, EK4402 says so: run the call in a hatch where you need it, `sync(uptime())`, or `try` when it can throw ([Creating Effects](/getting-started/005-creating-effects)).
+Where Effect has no service yet, as for `os.hostname()`, `process.pid`, an execute-permission check, HMAC and signatures, or `navigator.locks`, EK4402 names the experimental service VibeLang adds, such as `Experimental.Process.pid()` ([Experimental platform APIs](/vibelang-features/118-experimental-platform-apis)), whose layers come from `vibelang-runtime/experimental/platform-node`, `-bun`, or `-browser`. There, `NodeServices.layer` is `@effect/platform-node`'s bundle plus the experimental `FileSystem`, `Crypto`, and `Process`, so it replaces Effect's in `main`. Where nothing covers the call yet, as for `os.uptime()`, EK4402 says to escape to TypeScript: a `module` block or a `.ts` file that imports the API, or a hatch around a web global, as in `sync(() => document.title)`. [Platform globals](/platform/platform-globals) answers every Node.js and web global.
 
 ## Installing runtime-specific packages
 

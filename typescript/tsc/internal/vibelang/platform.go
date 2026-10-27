@@ -8,35 +8,36 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
-// VibeLang's standard library is Effect's (design D6, Chapter 11). A .vibe
-// file may not run a Node.js or browser API (EK4402). The error names the
-// Effect API that replaces it, the import that brings that API in, and the
-// layer that provides it:
+// VibeLang's standard library is Effect's (design D6, Chapter 11). Node.js
+// reaches a .vibe file only through Effect's services, which layers inject,
+// or by escaping to TypeScript: a hatch, a module block, or a .ts file
+// (D310). The platform globals in platformGlobals, Node's (process, Buffer,
+// require, __dirname, ...) and the web's that do I/O or read the clock or
+// randomness (fetch, setTimeout, crypto, performance, localStorage, ...), are
+// not in scope there, and a .vibe file does not import a Node.js or Bun
+// built-in module as a value. EK4402 names the Effect API that replaces each
+// one and the layer that provides it:
 //
-//	error EK4402: readFile from node:fs/promises is a platform API, which VibeLang code does not call directly.
-//	  Use the FileSystem service:   FileSystem.readFileString(path)
-//	  Import it with   import { FileSystem } from "effect/FileSystem"
+//	error EK4402: process.cwd is platform code, which VibeLang code does not use directly.
+//	  Use the Path service:   Path.resolve()
 //	  Provide it in main with NodeServices.layer from "@effect/platform-node", or BunServices.layer from "@effect/platform-bun".
 //
-// Where Effect has no API for it yet, the error names VibeLang's experimental
-// service that adds it (D313), as Process does for os.hostname(), or says so
-// and shows the call in a hatch, the boundary that remains, as for
-// os.uptime(); it never sends the program to a wrapper module of its own.
+// Where Effect has no API for it yet, it names VibeLang's experimental
+// service (D313), as for process.pid, or says so and shows the escape, the
+// boundary that remains, as for document; it never sends the program to a
+// wrapper module of its own. The guide's page on platform globals lists
+// every answer, and TestPlatformGlobalsDocumented keeps it equal to these
+// tables.
 //
-// D108 puts the error where the code runs the API: a call, a new, or a
-// tagged template of it, or a read of one of its properties, which can run a
-// getter, as process.env does. The API is a binding imported from a Node.js
-// or Bun built-in module, or a platform global such as fetch, setTimeout,
-// process, or console. Importing one, or passing one as a value, runs
-// nothing, so Effect's own setup works:
-//
-//	import { createServer } from "node:http"
-//	const Server = NodeHttpServer.layer(createServer, { port: 3000 })   // allowed
-//
-// A clock or randomness read, such as Date.now(), is EK4403 instead, an error
-// by default that a project may lower (D34); a read it allows compiles as a
-// trusted sync call. Both apply everywhere in a .vibe file, a boundary's
-// callback and the module's top level included.
+// The error stands at each use of a platform global, a value use included,
+// and at each value that an import declaration brings in from a platform
+// module; a type-only import stays allowed. ECMAScript's built-ins and the
+// web's pure helpers (URL, TextEncoder, structuredClone, AbortController,
+// Blob, ...) are not platform code. A clock or randomness read, such as
+// Date.now(), is EK4403 instead, an error by default that a project may lower
+// (D34); a read it allows compiles as a trusted sync call. Both apply
+// everywhere in a .vibe file, a boundary's callback and the module's top
+// level included.
 
 // platformService is an Effect API that replaces platform APIs.
 type platformService struct {
@@ -62,62 +63,64 @@ const (
 // effect 4.0.6 or its platform packages; TestPlatformServicesTable checks
 // that each example uses what its import brings in.
 var platformServices = map[string]*platformService{
-	"FileSystem": {"the FileSystem service", "FileSystem.readFileString(path)", `import { FileSystem } from "effect/FileSystem"`, nodeServices},
-	"Path":       {"the Path service", "Path.join(directory, name)", `import { Path } from "effect/Path"`, nodeServices},
-	"PathPosix":  {"the Path service", "Path.join(directory, name)", `import { Path } from "effect/Path"`, `Path.layer from "effect/Path", which is POSIX's on every platform`},
-	"PathWin32":  {"the Path service", "Path.join(directory, name)", `import { Path } from "effect/Path"`, `NodePath.layerWin32 from "@effect/platform-node"`},
+	"FileSystem": {"the FileSystem service", "FileSystem.readFileString(path)", "", nodeServices},
+	"Path":       {"the Path service", "Path.join(directory, name)", "", nodeServices},
+	"PathPosix":  {"the Path service", "Path.join(directory, name)", "", `Path.layer from "effect/Path", which is POSIX's on every platform`},
+	"PathWin32":  {"the Path service", "Path.join(directory, name)", "", `NodePath.layerWin32 from "@effect/platform-node"`},
 	"ChildProcess": {"the ChildProcessSpawner service", "ChildProcessSpawner.string(ChildProcess.make(command, args))",
-		`import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"   and   import * as ChildProcess from "effect/process/ChildProcess"`, nodeServices},
-	"Crypto": {"the Crypto service", "Crypto.randomBytes(size)", `import { Crypto } from "effect/Crypto"`,
+		"", nodeServices},
+	"Crypto": {"the Crypto service", "Crypto.randomBytes(size)", "",
 		`NodeServices.layer from "@effect/platform-node", BunServices.layer from "@effect/platform-bun", or BrowserCrypto.layer from "@effect/platform-browser"`},
-	"Terminal": {"the Terminal service", "Terminal.readLine()", `import { Terminal } from "effect/Terminal"`, nodeServices},
-	"Stdio":    {"the Stdio service", "Stdio.args()", `import { Stdio } from "effect/Stdio"`, nodeServices},
-	"HttpClient": {"HttpClient", "HttpClient.get(url)", `import { HttpClient } from "effect/http"`,
+	"Terminal": {"the Terminal service", "Terminal.readLine()", "", nodeServices},
+	"Stdio":    {"the Stdio service", "Stdio.args()", "", nodeServices},
+	"HttpClient": {"HttpClient", "HttpClient.get(url)", "",
 		`FetchHttpClient.layer from "effect/http", or NodeHttpClient.layerUndici from "@effect/platform-node"`},
-	"HttpServer": {"HttpRouter", "HttpRouter.serve(app)", `import { HttpRouter } from "effect/http"`,
+	"HttpServer": {"HttpRouter", "HttpRouter.serve(app)", "",
 		`NodeHttpServer.layer(createServer, { port }) from "@effect/platform-node", which runs createServer itself`},
-	"Socket":    {"the Socket service", "", `import { Socket } from "effect/socket/Socket"`, `NodeSocket.layerNet({ host, port }) from "@effect/platform-node"`},
-	"SocketTls": {"the Socket service", "", `import { Socket } from "effect/socket/Socket"`, `NodeSocket.layerTls(options) from "@effect/platform-node"`},
-	"WebSocket": {"the Socket service", "", `import { Socket } from "effect/socket/Socket"`,
+	"Socket":    {"the Socket service", "", "", `NodeSocket.layerNet({ host, port }) from "@effect/platform-node"`},
+	"SocketTls": {"the Socket service", "", "", `NodeSocket.layerTls(options) from "@effect/platform-node"`},
+	"WebSocket": {"the Socket service", "Socket.makeWebSocket(url)", "",
 		`NodeSocket.layerWebSocket(url) from "@effect/platform-node", or BrowserSocket.layerWebSocket(url) from "@effect/platform-browser"`},
-	"SocketServer":    {"the SocketServer service", "", `import { SocketServer } from "effect/socket/SocketServer"`, `NodeSocketServer.layer({ port }) from "@effect/platform-node"`},
-	"SocketServerTls": {"the SocketServer service", "", `import { SocketServer } from "effect/socket/SocketServer"`, `NodeSocketServer.layerTls(options) from "@effect/platform-node"`},
-	"DatagramSocket":  {"the DatagramSocket service", "", `import { DatagramSocket } from "effect/socket/DatagramSocket"`, `NodeDatagramSocket.layer(options) from "@effect/platform-node"`},
-	"Dns":             {"the Dns service", "", `import { Dns } from "effect/net/Dns"`, `NodeDns.layer from "@effect/platform-node"`},
-	"NetAddress":      {"NetAddress, which needs no layer", "NetAddress.ipFromString(text)", `import { NetAddress } from "effect/net"`, ""},
-	"Worker": {"Worker and WorkerRunner", "", `import { Worker, WorkerRunner } from "effect/workers"`,
+	"SocketServer":    {"the SocketServer service", "", "", `NodeSocketServer.layer({ port }) from "@effect/platform-node"`},
+	"SocketServerTls": {"the SocketServer service", "", "", `NodeSocketServer.layerTls(options) from "@effect/platform-node"`},
+	"DatagramSocket":  {"the DatagramSocket service", "", "", `NodeDatagramSocket.layer(options) from "@effect/platform-node"`},
+	"Dns":             {"the Dns service", "", "", `NodeDns.layer from "@effect/platform-node"`},
+	"NetAddress":      {"NetAddress, which needs no layer", "NetAddress.ipFromString(text)", "", ""},
+	"Worker": {"Worker and WorkerRunner", "", "",
 		`NodeWorker.layer(spawn) from "@effect/platform-node", or BrowserWorker.layer(spawn) from "@effect/platform-browser"`},
-	"KeyValueStore": {"the KeyValueStore service", "", `import { KeyValueStore } from "effect/persistence/KeyValueStore"`,
+	"KeyValueStore": {"the KeyValueStore service", "KeyValueStore.get(key)", "",
 		`BrowserKeyValueStore.layerLocalStorage from "@effect/platform-browser", or KeyValueStore.layerFileSystem(directory)`},
-	"SqlClient": {"the SqlClient service", "", `import { SqlClient } from "effect/sql/SqlClient"`,
+	"SqlClient": {"the SqlClient service", "", "",
 		`a driver's layer, such as SqliteClient.layer({ filename }) from "@effect/sql-sqlite-node"`},
-	"UrlParams":      {"UrlParams, which needs no layer", "UrlParams.fromInput(new URLSearchParams(text))", `import { UrlParams } from "effect/http"`, ""},
-	"Bytes":          {"Uint8Array and TextEncoder or TextDecoder, which need no layer, or Base64 and Hex", "new TextEncoder().encode(text)", `import { Base64, Hex } from "effect/encoding"`, ""},
-	"URL":            {"the global URL and URLSearchParams, which VibeLang code may use", "new URL(text)", "", ""},
-	"Inspectable":    {"Inspectable, from the prelude", "Inspectable.toStringUnknown(value)", "", ""},
-	"Schedule":       {"sleep and Schedule, from the prelude", `sleep("1 second")`, "", ""},
-	"Interrupt":      {"a fiber's interruption", "fiber.interrupt()", "", ""},
-	"Yield":          {"yieldNow, from the prelude", "yieldNow()", "", ""},
-	"Clock":          {"Clock, from the prelude", "Clock.currentTimeMillis()", "", ""},
-	"Config":         {"Config, from the prelude", `Config.String("NAME")()`, "", ""},
-	"Console":        {"Console, from the prelude", "Console.log(message)", "", ""},
-	"Stream":         {"Stream, from the prelude", "Stream.fromIterable(values)", "", ""},
-	"PubSub":         {"PubSub, or Stream.fromEventListener for an event target, from the prelude", "", "", ""},
-	"Exit":           {"main's result", "", "", ""},
-	"@effect/vitest": {"it.effect and assert", "", `import { assert, it } from "@effect/vitest"`, ""},
-	"UserDirectories": {"the UserDirectories service", "UserDirectories.home()", `import { UserDirectories } from "effect/persistence/UserDirectories"`,
-		`UserDirectories.layer from "effect/persistence/UserDirectories"`},
+	"UrlParams":       {"UrlParams, which needs no layer", "UrlParams.fromInput(new URLSearchParams(text))", "", ""},
+	"Bytes":           {"Uint8Array and TextEncoder or TextDecoder, which need no layer, or Base64 and Hex", "new TextEncoder().encode(text)", "", ""},
+	"URL":             {"the global URL and URLSearchParams, which VibeLang code may use", "new URL(text)", "", ""},
+	"Inspectable":     {"Inspectable, from the prelude", "Inspectable.toStringUnknown(value)", "", ""},
+	"Schedule":        {"sleep and Schedule, from the prelude", `sleep("1 second")`, "", ""},
+	"Interrupt":       {"a fiber's interruption", "fiber.interrupt()", "", ""},
+	"Yield":           {"yieldNow, from the prelude", "yieldNow()", "", ""},
+	"Clock":           {"Clock, from the prelude", "Clock.currentTimeMillis()", "", ""},
+	"Config":          {"Config, from the prelude", `Config.String("NAME")()`, "", ""},
+	"Console":         {"Console, from the prelude", "Console.log(message)", "", ""},
+	"Stream":          {"Stream, from the prelude", "Stream.fromIterable(values)", "", ""},
+	"PubSub":          {"PubSub, or Stream.fromEventListener for an event target, from the prelude", `Stream.fromEventListener(target, "message")`, "", ""},
+	"Exit":            {"main's result: return or fail from main", "", "", ""},
+	"@effect/vitest":  {"it.effect and assert", "", `import { assert, it } from "@effect/vitest"`, ""},
+	"ImportMeta":      {"import.meta, which needs no layer", "import.meta.resolve(specifier)", "", ""},
+	"GlobalThis":      {"globalThis, ECMAScript's global object", "globalThis", "", ""},
+	"Clipboard":       {"the Clipboard service", "Clipboard.readString()", `import { Clipboard } from "@effect/platform-browser"`, `Clipboard.layer from "@effect/platform-browser"`},
+	"Geolocation":     {"the Geolocation service", "Geolocation.getCurrentPosition()", `import { Geolocation } from "@effect/platform-browser"`, `Geolocation.layer from "@effect/platform-browser"`},
+	"Permissions":     {"the Permissions service", `Permissions.query("geolocation")`, `import { Permissions } from "@effect/platform-browser"`, `Permissions.layer from "@effect/platform-browser"`},
+	"BrowserStream":   {"BrowserStream, a Stream of a window's or document's events", `BrowserStream.fromEventListenerWindow("resize")`, `import { BrowserStream } from "@effect/platform-browser"`, ""},
+	"UserDirectories": {"the UserDirectories service", "UserDirectories.home()", "", "UserDirectories.layer"},
+	// VibeLang's experimental services (D313), for what Effect lacks.
+	"ExperimentalFileSystem": {"the experimental FileSystem service", "Experimental.FileSystem.access(path, { executable: true })", "", experimentalServices},
+	"ExperimentalCrypto":     {"the experimental Crypto service", `Experimental.Crypto.hmac("SHA-256", key, data)`, "", experimentalCrypto},
+	"ExperimentalProcess":    {"the experimental Process service", "Experimental.Process.pid()", "", experimentalServices},
+	"ExperimentalLocks": {"the experimental Locks service", "Experimental.Locks.hold(name)", "",
+		`BrowserLocks.layer from "vibelang-runtime/experimental/platform-browser"; NodeLocks.layer from "vibelang-runtime/experimental/platform-node" locks only within one Node.js process`},
 	"import": {"an import declaration", `import { name } from "./module.ts"`, "", ""},
 	"export": {"an export declaration", "export function name() { ... }", "", ""},
-	// VibeLang's additions where Effect has none (D313).
-	"ExperimentalFileSystem": {"the experimental FileSystem service", "FileSystem.access(path, { executable: true })",
-		`import { FileSystem } from "vibelang-runtime/experimental/FileSystem"`, experimentalServices},
-	"ExperimentalCrypto": {"the experimental Crypto service", `Crypto.hmac("SHA-256", key, data)`,
-		`import { Crypto } from "vibelang-runtime/experimental/Crypto"`, experimentalCrypto},
-	"ExperimentalProcess": {"the experimental Process service", "Process.pid()",
-		`import { Process } from "vibelang-runtime/experimental/Process"`, experimentalServices},
-	"ExperimentalLocks": {"the experimental Locks service", "Locks.hold(name)", `import { Locks } from "vibelang-runtime/experimental/Locks"`,
-		`BrowserLocks.layer from "vibelang-runtime/experimental/platform-browser"; NodeLocks.layer from "vibelang-runtime/experimental/platform-node" locks only within one Node.js process`},
 }
 
 // platformAPI says what replaces a platform API.
@@ -163,11 +166,11 @@ var platformGlobals = map[string]string{
 	"process":            "Config", "console": "Console", "crypto": "Crypto", "performance": "Clock",
 	"localStorage": "KeyValueStore", "sessionStorage": "KeyValueStore", "indexedDB": "KeyValueStore",
 	"Worker": "Worker", "SharedWorker": "Worker", "importScripts": "Worker",
-	"document": "", "window": "", "self": "", "navigator": "", "location": "", "history": "",
+	"document": "", "window": "", "self": "GlobalThis", "navigator": "", "location": "", "history": "",
 	"alert": "", "confirm": "", "prompt": "",
 	"addEventListener": "PubSub", "removeEventListener": "PubSub", "dispatchEvent": "PubSub",
 	"require": "import", "module": "export", "exports": "export", "__dirname": "Path", "__filename": "Path",
-	"Buffer": "Bytes", "Bun": "", "Deno": "",
+	"Buffer": "Bytes", "Bun": "", "Deno": "", "global": "GlobalThis", "caches": "", "BroadcastChannel": "",
 }
 
 // platformAPIs says what replaces single platform APIs. A name is a module
@@ -177,8 +180,8 @@ var platformGlobals = map[string]string{
 // lacks takes its module's or global's service.
 var platformAPIs = map[string]platformAPI{
 	"fs.constants":            {"FileSystem", `FileSystem.open(path, { flag: "wx" })`, ""},
-	"fs.constants.X_OK":       {"ExperimentalFileSystem", "FileSystem.access(path, { executable: true })", ""},
-	"fs.constants.O_NONBLOCK": {"ExperimentalFileSystem", "FileSystem.open(path, { nonBlocking: true })", ""},
+	"fs.constants.X_OK":       {"ExperimentalFileSystem", "Experimental.FileSystem.access(path, { executable: true })", "FileSystem.access checks only that a path is readable or writable."},
+	"fs.constants.O_NONBLOCK": {"ExperimentalFileSystem", "Experimental.FileSystem.open(path, { nonBlocking: true })", "FileSystem.open takes a flag, such as \"wx\", but no nonblocking mode."},
 
 	"child_process.spawn":        {"ChildProcess", "ChildProcessSpawner.spawn(ChildProcess.make(command, args))", ""},
 	"child_process.exec":         {"ChildProcess", "", ""},
@@ -194,15 +197,15 @@ var platformAPIs = map[string]platformAPI{
 	"crypto.createHash":       {"Crypto", `Crypto.digest("SHA-256", bytes)`, "Crypto.digest hashes all the bytes in one call; it has no incremental update."},
 	"crypto.hash":             {"Crypto", `Crypto.digest("SHA-256", bytes)`, ""},
 	"crypto.subtle.digest":    {"Crypto", `Crypto.digest("SHA-256", bytes)`, ""},
-	"crypto.subtle":           {"ExperimentalCrypto", `Crypto.hmac("SHA-256", key, data)`, cryptoKeys},
-	"crypto.subtle.sign":      {"ExperimentalCrypto", `Crypto.sign("Ed25519", privateKey, data)`, cryptoKeys},
-	"crypto.subtle.verify":    {"ExperimentalCrypto", `Crypto.verify("Ed25519", publicKey, signature, data)`, cryptoKeys},
-	"crypto.webcrypto":        {"ExperimentalCrypto", `Crypto.hmac("SHA-256", key, data)`, cryptoKeys},
-	"crypto.createHmac":       {"ExperimentalCrypto", `Crypto.hmac("SHA-256", key, data)`, "Crypto.hmac takes the key as Redacted bytes and all the data in one call."},
-	"crypto.createSign":       {"ExperimentalCrypto", `Crypto.sign("Ed25519", privateKey, data)`, cryptoKeys},
-	"crypto.createVerify":     {"ExperimentalCrypto", `Crypto.verify("Ed25519", publicKey, signature, data)`, cryptoKeys},
-	"crypto.sign":             {"ExperimentalCrypto", `Crypto.sign("Ed25519", privateKey, data)`, cryptoKeys},
-	"crypto.verify":           {"ExperimentalCrypto", `Crypto.verify("Ed25519", publicKey, signature, data)`, cryptoKeys},
+	"crypto.subtle":           {"ExperimentalCrypto", `Experimental.Crypto.hmac("SHA-256", key, data)`, cryptoKeys},
+	"crypto.subtle.sign":      {"ExperimentalCrypto", `Experimental.Crypto.sign("Ed25519", privateKey, data)`, cryptoKeys},
+	"crypto.subtle.verify":    {"ExperimentalCrypto", `Experimental.Crypto.verify("Ed25519", publicKey, signature, data)`, cryptoKeys},
+	"crypto.webcrypto":        {"ExperimentalCrypto", `Experimental.Crypto.hmac("SHA-256", key, data)`, cryptoKeys},
+	"crypto.createHmac":       {"ExperimentalCrypto", `Experimental.Crypto.hmac("SHA-256", key, data)`, "Experimental.Crypto.hmac takes the key as Redacted bytes and all the data in one call."},
+	"crypto.createSign":       {"ExperimentalCrypto", `Experimental.Crypto.sign("Ed25519", privateKey, data)`, cryptoKeys},
+	"crypto.createVerify":     {"ExperimentalCrypto", `Experimental.Crypto.verify("Ed25519", publicKey, signature, data)`, cryptoKeys},
+	"crypto.sign":             {"ExperimentalCrypto", `Experimental.Crypto.sign("Ed25519", privateKey, data)`, cryptoKeys},
+	"crypto.verify":           {"ExperimentalCrypto", `Experimental.Crypto.verify("Ed25519", publicKey, signature, data)`, cryptoKeys},
 	"crypto.createCipheriv":   {note: cryptoGap},
 	"crypto.createDecipheriv": {note: cryptoGap},
 	"crypto.generateKeyPair":  {note: cryptoGap},
@@ -222,13 +225,12 @@ var platformAPIs = map[string]platformAPI{
 	"tls.createServer": {"SocketServerTls", "", ""},
 	"tls.Server":       {"SocketServerTls", "", ""},
 
-	"os.tmpdir": {"FileSystem", "FileSystem.makeTempDirectory()", "FileSystem.makeTempDirectory creates a directory in it; nothing returns its path alone."},
-
-	"os.hostname":             {"ExperimentalProcess", "Process.hostname()", ""},
+	"os.tmpdir":               {"FileSystem", "FileSystem.makeTempDirectory()", "FileSystem.makeTempDirectory creates a directory in it; nothing returns its path alone."},
+	"os.hostname":             {"ExperimentalProcess", "Experimental.Process.hostname()", ""},
 	"os.homedir":              {"UserDirectories", "UserDirectories.home()", "UserDirectories.home() reads HOME, or USERPROFILE on Windows; os.homedir() also falls back to the user database."},
-	"os.availableParallelism": {"ExperimentalProcess", "Process.availableParallelism()", ""},
-	"os.platform":             {"ExperimentalProcess", "Process.platform()", ""},
-	"os.arch":                 {"ExperimentalProcess", "Process.arch()", ""},
+	"os.availableParallelism": {"ExperimentalProcess", "Experimental.Process.availableParallelism()", ""},
+	"os.platform":             {"ExperimentalProcess", "Experimental.Process.platform()", ""},
+	"os.arch":                 {"ExperimentalProcess", "Experimental.Process.arch()", ""},
 
 	"url.fileURLToPath": {"Path", "Path.fromFileUrl(url)", ""},
 	"path.sep":          {"Path", "Path().sep", ""},
@@ -238,11 +240,39 @@ var platformAPIs = map[string]platformAPI{
 	"__dirname":  {"Path", "Path.dirname(Path.fromFileUrl(new URL(import.meta.url)))", ""},
 	"__filename": {"Path", "Path.fromFileUrl(new URL(import.meta.url))", ""},
 
-	"events.once":            {note: "Effect has no adapter for a Node.js EventEmitter; Stream.fromEventListener reads an event target."},
-	"stream.Readable.from":   {"Stream", "Stream.fromIterable(values)", ""},
-	"require.resolve":        {note: "Effect resolves no modules at run time; a static import resolves one when the program loads."},
-	"navigator.locks":        {"ExperimentalLocks", "", ""},
-	"performance.timeOrigin": {"ExperimentalProcess", "Process.timeOrigin()", ""},
+	"events.once":                   {note: "Effect has no adapter for a Node.js EventEmitter; Stream.fromEventListener reads an event target."},
+	"stream.Readable.from":          {"Stream", "Stream.fromIterable(values)", ""},
+	"require":                       {"import", "", "A static import loads a module when the program loads."},
+	"require.resolve":               {"ImportMeta", "import.meta.resolve(specifier)", ""},
+	"navigator.locks":               {"ExperimentalLocks", "Experimental.Locks.hold(name)", "A Semaphore locks only within one program."},
+	"navigator.clipboard":           {"Clipboard", "", ""},
+	"navigator.geolocation":         {"Geolocation", "", ""},
+	"navigator.permissions":         {"Permissions", "", ""},
+	"navigator.hardwareConcurrency": {"ExperimentalProcess", "Experimental.Process.availableParallelism()", ""},
+	"navigator":                     {note: "Effect has no service for the browser's navigator; navigator.clipboard, geolocation, permissions, and locks have services."},
+	"navigator.*":                   {note: "Effect has no service for the browser's other navigator properties; read them in a .ts file."},
+	"document":                      {note: domGap},
+	"window":                        {note: domGap},
+	"location":                      {note: domGap},
+	"history":                       {note: domGap},
+	"requestAnimationFrame":         {note: frameGap},
+	"cancelAnimationFrame":          {note: frameGap},
+	"requestIdleCallback":           {note: frameGap},
+	"cancelIdleCallback":            {note: frameGap},
+	"alert":                         {note: dialogGap},
+	"confirm":                       {note: dialogGap},
+	"prompt":                        {note: dialogGap},
+	"caches":                        {note: "Effect has no service for the browser's Cache Storage; KeyValueStore stores strings by key."},
+	"BroadcastChannel":              {note: "Effect has no service for messages between browser tabs; a Worker carries messages to a worker."},
+	"Bun":                           {note: runtimeGap},
+	"Deno":                          {note: runtimeGap},
+	"performance.now":               {"Clock", "Clock.monotonicTimeNanos()", "Clock.monotonicTimeNanos() is a bigint of nanoseconds, and performance.now() a number of milliseconds."},
+	"performance.timeOrigin":        {"ExperimentalProcess", "Experimental.Process.timeOrigin()", "Clock reads the time now; it has no time origin."},
+	"window.addEventListener":       {"BrowserStream", `BrowserStream.fromEventListenerWindow("resize")`, ""},
+	"document.addEventListener":     {"BrowserStream", `BrowserStream.fromEventListenerDocument("visibilitychange")`, ""},
+	"Buffer.from":                   {"Bytes", "new TextEncoder().encode(text)", "Base64.decode(text) and Hex.decode(text) read encoded bytes."},
+	"Buffer.alloc":                  {"Bytes", "new Uint8Array(size)", ""},
+	"Buffer.concat":                 {"Bytes", "new Uint8Array([...a, ...b])", ""},
 
 	"setInterval":                  {"Schedule", `repeat(program, Schedule.spaced("1 second"))`, ""},
 	"timers.setInterval":           {"Schedule", `repeat(program, Schedule.spaced("1 second"))`, ""},
@@ -256,23 +286,24 @@ var platformAPIs = map[string]platformAPI{
 	"queueMicrotask":               {"Yield", "", "yieldNow lets other fibers run; it does not queue a microtask."},
 
 	"process.env":            {"Config", "", ""},
+	"process.pid":            {"ExperimentalProcess", "Experimental.Process.pid()", ""},
+	"process.platform":       {"ExperimentalProcess", "Experimental.Process.platform()", ""},
+	"process.arch":           {"ExperimentalProcess", "Experimental.Process.arch()", ""},
+	"process.execPath":       {"ExperimentalProcess", "Experimental.Process.execPath()", ""},
+	"process.versions":       {"ExperimentalProcess", "Experimental.Process.versions()", ""},
+	"process.version":        {"ExperimentalProcess", "Experimental.Process.versions()", ""},
+	"process.memoryUsage":    {"ExperimentalProcess", "Experimental.Process.memoryUsage()", ""},
 	"process.argv":           {"Stdio", "Stdio.args()", "Stdio.args() leaves out argv[0] and argv[1], the runtime and the script."},
 	"process.cwd":            {"Path", "Path.resolve()", ""},
-	"process.stdout":         {"Console", "Console.log(text)", `For bytes, Stdio.stdout() is a Sink, after   import { Stdio } from "effect/Stdio"`},
-	"process.stderr":         {"Console", "Console.error(text)", `For bytes, Stdio.stderr() is a Sink, after   import { Stdio } from "effect/Stdio"`},
+	"process.stdout":         {"Console", "Console.log(text)", "For bytes, Stdio.stdout() is a Sink."},
+	"process.stderr":         {"Console", "Console.error(text)", "For bytes, Stdio.stderr() is a Sink."},
 	"process.stdin":          {"Terminal", "Terminal.readLine()", "Stdio.stdin streams the bytes."},
 	"process.hrtime":         {"Clock", "Clock.monotonicTimeNanos()", "Clock.monotonicTimeNanos() is a bigint of nanoseconds, as process.hrtime.bigint() is."},
 	"process.nextTick":       {"Yield", "", "yieldNow lets other fibers run; it does not queue a microtask."},
 	"process.exit":           {"Exit", "", processExit},
 	"process.exitCode":       {"Exit", "", processExit},
 	"process.uptime":         {note: "Clock reads the time, not the process's age: keep a Clock.monotonicTimeNanos() reading from the start."},
-	"process.kill":           {"ExperimentalProcess", "Process.kill(pid, { killSignal })", "Signal 0 is Process.isRunning(pid); a child that ChildProcessSpawner.spawn started also stops with its handle's kill()."},
-	"process.pid":            {"ExperimentalProcess", "Process.pid()", ""},
-	"process.platform":       {"ExperimentalProcess", "Process.platform()", ""},
-	"process.arch":           {"ExperimentalProcess", "Process.arch()", ""},
-	"process.execPath":       {"ExperimentalProcess", "Process.execPath()", ""},
-	"process.versions":       {"ExperimentalProcess", "Process.versions()", ""},
-	"process.memoryUsage":    {"ExperimentalProcess", "Process.memoryUsage()", ""},
+	"process.kill":           {"ExperimentalProcess", "Experimental.Process.kill(pid, { killSignal })", "Signal 0 is Experimental.Process.isRunning(pid); a child that ChildProcessSpawner.spawn started also stops with its handle's kill()."},
 	"process.on":             {note: processEvents},
 	"process.once":           {note: processEvents},
 	"process.off":            {note: processEvents},
@@ -289,8 +320,12 @@ var platformAPIs = map[string]platformAPI{
 }
 
 const (
-	cryptoGap     = "Crypto has random values and digests, and the experimental Crypto adds HMAC and signatures; neither has ciphers or key generation."
+	cryptoGap     = "Effect's Crypto has random values and digests, and VibeLang's experimental Crypto adds HMAC and signatures; neither has ciphers or key generation."
 	cryptoKeys    = "It takes keys as bytes, a secret in a Redacted: raw for HMAC, PKCS#8 and SPKI DER for ECDSA P-256 and Ed25519; it has no ciphers."
+	domGap        = "Effect has no service for the DOM; UI code belongs in a .ts or .tsx file, such as a React component's."
+	frameGap      = "Effect has no service for the browser's animation and idle callbacks; schedule work with Schedule, or call them in a .ts file."
+	dialogGap     = "Effect has no service for the browser's dialogs; a terminal program asks with Terminal.readLine()."
+	runtimeGap    = "A runtime's own API belongs to its platform package's layers, such as @effect/platform-bun's, or to a .ts file."
 	processExit   = "Let main return or fail: NodeRuntime.runMain, which runs it, exits with 0 when it succeeds and 1 when it fails."
 	processEvents = "NodeRuntime.runMain handles SIGINT and SIGTERM; Effect has no service for other process events."
 )
@@ -396,8 +431,13 @@ var clockReads = map[string]clockRead{
 	"Now.timeZoneId":              {"DateTime.CurrentTimeZone()", "", "In a test, provide DateTime.CurrentTimeZone."},
 }
 
-// platformModule is EK4402's text for a dynamic import of a platform module.
-var platformModule = EK4402.With("{0} is a platform API, which VibeLang code does not call directly.")
+// platformModule is EK4402's text for an import of a platform module that
+// binds nothing, and for a dynamic import of one.
+var platformModule = EK4402.With("{0} is platform code, which VibeLang code does not import.")
+
+// platformValueImport is EK4402's text for a value that an import declaration
+// brings in from a platform module. {0} is the binding, {1} the module.
+var platformValueImport = EK4402.With("{0} from {1} is platform code, which a .vibe file does not import as a value.")
 
 // checkPlatform reports EK4402 where file's code runs a platform API (D108),
 // and EK4403 for clock and randomness reads.
@@ -406,7 +446,8 @@ func checkPlatform(c *checker.Checker, file *ast.SourceFile) {
 	visit = func(node *ast.Node) bool {
 		switch {
 		case ast.IsImportDeclaration(node) || ast.IsExportDeclaration(node):
-			return false // importing or re-exporting a platform API runs nothing
+			checkPlatformImport(c, node)
+			return false
 		case ast.IsImportCall(node):
 			if arguments := node.Arguments(); len(arguments) > 0 && ast.IsStringLiteral(arguments[0]) {
 				if r, ok := platformModuleOf(arguments[0].Text()); ok {
@@ -424,6 +465,68 @@ func checkPlatform(c *checker.Checker, file *ast.SourceFile) {
 		return node.ForEachChild(visit)
 	}
 	file.AsNode().ForEachChild(visit)
+}
+
+// checkPlatformImport reports EK4402 for each value that node, an import or
+// export declaration at a .vibe file's top level, brings in from a platform
+// module (D310). A type-only binding stays allowed, and so does an import in
+// a module block, whose body is TypeScript.
+func checkPlatformImport(c *checker.Checker, node *ast.Node) {
+	if node.Parent == nil || !ast.IsSourceFile(node.Parent) {
+		return
+	}
+	specifier := node.ModuleSpecifier()
+	if specifier == nil || !ast.IsStringLiteral(specifier) {
+		return
+	}
+	module := specifier.Text()
+	replacement, ok := platformModuleOf(module)
+	if !ok {
+		return
+	}
+	reportBinding := func(at *ast.Node, local string, decl *ast.Node) {
+		ref := platformRef{replacement: replacement, module: module, name: importedName(module, decl)}
+		d := report(c, at, platformValueImport, local, module)
+		notePlatformAPI(d, platformAPIOf(ref, nil), "")
+	}
+	var elements []*ast.Node
+	if ast.IsImportDeclaration(node) {
+		clause := node.ImportClause()
+		if clause == nil {
+			d := report(c, specifier, platformModule, module)
+			notePlatformAPI(d, platformAPI{service: replacement}, "")
+			return
+		}
+		if clause.IsTypeOnly() {
+			return
+		}
+		if name := clause.Name(); name != nil {
+			reportBinding(name, name.Text(), clause)
+		}
+		switch bindings := clause.AsImportClause().NamedBindings; {
+		case bindings == nil:
+		case ast.IsNamespaceImport(bindings):
+			reportBinding(bindings, bindings.Name().Text(), bindings)
+		default:
+			elements = bindings.Elements()
+		}
+	} else {
+		declaration := node.AsExportDeclaration()
+		if declaration.IsTypeOnly {
+			return
+		}
+		if declaration.ExportClause == nil || !ast.IsNamedExports(declaration.ExportClause) {
+			d := report(c, specifier, platformModule, module)
+			notePlatformAPI(d, platformAPI{service: replacement}, "")
+			return
+		}
+		elements = declaration.ExportClause.Elements()
+	}
+	for _, element := range elements {
+		if !ast.IsTypeOnlyImportOrExportDeclaration(element) {
+			reportBinding(element, element.Name().Text(), element)
+		}
+	}
 }
 
 // platformModuleOf returns the name of module's replacement, and whether
@@ -559,29 +662,22 @@ func isPlatformCallee(c *checker.Checker, call *ast.Node) bool {
 	return ok
 }
 
-// checkPlatformUse reports id, a reference to a platform API, where the code
-// runs it (D108): calls it, constructs it, tags a template with it, or reads
-// a property of it, which can run a getter, as process.env does, directly or
-// by destructuring. Importing it, or passing it as a value, as to
-// NodeHttpServer.layer(createServer, …), runs nothing. A namespace import's
-// member is a value too, until the code runs it: os.EOL is allowed, and
-// os.cpus() is not.
+// checkPlatformUse reports id, a use of a platform global (D310), where the
+// code uses it: calls it, constructs it, tags a template with it, reads a
+// property of it, which can run a getter, as process.env does, or holds it as
+// a value. A binding imported from a platform module draws its error at the
+// import (checkPlatformImport), not at each use.
 func checkPlatformUse(c *checker.Checker, file *ast.SourceFile, id *ast.Node) {
 	ref, ok := platformReference(c, id)
-	if !ok {
+	if !ok || ref.module != "" {
 		return
 	}
-	value := id // the expression that denotes the platform API
-	if ref.namespace {
-		parent := id.Parent
-		if !(ast.IsPropertyAccessExpression(parent) || ast.IsElementAccessExpression(parent)) || parent.Expression() != id {
-			return // the namespace object itself, as a value
-		}
-		value = parent
-	}
-	use, runs := platformRun(c, value)
+	use, runs := platformRun(c, id)
 	if !runs {
-		return
+		if isClockReadMember(c, id) {
+			return // EK4403 reports it
+		}
+		use = id // the global held as a value
 	}
 	name := nodeText(file, use)
 	if ref.module != "" {
@@ -593,6 +689,21 @@ func checkPlatformUse(c *checker.Checker, file *ast.SourceFile, id *ast.Node) {
 	if ref.unresolved {
 		cover(c, id) // EK4402 explains TypeScript's "cannot find name"
 	}
+}
+
+// isClockReadMember reports whether id, a platform global, is the object of
+// a clock or randomness read, as performance is in performance.now(), which
+// EK4403 reports instead.
+func isClockReadMember(c *checker.Checker, id *ast.Node) bool {
+	parent := id.Parent
+	for parent != nil && ast.IsParenthesizedExpression(parent) {
+		parent = parent.Parent
+	}
+	if parent == nil || !(ast.IsPropertyAccessExpression(parent) || ast.IsElementAccessExpression(parent)) {
+		return false
+	}
+	call := parent.Parent
+	return call != nil && (ast.IsCallExpression(call) || ast.IsNewExpression(call)) && call.Expression() == parent && isClockRead(c, call)
 }
 
 // accessChain returns the properties that code reads from node, a reference
@@ -715,11 +826,15 @@ func isValueUse(id *ast.Node) bool {
 func notePlatformAPI(d *ast.Diagnostic, api platformAPI, hatch string) {
 	s := platformServices[api.service]
 	if s == nil {
-		note(d, "Effect, VibeLang's standard library, has no service for it yet.")
+		note(d, "Effect, VibeLang's standard library, has no service for it yet, so escape to TypeScript for now.")
 		if api.note != "" {
 			note(d, api.note)
 		}
-		note(d, "Run it in a hatch:   {0}, or with try when it can throw.", hatch)
+		if hatch == "" {
+			note(d, "Import it in a module block or a .ts file, and use it there or in a hatch.")
+		} else {
+			note(d, "Run it in a hatch:   {0}, or with try when it can throw; or move it to a module block or a .ts file.", hatch)
+		}
 		return
 	}
 	if example := cmp.Or(api.example, s.example); example != "" {

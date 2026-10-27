@@ -885,7 +885,7 @@ function firstFailure(outcome: Exit.Exit<User, NotFound>) {
 
 **Built-in exceptions (D101).** In an Effect function, `JSON.parse(text)` has a shipped contract: its `SyntaxError` is an expected failure that joins E and reaches `catch`. `decodeURI` and `decodeURIComponent` list `URIError`. Other built-ins' exceptions are defects. In a plain function `JSON.parse` is a JavaScript call, unless a `try` of that function whose `catch` handles the `SyntaxError` encloses it (D282); an exception that escapes into an Effect caller becomes a defect. Inside TypeScript's `Effect.gen`, by contrast, a plain `JSON.parse` throw is a defect.
 
-Use ordinary `catch` to map a built-in’s expected failure; reserve hatches for foreign libraries and for platform operations that Effect has no service for. A platform API that Effect covers is a service call, not a hatch: EK4402 names the service, its import, and its layer.
+Use ordinary `catch` to map a built-in’s expected failure; reserve hatches for foreign libraries and for platform operations that Effect has no service for. A platform API that Effect covers is a service call, not a hatch: EK4402 names the service and its layer. A `.vibe` file imports no Node.js value directly (D310), so a `module` block imports what a hatch runs.
 
 ```ts effect
 // fragment
@@ -905,9 +905,12 @@ const name = await Effect.runPromise(greetUser("1"))
 
 ```vibe es
 // run: provide Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]) { const ticker = sync(() => { const ticker = new EventEmitter(); ticker.on("newListener", () => queueMicrotask(() => ticker.emit("tick", 7))); return ticker }); const value = hatches('{"ok":true}', ".", ticker); Console.log(JSON.stringify({ ...value, up: typeof value.up, key: value.key.type, free: typeof value.free })) }
-import { uptime } from "node:os"
-import { statfs } from "node:fs/promises"
-import { EventEmitter } from "node:events"
+module node {
+  export { uptime } from "node:os"
+  export { statfs } from "node:fs/promises"
+  export { EventEmitter } from "node:events"
+}
+import { EventEmitter, statfs, uptime } from node
 
 error BadJson { error: unknown }
 

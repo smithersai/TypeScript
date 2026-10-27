@@ -168,8 +168,8 @@ var (
 	EK4301 = message(4301, errorCategory, "{0} can pause, but {1} calls it synchronously.")
 	// EK4401: a plain TypeScript call with no boundary or trusted contract. {0} is the function.
 	EK4401 = message(4401, errorCategory, "{0} is a plain TypeScript function, and nothing says what its exceptions mean.")
-	// EK4402: a Node.js or browser API. {0} is the API.
-	EK4402 = message(4402, errorCategory, "{0} is a platform API, which VibeLang code does not call directly.")
+	// EK4402: a Node.js or browser API, used or imported as a value. {0} is the API.
+	EK4402 = message(4402, errorCategory, "{0} is platform code, which VibeLang code does not use directly.")
 	// EK4403: a clock or randomness read. {0} is the read, such as "Date.now()".
 	EK4403 = message(4403, errorCategory, "{0} reads the clock or randomness, which a test cannot control.")
 	// EK4501: method syntax without a call. {0} is the method, {1} the module.

@@ -174,6 +174,7 @@ Code example count: one example per fenced code block in the source body, includ
   - [PlatformLogger](src/platform/108-platformlogger.md): `v4/platform/platformlogger.mdx`
   - [Runtime](src/platform/109-runtime.md): `v4/platform/runtime.mdx`
   - [Terminal](src/platform/110-terminal.md): `v4/platform/terminal.mdx`
+  - [Platform globals in VibeLang](src/platform/platform-globals.md)
 
 ### VibeLang features
 

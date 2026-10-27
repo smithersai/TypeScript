@@ -22,23 +22,24 @@ declare module "node:events" { export function once(emitter: unknown, name: stri
 declare module "node:fs" { export const constants: { X_OK: number; O_NONBLOCK: number } }
 declare module "node:crypto" { export function createHmac(algorithm: string, key: Uint8Array): unknown }
 declare var process: { cwd(): string; env: Record<string, string | undefined>; pid: number; argv: string[]; kill(pid: number, signal?: string | number): true; umask(): number }
-declare var Buffer: { from(text: string): Uint8Array }`
+declare var Buffer: { from(text: string): Uint8Array }
+declare var document: { title: string }`
 
 const (
 	provideNodeServices = `Provide it in main with NodeServices.layer from "@effect/platform-node", or BunServices.layer from "@effect/platform-bun".`
-	importFileSystem    = `Import it with   import { FileSystem } from "effect/FileSystem"`
-	importPath          = `Import it with   import { Path } from "effect/Path"`
-	importCrypto        = `Import it with   import { Crypto } from "effect/Crypto"`
 	provideCrypto       = `Provide it in main with NodeServices.layer from "@effect/platform-node", BunServices.layer from "@effect/platform-bun", or BrowserCrypto.layer from "@effect/platform-browser".`
-	noServiceYet        = "Effect, VibeLang's standard library, has no service for it yet."
 	provideExperimental = `Provide it in main with NodeServices.layer from "vibelang-runtime/experimental/platform-node", or BunServices.layer from "vibelang-runtime/experimental/platform-bun".`
-	importProcess       = `Import it with   import { Process } from "vibelang-runtime/experimental/Process"`
+	noServiceYet        = "Effect, VibeLang's standard library, has no service for it yet, so escape to TypeScript for now."
 	allowEK4403         = `To allow it, set "EK4403": "warning" or "off" in "vibelang": { "diagnostics": { ... } } at the top level of tsconfig.json.`
 )
 
-// EK4402 and EK4403 name the Effect API that replaces a platform API, the
-// import that brings it in, and the layer that provides it; for an API Effect
-// lacks, they show it in a hatch, never in a wrapper module.
+// EK4402 and EK4403 name the Effect API that replaces a platform API and
+// the layer that provides it; Effect's modules need no import (D310, D311).
+// For an API Effect lacks, they name VibeLang's experimental service, or show
+// the escape to TypeScript, never a wrapper module. A platform global is an
+// error wherever .vibe code uses it, and an import of a platform module at
+// each value it binds; a type-only import, and an import in a module block,
+// stay allowed (D310).
 func TestPlatformReplacementMessages(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -47,140 +48,156 @@ func TestPlatformReplacementMessages(t *testing.T) {
 	}{
 		{"fs", `import { readFile } from "node:fs/promises"
 export const run = (path: string) => readFile(path, "utf8")`, []string{
-			"readFile from node:fs/promises is a platform API, which VibeLang code does not call directly.",
-			"Use the FileSystem service:   FileSystem.readFileString(path)", importFileSystem, provideNodeServices,
+			"readFile from node:fs/promises is platform code, which a .vibe file does not import as a value.",
+			"Use the FileSystem service:   FileSystem.readFileString(path)", provideNodeServices,
 		}},
 		{"path", `import * as path from "node:path"
 export const run = (name: string) => path.join("dist", name)`, []string{
-			"path.join from node:path is a platform API, which VibeLang code does not call directly.",
-			"Use the Path service:   Path.join(directory, name)", importPath, provideNodeServices,
+			"path from node:path is platform code, which a .vibe file does not import as a value.",
+			"Use the Path service:   Path.join(directory, name)", provideNodeServices,
 		}},
 		{"child process", `import { execFileSync } from "node:child_process"
 export const run = () => execFileSync("git", ["status"])`, []string{
-			"execFileSync from node:child_process is a platform API, which VibeLang code does not call directly.",
+			"execFileSync from node:child_process is platform code, which a .vibe file does not import as a value.",
 			"Use the ChildProcessSpawner service:   ChildProcessSpawner.string(ChildProcess.make(command, args))",
-			`Import it with   import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"   and   import * as ChildProcess from "effect/process/ChildProcess"`,
 			provideNodeServices,
 		}},
 		{"http client", `export const run = (url: string) => fetch(url)`, []string{
-			"fetch is a platform API, which VibeLang code does not call directly.",
+			"fetch is platform code, which VibeLang code does not use directly.",
 			"Use HttpClient:   HttpClient.get(url)",
-			`Import it with   import { HttpClient } from "effect/http"`,
+			`Provide it in main with FetchHttpClient.layer from "effect/http", or NodeHttpClient.layerUndici from "@effect/platform-node".`,
+		}},
+		{"a global as a value", `export const client = fetch`, []string{
+			"fetch is platform code, which VibeLang code does not use directly.",
+			"Use HttpClient:   HttpClient.get(url)",
 			`Provide it in main with FetchHttpClient.layer from "effect/http", or NodeHttpClient.layerUndici from "@effect/platform-node".`,
 		}},
 		{"http server", `import { createServer } from "node:http"
 export const run = () => createServer()`, []string{
-			"createServer from node:http is a platform API, which VibeLang code does not call directly.",
+			"createServer from node:http is platform code, which a .vibe file does not import as a value.",
 			"Use HttpRouter:   HttpRouter.serve(app)",
-			`Import it with   import { HttpRouter } from "effect/http"`,
 			`Provide it in main with NodeHttpServer.layer(createServer, { port }) from "@effect/platform-node", which runs createServer itself.`,
 		}},
+		{"type-only import", `import type { Server } from "node:http"
+import { type Server as Other } from "node:http"
+export const same = (server: Server, other: Other) => server === other`, nil},
+		{"import in a module block", `module host {
+  import { createServer } from "node:http"
+  export const server = createServer
+}
+import { server } from host
+export const run = () => typeof server`, nil},
+		{"import for its effects", `import "node:http"`, []string{
+			"node:http is platform code, which VibeLang code does not import.",
+			"Use HttpClient:   HttpClient.get(url)",
+			`Provide it in main with FetchHttpClient.layer from "effect/http", or NodeHttpClient.layerUndici from "@effect/platform-node".`,
+		}},
 		{"process.cwd", `export const run = () => process.cwd()`, []string{
-			"process.cwd is a platform API, which VibeLang code does not call directly.",
-			"Use the Path service:   Path.resolve()", importPath, provideNodeServices,
+			"process.cwd is platform code, which VibeLang code does not use directly.",
+			"Use the Path service:   Path.resolve()", provideNodeServices,
 		}},
 		{"process.env", `export const run = () => process.env.PORT`, []string{
-			"process.env is a platform API, which VibeLang code does not call directly.",
+			"process.env is platform code, which VibeLang code does not use directly.",
 			`Use Config, from the prelude:   Config.String("NAME")()`,
 		}},
 		{"process.argv", `export const run = () => process.argv`, []string{
-			"process.argv is a platform API, which VibeLang code does not call directly.",
-			"Use the Stdio service:   Stdio.args()",
-			`Import it with   import { Stdio } from "effect/Stdio"`, provideNodeServices,
+			"process.argv is platform code, which VibeLang code does not use directly.",
+			"Use the Stdio service:   Stdio.args()", provideNodeServices,
 			"Stdio.args() leaves out argv[0] and argv[1], the runtime and the script.",
 		}},
 		{"tmpdir", `import { tmpdir } from "node:os"
 export const run = () => tmpdir()`, []string{
-			"tmpdir from node:os is a platform API, which VibeLang code does not call directly.",
-			"Use the FileSystem service:   FileSystem.makeTempDirectory()", importFileSystem, provideNodeServices,
+			"tmpdir from node:os is platform code, which a .vibe file does not import as a value.",
+			"Use the FileSystem service:   FileSystem.makeTempDirectory()", provideNodeServices,
 			"FileSystem.makeTempDirectory creates a directory in it; nothing returns its path alone.",
 		}},
 		{"mkdtemp", `import { mkdtemp } from "node:fs/promises"
 export const run = () => mkdtemp("build-")`, []string{
-			"mkdtemp from node:fs/promises is a platform API, which VibeLang code does not call directly.",
-			"Use the FileSystem service:   FileSystem.makeTempDirectory()", importFileSystem, provideNodeServices,
+			"mkdtemp from node:fs/promises is platform code, which a .vibe file does not import as a value.",
+			"Use the FileSystem service:   FileSystem.makeTempDirectory()", provideNodeServices,
 		}},
 		{"crypto digest", `export const run = (bytes: Uint8Array) => crypto.subtle.digest("SHA-256", bytes)`, []string{
-			"crypto.subtle is a platform API, which VibeLang code does not call directly.",
-			`Use the Crypto service:   Crypto.digest("SHA-256", bytes)`, importCrypto, provideCrypto,
+			"crypto.subtle is platform code, which VibeLang code does not use directly.",
+			`Use the Crypto service:   Crypto.digest("SHA-256", bytes)`, provideCrypto,
 		}},
 		{"timers", `export const run = (f: () => void) => setTimeout(f, 10)`, []string{
-			"setTimeout is a platform API, which VibeLang code does not call directly.",
+			"setTimeout is platform code, which VibeLang code does not use directly.",
 			`Use sleep and Schedule, from the prelude:   sleep("1 second")`,
 		}},
 		{"bytes", `export const run = (text: string) => Buffer.from(text)`, []string{
-			"Buffer.from is a platform API, which VibeLang code does not call directly.",
+			"Buffer.from is platform code, which VibeLang code does not use directly.",
 			"Use Uint8Array and TextEncoder or TextDecoder, which need no layer, or Base64 and Hex:   new TextEncoder().encode(text)",
-			`Import it with   import { Base64, Hex } from "effect/encoding"`,
+			"Base64.decode(text) and Hex.decode(text) read encoded bytes.",
 		}},
 		{"gap", `import { uptime } from "node:os"
 export const run = () => uptime()`, []string{
-			"uptime from node:os is a platform API, which VibeLang code does not call directly.",
-			noServiceYet, "Run it in a hatch:   sync(() => uptime()), or with try when it can throw.",
+			"uptime from node:os is platform code, which a .vibe file does not import as a value.",
+			noServiceYet, "Import it in a module block or a .ts file, and use it there or in a hatch.",
 		}},
-		{"experimental service", `import { hostname } from "node:os"
+		{"experimental", `import { hostname } from "node:os"
 export const run = () => hostname()`, []string{
-			"hostname from node:os is a platform API, which VibeLang code does not call directly.",
-			"Use the experimental Process service:   Process.hostname()", importProcess, provideExperimental,
+			"hostname from node:os is platform code, which a .vibe file does not import as a value.",
+			"Use the experimental Process service:   Experimental.Process.hostname()", provideExperimental,
 		}},
 		{"home directory", `import { homedir } from "node:os"
 export const run = () => homedir()`, []string{
-			"homedir from node:os is a platform API, which VibeLang code does not call directly.",
+			"homedir from node:os is platform code, which a .vibe file does not import as a value.",
 			"Use the UserDirectories service:   UserDirectories.home()",
-			`Import it with   import { UserDirectories } from "effect/persistence/UserDirectories"`,
-			`Provide it in main with UserDirectories.layer from "effect/persistence/UserDirectories".`,
+			"Provide it in main with UserDirectories.layer.",
 			"UserDirectories.home() reads HOME, or USERPROFILE on Windows; os.homedir() also falls back to the user database.",
 		}},
 		{"experimental service with a note", `export const run = (pid: number) => process.kill(pid, "SIGINT")`, []string{
-			"process.kill is a platform API, which VibeLang code does not call directly.",
-			"Use the experimental Process service:   Process.kill(pid, { killSignal })", importProcess, provideExperimental,
-			"Signal 0 is Process.isRunning(pid); a child that ChildProcessSpawner.spawn started also stops with its handle's kill().",
+			"process.kill is platform code, which VibeLang code does not use directly.",
+			"Use the experimental Process service:   Experimental.Process.kill(pid, { killSignal })", provideExperimental,
+			"Signal 0 is Experimental.Process.isRunning(pid); a child that ChildProcessSpawner.spawn started also stops with its handle's kill().",
 		}},
 		{"experimental locks", `export const run = (name: string) => navigator.locks.request(name, () => undefined)`, []string{
-			"navigator.locks is a platform API, which VibeLang code does not call directly.",
-			"Use the experimental Locks service:   Locks.hold(name)",
-			`Import it with   import { Locks } from "vibelang-runtime/experimental/Locks"`,
+			"navigator.locks is platform code, which VibeLang code does not use directly.",
+			"Use the experimental Locks service:   Experimental.Locks.hold(name)",
 			`Provide it in main with BrowserLocks.layer from "vibelang-runtime/experimental/platform-browser"; NodeLocks.layer from "vibelang-runtime/experimental/platform-node" locks only within one Node.js process.`,
+			"A Semaphore locks only within one program.",
 		}},
 		{"gap with a near miss", `import { once } from "node:events"
 export const run = (emitter: unknown) => once(emitter, "exit")`, []string{
-			"once from node:events is a platform API, which VibeLang code does not call directly.",
+			"once from node:events is platform code, which a .vibe file does not import as a value.",
 			noServiceYet, "Effect has no adapter for a Node.js EventEmitter; Stream.fromEventListener reads an event target.",
-			"Run it in a hatch:   sync(() => once(...)), or with try when it can throw.",
+			"Import it in a module block or a .ts file, and use it there or in a hatch.",
 		}},
 		{"lstat", `import { lstat } from "node:fs/promises"
 export const run = (path: string) => lstat(path)`, []string{
-			"lstat from node:fs/promises is a platform API, which VibeLang code does not call directly.",
-			"Use the FileSystem service:   FileSystem.lstat(path)", importFileSystem, provideNodeServices,
+			"lstat from node:fs/promises is platform code, which a .vibe file does not import as a value.",
+			"Use the FileSystem service:   FileSystem.lstat(path)", provideNodeServices,
 		}},
-		{"experimental file system", `import { constants } from "node:fs"
+		{"file system constants", `import { constants } from "node:fs"
 export const run = () => constants.O_NONBLOCK`, []string{
-			"constants.O_NONBLOCK from node:fs is a platform API, which VibeLang code does not call directly.",
-			"Use the experimental FileSystem service:   FileSystem.open(path, { nonBlocking: true })",
-			`Import it with   import { FileSystem } from "vibelang-runtime/experimental/FileSystem"`, provideExperimental,
+			"constants from node:fs is platform code, which a .vibe file does not import as a value.",
+			`Use the FileSystem service:   FileSystem.open(path, { flag: "wx" })`, provideNodeServices,
 		}},
 		{"experimental crypto", `import { createHmac } from "node:crypto"
 export const run = (key: Uint8Array) => createHmac("sha256", key)`, []string{
-			"createHmac from node:crypto is a platform API, which VibeLang code does not call directly.",
-			`Use the experimental Crypto service:   Crypto.hmac("SHA-256", key, data)`,
-			`Import it with   import { Crypto } from "vibelang-runtime/experimental/Crypto"`,
+			"createHmac from node:crypto is platform code, which a .vibe file does not import as a value.",
+			`Use the experimental Crypto service:   Experimental.Crypto.hmac("SHA-256", key, data)`,
 			`Provide it in main with NodeServices.layer from "vibelang-runtime/experimental/platform-node", BunServices.layer from "vibelang-runtime/experimental/platform-bun", or BrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser".`,
-			"Crypto.hmac takes the key as Redacted bytes and all the data in one call.",
+			"Experimental.Crypto.hmac takes the key as Redacted bytes and all the data in one call.",
 		}},
 		{"experimental signatures", `export const run = (key: CryptoKey, data: Uint8Array) => crypto.subtle.sign("Ed25519", key, data)`, []string{
-			"crypto.subtle is a platform API, which VibeLang code does not call directly.",
-			`Use the experimental Crypto service:   Crypto.sign("Ed25519", privateKey, data)`,
-			`Import it with   import { Crypto } from "vibelang-runtime/experimental/Crypto"`,
+			"crypto.subtle is platform code, which VibeLang code does not use directly.",
+			`Use the experimental Crypto service:   Experimental.Crypto.sign("Ed25519", privateKey, data)`,
 			`Provide it in main with NodeServices.layer from "vibelang-runtime/experimental/platform-node", BunServices.layer from "vibelang-runtime/experimental/platform-bun", or BrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser".`,
 			"It takes keys as bytes, a secret in a Redacted: raw for HMAC, PKCS#8 and SPKI DER for ECDSA P-256 and Ed25519; it has no ciphers.",
 		}},
 		{"gap of a property", `export const run = () => process.umask()`, []string{
-			"process.umask is a platform API, which VibeLang code does not call directly.",
-			noServiceYet, "Run it in a hatch:   sync(() => process.umask()), or with try when it can throw.",
+			"process.umask is platform code, which VibeLang code does not use directly.",
+			noServiceYet, "Run it in a hatch:   sync(() => process.umask()), or with try when it can throw; or move it to a module block or a .ts file.",
 		}},
-		{"experimental service of a property", `export const run = () => process.pid`, []string{
-			"process.pid is a platform API, which VibeLang code does not call directly.",
-			"Use the experimental Process service:   Process.pid()", importProcess, provideExperimental,
+		{"experimental property", `export const run = () => process.pid`, []string{
+			"process.pid is platform code, which VibeLang code does not use directly.",
+			"Use the experimental Process service:   Experimental.Process.pid()", provideExperimental,
+		}},
+		{"gap", `export const run = () => document.title`, []string{
+			"document.title is platform code, which VibeLang code does not use directly.",
+			noServiceYet, "Effect has no service for the DOM; UI code belongs in a .ts or .tsx file, such as a React component's.",
+			"Run it in a hatch:   sync(() => document.title), or with try when it can throw; or move it to a module block or a .ts file.",
 		}},
 		{"clock", `export const run = () => Date.now()`, []string{
 			"Date.now() reads the clock or randomness, which a test cannot control.",
@@ -201,7 +218,7 @@ export const run = (key: Uint8Array) => createHmac("sha256", key)`, []string{
 		}},
 		{"crypto", `export const run = () => crypto.randomUUID()`, []string{
 			"crypto.randomUUID() reads the clock or randomness, which a test cannot control.",
-			"Use Crypto.randomUUIDv4().", importCrypto, provideCrypto,
+			"Use Crypto.randomUUIDv4().", provideCrypto,
 			`In a test, provide TestCrypto.layer(seed) from "effect/testing"; a seeded Random does not reach Crypto.`, allowEK4403,
 		}},
 		{"pure web helpers", `export const run = (text: string, url: string) => [
@@ -234,7 +251,8 @@ export const run = (key: Uint8Array) => createHmac("sha256", key)`, []string{
 }
 
 // Every service the tables name exists, and each example calls only what
-// its service's import brings in, the prelude, or a value the program has.
+// its service's import brings in, Effect's modules, which need no import
+// (D310), the experimental services (D313), or a value the program has.
 func TestPlatformServicesTable(t *testing.T) {
 	named := func(where, service string) {
 		if service != "" && platformServices[service] == nil {
@@ -258,7 +276,13 @@ func TestPlatformServicesTable(t *testing.T) {
 	}
 	imported := regexp.MustCompile(`import \{ ([^}]*) \}|import \* as (\w+)`)
 	receiver := regexp.MustCompile(`(?:^|[^.\w/])([A-Za-z_]\w*)\.`) // not a path's or a member's
-	prelude := []string{"Clock", "Config", "Console", "DateTime", "Inspectable", "Number", "Random", "Schedule", "Stream", "String", "fiber", "import"}
+	prelude := []string{"Number", "String", "fiber", "import", "Experimental", "globalThis"}
+	for name := range effectRootNames {
+		prelude = append(prelude, name)
+	}
+	for name := range effectSubpathNames {
+		prelude = append(prelude, name)
+	}
 	check := func(where, example string, s *platformService) {
 		names := slices.Clone(prelude)
 		for _, m := range imported.FindAllStringSubmatch(s.imports, -1) {

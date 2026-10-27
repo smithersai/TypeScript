@@ -9,16 +9,15 @@ function loadSettings(path: string) {
 ```
 
 ```text
-error EK4402: readFile from node:fs/promises is a platform API, which VibeLang code does not call directly.
-  settings.vibe:4:21   return JSON.parse(readFile(path, "utf8"))
+error EK4402: readFile from node:fs/promises is platform code, which a .vibe file does not import as a value.
+  settings.vibe:1:10   import { readFile } from "node:fs/promises"
   Use the FileSystem service:   FileSystem.readFileString(path)
-  Import it with   import { FileSystem } from "effect/FileSystem"
   Provide it in main with NodeServices.layer from "@effect/platform-node", or BunServices.layer from "@effect/platform-bun".
 ```
 
-VibeLang's standard library is Effect's. Node.js and browser APIs are not callable from `.vibe` files; each error names the Effect service that replaces the API, the import that brings it in, and the layer that provides it. VibeLang adds no Node.js clones: the replacement is the module Effect already ships, implemented by the platform package your program runs with. Where Effect has no service for an API yet, the error names the experimental service VibeLang adds for it (D313), such as `Process.hostname()` for `os.hostname()`, or, where neither has one, such as `os.uptime()`, says so and shows the call in a `sync` hatch; it never suggests a wrapper module.
+VibeLang's standard library is Effect's. Node.js reaches a `.vibe` file only through Effect's services, which layers inject, or by escaping to TypeScript: a hatch, a `module` block, or a `.ts` file (D310). Node's globals (`process`, `Buffer`, `require`, `__dirname`) and the web's globals that do I/O or read the clock or randomness (`fetch`, `setTimeout`, `crypto`, `performance`, `localStorage`) are not in scope there, and a `.vibe` file does not import a Node.js built-in module as a value. Each error names the Effect service that replaces the API, which needs no import, and the layer that provides it. VibeLang adds no Node.js clones: the replacement is the module Effect already ships, implemented by the platform package your program runs with. Where Effect has no service for an API yet, the error names the experimental service VibeLang adds for it (D313), such as `Experimental.Process.hostname()` for `os.hostname()`, or, where neither has one, such as `os.uptime()`, shows the escape; it never suggests a wrapper module. The guide's page on platform globals, https://vibelang.sh/platform/platform-globals, answers every global.
 
-Imports, re-exports, and passing platform values to adapters are allowed (D108): `NodeHttpServer.layer(createServer, { port })` passes a host function without calling it. EK4402 reports execution: calls, construction, tagged templates, and reads of platform properties, including destructuring and spreading. Namespace members used as values, such as `os.EOL`, are allowed. The current check does not follow platform functions through local aliases, parameters, or objects returned by platform calls.
+EK4402 stands at each use of a platform global, a value held included, and at each value an import declaration brings in from a platform module; a type-only import stays allowed, and so does an import in a `module` block, whose body is TypeScript: `NodeHttpServer.layer(createServer, { port })` takes a `createServer` that a `module` block imports. ECMAScript's built-ins and the web's pure helpers, such as `URL`, `TextEncoder`, and `structuredClone`, are not platform code. The check does not follow platform functions through local aliases, parameters, or objects returned by platform calls.
 
 Three reasons:
 
@@ -28,7 +27,7 @@ Three reasons:
 
 #### What replaces what
 
-| You would use | In VibeLang | Import from |
+| You would use | In VibeLang | Effect's module, which needs no import (D310) |
 | --- | --- | --- |
 | `fs`, `fs/promises` | `FileSystem` | `effect/FileSystem` |
 | `path` | `Path` | `effect/Path` |

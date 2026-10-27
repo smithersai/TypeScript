@@ -1,11 +1,16 @@
-// D108: importing a platform API and passing it as a value runs nothing, so
-// .vibe code can hand Node's functions to the Effect APIs that run them, as
-// NodeHttpServer.layer(createServer, { port }) does.
-import { createServer } from "node:http"
-import * as os from "node:os"
+// D310: Node.js values reach .vibe code through TypeScript, never as a value
+// import: a module block imports createServer and os and hands them on, as
+// NodeHttpServer.layer(createServer, { port }) needs Node's createServer.
+module node {
+  import { createServer } from "node:http"
+  import * as os from "node:os"
+  export const server = createServer
+  export const lineEnd = os.EOL
+}
+import { lineEnd, server } from node
 import { kind } from "./kind.ts"
 
 // expect-result: ["function","string"]
 export function main() {
-  return [kind(createServer), kind(os.EOL)]
+  return [kind(server), kind(lineEnd)]
 }
