@@ -35,10 +35,21 @@ func explainCallPipe(c *checker.Checker, file *ast.SourceFile, all []*ast.Diagno
 		return all
 	}
 	for i, d := range all {
-		if d.Source() != "" || d.Code() != 2339 || diagnosticAlreadyExplained(c, file, d) {
+		if d.Source() != "" || (d.Code() != 2339 && d.Code() != 2345) || diagnosticAlreadyExplained(c, file, d) {
 			continue
 		}
 		node := astnav.GetTokenAtPosition(file, d.Pos())
+		if d.Code() == 2345 {
+			for at := node; at != nil && !isFunctionBoundary(at); at = at.Parent {
+				if first := preludePipeRunningCall(c, at); first != nil {
+					replacement := newDiagnosticAt(optionsFor(c, file), file, d.Loc(), EK4502.With("{0} already ran and returned its success value before pipe received it."), nodeText(file, first))
+					note(replacement, "Start with a program: pipe(() => {0}, …), or use |> with %.", nodeText(file, first))
+					all[i] = replacement
+					break
+				}
+			}
+			continue
+		}
 		if node != nil && node.Parent != nil {
 			if call := missingCallPipe(c, node.Parent); call != nil {
 				replacement := newDiagnosticAt(optionsFor(c, file), file, d.Loc(), EK4502, nodeText(file, call))
@@ -60,4 +71,29 @@ func diagnosticAlreadyExplained(c *checker.Checker, file *ast.SourceFile, d *ast
 		}
 	}
 	return false
+}
+
+// preludePipeRunningCall identifies the Effect-to-value mismatch without
+// diagnosing ordinary value pipelines, local functions, or TypeScript code.
+func preludePipeRunningCall(c *checker.Checker, node *ast.Node) *ast.Node {
+	if !ast.IsCallExpression(node) || len(node.Arguments()) < 2 || !inLowerableBody(node) || inHatch(node) {
+		return nil
+	}
+	if !isEffectFunction(c, node.Expression(), "Function", "pipe") && !isRuntimeExport(c, node.Expression(), "pipe") {
+		return nil
+	}
+	takesProgram := false
+	for _, signature := range c.GetSignaturesOfType(c.GetTypeAtLocation(node.Arguments()[1]), checker.SignatureKindCall) {
+		if len(signature.Parameters()) > 0 && isEffectType(c, c.GetTypeAtPosition(signature, 0)) {
+			takesProgram = true
+		}
+	}
+	if !takesProgram {
+		return nil
+	}
+	first := ast.SkipParentheses(node.Arguments()[0])
+	if !ast.IsCallExpression(first) || !callReturnsEffect(c, first) || isEffectType(c, c.GetTypeAtLocation(first)) {
+		return nil
+	}
+	return first
 }
