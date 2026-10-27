@@ -1,0 +1,26 @@
+// A service's static default without a type annotation has the service's
+// type (D40): its initializer is typed by the shape, so a literal keeps the
+// shape's literal type and a method takes the member's contract, Effect
+// included, as an implementation in Layer.succeed does.
+export service Mode {
+  speed: "fast" | "slow"
+  static readonly default = { speed: "fast" }
+}
+
+export service Greeter {
+  greet(name: string): string!!
+  static readonly default = {
+    greet(name) {
+      return `hello ${name}`
+    }
+  }
+}
+
+export service Prefix: string {
+  static readonly default = "> "
+}
+
+// expect-result: ["fast","hello ada","> "]
+export function main() {
+  return [Mode().speed, Greeter.greet("ada"), Prefix()]
+}
