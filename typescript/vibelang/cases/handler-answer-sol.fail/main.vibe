@@ -1,0 +1,13 @@
+// expect: EK2119
+// sol-2: the outer resume receives the inner clause's toFixed string.
+control Step { go(): void!! }
+
+export function unsound() {
+  try {
+    Step.go()
+    Step.go()
+    return 1
+  } handle Step.go() {
+    return resume().toFixed(0)
+  }
+}

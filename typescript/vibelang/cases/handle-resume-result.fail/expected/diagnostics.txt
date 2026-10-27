@@ -6,3 +6,4 @@ main.vibe(85,13): error TS2322
 main.vibe(103,13): error TS2322
 main.vibe(114,25): error EK2110
 main.vibe(127,25): error EK2110
+main.vibe(142,12): error EK2119

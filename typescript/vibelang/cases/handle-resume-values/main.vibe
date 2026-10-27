@@ -32,7 +32,7 @@ function expression() {
 }
 
 // A clause return replaces the pending return, as in finally.
-function override() {
+function override(): Effect<number | string, infer E, infer R> {
   try {
     return Ask.answer() + 1
   } handle Ask.answer() {

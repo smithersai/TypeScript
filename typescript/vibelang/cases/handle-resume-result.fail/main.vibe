@@ -1,4 +1,4 @@
-// expect: EK2110 TS2322 TS2345
+// expect: EK2110 EK2119 TS2322 TS2345
 // A resume that is not its clause's last step returns what the handle ends
 // with next: the try block's result, or what a clause returns when the block
 // performs an operation again before it ends (D97). Each function below
@@ -131,4 +131,16 @@ export function transformed() {
       return resume(k, undefined)
     }
   }, (n) => `${n}`)
+}
+
+// D351: the inferred answer type excludes this resume-dependent return.
+// This used to run in handle-resume-result with only an EK2119 warning.
+export function unwritten() {
+  try {
+    return work()
+  } handle Steps.first() {
+    return `${resume()} first`
+  } handle Steps.second() {
+    resume()
+  }
 }

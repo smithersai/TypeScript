@@ -1,5 +1,5 @@
-// expect-result: {"early":"early","after":42,"written":"42 first","unwritten":"42 first","falls":["undefined"],"agreed":43,"held":84,"log":["first 42"]}
-// What a resume returns when it is not its clause's last step (D97): its
+// expect-result: {"early":"early","after":42,"written":"42 first","falls":["undefined"],"agreed":43,"held":84,"log":["first 42"]}
+// What a resume returns when it is not its clause's last step (D351): its
 // type covers every value the handle can end with, so reading it is checked.
 
 control Steps {
@@ -42,17 +42,6 @@ function after() {
 
 // A written success type covers a return computed from resume's result.
 function written(): number | string!! {
-  try {
-    return work()
-  } handle Steps.first() {
-    return `${resume()} first`
-  } handle Steps.second() {
-    resume()
-  }
-}
-
-// Without one, that return stays out of resume's type, and EK2119 warns.
-function unwritten() {
   try {
     return work()
   } handle Steps.first() {
@@ -108,7 +97,6 @@ export function main() {
     early: early(),
     after: after(),
     written: written(),
-    unwritten: unwritten(),
     falls: falls(),
     agreed: agreed(),
     held: held(),

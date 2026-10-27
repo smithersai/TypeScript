@@ -5,7 +5,7 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
-// What a resume returns (D50, D97).
+// What a resume returns (D351).
 //
 // A resume in tail position ends its clause: the clause returns whatever the
 // resumed program ends with and adds nothing of its own. Any other resume
@@ -20,14 +20,14 @@ import (
 //	}
 //	handle Steps.second() { return "early" }
 //
-// In a handle statement, a non-tail resume has the type of every value the
+// In a handle statement, every resume has one answer type H, covering what the
 // statement can end with: each value its try block or its clauses return, and
 // undefined when the block, or a clause that has not resumed, ends another way
 // (normally, or with a break or continue that leaves the statement). A return
-// computed from resume's own result would need a fixpoint that TypeScript's
-// checker cannot compute, so it stays out of that type; when it does not fit,
-// EK2119 warns. Once the function's success type is written, a return computed
-// from resume's result has that type, and resume's result includes it.
+// computed from a non-tail resume's result stays out of H: compute H once,
+// then check the omitted returns against it. A return outside H is EK2119,
+// an error. A written success type instead determines H, with undefined under
+// the same completion rule, and the checker checks every return against it.
 //
 // The handle function keeps D97's types: resume returns the program's result
 // type, or never with onReturn. A clause that reads that result, where the
@@ -36,8 +36,8 @@ import (
 var (
 	// EK2110: a clause of a handle call reads what a non-tail resume returns, and the handle can produce a result outside that type (D97). {0} is what the handle can produce, {1} the type of resume's result.
 	EK2110 = message(2110, errorCategory, "This resume returns what the handle produces next, which can be {0}, but its result is typed {1}.")
-	// EK2119: a handle statement's clause returns a value, computed from what resume returned, that resume's result type does not include (D97). A warning. {0} is the value's type, {1} the type of resume's result.
-	EK2119 = message(2119, warningCategory, "This clause returns {0}, which a resume still waiting in this handle statement then returns, but resume's result is typed {1}.")
+	// EK2119: a handle statement's clause returns a value, computed from what resume returned, outside the handler's answer type (D351). {0} is the value's type, {1} the handler's answer type.
+	EK2119 = message(2119, errorCategory, "This clause returns {0}, which a resume still waiting in this handle statement then returns, but resume's result is typed {1}.")
 )
 
 func init() {
@@ -61,13 +61,12 @@ func handleResultsOf(c *checker.Checker) *handleResults {
 	}).(*handleResults)
 }
 
-// resumeResultType returns the type of what call returns when call is a
-// resume or resumeWith that a handle statement's clause runs in other than
-// tail position, and nil otherwise. A tail resume keeps $clause's never: the
-// clause then returns what the resumed block does, which adds no value.
+// resumeResultType returns the handler's answer type when call is a resume
+// or resumeWith in a handle statement's clause, and nil otherwise. A tail
+// resume has the same H, although it adds no value to the result plan.
 func resumeResultType(c *checker.Checker, call *ast.Node) *checker.Type {
 	clause := clauseOfResume(call)
-	if clause == nil || isReturnedValue(call) {
+	if clause == nil {
 		return nil
 	}
 	statement := handleStatementOfClause(clause)
@@ -127,7 +126,7 @@ func isReturnedValue(node *ast.Node) bool {
 }
 
 // resultType returns the type of every value that statement, a handle
-// statement, can end with, which is what a non-tail resume in its clauses
+// statement, can end with, which is what every resume in its clauses
 // returns. A resume reached again while the type is computed, as through a
 // recursive call of the enclosing function, gets nil and keeps never.
 func (h *handleResults) resultType(c *checker.Checker, statement *ast.Node) *checker.Type {
@@ -138,11 +137,12 @@ func (h *handleResults) resultType(c *checker.Checker, statement *ast.Node) *che
 	plan := h.plan(c, statement)
 	declared := declaredSuccess(analyzerFor(c), plan.fn)
 	var types []*checker.Type
-	for _, e := range plan.independent {
-		types = append(types, returnedType(c, e, declared == nil))
-	}
-	if declared != nil && len(plan.dependent) > 0 {
-		types = append(types, declared) // the checker holds each of those returns to it
+	if declared != nil {
+		types = append(types, declared) // every return is checked against the written success type
+	} else {
+		for _, e := range plan.independent {
+			types = append(types, returnedType(c, e, true))
+		}
 	}
 	if plan.otherwise {
 		types = append(types, c.GetUndefinedType())

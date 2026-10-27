@@ -1,0 +1,20 @@
+// expect: EK2119
+// opus-5: a value computed from a saved resume result changes the answer.
+control Ask { ask(): number!! }
+
+function prog() {
+  const a = Ask.ask()
+  const b = Ask.ask()
+  return a + b
+}
+
+function run() {
+  try {
+    return prog()
+  } handle Ask.ask() {
+    const r = resume(1)
+    return r.toFixed(1)
+  }
+}
+
+export function main() { log(`result: ${run()}`) }

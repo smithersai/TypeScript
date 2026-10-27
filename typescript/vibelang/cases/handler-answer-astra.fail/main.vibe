@@ -1,0 +1,16 @@
+// expect: EK2119
+// astra-2: the second clause's string reaches the first clause's number.
+control Steps { first(): void!!; second(): void!! }
+
+export function probe() {
+  try {
+    Steps.first()
+    Steps.second()
+    return 42
+  } handle Steps.first() {
+    const n: number = resume()
+    n.toFixed(0)
+  } handle Steps.second() {
+    return `${resume()}`
+  }
+}
