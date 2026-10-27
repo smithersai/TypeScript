@@ -28,7 +28,7 @@ import (
 // exceptions (D282).
 
 // trustedPlan records the calls whose expected failures the lowering
-// converts.
+// converts. A tagged template calls its tag, with the tag's contract.
 type trustedPlan struct {
 	trusted      map[*ast.Node][]classRef // call -> the classes of its expected failures
 	classAliases map[*ast.Node]bool       // class declarations whose name a binding around such a call shadows, declared with an alias (classAlias)
@@ -153,7 +153,7 @@ func (a *analyzer) forEachFailingCall(fn *ast.Node, cb func(call *ast.Node, caug
 			return visit(try.TryBlock, caught || catches(n)) ||
 				try.CatchClause != nil && visit(try.CatchClause, caught) ||
 				try.FinallyBlock != nil && visit(try.FinallyBlock, caught)
-		case n.Kind == ast.KindCallExpression && len(a.expectedFailures(n)) > 0 && cb(n, caught):
+		case isInvocation(n) && len(a.expectedFailures(n)) > 0 && cb(n, caught):
 			return true
 		}
 		return n.ForEachChild(func(child *ast.Node) bool { return visit(child, caught) })
@@ -258,6 +258,9 @@ func (tx *lowering) classArray(node *ast.Node) *ast.Node {
 // arguments. The thunk calls that function with the receiver as this:
 //
 //	((receiver_1, method_1, args_1) => () => method_1.call(receiver_1, ...args_1))(receiver_2 = r, receiver_2.m, [yield* x()])
+//
+// A tagged template passes its strings first, as a template object made
+// where the template stands, and its substitutions as the arguments.
 func (tx *lowering) trustedThunk(node *ast.Node) *ast.Node {
 	f := tx.Factory()
 	call := tx.Visitor().VisitEachChild(node)
@@ -296,7 +299,25 @@ func (tx *lowering) trustedThunk(node *ast.Node) *ast.Node {
 	default:
 		function = hoist("callee", callee)
 	}
-	arguments := []*ast.Node{f.NewSpreadElement(hoist("args", f.NewArrayLiteralExpression(f.NewNodeList(call.Arguments()), false /*multiLine*/)))}
+	var arguments []*ast.Node
+	if ast.IsTaggedTemplateExpression(call) {
+		template := call.AsTaggedTemplateExpression().Template
+		var substitutions []*ast.Node
+		if ast.IsTemplateExpression(template) {
+			var spans []*ast.Node
+			for _, span := range template.AsTemplateExpression().TemplateSpans.Nodes {
+				substitutions = append(substitutions, span.Expression())
+				spans = append(spans, f.NewTemplateSpan(f.NewVoidZeroExpression(), span.AsTemplateSpan().Literal))
+			}
+			template = f.NewTemplateExpression(template.AsTemplateExpression().Head, f.NewNodeList(spans))
+		}
+		strings := f.NewUniqueName("strings")
+		identity := tx.generated(tx.arrow([]*ast.Node{f.NewParameterDeclaration(nil /*modifiers*/, nil /*dotDotDotToken*/, strings, nil /*questionToken*/, nil /*typeNode*/, nil /*initializer*/)}, strings))
+		arguments = append(arguments, hoist("strings", f.NewTaggedTemplateExpression(f.NewParenthesizedExpression(identity), nil /*questionDotToken*/, nil /*typeArguments*/, template, ast.NodeFlagsNone)))
+		arguments = append(arguments, f.NewSpreadElement(hoist("args", f.NewArrayLiteralExpression(f.NewNodeList(substitutions), false /*multiLine*/))))
+	} else {
+		arguments = append(arguments, f.NewSpreadElement(hoist("args", f.NewArrayLiteralExpression(f.NewNodeList(call.Arguments()), false /*multiLine*/))))
+	}
 	inner := tx.invokeGuarded(function, receiver, arguments)
 	outer := f.NewParenthesizedExpression(tx.generated(tx.arrow(parameters, tx.generated(tx.arrow(nil, inner)))))
 	return f.NewCallExpression(outer, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList(values), ast.NodeFlagsNone)

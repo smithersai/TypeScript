@@ -46,6 +46,7 @@ func (a *analyzer) flowOf(node *ast.Node) *effectInfo {
 		case ast.IsTaggedTemplateExpression(n):
 			n.ForEachChild(visit)
 			a.addCall(info, n)
+			a.addFailures(info, n) // a tag's trusted failures, as a call's
 		case n.Kind == ast.KindCallExpression:
 			n.ForEachChild(visit)
 			a.addServiceLookup(info, n)

@@ -244,9 +244,9 @@ func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 		return tx.visitClauseResume(node)
 	case isInvocation(node) && tx.inEffect && tx.plan.runsCall(node):
 		return tx.visitRunningCall(node)
-	case node.Kind == ast.KindCallExpression && tx.inEffect && tx.plan.trusted[node] != nil:
+	case isInvocation(node) && tx.inEffect && tx.plan.trusted[node] != nil:
 		return tx.visitTrustedCall(node)
-	case node.Kind == ast.KindCallExpression && tx.plain && tx.plan.trusted[node] != nil:
+	case isInvocation(node) && tx.plain && tx.plan.trusted[node] != nil:
 		return tx.visitTrustedPlainCall(node)
 	case node.Kind == ast.KindPropertyAccessExpression && tx.inEffect && tx.plan.looksUp(node):
 		return tx.visitServiceLookup(node)

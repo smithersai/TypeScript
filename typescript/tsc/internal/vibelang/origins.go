@@ -168,9 +168,9 @@ func signatureDeclaration(c *checker.Checker, node *ast.Node) *ast.Node {
 }
 
 // calleeSymbol returns the symbol that the callee of call names, with
-// aliases resolved, or nil: f for f(x), and m for o.m(x).
+// aliases resolved, or nil: f for f(x) and f`x`, and m for o.m(x).
 func calleeSymbol(c *checker.Checker, call *ast.Node) *ast.Symbol {
-	callee := ast.SkipParentheses(call.Expression())
+	callee := ast.SkipParentheses(ast.GetInvokedExpression(call))
 	var name *ast.Node
 	switch {
 	case ast.IsIdentifier(callee):

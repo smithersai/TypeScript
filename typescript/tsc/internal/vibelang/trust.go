@@ -127,7 +127,7 @@ func computeTrust(c *checker.Checker, call *ast.Node) *trust {
 //	const spy = vi.spyOn(o, "f")
 //	spy.mockRestore()          // mockRestore is a method of what spyOn returned
 func reachedThroughTrustedPackage(c *checker.Checker, call *ast.Node, followReturned bool) bool {
-	callee := ast.SkipParentheses(call.Expression())
+	callee := ast.SkipParentheses(ast.GetInvokedExpression(call))
 	for {
 		switch {
 		case ast.IsPropertyAccessExpression(callee), ast.IsElementAccessExpression(callee):
@@ -218,7 +218,7 @@ func tagged(c *checker.Checker, call *ast.Node, candidates []*ast.Node, otherwis
 // .vibe file. The caller chose the function it passed, so the call is that
 // function's business, whatever type declares the parameter.
 func isParameterCall(c *checker.Checker, call *ast.Node) bool {
-	callee := ast.SkipParentheses(call.Expression())
+	callee := ast.SkipParentheses(ast.GetInvokedExpression(call))
 	if !ast.IsIdentifier(callee) {
 		return false
 	}
