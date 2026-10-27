@@ -178,9 +178,8 @@ Editor features (TypeScript files keep TypeScript's hover behavior):
 - A method of an Effect data type hovers as the function it calls, "Method
   syntax: calls `Option.getOrElse(maybe, …)`", and completes after a dot
   (D152).
-- A call passed by name hovers as "Passed by name to `fork` as a program"
-  (D147), as does a pipe topic that passes its left side by name; any other
-  topic hovers as its value, "(topic) %: T" (D155).
+- A program written as a function, `() => …`, or as a keyword form's operand
+  hovers as a program; a pipe topic hovers as its value, "(topic) %: T".
 - A layer's hover lists what it provides, needs, and fails with; `wire`'s
   hover, the order it builds its layers in. A `Duration.Input` string, the name
   in `Schema.brand("…")`, and the codes of an `@vibelang-diagnostics` comment
@@ -213,7 +212,7 @@ EK4801-EK4825 carry the rules of Effect's language service that VibeLang's synta
 // @vibelang-diagnostics *:off                      every adjustable code
 ```
 
-EK4830-EK4837 mark Effect code written the way Effect's TypeScript writes it where VibeLang has a form of its own (D284-D290): an error class (EK4830, or EK4837 for a Schema error class), a `Context.Service` class, a constant that holds a `Schema.Struct`, an `Effect.Effect<A, E, R>` type, a running `Effect.succeed` or `Effect.fail`, a catch combinator, and `Effect.withSpan`, `Effect.provide`, or `Effect.provideService`. They are lint too, warnings by default and adjustable the same way, and they never change emit or the exit status. Each has a quick fix wherever the VibeLang form keeps the program's meaning; where it would not, the warning says what would change and offers none. `vibelang -p tsconfig.json --fix` applies every such fix, and the quick fixes of the retired spellings, to a project's own `.vibe` files, the ones tsc would emit for it and not a dependency's source that a package import reaches, and then compiles as the rest of the command line says; it writes a file only when the fixed program reports no error the original did not (D291).
+EK4830-EK4837 mark Effect code written the way Effect's TypeScript writes it where VibeLang has a form of its own (D284-D290): an error class (EK4830, or EK4837 for a Schema error class), a `Context.Service` class, a constant that holds a `Schema.Struct`, an `Effect.Effect<A, E, R>` type, a running `Effect.succeed` or `Effect.fail`, a catch combinator, and `Effect.withSpan`, `Effect.provide`, or `Effect.provideService`. They are lint too, warnings by default and adjustable the same way, and they never change emit or the exit status. Each has a quick fix wherever the VibeLang form keeps the program's meaning; where it would not, the warning says what would change and offers none. `vibelang -p tsconfig.json --fix` applies every such fix, and the quick fixes of the retired spellings, to a project's own `.vibe` files, the ones tsc would emit for it and not a dependency's source that a package import reaches, and then compiles as the rest of the command line says. Each fix keeps the program's meaning by the rule below; as a second check, `--fix` writes a file only when the fixed program reports no error the original did not (D291).
 
 A later comment overrides an earlier one; within one comment, a code named on its own overrides `*`. D266 supersedes D242: every EK diagnostic is restricted to `.vibe` files, and ordinary TypeScript sources keep TypeScript diagnostics whatever these settings say.
 
@@ -231,25 +230,25 @@ coverage. Repairs are suggestions, not shipped code actions:
 
 | Code | What it reports | Suggested repair | Chapter |
 | --- | --- | --- | --- |
-| EK1001 | Except for an explicitly Effect-typed top-level `const` initializer (D262), a module's top level runs a program, or a throw can escape it; a class field's initializer, a default parameter value, a constructor, an accessor or a static block runs a program, since each runs as plain JavaScript (D282) | Export a function instead; compute the value in an Effect function | 13 |
-| EK1002 | An unannotated producer passed to an API whose parameter returns a library Generator or Iterator, such as `Effect.gen`. An explicit JavaScript iterator annotation is accepted (D271) | Convert the function | 10 |
-| EK1003 | `async`, `for await`, or `await using`, and `await` inside an `async` function outside a hatch, a `module` body, or an explicitly iterator-annotated async generator (D271, D283) | Remove them. Use `join` for a fiber or a hatch for a promise (D225, D226) | 10 |
+| EK1001 | A module's top level runs a program, or a throw can escape it; a class field's initializer, a default parameter value, a constructor, an accessor or a static block runs a program, since each runs as plain JavaScript (D282) | Export a function instead; compute the value in an Effect function; store a program as a function, `() => call()` | 13 |
+| EK1002 | A `function*` passed to an API whose parameter returns a library Generator or Iterator, such as `Effect.gen` (D64), or a `function*` whose return annotation is a JavaScript iterator type: a `function*` is a producer (D370) | Convert the function; write a JavaScript generator as a generator method, or in a `module` declaration or a `.ts` file | 8, 10 |
+| EK1003 | `async`, `for await`, or `await using`, and `await` inside an `async` function, outside a hatch or a `module` body (D283): a call already waits | Remove them. Use `join` for a fiber or a hatch for a promise (D225, D226) | 10 |
 | EK1004 | `using` at a module's top level or in a class static block | Move it into a function | 6 |
 | EK1005 | A runner inside code that a fiber runs | Call the program, or `fork` it | 13 |
 | EK1006 | A pipe whose body does not use its topic, as in `name \|> "anonymous"` (D156) | Write `%` where the value goes: `name \|> greet(%)` | 5 |
 | EK1007 | `%` outside every pipe's body (D156) | Use `%` only after `\|>`; `%` between two operands is still the remainder | 5 |
-| EK1008 | A pipe that passes its left side by name to one program and also uses it as a value (D155) | Bind the value first with `const`, or pass it by name everywhere | 5, 13 |
+| EK1008 | Retired: a pipe's topic is always the value of its left side, so no pipe passes its left side to one program and uses it as a value too (Chapter 5). The number is not reused | | 5 |
 | EK1009 | Warning: a `provide` block written with its old keyword, `with` (D172) | Write `provide`; the quick fix replaces the keyword | 4 |
 | EK1010 | An unparenthesized throw expression is, or ends, a binary operator's left operand (except comma), a conditional's condition, or the operand of `as` or `satisfies`, as in `x ?? throw c ? a : b` (D186) | Write `throw (…)` to throw the whole expression | 3 |
 | EK1011 | A function compiles to an Effect, but the program cannot find effect's Effect type, because `effect` is not installed where the program resolves it (D4) | Install `effect` | 15 |
-| EK1012 | Warning: a call that runs and never succeeds is stored in a variable, a field, an element or an assignment, which then never holds a value (D147) | Store a function, `() => call()`, or write the declared Effect type (D262, D265, D269); or write the call as a statement | 13 |
+| EK1012 | Warning: a call that runs and never succeeds is stored in a variable, a field, an element or an assignment, which then never holds a value | Store a function, `() => call()`, or write the call as a statement | 13 |
 | EK1013 | A comma after a field of an `error`, `schema error`, `service`, or `control` declaration, whose body is a class body (D278, D128), or after a variant or a variant's field of a `data` declaration, which separates them the same way (D307) | Write `;` or start a new line (quick fix) | 3, 4, 9, 11 |
 | EK1015 | yield* outside a generator | Remove yield*: calls already run and return their success values | 13 |
 | EK1016 | Warning: an otherwise valid module defines a zero-argument, unexported main that nothing references | Write export function main() to start it when this module runs | 13 |
 | EK1017 | `provide` used as an expression instead of a statement | Write `provide layer { statements }` and return from inside its block | 4 |
 | EK2001 | An expected failure escapes the written contract | Catch it, widen the contract, or `Effect.orDie` | 2, 14 |
 | EK2002 | A requirement escapes the written contract | Widen the contract, or provide the service | 14 |
-| EK2003 | A plain annotation on a function or method whose body runs an Effect (D67, D74), or a plain annotation on a function, or a JavaScript iterator annotation on a generator, whose throw can escape, or a throw that can escape a constructor, an accessor or a class static block, which run as plain JavaScript (D282, D296) | For a bare `T`: `T!!` or `T!Errors`, or no annotation; for an escaping throw, a quick fix writes `T!E!`, or a hatch keeps JavaScript's throw | 14 |
+| EK2003 | A plain annotation on a function or method whose body runs an Effect (D67, D74), or a plain annotation on a function, or a generator method, whose throw can escape, or a throw that can escape a constructor, an accessor or a class static block, which run as plain JavaScript (D282, D370) | For a bare `T`: `T!!` or `T!Errors`, or no annotation; for an escaping throw, a quick fix writes `T!E!`, or a hatch keeps JavaScript's throw | 14 |
 | EK2004 | Warning by default: a catch whose try block has E = `never`, in an Effect or a plain function, or a catch expression with no expected errors; defects, JavaScript exceptions included, pass through (D238, D260, D282). Also, in a plain function whose try block can fail, a call of TypeScript code whose exception passes through the catch: an untrusted function, or a trusted export named `...Sync` or `...OrThrow...` (D282) | Use the form that can fail, `try`, or `Result.try` | 3 |
 | EK2005 | A `resumeWith` program that needs a service or fails outside the operation's contract | Read the service in the clause first | 9 |
 | EK2006 | A `return`, `break`, or `continue` that leaves a `finally` block, which in JavaScript discards the failure in flight | Move it after the `try` statement | 17 |
@@ -303,10 +302,10 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK4405 | A hatch's TypeScript reads a binding the `.vibe` file declares outside the hatch: a local, a parameter, or a module declaration (D229) | Pass the value as an input, an argument after the function that fills its first parameter: `sync((bytes) => crypto.getRandomValues(bytes), bytes)`; the quick fix does this | 10 |
 | EK4406 | A call whose D23-tagged TypeScript declaration changes the emitted failure contract (warning until the emit switch, D249) | Export a `trusted(impl, [Errors])` value beside the implementation and call that value | 10 |
 | EK4407 | A module specifier written as an identifier, `from text`, names no module declaration of the file (D283) | Declare `module text { … }` at the file's top level, or import a file with a string specifier | 10 |
-| EK4408 | A module declaration that is nested, exported, declared twice, or has no name (`module { … }`); `module` used for a namespace in a `.vibe` file; a module body that uses `export =` or `import = require()` (D283); or a module name shared with a value binding of the file (warning, D303) | Keep module declarations named, at the top level and unexported, write namespaces with `namespace`, use ES module syntax in the body, and choose distinct module and value names | 10 |
+| EK4408 | A module declaration that is nested, exported, declared twice, or has no name (`module { … }`); `module` used for a namespace in a `.vibe` file; a module body that uses `export =` or `import = require()` (D283); a construct whose ECMAScript module semantics the lowering cannot keep, such as a direct `eval` that must see a renamed binding (D364); or a module name shared with a value binding of the file (warning, D303) | Keep module declarations named, at the top level and unexported, write namespaces with `namespace`, use ES module syntax in the body, and choose distinct module and value names | 10, 11, 26 |
 | EK4409 | Warning: what an Effect function or a program returns is a call of a value of type `any`, so a program the callee returns never runs (D24) | Give the callee a function type: one that returns `A!E!R` runs the program | 10 |
 | EK4501 | A method of an Effect data type named without a call, as in `const f = stream.filter` (D153) | Call it, or pass `Stream.filter` itself | 13 |
-| EK4502 | .pipe on a call whose success value has no pipe member | Write call() \|> retry(%, policy), or pass the call by name to retry | 13 |
+| EK4502 | .pipe on a call whose success value has no pipe member | Pass the program as a function: `retry(() => call(), policy)` | 13 |
 | EK4503 | A service implementation member read on its key, or on a module whose name names the service (`Path.sep`, D311) | Read S().member; S.method(args) directly calls an implementation method, and S.member() runs a member that is a program | 13 |
 | EK4601 | `await` before a call that already runs (D226) | Remove `await`; to run the call concurrently, fork it and join the fiber | 7 |
 | EK4602 | `await` on a promise in VibeLang code (D226) | Wrap it in a hatch: `try(async () => …)` | 7 |
@@ -363,6 +362,23 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK4838 | An adjustable warning: a returned fiber belongs to its block and is interrupted when that block exits | Use `forkIn(scope, program)` with a caller-held scope, or `detach(program)` with a shutdown strategy; the explicit detach quick fix is not applied by `--fix` | 6, 7 |
 | EK9100 | The text projector cannot decide a lambda or await element’s form (editor warning before the emit switch) | Annotate with the fork’s inferred form and channels where safe; program-form and await sites require an author’s annotation | 10 |
 | EK9101 | The text projector needs a data-method receiver annotation (editor-only suggestion; not emitted by the CLI) | Use “Annotate as the fork infers” to write the checker's receiver type on a local declaration or expression assertion | 10 |
+
+This revision adds two codes that the registry above does not list yet, because the compiler does not report them yet:
+
+- **EK3207**: a provider that is not a layer, a non-empty list of layers, a `Context`, or `Key = value`, such as a value of an array type that may be empty, a union with a member of another kind, or `any` (Chapter 4, D362). Repair: provide a layer, a non-empty tuple of layers, or a `Context`.
+- **EK3208**: the `wire` intrinsic used other than as the callee of a call, such as `const w = wire` (D363). Repair: call `wire` directly; compose layers chosen at run time with `Layer.provide`.
+
+#### Rewrites keep meaning
+
+Every automatic change to source keeps the program's meaning [Rule] (D372). That covers a quick fix, `vibelang --fix`, a refactor applied without a choice, and the formatter.
+
+- **Equivalence.** The rewritten program is observationally equivalent to the original by Chapter 26's model: the same exit and Cause, the same calls to code outside the program in the same order and number, the same bindings, the same lifetimes, and the same suspension points. It has the same types too: every contract, inferred or written, is unchanged. That the rewritten program reports no new error is checked as well, but it is no evidence of equivalence, since a program can type-check and mean something else.
+- **Preconditions.** Each fix states the condition under which it is equivalent, and is offered only where the checker proves that condition from the original program's resolved symbols and types. Where a fix would change something, the diagnostic says what would change and offers no automatic fix (D284-D290).
+- **Idempotence.** Applying a fix or the formatter a second time changes nothing. `--fix` repeats its rounds until no fix applies, and writes nothing if they do not converge.
+- **What the formatter may change.** Whitespace, line breaks, parentheses that do not change the parse, braces around a body of one statement, trailing commas, and the order of names inside one import's braces. It never reorders import or export declarations, statements, or members: the order of import declarations is the order in which modules are evaluated (Chapter 26). A file whose formatted text would not parse to the same tree, under those allowances, is left unchanged with an error (D276).
+- **Comments** survive every rewrite, next to the code they describe.
+
+A change the rule does not allow is a refactor that a person selects (`refactor.rewrite`, D245), and it says what it changes.
 
 #### Linting
 
