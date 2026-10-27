@@ -2,12 +2,12 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { test } from "node:test"
 
-test("the Vite development lock leaves the compiler to the checkout fixture", () => {
+for (const name of ["vite", "unplugin"]) test(`the ${name} development lock leaves the compiler to the checkout fixture`, () => {
   const root = new URL("../../", import.meta.url)
   const read = path => JSON.parse(readFileSync(new URL(path, root), "utf8"))
   const compiler = read("packages/compiler/package.json")
-  const vite = read("packages/vite/package.json")
-  const lock = readFileSync(new URL("packages/vite/bun.lock", root), "utf8")
+  const vite = read(`packages/${name}/package.json`)
+  const lock = readFileSync(new URL(`packages/${name}/bun.lock`, root), "utf8")
   assert.equal(vite.peerDependencies.vibelang, compiler.version, "published compiler peer pin")
   assert.equal(vite.devDependencies.vibelang, undefined, "local consumers must not inherit a relative compiler devDependency")
   assert.ok(lock.includes('"vibelang": "' + compiler.version + '"'), "root peer pin")

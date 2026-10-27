@@ -48,7 +48,10 @@ ln -s "$package" "$modules/vibelang-unplugin"
 # bunfig.toml's minimumReleaseAge applies only to fresh manifests; a warm
 # manifest cache skips it (https://github.com/oven-sh/bun/issues/45831).
 # Keep --no-cache until that is fixed.
-(cd "$package" && bun install --frozen-lockfile --no-cache)
+# The compiler peer may be unpublished; fixtures use this checkout.
+(cd "$package" && bun install --frozen-lockfile --no-cache --omit peer)
+rm -rf "$package/node_modules/vibelang"
+ln -s "$repo/packages/compiler" "$package/node_modules/vibelang"
 
 cd "$package"
 exec node --test "$@" test/backend-cache.test.mjs test/bundlers.test.mjs test/deferred.test.mjs test/deferred-types.test.mjs test/entry.test.mjs
