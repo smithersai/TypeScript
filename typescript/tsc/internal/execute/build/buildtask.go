@@ -519,6 +519,11 @@ func (t *BuildTask) getUpToDateStatus(orchestrator *Orchestrator, configPath tsp
 	}
 
 	if !t.resolved.CompilerOptions().IsIncremental() {
+		if t.resolved.CompilerOptions().NoEmit.IsTrue() {
+			// A nonincremental build has no reusable type-check state. Recheck it,
+			// without treating deliberately suppressed JavaScript as missing.
+			return &upToDateStatus{kind: upToDateStatusTypeNoEmitRecheck}
+		}
 		// Check output file stamps
 		for outputFile := range t.resolved.GetOutputFileNames() {
 			outputTime := orchestrator.host.GetMTime(outputFile)
@@ -743,6 +748,13 @@ func (t *BuildTask) reportUpToDateStatus(orchestrator *Orchestrator) {
 			diagnostics.Project_0_is_being_forcibly_rebuilt,
 			orchestrator.relativeFileName(t.config),
 		))
+	case upToDateStatusTypeNoEmitRecheck:
+		message := ast.NewCompilerDiagnostic(diagnostics.NewAdHocMessage(fmt.Sprintf(
+			"Project '%s' is being rechecked because noEmit is enabled without incremental compilation.",
+			orchestrator.relativeFileName(t.config),
+		)))
+		message.SetCategory(diagnostics.CategoryMessage)
+		t.result.reportStatus(message)
 	case upToDateStatusTypeSolution:
 		// Does not need to report status
 	default:

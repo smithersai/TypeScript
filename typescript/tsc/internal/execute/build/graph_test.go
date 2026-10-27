@@ -277,3 +277,28 @@ func (b *buildOrderTestCase) run(t *testing.T) {
 		verifyDeps(orchestrator, buildOrder3, true)
 	})
 }
+
+func TestNoEmitBuildRecheck(t *testing.T) {
+	sys := newSchedulingTestSystem()
+	sys.fs.onRead = func(tspath.RootedFilePath) {}
+	assert.NilError(t, sys.FS().WriteFile("/project/Root/tsconfig.json", `{
+		"compilerOptions": { "noEmit": true, "noLib": true },
+		"files": ["../lib.d.ts", "index.ts"]
+	}`))
+	for attempt := range 2 {
+		sys.output.Reset()
+		command := tsoptions.ParseBuildCommandLine([]string{"--build", "--verbose", "Root"}, sys.FS(), sys.GetCurrentDirectory())
+		result := build.NewOrchestrator(build.Options{Sys: sys, Command: command}).Build(t.Context(), "")
+		assert.Equal(t, result.Result.Status, tsc.ExitStatusSuccess)
+		assert.Equal(t, result.Statistics.ProjectsBuilt, 1)
+		assert.Assert(t, !sys.FS().FileExists("/project/Root/index.js"))
+		if attempt == 1 {
+			assert.Assert(t, strings.Contains(sys.output.String(), "noEmit is enabled without incremental compilation"), sys.output.String())
+			assert.Assert(t, !strings.Contains(sys.output.String(), "index.js' does not exist"), sys.output.String())
+		}
+	}
+	assert.NilError(t, sys.FS().WriteFile("/project/Root/index.ts", `export const value: number = "bad";`))
+	command := tsoptions.ParseBuildCommandLine([]string{"--build", "Root"}, sys.FS(), sys.GetCurrentDirectory())
+	result := build.NewOrchestrator(build.Options{Sys: sys, Command: command}).Build(t.Context(), "")
+	assert.Assert(t, result.Result.Status != tsc.ExitStatusSuccess, "rechecks must still catch errors")
+}

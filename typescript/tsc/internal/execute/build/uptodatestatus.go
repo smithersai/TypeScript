@@ -51,6 +51,9 @@ const (
 	// build because --force was specified
 	upToDateStatusTypeForceBuild
 
+	// Recheck a nonincremental project that deliberately emits no outputs.
+	upToDateStatusTypeNoEmitRecheck
+
 	// solution file
 	upToDateStatusTypeSolution
 )
