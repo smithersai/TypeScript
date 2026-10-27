@@ -342,8 +342,11 @@ func provides(c *checker.Checker, services *checker.Type, service *checker.Type)
 
 // platformNote returns what EK3205 adds at file's main, which needs the
 // services needed: the platform import that would provide some of them when
-// file names no platform and @effect/platform-node provides them, or that
-// the named platform's package is not installed.
+// file names no platform and @effect/platform-node is installed, or that the
+// named platform's package is not installed. The import would provide the
+// services of @effect/platform-node's bundle and the experimental ones whose
+// layer EK4402 names as the experimental Node bundle; that module is not
+// resolved from a file that names no platform.
 func platformNote(c *checker.Checker, file *ast.SourceFile, needed []*checker.Type) string {
 	platform := namedPlatform(file)
 	if platform != nil {
@@ -354,9 +357,12 @@ func platformNote(c *checker.Checker, file *ast.SourceFile, needed []*checker.Ty
 	}
 	node := &entryPlatforms[0]
 	services, _ := bundleServices(c, file, node.effect)
+	if services == nil {
+		return ""
+	}
 	var names []string
 	for _, service := range needed {
-		if provides(c, services, service) {
+		if s := platformServiceOf(c, service); provides(c, services, service) || s != nil && strings.HasPrefix(s.provider, experimentalNodeBundle) {
 			names = append(names, c.TypeToString(service))
 		}
 	}

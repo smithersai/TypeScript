@@ -406,7 +406,8 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   runs it with the bundle's layer, so `main` no longer writes
   `provide NodeServices.layer`. The import loads nothing; the compiler removes
   it. A `provide` inside `main` still wins, tests provide their own layers,
-  and EK3205 names only the services the layer does not provide. Without the
+  and EK3205 names only the services the layer does not provide, with the
+  layer that provides each of Effect's and the experimental ones. Without the
   import, nothing changes, and EK3205 names the import that would provide
   the platform's services. A file names one platform: a second, different
   platform import is error EK3206.

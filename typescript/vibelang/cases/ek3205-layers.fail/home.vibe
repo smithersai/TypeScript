@@ -1,0 +1,8 @@
+// expect:
+// EK3205 names the layer that provides a service the entry does not, as
+// EK4402 does: UserDirectories.layer.
+import "vibelang/platform/node"
+
+export function main() {
+  Console.log(UserDirectories.home())
+}

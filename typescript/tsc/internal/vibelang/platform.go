@@ -52,10 +52,12 @@ type platformService struct {
 const nodeServices = `NodeServices.layer from "@effect/platform-node", or BunServices.layer from "@effect/platform-bun"`
 
 // The layers of the experimental services (D313), which provide Effect's
-// services of the same names too.
+// services of the same names too. experimentalNodeBundle is the one that the
+// entry of a file that names Node provides (D312).
 const (
-	experimentalServices = `ExperimentalNodeServices.layer from "vibelang-runtime/experimental/platform-node", or ExperimentalBunServices.layer from "vibelang-runtime/experimental/platform-bun"`
-	experimentalCrypto   = `ExperimentalNodeServices.layer from "vibelang-runtime/experimental/platform-node", ExperimentalBunServices.layer from "vibelang-runtime/experimental/platform-bun", or ExperimentalBrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser"`
+	experimentalNodeBundle = `ExperimentalNodeServices.layer from "vibelang-runtime/experimental/platform-node"`
+	experimentalServices   = experimentalNodeBundle + `, or ExperimentalBunServices.layer from "vibelang-runtime/experimental/platform-bun"`
+	experimentalCrypto     = experimentalNodeBundle + `, ExperimentalBunServices.layer from "vibelang-runtime/experimental/platform-bun", or ExperimentalBrowserCrypto.layer from "vibelang-runtime/experimental/platform-browser"`
 )
 
 // platformServices are the Effect APIs that replace platform APIs (Chapter 11), by
@@ -121,6 +123,36 @@ var platformServices = map[string]*platformService{
 		`ExperimentalBrowserLocks.layer from "vibelang-runtime/experimental/platform-browser"; ExperimentalNodeLocks.layer from "vibelang-runtime/experimental/platform-node" locks only within one Node.js process`},
 	"import": {"an import declaration", `import { name } from "./module.ts"`, "", ""},
 	"export": {"an export declaration", "export const name = value", "", ""},
+}
+
+// serviceKeys are the platformServices keys of the services whose names
+// differ from them.
+var serviceKeys = map[string]string{"ChildProcessSpawner": "ChildProcess"}
+
+// platformServiceOf returns the platformServices entry of service, a
+// requirement that a program needs: Effect's service of that name, or
+// VibeLang's experimental one (D313); or nil for any other service, such as
+// one the program declares. EK3205 names its layers as EK4402 does.
+func platformServiceOf(c *checker.Checker, service *checker.Type) *platformService {
+	symbol := service.Symbol()
+	if symbol == nil || len(symbol.Declarations()) == 0 {
+		return nil
+	}
+	file := ast.GetSourceFileOfNode(symbol.Declarations()[0])
+	if file == nil {
+		return nil
+	}
+	name := symbol.Name()
+	switch pkg := packageOf(c, file); {
+	case pkg == runtimeModule && strings.Contains(string(file.FileName()), "/experimental/"):
+		name = "Experimental" + name
+	case pkg != "effect" && !strings.HasPrefix(pkg, "@effect/"):
+		return nil
+	}
+	if key, ok := serviceKeys[name]; ok {
+		name = key
+	}
+	return platformServices[name]
 }
 
 // platformAPI says what replaces a platform API.

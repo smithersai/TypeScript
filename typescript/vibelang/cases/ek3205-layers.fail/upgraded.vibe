@@ -1,0 +1,10 @@
+// A 0.0.10 program that provides Effect's NodeServices.layer itself and calls
+// Experimental.Process: EK3205 names the experimental bundle's layer, and the
+// platform import that would provide it.
+import { NodeServices } from "@effect/platform-node"
+
+export function main() {
+  provide NodeServices.layer {
+    Console.log(Experimental.Process.hostname())
+  }
+}

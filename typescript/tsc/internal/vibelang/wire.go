@@ -463,6 +463,7 @@ func checkProgram(c *checker.Checker, program *ast.Node, accepted *checker.Type,
 		return d
 	}
 	var names, paths []string
+	var missing []*checker.Type
 	for _, service := range unionMembers(needed) {
 		if site == runnerEntry && provides(c, accepted, service) || site != runnerEntry && accepted != nil && c.IsTypeAssignableTo(service, accepted) {
 			continue
@@ -471,6 +472,7 @@ func checkProgram(c *checker.Checker, program *ast.Node, accepted *checker.Type,
 			continue // R of a call TypeScript rejected, such as a Layer.effect whose service does not fit: that error is the one to fix
 		}
 		names = append(names, c.TypeToString(service))
+		missing = append(missing, service)
 		for _, needer := range servicesFor(c).wireNeeders(service) {
 			paths = append(paths, scanner.GetTextOfNode(needer)+" needs "+c.TypeToString(service))
 		}
@@ -492,7 +494,7 @@ func checkProgram(c *checker.Checker, program *ast.Node, accepted *checker.Type,
 	case site == runnerTest:
 		note(d, "Provide it to the test with Effect.provide(() => …, layer), or register the test inside layer(…).")
 	case site == runnerEntry:
-		note(d, "Provide it inside main with provide layer { … }.")
+		noteEntryLayers(c, d, missing)
 	default:
 		note(d, "Provide it to the program with Effect.provide(() => …, layer).")
 	}
@@ -500,6 +502,26 @@ func checkProgram(c *checker.Checker, program *ast.Node, accepted *checker.Type,
 		coverArgument(c, program)
 	}
 	return d
+}
+
+// noteEntryLayers adds to d, EK3205 at an entry module's main, how to provide
+// each service of missing inside main: with the layers that EK4402 names for
+// it (platformServiceOf), or with a layer the program has.
+func noteEntryLayers(c *checker.Checker, d *ast.Diagnostic, missing []*checker.Type) {
+	var others []string
+	for _, service := range missing {
+		if s := platformServiceOf(c, service); s != nil && s.provider != "" {
+			note(d, "Provide {0} inside main with provide layer { … }, where layer is {1}.", c.TypeToString(service), s.provider)
+		} else {
+			others = append(others, c.TypeToString(service))
+		}
+	}
+	switch {
+	case len(others) == len(missing):
+		note(d, "Provide it inside main with provide layer { … }.")
+	case len(others) > 0:
+		note(d, "Provide {0} inside main with provide layer { … }.", strings.Join(others, ", "))
+	}
 }
 
 // runnerRequirements returns R of t, an Effect or a function that returns one,

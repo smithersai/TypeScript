@@ -19,10 +19,10 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,002 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,416 |
-| The skill and the user guide (134 pages) | 233,965 |
-| The user guide alone | 228,963 |
-| The specification (33 chapters) | 108,565 |
-| The decision log, `docs/design/DECISIONS.md` | 70,570 |
+| The skill and the user guide (134 pages) | 234,001 |
+| The user guide alone | 228,999 |
+| The specification (33 chapters) | 108,590 |
+| The decision log, `docs/design/DECISIONS.md` | 70,647 |
 
 ## Effect TypeScript beside VibeLang
 
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **17,294** |
-| [Release notes](../setup/release-notes.md) | 17,294 |
-| **All 15 pages** | **35,731** |
+| **Upgrade** | **17,310** |
+| [Release notes](../setup/release-notes.md) | 17,310 |
+| **All 15 pages** | **35,747** |
 
 ### Guides
 
@@ -243,8 +243,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Equivalence](../schema/102-equivalence.md) | 770 |
 | [Formatter](../schema/103-formatter.md) | 541 |
 | [Schema Compilers](../schema/104-compilers.md) | 2,110 |
-| **Platform** | **12,914** |
-| [Introduction](../platform/105-introduction.md) | 2,555 |
+| **Platform** | **12,934** |
+| [Introduction](../platform/105-introduction.md) | 2,575 |
 | [FileSystem](../platform/106-file-system.md) | 1,204 |
 | [Path](../platform/107-path.md) | 917 |
 | [PlatformLogger](../platform/108-platformlogger.md) | 752 |
@@ -252,7 +252,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Terminal](../platform/110-terminal.md) | 1,508 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 4,012 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **140,113** |
+| **All 100 pages** | **140,133** |
 
 ### VibeLang features
 
@@ -301,15 +301,15 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 3,903 |
 | [25. Implementation strategies and costs](../../../design/src/325-part3-ch25-strategies.md) | 1,926 |
 | [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 3,057 |
-| **Part IV. The compiler** | **12,612** |
+| **Part IV. The compiler** | **12,637** |
 | [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 1,687 |
-| [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 10,925 |
+| [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 10,950 |
 | **Part V. Decisions** | **15,104** |
 | [29. Decisions](../../../design/src/529-part5-ch29-decisions.md) | 12,478 |
 | [30. Risks and experiments](../../../design/src/530-part5-ch30-risks.md) | 2,626 |
 | **Appendices** | **13,067** |
 | [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 4,826 |
 | [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,241 |
-| **All 33 pages** | **108,565** |
+| **All 33 pages** | **108,590** |
 
 <!-- token-counts: end -->

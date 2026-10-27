@@ -286,7 +286,7 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK3202 | Two providers for one service | Remove one | 4 |
 | EK3203 | Providers form a cycle | None | 4 |
 | EK3204 | A `wire` argument whose type does not name its outputs | Compose it with `Layer.provide` | 4 |
-| EK3205 | An entry module's `main` needs a service that nothing provides when the host starts the module, the layer of the file's platform import included (D312), and names the platform import that would provide it; a warning, adjustable, and not reported when another module imports `main` | Provide it inside `main` with `provide` | 4 |
+| EK3205 | An entry module's `main` needs a service that nothing provides when the host starts the module, the layer of the file's platform import included (D312); it names the layer that provides each of Effect's and the experimental services, as EK4402 does, and the platform import that would provide them; a warning, adjustable, and not reported when another module imports `main` | Provide it inside `main` with `provide`, or add the platform import | 4 |
 | EK3206 | A file names a second, different platform with a platform import, as `import "vibelang/platform/node"` then `import "vibelang/platform/browser"` (D312) | Keep the import of the platform the file runs on | 4 |
 | EK4201 | A control operation inside a combinator that runs it on another fiber | Handle the operation inside the branch | 9, 16 |
 | EK4202 | A TypeScript function whose R holds a control operation | None in v0 | 9 |
