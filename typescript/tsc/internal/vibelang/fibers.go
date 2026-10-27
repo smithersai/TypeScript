@@ -174,7 +174,10 @@ func checkJoin(c *checker.Checker, file *ast.SourceFile, call *ast.Node) {
 }
 
 // isJoinable reports whether join can join a value of type t: a Fiber, or (at
-// depth 0) an array, tuple, or object whose elements all are Fibers.
+// depth 0) an array, tuple, or object whose elements all are Fibers. An
+// object's elements are its properties and the values of its index
+// signatures, so Record<string, Fiber<A>> is joinable and an index signature
+// that admits a number is not.
 func isJoinable(c *checker.Checker, t *checker.Type, depth int) bool {
 	if t.Flags()&checker.TypeFlagsUnion != 0 {
 		for _, member := range t.Types() {
@@ -202,11 +205,17 @@ func isJoinable(c *checker.Checker, t *checker.Type, depth int) bool {
 		return isJoinable(c, c.GetElementTypeOfArrayType(t), depth+1)
 	}
 	properties := c.GetPropertiesOfType(t)
-	if len(properties) == 0 {
+	indexes := c.GetIndexInfosOfType(t)
+	if len(properties) == 0 && len(indexes) == 0 {
 		return false
 	}
 	for _, property := range properties {
 		if !isJoinable(c, c.GetTypeOfSymbol(property), depth+1) {
+			return false
+		}
+	}
+	for _, index := range indexes {
+		if !isJoinable(c, index.ValueType(), depth+1) {
 			return false
 		}
 	}
