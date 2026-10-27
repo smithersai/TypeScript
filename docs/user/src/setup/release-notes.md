@@ -129,6 +129,8 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Docs
 
+- Language design inconsistencies were missing from these notes. They now list
+  confirmed issues, examples and safe patterns in [Known design issues](#known-design-issues).
 - Fixes could land without a changelog entry or matching docs. The contribution rules now require both in the same commit, and the docs tests check the bug-list heading and release versions.
 - Platform-global examples could fail when copied from the page. The page now includes the context needed to compile its browser-service, import and export examples.
 - Search descriptions could contain fenced source code. The site now skips code blocks when choosing a page description.
@@ -163,37 +165,41 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   `$awaitAll`, `$forConcurrent` or `Users_base`. Calls and patterns can use
   your value, or generated JavaScript and declarations can contain duplicate
   names. A local `SyntaxError` can also break the generated error check for
-  `JSON.parse`. Rename the colliding source binding.
+  `JSON.parse`. Rename the colliding source binding (see Known design issues).
 
 #### `this`/`arguments`/`super` in effectful functions
 
 - An effectful arrow that uses `this` only in a parameter default, a nested
   class's `extends` expression or a computed member name can lose its receiver
-  and throw. Capture `this` in a local before the arrow and use that local.
+  and throw (see Known design issues). Capture `this` in a local before the
+  arrow and use that local.
 - A named effectful function expression that calls or returns its own name
   can refer to a generator instead of the function: retries can crash and
   recursion can overflow the stack. A declaration's self-reference in a
   parameter default can also return the wrong function. Use an anonymous
-  function referring to its outer variable, and avoid self-referencing defaults.
+  function referring to its outer variable, and avoid self-referencing defaults
+  (see Known design issues).
 - `super.count++`, `--super.count` and computed compound assignments such as
   `super[key()] += value()` in an effectful method can produce JavaScript
   that fails to load or an invalid assignment target. Use separate reads and
-  simple assignments, saving a computed key once.
+  simple assignments, saving a computed key once (see Known design issues).
 - A nested effectful arrow that reads `arguments` can see a different object
   from its enclosing function; mutations can also carry over between runs
   of the same program. Capture `const args = arguments` in the enclosing
-  function body and share that local.
+  function body and share that local (see Known design issues).
 - A producer that reads `arguments[0]` can yield `undefined` instead of its
-  first argument. Use named parameters in the producer body.
+  first argument. Use named parameters in the producer body
+  (see Known design issues).
 - An effectful arrow created in a constructor can see `new.target` as
   `undefined`. Capture `const target = new.target` in the constructor and
-  read `target` from the arrow.
+  read `target` from the arrow (see Known design issues).
 
 #### Evaluation order
 
 - `||` and `??` inside a program argument can test the cold Effect object
   instead of the call's result, skipping a fallback that should run. Pass a
-  block program that stores the expression in a local before returning it.
+  block program that stores the expression in a local before returning it
+  (see Known design issues).
 
   ```vibe
   // fragment
@@ -206,7 +212,8 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   explicitly before calling and reading the result.
 - A value pipe such as `source() |> sink.take(%)` can read the stage's getter
   or function before running `source()`, reversing side effects or calling
-  an old function. Store the left value in a local before applying the stage.
+  an old function. Store the left value in a local before applying the stage
+  (see Known design issues).
 - A trusted method call with effectful arguments can evaluate those arguments
   before looking up the method. Optional trusted calls can run arguments
   that should be skipped and can then throw. Check optional receivers and
@@ -231,7 +238,7 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
 - When both a `try` body and its `finally` fail in an otherwise plain
   function, cleanup can replace the original failure instead of preserving
   both causes. An outer catch can receive the cleanup error instead of the
-  original one.
+  original one (see Known design issues).
 - A call in a catch binding's default can fail or need a service that the
   function's checked contract and declarations omit. Move destructuring
   and defaults into the catch body.
@@ -262,7 +269,8 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
 - Holding `const p: number[]!! = await.all items` can iterate `items` while
   constructing the program and reuse that snapshot on every run. The same
   issue affects `await.allSettled`, `await.race` and `await.any`. Wrap the
-  whole await expression in a block program so it is constructed afresh per run.
+  whole await expression in a block program so it is constructed afresh per run
+  (see Known design issues).
 - `using` looks up `Symbol.dispose` or `Symbol.asyncDispose` again at cleanup
   time. Replacing the method, or using a getter that returns different methods,
   can run the wrong disposer. Keep the disposal method stable for the lifetime
@@ -323,25 +331,28 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   Read the property into a local and match that saved value.
 - A variable pattern named `String`, `Number` or another built-in matcher
   can ignore your binding and use the built-in test; a data type named
-  `Option` can be mistaken for Effect's Option. Rename the source binding.
+  `Option` can be mistaken for Effect's Option. Rename the source binding
+  (see Known design issues).
 - A custom extractor inside an `or` pattern can be
   rejected because its generated result is not kept for narrowing. For `or`,
   use separate adjacent match arms instead.
 - The final arm of an exhaustive data match can skip evaluating the matcher
   expression, including its getters. Store the matcher value in a local before
-  matching if its lookup must run.
+  matching if its lookup must run (see Known design issues).
 
 #### Modules and declarations
 
 - Mutable exports from an inline `module` are snapshots: named imports,
   namespace imports and re-exports can keep the initial value after updates.
-  Export a getter function, or move the module to a separate TypeScript module.
+  Export a getter function, or move the module to a separate TypeScript module
+  (see Known design issues).
 - A dynamic import of a VibeLang source can keep the source extension when
   extension rewriting is disabled, or fail to escape URL characters such as
   `#` when it is enabled, so the emitted module cannot be loaded. Use a static
   import where possible.
 - Importing Effect's `pipe` under another name can reject a program argument
-  that works with the name `pipe`. Keep that import named `pipe`.
+  that works with the name `pipe`. Keep that import named `pipe`
+  (see Known design issues).
 - CommonJS imports of source modules with spaces or URL characters in their
   names can request an encoded filename that does not exist. Rename the
   source module to avoid those characters.
@@ -362,17 +373,19 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   prototype. Keep a structural tag pattern, or keep the original call.
 - Converting `catchTags` can reuse one handler's parameter as the shared
   catch binding and capture a different handler's outer variable, changing
-  its result. Apply the rewrite manually with a fresh catch binding.
+  its result. Apply the rewrite manually with a fresh catch binding
+  (see Known design issues).
 - Import cleanup after a form rewrite can remove an entire import and
   silently skip that module's initialization. Retain a side-effect-only
-  import when its initialization is needed.
+  import when its initialization is needed (see Known design issues).
 - Converting `Effect.provide(programExpression, layerExpression)` to a
   provider block can evaluate the layer before the program expression.
   Evaluate the program into an explicitly Effect-typed local first, then
-  evaluate the provider and run the saved program inside its block.
+  evaluate the provider and run the saved program inside its block
+  (see Known design issues).
 - Converting a `Context.Service` class can delete evaluation of a dynamic
   key expression such as `keys.pop()`. Keep the original declaration when
-  evaluating the key has side effects.
+  evaluating the key has side effects (see Known design issues).
 - The editor's quick fix from a tagged error class can truncate a constrained
   generic parameter or a comment containing `extends`, leaving invalid syntax.
   Preserve the full type parameter list when converting manually; CLI `--fix`
@@ -380,6 +393,339 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
 - One `--fix` invocation can stop after 16 rounds with deeply nested,
   overlapping fixes still available. Run it again until it reports no edits.
 
+
+### Known design issues
+
+The language design has these confirmed inconsistencies; the specification is
+being revised, programs that rely on them may change, and each change will be
+listed with an upgrade step.
+
+- **A parameter type can move argument work in time.** An `Effect` parameter
+  passes the whole call expression by name, so even its receiver and inputs
+  can run again on every retry, after later arguments have already run.
+  A mixed `Effect<number> | number` parameter or an unfixed generic `T`
+  instead runs the argument at the call; fixing `T` from another argument
+  can change that choice. Overload selection can choose this strategy and
+  a callback's function-or-program representation. The same issue reaches
+  program topics in pipes and elements passed to `Effect.all`.
+  Vladimir Kalnitsky raised the central call-argument issue. Today, save
+  inputs in locals when they must run once, and use an explicit block program
+  when work must repeat; check the selected signature after library updates.
+
+  ```vibe
+  // fragment
+  retry(fetchUser(nextId()), policy) // nextId can run on every attempt
+  acceptMixed(fetchUser(nextId())) // Effect<User> | User: runs at the call
+  acceptGeneric(fetchUser(nextId())) // unfixed T: runs at the call
+  ```
+
+- **Annotations can run a value or hold it as a program.** An inferred
+  binding runs a call, while an explicitly Effect-typed `const` holds it;
+  object fields, conditional initializers and factories add more holding
+  rules. A factory's outer body can run while constructing the held program.
+  At a return boundary, whether an Effect subtype is data also depends on
+  the written or contextual success type, so widening it can stop work from
+  running. Today, use `const p = () => work()` to defer work explicitly,
+  save construction inputs separately, and call a returned program as `p()`
+  when execution is intended, including in release callbacks.
+
+  ```vibe
+  // fragment
+  const value = work() // runs here
+  const held: number!! = work() // holds a program
+  const explicit = () => work() // explicit deferred body
+  ```
+
+- **Some names are recognized by spelling.** A local named `Number`,
+  `String` or `Option` can receive built-in pattern behavior instead of its
+  own meaning. A top-level call named `runSync`, `runPromise`, `runMain`,
+  `runFork` or `runCallback`, even a property on your own object, can suppress
+  automatic entry execution. Aliasing helpers such as `pipe` can also lose
+  their special handling. Today, avoid built-in matcher and runner spellings
+  for unrelated bindings, retain documented helper names, and check that
+  `main` still runs after a rename.
+
+  ```vibe
+  // fragment
+  const helper = { runSync: (n: number) => n * 2 }
+  const doubled = helper.runSync(21) // can suppress the entry for main
+  ```
+
+- **Plain `finally` and Effect `finally` combine failures differently.**
+  The plain JavaScript path can replace the body's failure with cleanup's
+  failure; the Effect path retains both causes. Adding an Effect operation
+  can therefore change the error an outer catch receives. Today, keep fallible
+  cleanup in an explicit Effect program and combine it with the body using
+  `Effect.onExit`; avoid relying on plain `finally` to preserve both failures.
+
+  ```vibe
+  // fragment
+  try { throw new BodyError() }
+  finally { throw new CleanupError() }
+  ```
+
+- **`using` can dispose the same resource twice.** If an acquisition's
+  registered release already calls a Disposable's disposer, `using` also
+  calls `Symbol.dispose` at block exit. Sync and async disposal do not share
+  one ownership rule. Today, return a plain holder from `Effect.acquireRelease`,
+  bind that holder with `using`, and dispose only `holder.value` in the
+  explicit release callback. See also the pending-interruption limitation below.
+
+  ```vibe
+  // fragment
+  using resource = Effect.acquireRelease(() => openDisposable(),
+    (r) => sync((value) => value[Symbol.dispose](), r)) // two disposals
+  ```
+
+- **Inline `module` imports are snapshots.** Named imports, namespace imports
+  and re-exports can keep an exported `let`'s initial value after it changes,
+  unlike ordinary TypeScript live imports. Inline-module initialization order
+  and case-insensitive module names also depart from ordinary module rules.
+  Today, export a getter for mutable state, use distinct names that differ by
+  more than case, and move initialization with ordering dependencies to
+  separate `.ts` modules.
+
+  ```vibe
+  // fragment
+  module state { export let count = 0; export function bump() { count++ } }
+  import { count, bump } from state
+  bump() // count can still be 0
+  ```
+
+- **An open error family does not get exhaustive matching.** Covering the
+  subclasses you know does not close a base family; a match without `default`
+  can compile and turn an unhandled expected error into a `TypeError` defect.
+  An empty typed error channel does not rule out defects. Today, add a
+  base-family arm or `default: throw e` to rethrow unmatched errors, or expose
+  an explicit closed union when exhaustive recovery is required.
+
+  ```vibe
+  // fragment
+  catch (e) { return match (e) {
+    when KnownError: 1; // another subclass of the family can arrive
+  } }
+  ```
+
+- **A handler's inferred answer type can omit a clause result.** A non-tail
+  `resume()` can be typed as a number yet receive a string returned by a
+  later invocation of the handler clause; EK2119 only warns. Today, treat
+  EK2119 as a build failure, prefer tail resumption (`return resume(...)`),
+  and keep the body and every clause's answer compatible. If you must inspect
+  a resumed answer, receive it as `unknown` and narrow it at runtime.
+
+  ```vibe
+  // fragment
+  handle Step.next() {
+    const n = resume(); return n.toFixed(1) // nested clause may return a string
+  }
+  ```
+
+- **Extracting a callback type alias changes what callbacks are accepted.**
+  An inline function type without a contract gains effect polymorphism;
+  an alias of the same TypeScript type stays plain and can reject a callback
+  that pauses or needs a service. Today, write the callback's `A!E!R` contract
+  explicitly in reusable types and keep synchronous callbacks plain.
+
+  ```vibe
+  // fragment
+  type Fn = (n: number) => number
+  function inline(f: (n: number) => number) { return f(1) }
+  function aliased(f: Fn) { return f(1) } // different callback contract
+  ```
+
+- **A generic return type can decide whether a result runs.** Calls whose
+  instantiated return type is Effect run their result, while mixed unions
+  and structured Effect subtypes can remain data; an optional call has its
+  own running rule. A generic identity helper is therefore not necessarily
+  an inert pass-through for a program. Today, avoid routing program values
+  through such helpers: return a holder such as `{ program }` to keep one
+  as data, and call `holder.program()` explicitly when it should run.
+
+  ```vibe
+  // fragment
+  declare function identity<T>(value: T): T
+  identity(savedProgram) // instantiated Effect result can run
+  ```
+
+- **Structural service shapes can erase service identity.** The optional
+  service brand can disappear through an intermediate structural type, letting
+  a program that needs one key be relabeled as needing another. Providing the
+  second key then compiles but fails at runtime. Today, preserve the exact
+  service identifiers in Effect and Layer contracts, avoid widening R through
+  implementation shapes, and provide the key the program actually requests.
+
+  ```vibe
+  // fragment
+  const erased: Effect<number, never, { get(): number!! }> = needsAlpha
+  const claimed: Effect<number, never, Beta> = erased // still needs Alpha
+  ```
+
+- **An aliased hatch can pass different arguments from a direct hatch.**
+  Direct `sync`/`try` calls use types to choose signal injection and mapper
+  positions; their first-class runtime values cannot see those types. An
+  optional numeric parameter can receive an AbortSignal through an alias.
+  Today, use direct hatch syntax with explicit inputs and a callback whose
+  parameters unambiguously accept them; declare a signal parameter only when
+  intended, and keep `try`'s mapper explicitly second.
+
+  ```vibe
+  // fragment
+  sync(nativeAsyncWithOptionalNumber, 1) // optional number stays undefined
+  const h = sync
+  h(nativeAsyncWithOptionalNumber, 1) // optional number can get a signal
+  ```
+
+- **A plain return annotation changes foreign-call failure handling.**
+  A TypeScript call that needs a trust boundary in an Effect function can
+  become an ordinary call inside a plain-annotated helper; trusted listed
+  failures can become defects rather than enter E. A plain annotation is
+  therefore no proof that foreign code cannot throw. Today, use an explicit
+  `try` hatch to map expected exceptions and declare the resulting error
+  contract, including inside helpers; do not use a plain wrapper to bypass
+  a boundary diagnostic.
+
+  ```vibe
+  // fragment
+  function plain(n: number): number { return foreignRisky(n) }
+  function computational(n) { sleep("1 millis"); return foreignRisky(n) }
+  ```
+
+- **Omitted contract channels do not have one meaning everywhere.**
+  `A!E` on a function with a body infers R, while `Effect<A, E>` uses
+  TypeScript's default of `never`; an omitted R in a callback type also
+  means `never`. Completing an error contract can also change whether callers
+  see a broad declared error family or narrower inferred errors. Today,
+  spell all three channels, using `infer` where inference is intentional,
+  and check emitted declarations after extracting a signature.
+
+  ```vibe
+  // fragment
+  function inferred(): number!Bad { return Store.read() } // R inferred
+  function closed(): Effect<number, Bad> { return Store.read() } // R = never
+  ```
+
+- **Changing an arrow's braces can change a fork's lifetime.**
+  A block-bodied arrow owns its `fork` child and interrupts it on block exit;
+  an expression-bodied arrow uses the caller's Scope. Returning the child
+  can therefore hand back an already interrupted fiber. Today, keep ownership
+  blocks explicit, join children before leaving them, and use
+  `forkIn(scope, program)` with a caller-owned scope for a child that must escape.
+
+  ```vibe
+  // fragment
+  const shortLived = () => { return fork work() }
+  const callerScoped = () => fork work() // different owner
+  ```
+
+- **Timeouts and races can discard cleanup failures.** The promise that
+  cleanup failures are preserved applies to local finalization, but pinned
+  Effect's `timeout`/`race` can discard a losing fiber's final exit, including
+  its cleanup failure. Today, record failures inside the child's finalizer
+  before it exits; if every cause is required, manage and observe each
+  child's `Exit` explicitly rather than relying on the race's parent cause.
+
+  ```vibe
+  // fragment
+  timeout("10 millis") {
+    try { sleep("1 hour") } finally { throw new CleanupError() }
+  } // parent can report only TimeoutError
+  ```
+
+- **Effect member lookup depends on declaration conventions.** Synthesized
+  data methods depend on a receiver parameter named `self`, `*OrOptions`
+  or a special-case table. Real members and a module's own exports win over
+  synthesized methods and same-named service exports, so an Effect update
+  can silently redirect a call. Today, keep the exact Effect pin, prefer
+  explicit module functions such as `Stream.take(stream, 3)`, and call a
+  service through its explicit key when a module export would be ambiguous.
+
+  ```vibe
+  // fragment
+  stream.take(3) // synthesized from the library declaration
+  Stream.take(stream, 3) // explicit module function
+  ```
+
+- **Construction and execution phases are not fully specified.**
+  Defaults, destructuring, getters and collection iteration do not share
+  one complete phase rule with cold calls, factories and held values. A
+  reusable Effect also need not recreate a captured iterator, hot Promise
+  or resource. Today, evaluate once-only inputs into locals, create fresh
+  inputs inside an explicit program when each run needs them, and avoid
+  side effects in defaults or getters at these boundaries.
+
+  ```vibe
+  // fragment
+  const shared = () => consume(iterator) // captures one iterator
+  const fresh = () => consume(makeIterator()) // creates one per run
+  ```
+
+- **Generated bindings lack one general capture-avoidance rule.**
+  The specification has local naming fixes but no universal requirement that
+  generated names preserve every source binding. A legal user name can
+  therefore be captured by a generated helper. Today, avoid the compiler
+  helper names listed under Known bugs and rename a colliding local.
+
+  ```vibe
+  // fragment
+  const savedAnswer = 99 // avoid a helper name such as $match1
+  const answer = match (1) { when 1: savedAnswer; default: 0; }
+  ```
+
+- **Moved function bodies lack one complete lexical-context rule.**
+  The specification's separate receiver and closure promises do not cover
+  every use of `this`, `arguments`, `new.target`, `super` and a named
+  function expression's self-binding through suspension and reruns. The
+  implementation symptoms and repairs are listed under Known bugs. Today,
+  capture source activation values before creating effectful arrows, use
+  named producer parameters, and use simple `super` reads and assignments.
+
+  ```vibe
+  // fragment
+  const receiver = this
+  const later = () => { sleep("1 millis"); return receiver.value }
+  ```
+
+- **A generator's annotation selects its runtime protocol.** An unannotated
+  `function*` is a Stream producer, while an explicit `Generator` or
+  `AsyncGenerator` return annotation selects a native JavaScript iterator.
+  Adding a type can therefore change how the result is consumed and which
+  operations are allowed. Today, keep native generators in a `.ts` module
+  and use a VibeLang producer consistently for Stream work.
+
+  ```vibe
+  // fragment
+  function* produced() { yield 1 } // Stream producer
+  function* native(): Generator<number> { yield 1 } // JavaScript iterator
+  ```
+
+- **Separate compilation has no complete semantic metadata contract.**
+  The specification promises checked handler and callable behavior across
+  packages while also saying some control metadata is not emitted
+  or read. An Effect-shaped declaration alone cannot certify a foreign
+  callback's fiber behavior or a factory's construction phase. Today, keep
+  compiler and runtime versions aligned, inspect emitted contracts, and
+  keep handler-sensitive code together or behind explicit trusted adapters;
+  do not infer continuation safety from a `.d.ts` return shape alone.
+
+  ```vibe
+  // fragment
+  declare function externalWork(): number!! // shape alone is no certificate
+  const p = () => externalWork() // verify the boundary before using a handler
+  ```
+
+- **A type-correct rewrite can still change behavior.** Automatic fixes and
+  optimizations lack one common requirement covering values, causes, evaluation
+  phase, bindings and ownership. Checking that a rewrite adds no errors does
+  not prove those observations are preserved; even an exhaustive final match
+  test can have an observable getter. Today, review automatic fixes, preserve
+  explicit scopes and once-only locals, and compare effects and cleanup in
+  tests before accepting a rewrite at these boundaries.
+
+  ```vibe
+  // fragment
+  Effect.provide(makeProgram(), makeLayer())
+  provide makeLayer() { makeProgram() } // construction order can change
+  ```
 
 ### Known limitations
 
