@@ -107,15 +107,17 @@ func capturedRead(c *checker.Checker, reference *ast.Node, test *ast.Node) *ast.
 
 // readsThroughCapture reports whether node, an expression of a test, reads
 // what reference reads: node is a capture whose subject reference matches,
-// or an access of the same property of one that reads what reference's
-// object reads.
+// or reads what reference reads through another capture (a part of a
+// subject that a pattern reads once, enterSubject in the parser), or an
+// access of the same property of one that reads what reference's object
+// reads.
 func readsThroughCapture(c *checker.Checker, reference *ast.Node, node *ast.Node) bool {
 	node = ast.SkipParentheses(node)
 	reference = ast.SkipParentheses(reference)
 	switch {
 	case ast.IsIdentifier(node):
 		subject := capturedSubject(c, node)
-		return subject != nil && c.IsMatchingReference(reference, subject)
+		return subject != nil && (c.IsMatchingReference(reference, subject) || readsThroughCapture(c, reference, subject))
 	case ast.IsAccessExpression(node) && ast.IsAccessExpression(reference):
 		name, ok := accessedName(node)
 		if !ok {

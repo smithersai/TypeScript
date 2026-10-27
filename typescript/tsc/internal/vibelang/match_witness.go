@@ -63,9 +63,18 @@ func nestedMatchRemainder(c *checker.Checker, call *ast.Node, left *checker.Type
 			return false
 		}
 		var path []string
-		for ast.IsPropertyAccessExpression(reference) && ast.IsIdentifier(reference.Name()) {
-			path = append(path, reference.Name().Text())
-			reference = reference.Expression()
+		for {
+			if ast.IsPropertyAccessExpression(reference) && ast.IsIdentifier(reference.Name()) {
+				path = append(path, reference.Name().Text())
+				reference = reference.Expression()
+				continue
+			}
+			// A part of the subject that the pattern reads once through a const.
+			if part := capturedSubject(c, reference); part != nil && c.GetSymbolAtLocation(reference) != subject && ast.IsPropertyAccessExpression(ast.SkipParentheses(part)) {
+				reference = ast.SkipParentheses(part)
+				continue
+			}
+			break
 		}
 		if !ast.IsIdentifier(reference) || c.GetSymbolAtLocation(reference) != subject {
 			return false

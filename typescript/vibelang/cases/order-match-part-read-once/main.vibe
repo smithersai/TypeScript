@@ -1,0 +1,51 @@
+// expect-result: {"bound":[1,1],"option":[5,1],"element":[2,1]}
+// A pattern reads each part of its subject once (D214), as the TC39 proposal
+// caches each property it reads: a nested pattern that tests a property and
+// binds it sees one value, and the property's getter runs once.
+let reads = 0
+
+class Counter {
+  get value(): number {
+    reads++
+    return reads
+  }
+}
+
+class Holder {
+  get value(): Option<number> {
+    reads++
+    return Option.some(5)
+  }
+}
+
+function bound() {
+  reads = 0
+  const n = match (new Counter()) {
+    when { value: 1 and let n }: n;
+    default: -1;
+  }
+  return [n, reads]
+}
+
+function option() {
+  reads = 0
+  const v = match (new Holder()) {
+    when { value: Option.Some(let v) }: v;
+    default: -1;
+  }
+  return [v, reads]
+}
+
+function element() {
+  reads = 0
+  const counters = [new Counter()]
+  const n = match (counters) {
+    when [{ value: 1 and let n }]: n + 1;
+    default: -1;
+  }
+  return [n, reads]
+}
+
+export function main() {
+  return { bound: bound(), option: option(), element: element() }
+}

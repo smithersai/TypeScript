@@ -852,7 +852,7 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 				names = append(names, func() *ast.Node { return p.mString(key.Text(), key.Loc) })
 			}
 			if clause.pattern != nil {
-				p.compilePattern(clause.pattern, p.propertyPath(path, clause), steps, ctx)
+				p.compilePattern(clause.pattern, p.enterSubject(p.propertyPath(path, clause), clause.pattern, steps, ctx), steps, ctx)
 			}
 		}
 		for _, item := range pat.items {
@@ -867,7 +867,7 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 				keys := p.vibelangSpanning(p.factory.NewArrayLiteralExpression(p.newNodeList(at, copies), false), at)
 				return p.mCall(p.vibelangIntrinsic("$rest", at), []*ast.Node{path(), keys}, at)
 			}
-			p.compilePattern(pat.rest, restPath, steps, ctx)
+			p.compilePattern(pat.rest, p.enterSubject(restPath, pat.rest, steps, ctx), steps, ctx)
 		}
 	case patternExtractor:
 		if known, ok := knownMatchers[dottedName(pat.expr)]; ok {
@@ -888,7 +888,7 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 				return func() *ast.Node { return p.mProperty(path(), name, at) }
 			}
 			for i, item := range pat.items {
-				p.compilePattern(item, element(i), steps, ctx)
+				p.compilePattern(item, p.enterSubject(element(i), item, steps, ctx), steps, ctx)
 			}
 			if pat.rest != nil {
 				restPath := func() *ast.Node {
@@ -898,7 +898,7 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 					}
 					return p.vibelangSpanning(p.factory.NewArrayLiteralExpression(p.newNodeList(at, elements), false), at)
 				}
-				p.compilePattern(pat.rest, restPath, steps, ctx)
+				p.compilePattern(pat.rest, p.enterSubject(restPath, pat.rest, steps, ctx), steps, ctx)
 			}
 			return
 		}
@@ -945,6 +945,89 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 	}
 }
 
+// enterSubject returns the path through which pat, the pattern of a part of a
+// subject (a property, an element, an extracted value or a rest), reads that
+// part. A pattern that reads it more than once, to test it and bind it, reads
+// it through a const that reads the part once where pat is entered, after the
+// tests that it exists, as a match reads its subject once (D214, subjectPath)
+// and the TC39 proposal caches each property it reads: a getter runs once, and
+// every test and binding sees one value. An inline pattern, which can hold no
+// declaration, reads the part where each test stands.
+func (p *Parser) enterSubject(path matchPath, pat *pattern, steps *[]matchStep, ctx *matchCompile) matchPath {
+	if ctx.inline || subjectReads(pat) < 2 {
+		return path
+	}
+	p.vibelangMatchTemps++
+	name := "$match" + strconv.Itoa(p.vibelangMatchTemps)
+	*steps = append(*steps, matchStep{decl: p.mConst(p.mIdent(name, pat.anchor), ast.NodeFlagsConst, path(), pat.anchor)})
+	return func() *ast.Node { return p.mIdent(name, pat.anchor) }
+}
+
+// subjectReads returns how many times compilePattern, outside an inline
+// pattern, reads the subject of pat: once for each test and binding of it,
+// and once for each read of a part of it that is not entered through a const
+// of its own (enterSubject).
+func subjectReads(pat *pattern) int {
+	// A part is read once, through enterSubject's const.
+	part := func(pat *pattern) int { return min(subjectReads(pat), 1) }
+	// An alternative is compiled inline, where each read stands.
+	inline := func(pat *pattern) int {
+		n := subjectReads(pat)
+		if pat.kind == patternObject || pat.kind == patternArray || pat.kind == patternVariant || pat.kind == patternExtractor {
+			n = max(n, 2)
+		}
+		return n
+	}
+	if pat.code == 4705 {
+		return 1
+	}
+	n := 0
+	switch pat.kind {
+	case patternLiteral, patternValue, patternBinding:
+		return 1
+	case patternArray:
+		n = 2 // Array.isArray and length
+		for _, item := range pat.items {
+			n += part(item)
+		}
+	case patternObject, patternVariant:
+		n = 1 // the variant's test, or the object's typeof and null tests below
+		if pat.kind == patternObject {
+			n++
+		}
+		for _, clause := range pat.clauses {
+			if pat.kind == patternObject || clause.pattern == nil {
+				n++ // "key" in subject
+			}
+			if clause.pattern != nil {
+				n += part(clause.pattern)
+			}
+		}
+		for _, item := range pat.items {
+			n += subjectReads(item)
+		}
+	case patternExtractor:
+		n = 1 // the known test, or $extract's call
+		if _, ok := knownMatchers[dottedName(pat.expr)]; ok {
+			for _, item := range pat.items {
+				n += part(item)
+			}
+		}
+	case patternAnd:
+		for _, item := range pat.items {
+			n += subjectReads(item)
+		}
+	case patternOr, patternNot:
+		for _, item := range pat.items {
+			n += inline(item)
+		}
+	}
+	if pat.rest != nil {
+		n += part(pat.rest)
+	}
+	return n
+}
+
 // compileList appends the steps of an array pattern or argument list: the
 // length test, each item against its element, and the rest pattern against
 // the remaining elements.
@@ -955,11 +1038,20 @@ func (p *Parser) compileList(pat *pattern, path matchPath, n int, element func(i
 		operator = ast.KindGreaterThanEqualsToken
 	}
 	*steps = append(*steps, matchStep{test: p.mBinary(length(), operator, p.mNumber(n, at), at)})
+	// An extractor's values come from the array $extract made, which the
+	// checker reads through for D215's narrowing (match_extract.go); an
+	// array pattern's elements are the subject's own, read once.
+	enter := func(path matchPath, item *pattern) matchPath {
+		if pat.kind != patternArray {
+			return path
+		}
+		return p.enterSubject(path, item, steps, ctx)
+	}
 	for i, item := range pat.items {
-		p.compilePattern(item, element(i), steps, ctx)
+		p.compilePattern(item, enter(element(i), item), steps, ctx)
 	}
 	if pat.rest != nil {
-		p.compilePattern(pat.rest, func() *ast.Node { return remaining(n) }, steps, ctx)
+		p.compilePattern(pat.rest, enter(func() *ast.Node { return remaining(n) }, pat.rest), steps, ctx)
 	}
 }
 
