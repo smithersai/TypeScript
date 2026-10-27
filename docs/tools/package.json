@@ -5,6 +5,7 @@
   "description": "Checks documentation and builds Markdown copies and llms.txt for vibelang.sh.",
   "scripts": {
     "check:snippets": "bun test first-run.test.ts && bun check-snippets.ts --run",
+    "check:diagnostics": "bun check-diagnostic-docs.ts",
     "check:content": "bun check-smithers-content.ts",
     "check:tokens": "bun token-counts.ts --check",
     "test": "bun test",

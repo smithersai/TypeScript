@@ -70,6 +70,41 @@ EK1010 refuses an unparenthesized throw expression that is, or ends, the left op
 
 The server exposes TypeScript completions through the VibeLang checker, service member types included. Quick fixes repair retired spellings and the mechanical cases of Effect's language service rules (below); refactors write a function's inferred contract, convert an `async` function or an interface, and convert between calls and pipes. Catch-specific completions are not implemented. Other diagnostic messages suggest repairs as text. Do not apply a TypeScript refactor that introduces `Effect.gen` or `yield*` inside `.vibe`.
 
+## Diagnostic reference: additional codes
+
+Each entry gives the condition and the repair. The examples and language-service tables on this page cover the other registered codes.
+
+| Code | Meaning | Remedy |
+| --- | --- | --- |
+| EK1004 | A module's top level acquires a resource with `using`. | Move the acquisition into a function's block so it has a release scope. |
+| EK1006 | A pipe body never uses its input topic, `%`. | Put `%` where the input belongs in the call after the pipe. |
+| EK1007 | `%` appears outside a pipe body. | Use it only after the pipe operator, or name the value with a variable. |
+| EK1008 | One pipe uses its input both as a deferred program and as an immediate value. | Bind the value before the pipe, or pass it by name everywhere. |
+| EK2006 | `return`, `break`, or `continue` leaves a `finally` block and would discard a failure. | Move the jump after the `try` statement. |
+| EK2104 | A retired `layer` declaration has setup statements after its members. | Put setup first; prefer `Layer.effect(Service) { setup; return { … } }`. |
+| EK2105 | A retired typed catch tests a type without a literal `_tag`. | Write an untyped `catch (e)` and test `e` with `match` or `is`. |
+| EK2106 | An earlier catch already handles every failure, so this clause cannot run. | Combine the clauses into one `catch (e)` and choose with `match` or `is`. |
+| EK2111 | A `restore` block has no enclosing `uninterruptible` block. | Put it inside `uninterruptible`, or use `interruptible { … }`. |
+| EK2114 | A hatch contains a VibeLang catch expression. | Move the catch outside the hatch, or use a TypeScript `try` statement inside it. |
+| EK2116 | A factory returns a program on one path but a value, or nothing, on another. | Return a program on every path: `() => value` or `() => { throw error }`. |
+| EK3001 | Two services share a key. | Rename one of the declarations named by the diagnostic. |
+| EK3002 | A class extends a service key. | Implement the service's shape instead of extending its key. |
+| EK3003 | `new` tries to construct a service key. | Read the provided implementation with `Service()`; create implementations as objects or classes implementing its shape. |
+| EK3004 | `instanceof` tests a service key, which is no base class. | Test the implementation's data or a concrete implementation class instead. |
+| EK4404 | A `try` hatch receives Effect's options object. | Pass code and mapping as separate arguments: `try(code, (cause) => new Failed({ cause }))`. |
+| EK4501 | A module method is read as a value through an instance. | Call `value.method(…)`, or use the module's function explicitly when passing it as a value. |
+| EK4601 | `await` precedes a call that already runs and waits. | Remove `await`; for concurrency, fork the call and join its fiber. |
+| EK4602 | `await` tries to wait for a Promise in VibeLang code. | Adapt it in `try(async () => …)` or `sync(async () => …)`. |
+| EK4603 | Plain `await` has an unsupported operand. | Call a program to run it; use `join` for fibers or the `await.all`, `await.allSettled`, `await.race`, and `await.any` forms for groups. |
+| EK4604 | A hatch uses JavaScript `await` in a function that is not `async`. | Make the hatch's function `async`. |
+| EK4608 | `await.race` or `await.any` receives an object. | Pass an array of programs, fibers, or deferreds instead. |
+| EK4610 | Plain `await` receives a Deferred. | Wait with `deferred.await()`. |
+| EK4611 | `join` receives something other than a Fiber or a collection of fibers. | Join fibers; call programs, use `deferred.await()`, or adapt Promises in a hatch. |
+| EK4612 | A TypeScript hatch contains VibeLang `join`. | Move the join outside the hatch. |
+| EK4819 | Registered for `yield effect` in a TypeScript Effect generator; currently not emitted in `.ts` files. | In TypeScript use `yield* effect`; in VibeLang write ordinary calls instead of `Effect.gen`. |
+| EK4820 | Registered for a non-returning `yield* effect` whose success type is `never`; currently not emitted in `.ts` files. | In TypeScript write `return yield* effect` so control flow narrows; in VibeLang call the program directly. |
+| EK9100 | The editor's text-only projection needs a written type to choose a form. | Add the annotation requested by the message. |
+
 ## Configure compiler checks
 
 ```vibe

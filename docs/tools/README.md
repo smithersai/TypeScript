@@ -246,3 +246,11 @@ node --test docs/tools/deployed-release.test.mjs
 ```
 
 The check reads the site and registry; it does not deploy anything.
+
+## Diagnostic coverage
+
+`bun docs/tools/check-diagnostic-docs.ts` checks that every compiler message
+declared under `typescript/tsc/internal/vibelang/` has a code reference in
+`docs/user/src/`. Add its meaning and remedy when adding a diagnostic.
+EK4407 is temporarily exempt while module-name resolution is reworked.
+The docs/tools test suite runs the same coverage check.
