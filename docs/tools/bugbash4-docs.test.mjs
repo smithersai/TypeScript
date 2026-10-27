@@ -32,3 +32,8 @@ test("runtime export table covers every built JavaScript root export", async (t)
   const table = read("packages/runtime/README.md").split("## Public exports")[1].split(/\n## /)[0]
   for (const name of Object.keys(runtime)) assert.ok(table.includes(`\`${name}\``), `undocumented root export: ${name}`)
 })
+
+test("CLI documents configuration tools and the initializer's ESM boundary", () => {
+  const text = read("docs/user/src/setup/vibelang-cli.md")
+  for (const part of ["--init", "--showConfig", "--ignoreConfig", '"type": "module"', "generic"]) assert.ok(text.includes(part), part)
+})

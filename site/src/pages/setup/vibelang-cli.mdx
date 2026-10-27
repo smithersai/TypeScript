@@ -34,6 +34,12 @@ If the project has no `tsconfig.json`, create this one. It selects `.vibe` files
 
 If the project has a `tsconfig.json`, keep it and check that `include` selects `.vibe` files: a directory entry such as `"src"` does; a glob such as `"src/**/*.ts"` does not, so add `"src/**/*.vibe"` beside it.
 
+### Inspect or initialize configuration
+
+- `vibelang --init` creates TypeScript's generic `tsconfig.json`. For an ESM project, set `"type": "module"` in `package.json`; then adapt `include` and the output options as above. The initializer does not create VibeLang's package setup.
+- `vibelang --showConfig` prints the effective project configuration, including inherited options, without compiling. Use `-p path/to/tsconfig.json` to inspect another project.
+- `vibelang --ignoreConfig --noEmit --module nodenext --target es2022 src/hello.vibe` checks explicit files without loading the discovered tsconfig. Supply the compiler options those files require; project include patterns and references do not apply.
+
 ## 2. Replace tsc in the scripts
 
 In `package.json`, replace `tsc` with `vibelang` in every script. If the project has no build script, add these:
