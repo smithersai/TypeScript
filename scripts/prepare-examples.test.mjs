@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs"
+import { mkdtempSync, mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { test } from "node:test"
@@ -28,4 +28,19 @@ test("CI stages examples with local packages and leaves published sources unchan
   assert.ok(existsSync(join(destination, "src/main.vibe")))
   assert.ok(!existsSync(join(destination, "node_modules")))
   assert.ok(!existsSync(join(destination, "bun.lock")))
+})
+
+
+test("the examples README states the exact Effect version used by every example", () => {
+  const examples = new URL("../examples/", import.meta.url)
+  const readme = readFileSync(new URL("README.md", examples), "utf8")
+  const version = /exact Effect ([0-9.]+) dependencies/.exec(readme)?.[1]
+  assert.ok(version, "README must state the exact Effect version")
+  for (const entry of readdirSync(examples, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    const path = new URL(`${entry.name}/package.json`, examples)
+    if (!existsSync(path)) continue
+    const manifest = JSON.parse(readFileSync(path, "utf8"))
+    assert.equal(manifest.dependencies.effect, version, entry.name)
+  }
 })
