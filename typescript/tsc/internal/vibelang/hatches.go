@@ -603,6 +603,19 @@ func (tx *lowering) visitHatchCall(node *ast.Node) *ast.Node {
 	for _, input := range rest {
 		inputs = append(inputs, tx.Visitor().VisitNode(input))
 	}
+	if mapper != nil && !form.value && len(rest) > 0 {
+		// The options object evaluates the inputs, which bind fills in, before
+		// the mapper written ahead of them: keep the source's order (order.go).
+		sources := append([]*ast.Node{arguments[0], arguments[1]}, rest...)
+		operands := append([]*ast.Node{body, mapper}, inputs[1:]...)
+		emit := []int{0}
+		for i := range rest {
+			emit = append(emit, i+2)
+		}
+		emitted := tx.inOrder(operands, sources, append(emit, 1))
+		body, mapper = emitted[0], emitted[len(emitted)-1]
+		inputs = append(inputs[:1], emitted[1:len(emitted)-1]...)
+	}
 	async := form.effect == "promise" || form.effect == "tryPromise"
 	switch {
 	case form.value:

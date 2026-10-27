@@ -131,6 +131,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - Plain functions that call one another, with a parameter or local named like the function, such as `function even(even: number)`, failed with `TypeError: even is not a function` once the recursion ran deep. The deep path now calls the function.
 - A by-name `a() || b()` or `a() ?? b()`, such as `retry(first() || second(), policy)`, tested the Effect that runs `a()` instead of its value, so `b()` never ran. It now tests the value, as the same expression in a lambda does.
 - A pipe whose topic stands alone, such as `source() |> sink.take(%)`, could read a getter or a reassigned `let` in its body before it ran its left side. The left side now runs first, unless the body reads only values that can't change.
+- `try(f, mapper, input())` evaluated its inputs before its mapper. It now evaluates its arguments in the order written.
 
 #### Runtime
 

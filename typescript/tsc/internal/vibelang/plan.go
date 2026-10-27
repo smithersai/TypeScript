@@ -42,6 +42,8 @@ type plan struct {
 	pipes         map[*ast.Node]pipeMode    // how each pipe compiles (pipes_lower.go)
 	topicClosures map[*ast.Node][]*ast.Node // functions that read the topic of these pipes
 
+	stable map[*ast.Node]bool // operands a lowering moves that may run anywhere (order.go)
+
 	entry *entryPlan // how an entry module runs its main (entry.go), or nil
 }
 
@@ -131,6 +133,9 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 			}
 			if form, ok := hatchFormOf(c, node); ok {
 				p.hatches[node] = form
+				if form.mapper {
+					p.noteStable(c, node.Arguments()...) // the options object moves the mapper (order.go)
+				}
 			}
 			if node.Kind == ast.KindThrowStatement && inLowerableBody(node) {
 				if _, ok := causeErrorOf(c, c.GetTypeAtLocation(node.Expression())); ok {
