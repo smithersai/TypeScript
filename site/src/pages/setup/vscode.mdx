@@ -54,3 +54,13 @@ The server advertises these features to LSP clients. In VS Code and Cursor, use 
 | On-type formatting | Enable format-on-type for supported typed characters |
 
 These are language-server capabilities, not a guarantee that every construct offers a result. A client must enable and support each feature; for `.ts` files that import `.vibe`, use the VibeLang TypeScript handoff described above.
+
+## Server settings and troubleshooting
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `vibelang.server.path` | `""` | Override the compiler executable; relative paths start at the first workspace folder |
+| `vibelang.server.typeScriptFiles` | `"auto"` | Serve TypeScript when the built-in server is off; `"on"` always serves it, `"off"` leaves it to the built-in server |
+| `vibelang.trace.server` | `"off"` | Set `"messages"` or `"verbose"` to log LSP traffic |
+
+After changing the executable or rebuilding the compiler, run **VibeLang: Restart Language Server** from the command palette. Use **VibeLang: Show Language Server Output** to inspect the server log. For protocol problems, enable tracing, restart, reproduce, then turn tracing off. Review logs before sharing them: protocol traffic can contain source text and file paths.

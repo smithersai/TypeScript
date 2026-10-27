@@ -42,3 +42,13 @@ test("editor setup names the registered discovery and editing capabilities", () 
   const text = read("docs/user/src/setup/vscode.md").toLowerCase()
   for (const part of ["call hierarchy", "type definition", "workspace symbols", "signature help", "selection ranges", "document highlights", "inlay hints", "code lens", "linked editing", "on-type formatting"]) assert.ok(text.includes(part), part)
 })
+
+test("published editor setup exposes the shipped server controls", () => {
+  const text = read("docs/user/src/setup/vscode.md")
+  const manifest = JSON.parse(read("editors/vscode/package.json"))
+  for (const key of ["vibelang.server.path", "vibelang.server.typeScriptFiles", "vibelang.trace.server"]) {
+    assert.ok(manifest.contributes.configuration.properties[key])
+    assert.ok(text.includes(key), key)
+  }
+  for (const part of ["VibeLang: Restart Language Server", "VibeLang: Show Language Server Output", '"messages"', '"verbose"']) assert.ok(text.includes(part), part)
+})
