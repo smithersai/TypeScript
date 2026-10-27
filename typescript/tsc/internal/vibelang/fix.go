@@ -2,6 +2,7 @@ package vibelang
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -120,6 +121,10 @@ func FixWithOptions(ctx context.Context, sys tsc.System, args []string, options 
 		fmt.Fprintln(sys.ErrorWriter(), "vibelang --fix: interrupted; no file written.")
 		return int(tsc.ExitStatusInvalidProject_OutputsSkipped)
 	}
+	if result.Err != nil {
+		fmt.Fprintf(sys.ErrorWriter(), "vibelang --fix: %v; no file written.\n", result.Err)
+		return int(tsc.ExitStatusInvalidProject_OutputsSkipped)
+	}
 	for _, name := range result.Order {
 		file := result.Files[name]
 		if err := os.WriteFile(name.AsString(), []byte(file.Text), 0o644); err != nil {
@@ -177,6 +182,7 @@ type FixResult struct {
 	Files   map[tspath.RootedFilePath]*FixedFile
 	Order   []tspath.RootedFilePath
 	Refused []FixRefusal
+	Err     error // normalization could not reach a fixed point
 }
 
 // Report writes one line per fixed file and per refusal, and a summary.
@@ -218,10 +224,6 @@ func plural(n int, one, many string) string {
 	return core.IfElse(n == 1, one, many)
 }
 
-// fixRounds bounds the rounds of FixProject; each round applies at least one
-// fix, and a fix never draws another of the same construct.
-const fixRounds = 16
-
 // FixProject applies the safe quick fixes to config's .vibe files and
 // returns the files they change, without writing them. When ctx is done it
 // stops after the program it is checking, and returns what it had.
@@ -244,7 +246,8 @@ func FixProjectWithOptions(ctx context.Context, fs vfs.FS, libraryPath tspath.Ro
 		return result
 	}
 	g := &fixGate{ctx: ctx, done: done, build: build, baseline: errorCounts(ctx, program), refused: map[string]bool{}}
-	for range fixRounds {
+	seen := map[[32]byte]bool{fixState(program): true}
+	for {
 		if done.Err() != nil {
 			return result
 		}
@@ -290,6 +293,12 @@ func FixProjectWithOptions(ctx context.Context, fs vfs.FS, libraryPath tspath.Ro
 			texts[name] = fixed.Text
 		}
 		program = build(texts)
+		state := fixState(program)
+		if seen[state] {
+			result.Err = fmt.Errorf("normalization repeated a source state instead of reaching a fixed point")
+			return result
+		}
+		seen[state] = true
 	}
 	if options.MigrationOnly {
 		slices.SortFunc(result.Order, tspath.RootedFilePath.Compare)
@@ -315,6 +324,21 @@ func FixProjectWithOptions(ctx context.Context, fs vfs.FS, libraryPath tspath.Ro
 	}
 	slices.SortFunc(result.Order, tspath.RootedFilePath.Compare)
 	return result
+}
+
+// fixState fingerprints the complete project source state, with file names
+// and lengths framed by quoting. Repeated states are a cycle or a no-op, not
+// successful normalization; the CLI reports the failure without writing.
+func fixState(program *compiler.Program) [32]byte {
+	files := fixableFiles(program)
+	slices.SortFunc(files, func(a, b *ast.SourceFile) int { return a.FileName().Compare(b.FileName()) })
+	hash := sha256.New()
+	for _, file := range files {
+		fmt.Fprintf(hash, "%q%q", file.FileName().AsString(), file.Text())
+	}
+	var state [32]byte
+	copy(state[:], hash.Sum(nil))
+	return state
 }
 
 // rewritePrelude applies the prelude rewrites of program's files
