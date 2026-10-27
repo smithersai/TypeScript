@@ -14,3 +14,14 @@ test("no page says a platform value may be imported or passed (D310 amends D108)
   }
   assert.match(read("docs/design/src/428-part4-ch28-tooling.md"), /\| EK4402 \| [^\n]*held as a value[^\n]*\(D310/)
 })
+
+test("the skill sends a struct of named schemas to a schema declaration, as EK4832 does", () => {
+  // EK4832 rewrites const T = Schema.Struct({ count: Schema.NumberFromString })
+  // to schema T { count: Schema.NumberFromString }: a field names any schema,
+  // a transformation included. Struct checks and optionalKey keep the constant.
+  const data = read("packages/compiler/skills/vibelang/SKILL.md").split("\n").find(line => line.startsWith("- Data:"))
+  assert.ok(data, "the skill's Data idiom")
+  assert.doesNotMatch(data, /Schema\.Struct` for [^:]*transformations/)
+  assert.match(data, /`schema` declarations, fields of any schema \(`Schema\.\w+From\w+`\)/)
+  assert.match(data, /`Schema\.Struct` for struct checks and `optionalKey`/)
+})
