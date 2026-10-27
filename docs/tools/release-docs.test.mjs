@@ -155,7 +155,7 @@ test("published release notes lead with the current version and its upgrade inst
   const notes = readFileSync(join(root, "docs/user/src/setup/release-notes.md"), "utf8")
   const [current] = notes.split(/^## /m).slice(1)
   assert.equal(current.split("\n")[0], version)
-  for (const heading of ["Upgrade from 0.0.10", "Correctness", "Performance", "Diagnostics", "Tooling", "Docs"]) {
+  for (const heading of ["Upgrade from 0.0.10", "Bugs fixed since 0.0.10", "Known limitations"]) {
     assert.ok(current.includes("### " + heading), heading)
   }
   for (const text of ["EK4801", "EK1010", "EK2118", "EK4408", "EK4402", "await",
@@ -164,4 +164,18 @@ test("published release notes lead with the current version and its upgrade inst
     "Experimental.FileSystem", "Experimental.Crypto", "Experimental.Process", "Experimental.Locks"]) {
     assert.ok(current.includes(text), text)
   }
+})
+
+test("the 0.0.11 bug list covers the receiver report and service-alias diagnostic", () => {
+  const notes = readFileSync(new URL("../user/src/setup/release-notes.md", import.meta.url), "utf8")
+  const current = notes.split(/^## /m)[1]
+  const bugs = current.split("### Bugs fixed since 0.0.10\n")[1]?.split(/^### /m)[0]
+  assert.ok(bugs, "0.0.11 needs a bug list for testers")
+  for (const heading of ["Compiler and diagnostics", "Runtime", "Editor and language server", "Tooling and bundlers", "Docs"]) {
+    assert.ok(bugs.includes("#### " + heading), heading)
+  }
+  assert.match(bugs, /forwards the receiver \(reported by Vladimir Kalnitsky\)/)
+  assert.match(bugs, /const fs = FileSystem; fs.writeFileString/)
+  assert.match(bugs, /\[Upgrade from 0.0.10\]\(#upgrade-from-0010\)/)
+  assert.doesNotMatch(bugs, /\bD\d{2,}\b|alpha-chlog|bug bash/)
 })

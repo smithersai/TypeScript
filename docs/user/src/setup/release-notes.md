@@ -73,6 +73,83 @@ instead of installing the Vite plugin. See the 0.0.10 notes below for the
 Effect 4.0.6 defect-precedence and interruption migration.
 
 
+### Bugs fixed since 0.0.10
+
+#### Compiler and diagnostics
+
+- Explicitly empty service keys could be missed. A `service Empty {}` key is now recognized.
+- Imports from paths containing spaces, `#`, `?` or percent signs could fail at runtime. Generated imports now escape those characters.
+- Deeply nested arrow functions could take a long time to check. Effect return inference now shares the guarded type lookup.
+- Files with many generated helper names could compile slowly. Generating those names now takes linear work.
+- An unresolved or invalid call could also get a misleading unsafe-call error. The compiler now reports the original error without that extra message.
+- Cyclic error inheritance could produce errors about generated constructors. Those follow-on errors are now suppressed.
+- An error base written as an expression could appear as an internal name in a diagnostic. The message now shows the source expression.
+- A missing call pipe could suggest the wrong operation. The diagnostic now gives guidance that applies to the operation you used.
+- A large function could get a false non-exhaustive-match error after TypeScript stopped flow analysis. It now keeps only the flow-analysis-limit error.
+- Bare program names such as `interrupt` could silently run nothing. See the new diagnostic and call fix in [Upgrade from 0.0.10](#upgrade-from-0010).
+- A trailing throw could throw the wrong operand or get a misleading contract error. See the parentheses repair in [Upgrade from 0.0.10](#upgrade-from-0010).
+- Error subclasses with a primitive or list base constructor could fail only when instantiated. See the earlier declaration error in [Upgrade from 0.0.10](#upgrade-from-0010).
+- A nameless `module { … }` could get platform and call errors. See the naming hint in [Upgrade from 0.0.10](#upgrade-from-0010).
+- An `await` binding could compile into invalid JavaScript. See the binding check in [Upgrade from 0.0.10](#upgrade-from-0010).
+- An entry could pick a platform layer from the runtime's development dependencies. It now resolves platform packages from the entry's project.
+- `const fs = FileSystem; fs.writeFileString(...)` gave an unexplained missing-property error. The message now suggests `FileSystem()` or a direct service call.
+- Platform diagnostics could recommend a hatch for an API that has a service. They now point to Effect's `lstat` and home-directory APIs or the [experimental replacements](#experimental-platform-apis).
+
+#### Runtime
+
+- Calling a plain VibeLang function from TypeScript with `call`, `apply`, `bind` or as a method could lose `this` and throw a `TypeError`. The generated Effect wrapper now forwards the receiver (reported by Vladimir Kalnitsky).
+
+#### Editor and language server
+
+- Completion after `FileSystem.` or `Experimental.Process.` could omit service members. It now includes the shorthand members.
+- Canceling a request during contextual type lookup could leave the editor waiting. That lookup now checks for cancellation.
+- Rename could insert an invalid identifier and break the file. The server now rejects invalid replacement names.
+- An ordinary `fork` identifier before an operator could be highlighted as a keyword. It now keeps identifier highlighting.
+- An ordinary `join` identifier before an assertion or operator could be highlighted as a keyword. It now keeps identifier highlighting.
+- Interruption blocks lacked keyword highlighting. `uninterruptible`, `restore` and `interruptible` now receive it in block form.
+- Tree-sitter rejected `using` as a parameter or ordinary identifier. It now accepts those contextual uses.
+
+#### Tooling and bundlers
+
+- `--fix` could leave an unnecessary `Effect.succeed` in a rewritten catch arm. It now simplifies that handler.
+- A missing `tsconfig.json` could leave the compiler or bundler retrying forever. It now stops with TS5058.
+- The runtime loader could claim an included dependency source was excluded by the project. It now explains that no loader output is available and the dependency needs compiled JavaScript or its own project.
+- Webpack could keep a stale bundle after compiler backend or build-dependency changes. Those changes now trigger a rebuild.
+- Watch mode could rebuild after an unrelated sibling directory changed. It now ignores those events.
+- Redirected watch output could contain terminal-clearing sequences. Output is now cleared only on a terminal.
+- A nonincremental `noEmit` build could say a JavaScript output was missing. It now explains that this configuration requires rechecking.
+- Cache debugging could say a file changed during compilation when it changed just before it. The message now includes the timestamp safety margin.
+- The starter could generate a reserved npm package name. It now normalizes reserved names.
+- A long target name could generate an invalid npm package name. The starter now limits package names to 214 characters.
+- A target that was a file could produce a filesystem exception. The starter now reports that the target is not a directory.
+- A missing package-manager executable could produce an unhelpful spawn error. The starter now names the missing executable.
+- The starter's next-step `cd` command could break on spaces or shell characters. It now quotes the directory path.
+- An npm-created project's README could tell you to run Bun commands. It now uses the selected package manager.
+
+#### Docs
+
+- Platform-global examples could fail when copied from the page. The page now includes the context needed to compile its browser-service, import and export examples.
+- Search descriptions could contain fenced source code. The site now skips code blocks when choosing a page description.
+- The site's 404 page could appear in search results. It now tells search engines not to index it.
+- Saving a captioned test example could fail with missing helper names. Test files now import what they test; shared fragments no longer claim to be standalone files.
+- The language skill incorrectly sent transformed schema fields to `Schema.Struct`. It now explains that a schema declaration can use those fields.
+- The language skill used a diagnostic code that does not exist. It now names a code the compiler reports.
+- The devtools guide said platform values could be imported or passed directly. It now describes the restrictions in [Platform code](#platform-code).
+- The platform installation guide could install mismatched package versions. It now uses the [exact-version setup instructions](../setup/existing-project.md).
+- The language skill showed outdated config access and omitted a complete scoped-file example. It now uses Effect 4's `Config.String` and shows scoped cleanup.
+- Migrating files with the same stem could overwrite emitted output. The [migration guide](../setup/existing-project.md) now explains the collision and how to rename files.
+- Starter tracing instructions were missing. The [getting-started guide](../013-getting-started.md) now shows how to opt in during development.
+- Declaration consumers were not told the minimum TypeScript version. The [installation guide](../getting-started/004-installation.md) now requires TypeScript 5.7 or later.
+- The Bun test recipe omitted declaration and project setup. The [CLI guide](../setup/vibelang-cli.md) now includes both.
+- The Bun preload instructions could imply that watch and hot reload rebuild VibeLang files. The [CLI guide](../setup/vibelang-cli.md) now explains their limits.
+- The formatting guide implied that every comment prevented formatting. It now limits that refusal to comments in rewritten clause chains.
+- The examples README did not state the required Effect version. It now gives the exact pin.
+- macOS VSIX instructions could fail because `code` or `cursor` was not on `PATH`. The [editor guide](../setup/vscode.md) now includes shell-command setup.
+- The proposals page described shipped bundler adapters as future work. It now identifies the adapters already available.
+- The repository home page showed benchmark results without measurements. It now gives commands to reproduce the benchmarks.
+- The agent essentials used an undeclared layer binding. The example now declares the layer before providing it.
+
+
 ### Known limitations
 
 - A JavaScript Disposable acquired while interruption is masked can leak if
@@ -194,102 +271,6 @@ Effect 4.0.6 defect-precedence and interruption migration.
   | `Buffer.from(text)` | `new TextEncoder().encode(text)`, or `Base64` and `Hex` |
   | a Node.js value an Effect API takes, such as `createServer` | a `module` block that imports it: `module node { export { createServer } from "node:http" }`, then `import { createServer } from node` |
   | a Node.js API nothing covers yet | the same `module` block or a `.ts` file, called through a hatch |
-
-### Diagnostics
-
-- EK1010 also refuses a throw expression that ends an operator's left
-  operand or a conditional's condition: `x ?? throw c ? a : b` is
-  `(x ?? throw c) ? a : b` and throws only `c`. Write
-  `x ?? throw (c ? a : b)`.
-- EK2118 now also reports a subclass that declares fields and no
-  constructor when its base's constructor takes a string, a number, a
-  boolean or a list, rather than one object of fields; before, the first
-  `new` of the subclass was TS2345.
-- EK4801 also reports a statement that names a program without calling
-  it, such as `interrupt` or `yieldNow` alone on a line: it ran nothing,
-  so the program went on. The quick fix writes `interrupt()`.
-- `module { … }` without a name is EK4408, "A module declaration needs a
-  name". Before, it parsed as a block passed to Node's `module` global and
-  drew EK4402's platform guidance.
-
-
-- VibeLang module bindings cannot be named `await`; this now fails at the
-  binding rather than emitting an invalid JavaScript identifier.
-- EK4409 stays quiet for error-recovery callees. Cyclic error bases no longer
-  add generated-constructor follow-on errors, non-entity bases display the
-  user's source text, and missing-call-pipe guidance applies to any operation.
-
-
-### Correctness
-
-- Empty service keys written explicitly are recognized. Generated imports
-  URL-escape source paths, so spaces, `#`, `?` and percent signs resolve
-  correctly rather than becoming URL syntax.
-- Contextual lookup for Effect return inference shares the ordinary lookup's
-  guards; recursive inference no longer repeats work or loses its fallback.
-- An entry's platform packages are resolved independently of the runtime's
-  development dependencies, so a transitive installation cannot select the
-  wrong platform layer.
-
-### Performance
-
-- Repeated generated helper names take linear work instead of repeatedly
-  scanning earlier names. Contextual type lookup polls cancellation so an
-  editor request can stop promptly.
-- A match after TypeScript's flow-analysis limit keeps that limit diagnostic
-  without adding a misleading exhaustiveness error. Recursion regression
-  cases avoid depending on the host's native stack edge.
-
-### Tooling
-
-- `--fix` also simplifies `Effect.succeed` handlers when converting catch
-  arms. Prelude and experimental-service completions, hover and definitions
-  include the shorthand service members.
-- A missing project configuration settles with TS5058 instead of leaving
-  the compiler or bundler retrying forever. Runtime registration distinguishes
-  unavailable dependency output from source excluded by a configuration.
-- Webpack watches the compiler backend and its build dependencies; changes
-  rebuild the bundle. Watch mode ignores unrelated sibling events and only
-  clears output when stdout is a terminal. Nonincremental `noEmit` rechecks
-  and the cache's timestamp safety margin have accurate explanations.
-- Rename refuses names that are not valid identifiers. Syntax highlighting
-  preserves ordinary `fork` and `join` identifiers before operators and
-  assertions, recognizes interruption blocks, and tree-sitter accepts
-  contextual `using` identifiers.
-- The starter normalizes reserved npm package names, bounds them to 214
-  characters, explains missing package-manager executables and non-directory
-  targets, shell-quotes next-step paths, and adapts README commands to npm
-  or Bun as selected.
-
-### Docs
-
-- Formatting docs limit comment refusal to rewritten clause chains, rather
-  than every comment. Example READMEs state the pinned Effect version.
-  Contributor instructions keep the full process in fewer words.
-- The platform-global map compiles its examples, including browser services,
-  imports, exports and named TypeScript modules. The snippet checker excludes
-  explicit fragments so a fragment's syntax error cannot hide real errors.
-  Captioned test files import the helpers they test.
-- New recipes cover Next.js with webpack, Astro with Vite and Cloudflare
-  Workers with esbuild and `wrangler dev`. The Worker recipe was tested in
-  workerd; it does not deploy. Bundler proposals identify the shipped adapters.
-- CLI docs cover `--init`, `--showConfig`, `--ignoreConfig` and watching
-  project references. Starter docs list help/version aliases. Editor docs
-  cover server settings, restart, tracing, additional language-server
-  capabilities and macOS shell-command setup for VSIX installation.
-- Declaration consumers need TypeScript 5.7 or later. Bun testing docs include
-  declarations and tsconfig setup, and explain runtime-preload watch limits.
-  The runtime root-export reference is complete.
-- Effect porting tables cover service value members and single-program
-  `result`/`exit` capture; the devtools page describes editor-only EK9101.
-  The language skill explains transformed schema fields, and names actual
-  diagnostic codes. Agent essentials declare their layer binding, route
-  readers to that skill and are checked in the docs suite.
-- Site descriptions skip fenced code, the 404 page prevents indexing, and
-  deploy tooling loads stable Effect 4. Both home pages use the README
-  tagline; npm is the primary starter command. Benchmarks show reproduction
-  commands rather than unmeasured claims. A research note records the
-  evidence and limits of native compilation and a Zig runtime for servers.
 
 ## 0.0.10
 
