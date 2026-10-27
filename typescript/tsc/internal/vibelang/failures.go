@@ -13,7 +13,8 @@ import (
 // the static type of the thrown value to E, widened as TypeScript widens a
 // return type, so `throw "bad"` adds string. A catch handles every expected
 // failure of its try block (D13, D28), so a try statement with a catch passes
-// on only what its catch block itself raises; requirements are never handled
+// on only what its catch clause itself raises, its binding's defaults
+// included; requirements are never handled
 // by a catch. A finally block adds its own failures and requirements (D15). E
 // of a function is what can escape its body.
 
@@ -108,7 +109,14 @@ func (a *analyzer) tryFlow(node *ast.Node) *effectInfo {
 	body := a.tryBlockFlow(try.TryBlock)
 	escapes := &effectInfo{requirements: slices.Clone(body.requirements), requirementSources: slices.Clone(body.requirementSources), effect: body.effect}
 	if try.CatchClause != nil {
-		escapes.add(a.flowOf(try.CatchClause.AsCatchClause().Block))
+		clause := try.CatchClause.AsCatchClause()
+		if clause.VariableDeclaration != nil {
+			// catch ({ id = fallback() }): the binding's defaults and computed
+			// keys run in the handler, after the try block, so what they raise
+			// and need escapes the statement as the catch block's does.
+			escapes.add(a.flowOf(clause.VariableDeclaration))
+		}
+		escapes.add(a.flowOf(clause.Block))
 	} else {
 		escapes.errors = append(escapes.errors, body.errors...)
 		escapes.errorSources = append(escapes.errorSources, body.errorSources...)

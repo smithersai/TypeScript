@@ -1,0 +1,18 @@
+// expect: EK2001 EK2002
+// A catch binding's defaults run in the handler, after the try block, so a
+// contract must allow what they raise and need (D13): failing can fail with
+// Fallback, and needing needs Lookup.
+error Fallback
+service Lookup { value: number }
+
+function fallback(): number!Fallback! { throw new Fallback() }
+
+export function failing(): number!! {
+  try { throw {} as { id?: number } }
+  catch ({ id = fallback() }) { return id }
+}
+
+export function needing(): number!! {
+  try { throw {} as { id?: number } }
+  catch ({ id = Lookup().value }) { return id }
+}

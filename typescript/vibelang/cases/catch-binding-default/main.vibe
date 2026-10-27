@@ -1,0 +1,16 @@
+// A catch binding's defaults run in the handler, after the try block, so a
+// failure one raises escapes the try statement and joins the function's E
+// (D13), as a failure of the catch block does. Its declaration says so.
+export error Fallback
+
+function fallback(): number!Fallback! { throw new Fallback() }
+
+export function read(found?: number) {
+  try { throw { id: found } as { id?: number } }
+  catch ({ id = fallback() }) { return id }
+}
+
+// expect-result: {"missing":"Fallback","found":7}
+export function main() {
+  return { missing: read() catch (e) => e._tag, found: read(7) }
+}
