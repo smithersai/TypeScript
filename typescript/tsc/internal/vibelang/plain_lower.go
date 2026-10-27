@@ -15,7 +15,7 @@ import (
 // becomes
 //
 //	function double$direct(n) { return n * 2 }
-//	function double(...args) { return Effect.sync(() => double$direct(...args)) }
+//	function double(...args) { return Effect.sync(() => double$direct.call(this, ...args)) }
 //
 // The variant is exported when the function is, so other .vibe modules can
 // import it. The Effect form keeps the declaration's modifiers and stays a
@@ -45,10 +45,12 @@ func (tx *lowering) visitPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 	ec.SetSourceMapRange(direct, node.Loc)
 	ec.SetSourceMapRange(directName, node.Name().Loc)
 
-	// function double(...args) { return Effect.sync(() => double$direct(...args)) }
+	// Keep the receiver in the arrow's lexical scope and forward every
+	// argument. The direct body, including parameter defaults, stays lazy.
+	// function double(...args) { return Effect.sync(() => double$direct.call(this, ...args)) }
 	args := f.NewIdentifier("args")
 	rest := f.NewParameterDeclaration(nil /*modifiers*/, f.NewToken(ast.KindDotDotDotToken), args, nil /*questionToken*/, nil /*type*/, nil /*initializer*/)
-	call := tx.generated(f.NewCallExpression(f.NewIdentifier(name+"$direct"), nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{f.NewSpreadElement(args)}), ast.NodeFlagsNone))
+	call := tx.generated(f.NewFunctionCallCall(f.NewIdentifier(name+"$direct"), f.NewThisExpression(), []*ast.Node{f.NewSpreadElement(args)}))
 	thunk := tx.generated(f.NewArrowFunction(nil /*modifiers*/, nil /*typeParameters*/, f.NewNodeList(nil), nil /*type*/, nil /*fullSignature*/, f.NewToken(ast.KindEqualsGreaterThanToken), call))
 	sync := f.NewCallExpression(f.NewPropertyAccessExpression(tx.effectName(), nil /*questionDotToken*/, f.NewIdentifier("sync"), ast.NodeFlagsNone), nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{thunk}), ast.NodeFlagsNone)
 	wrapperBody := f.NewBlock(f.NewNodeList([]*ast.Node{tx.generated(f.NewReturnStatement(sync))}), false /*multiLine*/)

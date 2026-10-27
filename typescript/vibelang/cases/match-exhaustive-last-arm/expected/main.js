@@ -24,7 +24,7 @@ function text$direct(value) {
         return $noMatch($match2);
     }
 }
-function text(...args) { return Effect.sync(() => text$direct(...args)); }
+function text(...args) { return Effect.sync(() => text$direct.call(this, ...args)); }
 text[runtime.$direct] = text$direct;
 export function main() {
     return Effect.fnUntraced(function* main() {
