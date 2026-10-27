@@ -149,7 +149,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | `ManagedRuntime` | Unchanged | `ManagedRuntime.make(AppLive)`; `runtime.runPromise(() => handle(req))` in a framework callback, or from TypeScript |
 | Top-level `await` | Changed | No `await`; the top level builds values and calls runners (EK1001) |
 | Scheduling and fairness | Unchanged | 2048 operations per slice; a plain JavaScript region is atomic |
-| `ErrorReporter`, `Effect.withErrorReporting` | Changed | `Effect.withErrorReporting(() => program())`: the thunk is a program (D39) |
+| `ErrorReporter`, `Effect.withErrorReporting` | Changed | `Effect.withErrorReporting(() => program())()`: the function converts to a program, and the call returns the wrapped program, which `()` runs (D324) |
 
 #### C8. Scheduling
 
@@ -354,7 +354,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | `HttpClient` | Unchanged | `HttpClient.get(url)` runs |
 | Response bodies | Unchanged | `response.json()` |
 | Client middleware | Unchanged | `.pipe` over a client value |
-| `HttpRouter.add` handlers | Unchanged | A handler function, or a program (D39) |
+| `HttpRouter.add` handlers | Unchanged | A handler function, which the router calls for each request (D324) |
 | Serving | Changed | `export function main() { Layer.launch(HttpRouter.serve(routes)) }` in the file that names its platform (D312) |
 | `HttpApi` definitions, middleware, security | Unchanged | Values |
 | `HttpApi` handlers | Unchanged | VibeLang functions |
@@ -398,7 +398,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | Feature | In VibeLang | Form |
 | --- | --- | --- |
 | `Rpc.make`, `RpcGroup.make` | Unchanged | Values |
-| `group.toLayer(handlers)` | Unchanged | An object of VibeLang handlers (D39) |
+| `group.toLayer(handlers)` | Unchanged | An object of VibeLang handlers (D324) |
 | RPC clients and servers | Changed | `using client = RpcClient.make(UserRpcs)` |
 | Entities | Unchanged | `Counter.client()` |
 | Workflows | Unchanged | Bodies are VibeLang functions (D42) |
