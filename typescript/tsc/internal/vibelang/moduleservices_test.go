@@ -14,6 +14,7 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/diagnostics"
 	"github.com/microsoft/TypeScript/tsc/internal/ls"
 	"github.com/microsoft/TypeScript/tsc/internal/ls/lsconv"
+	"github.com/microsoft/TypeScript/tsc/internal/lsp/lsproto"
 	"github.com/microsoft/TypeScript/tsc/internal/tsoptions"
 	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 	"github.com/microsoft/TypeScript/tsc/internal/vfs/osvfs"
@@ -335,5 +336,83 @@ func TestEditorExperimentalServices(t *testing.T) {
 	uris := definitionURIs(t, service, uri, positionOf(source, "hostname", 1))
 	if len(uris) == 0 || !strings.HasSuffix(uris[0], "/experimental/Process.d.ts") {
 		t.Errorf("definition of Experimental.Process.hostname = %v, want vibelang-runtime's experimental/Process.d.ts", uris)
+	}
+}
+
+// Exercise the completion endpoint: namespace exports used to return before
+// the member hook, even though the hook's direct tests passed.
+func TestEditorModuleServiceCompletionEndpoint(t *testing.T) {
+	for _, test := range []struct {
+		name, access string
+		want         []string
+	}{
+		{"effect", "FileSystem.", []string{"readFileString", "exists", "FileSystem", "make", "makeNoop"}},
+		{"effect partial", "FileSystem.rea", []string{"readFileString"}},
+		{"experimental", "Experimental.Process.", []string{"hostname", "pid", "Process", "make", "layerTest"}},
+		{"experimental partial", "Experimental.Process.hos", []string{"hostname"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := "export function read() { return " + test.access + " }\n"
+			_, file, service, _ := editorProgram(t, source)
+			result, err := service.ProvideCompletion(t.Context(), lsconv.FileNameToDocumentURI(file.FileName()),
+				positionOf(source, test.access, len(test.access)), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.List == nil {
+				t.Fatal("no completion list")
+			}
+			counts := map[string]int{}
+			for _, item := range result.List.Items {
+				counts[item.Label]++
+			}
+			for _, name := range test.want {
+				if counts[name] != 1 {
+					t.Errorf("completion %s occurs %d times, want once", name, counts[name])
+				}
+			}
+		})
+	}
+}
+
+// A namespace export and a service member can share a name. The completion
+// must retain the namespace symbol, rather than an intersection of both.
+func TestModuleServiceCompletionExportsWin(t *testing.T) {
+	files := computedKeyFiles(false)
+	effect := "/Users/x/src/node_modules/effect/"
+	files[effect+"package.json"] = `{"name":"effect","type":"module","exports":{".":{"types":"./index.d.ts"},"./*":{"types":"./*.d.ts"}}}`
+	files[effect+"FileSystem.d.ts"] = `export interface FileSystem { readonly make: () => number; readonly read: () => string }
+export declare const FileSystem: { readonly "~effect/Context/Service": "~effect/Context/Service"; readonly Identifier: FileSystem; readonly Service: FileSystem };
+export declare const make: (value: string) => FileSystem;`
+	source := "import * as FileSystem from \"effect/FileSystem\"; export function f() { return FileSystem.make(\"x\") }"
+	files["/Users/x/src/main.vibe"] = source
+	program := computedKeyProgram(t, files)
+	file := program.GetSourceFile("/Users/x/src/main.vibe")
+	converters := lsconv.NewConverters(lsproto.PositionEncodingKindUTF16, func(name tspath.RootedFilePath) *lsconv.LSPLineMap {
+		return lsconv.ComputeLSPLineStarts(program.GetSourceFile(name).Text())
+	})
+	service := ls.NewLanguageService(nil, program, fixHost{program: program, converters: converters}, file.FileName().AsString())
+	result, err := service.GetCompletionsAtPosition(t.Context(), file, strings.Index(source, "FileSystem.make")+len("FileSystem."), nil, true)
+	if err != nil || result == nil {
+		t.Fatalf("completions: %v, %v", result, err)
+	}
+	c, done := program.GetTypeCheckerForFile(t.Context(), file)
+	defer done()
+	access := findNode(file.AsNode(), ast.IsPropertyAccessExpression)
+	want := c.GetPropertyOfType(c.GetTypeAtLocation(access.Expression()), "make")
+	if want == nil {
+		t.Fatal("missing namespace export")
+	}
+	count := 0
+	for _, item := range result.Items {
+		if item.Label == "make" {
+			count++
+			if item.Symbol != want {
+				t.Errorf("make completion symbol %v, want namespace export %v", item.Symbol, want)
+			}
+		}
+	}
+	if count != 1 {
+		t.Errorf("make occurs %d times, want once", count)
 	}
 }

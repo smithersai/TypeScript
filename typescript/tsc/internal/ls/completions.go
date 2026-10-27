@@ -971,6 +971,24 @@ func (l *LanguageService) getCompletionData(
 						}
 					}
 
+					// Extensions can expose members through a namespace's same-named
+					// export. Keep the namespace's own exports on a name clash, just
+					// as property checking does, and leave type-only access unchanged.
+					if !isTypeLocation && !insideJSDocTagTypeExpression && !isNamespaceName && !isRhsOfImportDeclaration {
+						t := typeChecker.GetNonOptionalType(typeChecker.GetTypeAtLocation(node))
+						if members := applyMemberCompletionHooks(typeChecker, node, t); members != t {
+							exportNames := collections.Set[string]{}
+							for _, exported := range exportedSymbols {
+								exportNames.Add(exported.Name())
+							}
+							for _, member := range typeChecker.GetApparentProperties(members) {
+								if !exportNames.Has(member.Name()) && typeChecker.IsValidPropertyAccessForCompletions(valueAccessNode, members, member) {
+									addPropertySymbol(member, false /*insertAwait*/, false /*insertQuestionDot*/)
+								}
+							}
+						}
+					}
+
 					// If the module is merged with a value, we must get the type of the class and add its properties (for inherited static methods).
 					if !isTypeLocation && !insideJSDocTagTypeExpression &&
 						core.Some(

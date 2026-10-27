@@ -21,3 +21,6 @@ export function greet(id: number) {
 
 service Greeter { greet(name: string): Effect<string> }
 export function serviceGreeting() { return Greeter.greet("Ada") }
+
+export function readFile(path: string) { return FileSystem.readFileString(path) }
+export function processHostname() { return Experimental.Process.hostname() }

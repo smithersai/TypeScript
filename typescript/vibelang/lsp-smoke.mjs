@@ -762,6 +762,19 @@ try {
     assert(labels.includes("log") && labels.includes("error"), `labels ${JSON.stringify(labels.slice(0, 20))}`)
   })
 
+  await check("completion: module service members after a dot and a partial name", async () => {
+    for (const [needle, offsets, expected] of [
+      ["FileSystem.readFileString", [11, 14], ["readFileString", "exists", "FileSystem", "makeNoop"]],
+      ["Experimental.Process.hostname", [21, 24], ["hostname", "pid", "Process", "layerTest"]]
+    ]) {
+      for (const offset of offsets) {
+        const labels = await completionLabels("src/services.vibe", needle, { offset })
+        for (const name of expected) assert(labels.includes(name), `${needle} at ${offset}: no ${name} in ${JSON.stringify(labels)}`)
+        assert(new Set(labels).size === labels.length, `${needle}: duplicate completions`)
+      }
+    }
+  })
+
   await check("completion: a data type's variants after its name", async () => {
     const labels = await completionLabels("src/data.vibe", "Delivery.Sent({", { offset: 9 })
     for (const variant of ["Waiting", "Sent", "Rejected"]) assert(labels.includes(variant), `labels ${JSON.stringify(labels)}`)
