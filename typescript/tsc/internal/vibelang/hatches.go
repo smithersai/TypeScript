@@ -457,6 +457,10 @@ type hatchForm struct {
 	value  bool   // sync(expression), try(expression): wrap it in () =>
 	mapper bool   // try's second argument maps a thrown error (D231)
 	signal bool   // the overload gives an async function the AbortSignal after its inputs (D230)
+
+	// adapter says the type cannot tell a promise from a plain value, so the
+	// runtime's sync or try decides for each value the function returns.
+	adapter bool
 }
 
 // hatchFormOf returns the form of call, a sync or try hatch. The overload the
@@ -490,8 +494,11 @@ func hatchFormOf(c *checker.Checker, call *ast.Node) (hatchForm, bool) {
 	form.mapper = len(parameters) > 1 && ast.IsIdentifier(parameters[1].Name()) && parameters[1].Name().Text() == "mapError"
 	form.signal = takesSignal(parameters[0])
 	form.effect = name
-	if isAsyncHatch(c, call.Arguments()[0], form.value) {
+	switch hatchPromiseOf(c, call.Arguments()[0], form.value) {
+	case alwaysPromise:
 		form.effect = map[string]string{"sync": "promise", "try": "tryPromise"}[name]
+	case maybePromise:
+		form.adapter = true
 	}
 	return form, true
 }
@@ -538,29 +545,88 @@ func bindsExactly(argument *ast.Node) bool {
 	return true
 }
 
-// isAsyncHatch reports whether argument, a hatch's first argument, is
-// asynchronous: an async function, a function that returns a promise, or, for
-// a value, a promise.
-func isAsyncHatch(c *checker.Checker, argument *ast.Node, value bool) bool {
+// promiseness is what a type says about whether its values are promises,
+// by the test the runtime's hatches apply to a value: an object or function
+// whose then is a function.
+type promiseness uint8
+
+const (
+	neverPromise  promiseness = iota // no value is a promise
+	alwaysPromise                    // every value is a promise
+	maybePromise                     // some values may be promises and others not
+)
+
+// hatchPromiseOf says whether argument, a hatch's first argument, gives a
+// promise: an async function, or the values its signatures return, or, for
+// a value, its own type. Effect.sync and Effect.promise are chosen only
+// where the type proves which applies; otherwise the runtime's hatch, which
+// tests each value, decides (maybePromise).
+func hatchPromiseOf(c *checker.Checker, argument *ast.Node, value bool) promiseness {
 	argument = ast.SkipParentheses(argument)
 	if value {
-		return isPromiseLike(c, c.GetTypeAtLocation(argument))
+		return promisenessOf(c, c.GetTypeAtLocation(argument))
 	}
 	if ast.IsFunctionExpressionOrArrowFunction(argument) && ast.GetFunctionFlags(argument)&ast.FunctionFlagsAsync != 0 {
-		return true
+		return alwaysPromise
 	}
+	var kinds []promiseness
 	for _, signature := range c.GetSignaturesOfType(c.GetTypeAtLocation(argument), checker.SignatureKindCall) {
-		if isPromiseLike(c, c.GetReturnTypeOfSignature(signature)) {
-			return true
-		}
+		kinds = append(kinds, promisenessOf(c, c.GetReturnTypeOfSignature(signature)))
 	}
-	return false
+	return joinPromiseness(kinds)
 }
 
-// isPromiseLike reports whether t is a promise: it has a then. any and unknown
-// are not, so a function returning any, such as JSON.parse, stays synchronous.
-func isPromiseLike(c *checker.Checker, t *checker.Type) bool {
-	return t != nil && t.Flags()&checker.TypeFlagsAnyOrUnknown == 0 && c.GetPropertyOfType(t, "then") != nil
+// promisenessOf says whether the values of t are promises. A union is a
+// promise when each member is, and a type is one when its then is a
+// function on every value; a then that is data, such as { then: 7 }, is not
+// one. any and unknown are not either, so a function returning any, such as
+// JSON.parse, stays synchronous (D232).
+func promisenessOf(c *checker.Checker, t *checker.Type) promiseness {
+	switch {
+	case t == nil || t.Flags()&checker.TypeFlagsAnyOrUnknown != 0:
+		return neverPromise
+	case t.Flags()&checker.TypeFlagsUnion != 0:
+		var kinds []promiseness
+		for _, member := range t.Types() {
+			kinds = append(kinds, promisenessOf(c, member))
+		}
+		return joinPromiseness(kinds)
+	}
+	then := c.GetPropertyOfType(t, "then")
+	if then == nil {
+		return neverPromise
+	}
+	thenType := c.GetTypeOfSymbol(then)
+	if thenType.Flags()&checker.TypeFlagsAnyOrUnknown != 0 {
+		return maybePromise
+	}
+	var kinds []promiseness
+	for _, member := range unionMembers(thenType) {
+		if len(c.GetSignaturesOfType(member, checker.SignatureKindCall)) > 0 {
+			kinds = append(kinds, alwaysPromise)
+		} else {
+			kinds = append(kinds, neverPromise)
+		}
+	}
+	kind := joinPromiseness(kinds)
+	if kind == alwaysPromise && then.Flags()&ast.SymbolFlagsOptional != 0 {
+		return maybePromise
+	}
+	return kind
+}
+
+// joinPromiseness says what values of any of kinds are: neverPromise for
+// none.
+func joinPromiseness(kinds []promiseness) promiseness {
+	if len(kinds) == 0 {
+		return neverPromise
+	}
+	for _, kind := range kinds[1:] {
+		if kind != kinds[0] {
+			return maybePromise
+		}
+	}
+	return kinds[0]
 }
 
 // visitHatchCall lowers a sync or try hatch to Effect's function:
@@ -602,6 +668,11 @@ func (tx *lowering) visitHatchCall(node *ast.Node) *ast.Node {
 	inputs := []*ast.Node{f.NewIdentifier("undefined")}
 	for _, input := range rest {
 		inputs = append(inputs, tx.Visitor().VisitNode(input))
+	}
+	// The runtime's adapter takes the function, the mapper and the inputs in
+	// the order written, so only Effect's own forms reorder them.
+	if form.adapter {
+		return tx.adapterHatchCall(node, form, body, mapper, inputs[1:])
 	}
 	if mapper != nil && !form.value && len(rest) > 0 {
 		// The options object evaluates the inputs, which bind fills in, before
@@ -670,6 +741,36 @@ func hatchQuickInfo(c *checker.Checker, node *ast.Node) (string, string) {
 		paragraph += " Inputs, which fill its first parameters: " + strings.Join(names, ", ") + "."
 	}
 	return "", paragraph
+}
+
+// adapterHatchCall lowers node, a sync or try hatch whose function or value
+// may or may not give a promise, to the runtime's hatch, which awaits a
+// value whose then is a function and returns any other value (D232):
+//
+//	sync((flag) => flag ? Promise.resolve(1) : 1, f)   runtime.sync((flag) => …, f)
+//	try(load(), wrap)                                  runtime.try(() => load(), wrap)
+//
+// body is the lowered function, or the value; the mapper and inputs follow
+// it as the source wrote them.
+func (tx *lowering) adapterHatchCall(node *ast.Node, form hatchForm, body, mapper *ast.Node, inputs []*ast.Node) *ast.Node {
+	f := tx.Factory()
+	if form.value {
+		body = tx.generated(f.NewArrowFunction(nil /*modifiers*/, nil /*typeParameters*/, f.NewNodeList(nil), nil /*returnType*/, nil /*fullSignature*/, f.NewToken(ast.KindEqualsGreaterThanToken), body))
+	}
+	arguments := []*ast.Node{body}
+	if mapper != nil {
+		arguments = append(arguments, mapper)
+	}
+	arguments = append(arguments, inputs...)
+	lowered := f.NewCallExpression(tx.runtimeMember(form.effect), nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList(arguments), ast.NodeFlagsNone)
+	tx.EmitContext().SetOriginal(lowered, node)
+	lowered.Loc = node.Loc
+	if tx.inEffect && tx.plan.runsCall(node) {
+		run := f.NewYieldExpression(f.NewToken(ast.KindAsteriskToken), lowered)
+		tx.EmitContext().SetOriginal(run, node)
+		return run
+	}
+	return lowered
 }
 
 // hatchInputs returns the inputs of call, a hatch: the arguments after its

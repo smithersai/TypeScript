@@ -1279,6 +1279,13 @@ typescript/vibelang/cases/hatch-input-without-parameter.fail/main.vibe:6:15 lamb
 typescript/vibelang/cases/hatch-inputs-vibelang.fail/main.vibe:10:23 lambda plain table
 typescript/vibelang/cases/hatch-inputs-vibelang.fail/main.vibe:11:24 lambda plain table
 typescript/vibelang/cases/hatch-inputs-vibelang.fail/main.vibe:9:23 lambda plain table
+typescript/vibelang/cases/hatch-promise-shapes/main.vibe:16:33 lambda plain table
+typescript/vibelang/cases/hatch-promise-shapes/main.vibe:17:30 lambda plain table
+typescript/vibelang/cases/hatch-promise-shapes/main.vibe:18:105 lambda plain table
+typescript/vibelang/cases/hatch-promise-shapes/main.vibe:18:29 lambda plain table
+typescript/vibelang/cases/hatch-promise-shapes/main.vibe:19:110 lambda plain table
+typescript/vibelang/cases/hatch-promise-shapes/main.vibe:19:34 lambda plain table
+typescript/vibelang/cases/hatch-promise-shapes/main.vibe:21:21 lambda plain table
 typescript/vibelang/cases/hatch-type-query.fail/a.vibe:2:15 lambda plain annotation
 typescript/vibelang/cases/hatch-type-query.fail/a.vibe:5:15 lambda plain table
 typescript/vibelang/cases/hatch-type-query/a.vibe:13:14 lambda plain table
