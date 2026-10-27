@@ -100,6 +100,9 @@ func checkErrorDeclaration(c *checker.Checker, class *ast.Node, form errorForm, 
 	}
 	statics := c.GetTypeAtLocation(base)
 	baseName := entityText(base)
+	if baseName == "" {
+		baseName = nodeText(ast.GetSourceFileOfNode(base), base)
+	}
 	schemaBase := statics != nil && c.GetPropertyOfType(c.GetApparentType(statics), schemaTypeID) != nil
 	switch {
 	case form == errorFormSubclass && schemaBase:

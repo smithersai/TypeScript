@@ -1,0 +1,1 @@
+E is a schema error, so it extends a schema error, and { id: string } is not one.
