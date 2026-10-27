@@ -1,0 +1,17 @@
+// The imports that diag-prelude-collisions.fail's notes suggest: Effect's
+// modules named like JavaScript's and the web's globals, under other names,
+// beside the globals themselves.
+import { Array as EffectArray, Number as EffectNumber } from "effect"
+import { Headers as EffectHeaders } from "effect/http"
+
+// expect-result: [3,[1,2],"1",[1,2],"2"]
+export function main() {
+  const headers = EffectHeaders.fromInput({ a: "1" })
+  return [
+    EffectNumber.sum(1, 2),
+    EffectArray.make(1, 2),
+    EffectHeaders.get(headers, "a").pipe(Option.getOrElse(() => "")),
+    Array.from([1, 2]),
+    new Headers({ b: "2" }).get("b")
+  ]
+}

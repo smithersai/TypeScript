@@ -1814,6 +1814,7 @@ typescript/vibelang/cases/platform-services/main.vibe:23:21 lambda choice fallba
 typescript/vibelang/cases/platform-services/main.vibe:24:24 lambda choice fallback
 typescript/vibelang/cases/platform-services/main.vibe:25:20 lambda plain fallback
 typescript/vibelang/cases/platform-services/main.vibe:27:43 lambda effectFn table
+typescript/vibelang/cases/prelude-collision-imports/main.vibe:13:59 lambda plain table
 typescript/vibelang/cases/prelude-imports-cjs/main.vibe:16:3 lambda effectFn service
 typescript/vibelang/cases/prelude-imports-cjs/main.vibe:29:23 lambda plain table
 typescript/vibelang/cases/prelude-imports-cjs/main.vibe:29:45 lambda plain table

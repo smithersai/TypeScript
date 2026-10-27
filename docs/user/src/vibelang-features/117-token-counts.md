@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,002 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,416 |
-| The skill and the user guide (134 pages) | 234,206 |
-| The user guide alone | 229,204 |
+| The skill and the user guide (134 pages) | 234,513 |
+| The user guide alone | 229,511 |
 | The specification (33 chapters) | 108,815 |
 | The decision log, `docs/design/DECISIONS.md` | 70,804 |
 
@@ -96,13 +96,13 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Creating Effects](../getting-started/005-creating-effects.md) | 3,024 |
 | [Two Types of Errors](../error-management/006-two-error-types.md) | 642 |
 | [Basic Concurrency](../concurrency/007-basic-concurrency.md) | 1,441 |
-| **Core Concepts** | **15,948** |
+| **Core Concepts** | **16,138** |
 | [Effect's Modules](../getting-started/008-importing-effect.md) | 2,533 |
 | [Running Effects](../getting-started/009-running-effects.md) | 1,704 |
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
-| [Devtools](../getting-started/012-devtools.md) | 8,720 |
-| **All 12 pages** | **27,478** |
+| [Devtools](../getting-started/012-devtools.md) | 8,910 |
+| **All 12 pages** | **27,668** |
 
 ### Setup
 
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **17,454** |
-| [Release notes](../setup/release-notes.md) | 17,454 |
-| **All 15 pages** | **35,891** |
+| **Upgrade** | **17,571** |
+| [Release notes](../setup/release-notes.md) | 17,571 |
+| **All 15 pages** | **36,008** |
 
 ### Guides
 

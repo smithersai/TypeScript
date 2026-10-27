@@ -485,6 +485,12 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   type, the DOM's `Cache`, `Console`, `Crypto`, `FileSystem`, `Scheduler`,
   `Transferable` and `Worker` lose their bare names; alias one in a `.ts`
   file to use it.
+- An error on a name these rules settle says which meaning the name has and
+  how to reach the other: `function send(m: Message)` (TS2709) names Effect's
+  `effect/cluster/Message`, `new Worker("./worker.js")` (TS2351) names
+  `globalThis.Worker` for the DOM's, and `Number.sum(1, 2)` (TS2339) says
+  JavaScript's `Number` wins and suggests
+  `import { Number as EffectNumber } from "effect"`.
 - `vibelang --fix` removes the imports these make redundant and writes
   `M.M` as `M` where the module's name means its export:
   `FileSystem.FileSystem.readFileString(path)` becomes

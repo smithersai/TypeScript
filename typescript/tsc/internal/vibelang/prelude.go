@@ -460,6 +460,14 @@ func preludeSymbol(c *checker.Checker, state *preludeState, file *ast.SourceFile
 	if isBuiltinGlobal(c, name) {
 		return nil
 	}
+	return effectExportSymbol(c, state, file, name)
+}
+
+// effectExportSymbol returns the export of effect that name, an effect root
+// export, an unprefixed Effect function or a subpath module, refers to in
+// file, whether or not a JavaScript global takes the name, or nil when its
+// module is not installed or file does not resolve it.
+func effectExportSymbol(c *checker.Checker, state *preludeState, file *ast.SourceFile, name string) *ast.Symbol {
 	if subpath, ok := effectSubpathNames[name]; ok {
 		cache := state.barrels[subpath.barrel]
 		if cache == nil {
