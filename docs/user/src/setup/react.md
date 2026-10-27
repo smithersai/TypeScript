@@ -18,10 +18,11 @@ npm install --save-dev --save-exact happy-dom@20.14.6 @testing-library/react@16.
 
 ## 2. Configure tsconfig.json
 
-Find the configuration that includes `src`. In an app from Vite's `react-ts` template, `tsconfig.json` has `"files": []` and lists `tsconfig.app.json` and `tsconfig.node.json` as `references`; `tsconfig.app.json` includes `src`. Make two checks there:
+Find the configuration that includes `src`. In an app from Vite's `react-ts` template, `tsconfig.json` has `"files": []` and lists `tsconfig.app.json` and `tsconfig.node.json` as `references`; `tsconfig.app.json` includes `src`. Check that `include` selects the `.vibe` files. The template's `"include": ["src"]` does.
 
-1. `compilerOptions` sets `"rewriteRelativeImportExtensions": true`. Without it, `vite build` fails with TS5096, because the template sets `allowImportingTsExtensions` and the plugin emits JavaScript. A configuration without `allowImportingTsExtensions` fails with TS5097 instead.
-2. `include` selects the `.vibe` files. The template's `"include": ["src"]` does.
+The VibeLang plugin's compile backend automatically enables `rewriteRelativeImportExtensions` for the JavaScript it emits. `vite build` therefore works with the template's `allowImportingTsExtensions` setting.
+
+If you also emit JavaScript directly with the `vibelang` CLI, set `"rewriteRelativeImportExtensions": true` in that emitting project's `compilerOptions`. It permits source-extension imports and rewrites them to JavaScript paths; `allowImportingTsExtensions` alone produces TS5096 during CLI emission.
 
 ## 3. Configure Vite and Vitest
 
