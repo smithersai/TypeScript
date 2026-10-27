@@ -76,7 +76,7 @@ service Search: SearchApi {
 }
 ```
 
-`service Name: Type` declares a service whose implementation has any type: an interface declared elsewhere, a primitive, or a function type (D281). It does the job of the class on the left, with the key derived as above (D93). The body is optional and holds only static members, such as a layer; an instance member there is EK2103, because the shape already states what an implementation has. Reading is unchanged: `Prefix()` returns the implementation and `Search.find(q)` calls a member of the shape (D41, D90). The type `Search` is the service's identifier and `SearchApi` its shape, by the rules above. A generic service is EK3005, and a static member named like a member of the shape is EK3006. The parser reads the declaration as an abstract class whose synthesized extends clause carries the shape; the checker gives it the static side `Context.Service<Search, SearchApi>`, and the declaration file writes `ServiceKey<Search, SearchApi>`, or `ReferenceKey<Shape>` for a static default (D40), as its base.
+`service Name: Type` declares a service whose implementation has any type: an interface declared elsewhere, a primitive, or a function type (D281). It does the job of the class on the left, with the key derived as above (D93). The body is optional and holds only static members, such as a layer; an instance member there is EK2103, because the shape already states what an implementation has. Reading is unchanged: `Prefix()` returns the implementation and `Search.find(q)` calls a member of the shape (D41, D90). For a service whose shape is a function type, `service Format: (n: number) => string`, `Format()` returns the function and `Format()(3)` calls it; `Format(3)` is EK3007, since the key's call takes no arguments (D415). The type `Search` is the service's identifier and `SearchApi` its shape, by the rules above. A generic service is EK3005, and a static member named like a member of the shape is EK3006. The parser reads the declaration as an abstract class whose synthesized extends clause carries the shape; the checker gives it the static side `Context.Service<Search, SearchApi>`, and the declaration file writes `ServiceKey<Search, SearchApi>`, or `ReferenceKey<Shape>` for a static default (D40), as its base.
 
 #### Using a service
 
@@ -216,7 +216,7 @@ service Sessions {
 
 service FeatureFlags {
   newCheckout: boolean
-  static readonly default: FeatureFlags = { newCheckout: false }
+  static readonly default: FeatureFlags.Shape = { newCheckout: false }
 }
 
 function checkoutPage(cartId: string) {

@@ -6,7 +6,7 @@
 import type { Effect } from "vibelang-runtime"
 export declare function double(n: number): Effect.Effect<number, never, never>
 export declare namespace double {
-  const $plain: (n: number) => number      // the plain call signature (D268, D384)
+  type $plain = (n: number) => number      // the plain marker: a type, no value (D384, D411)
 }
 ```
 
@@ -86,11 +86,13 @@ With `--ignoreConfig` or files named on the command line, the program has no pac
 
 #### One checker pass
 
-Overload resolution is TypeScript's, with one preference: a function literal
-takes a candidate's function type over its Effect type (D380). It picks a
-signature, and the hooks check each argument against it in the form Chapter 13
-gives the argument, so the order of overloads never decides when an expression
-is evaluated. A return in a
+Overload resolution is TypeScript's, from the arguments' own types: a
+function argument is tried first in its own form, plain or Effect, and lifted
+only when no candidate accepts it as it is, with a candidate that takes it as a
+function preferred to one that converts it to a program (rule F, D380, D392).
+The hooks check each argument against the picked signature in the form Chapter
+13 gives the argument, so the order of overloads never decides a function
+argument's form or when an expression is evaluated. A return in a
 program is checked against the Effect's success type. Function values and
 collections of programs convert to Effects where a parameter expects them
 (D7, D49); the conversion changes a program's representation, never when its
@@ -123,7 +125,8 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 | `$service`, `$reference`, `$control` | Service keys, defaults, and control operations |
 | `$trusted`, `$trustedPlain` | Classify listed foreign exceptions |
 | `handle`, `resume`, `$tailResume` | Continuation handling |
-| `$produce`, `$yield`, `$forOf`, `$forStream`, `$toStream` | Producers and Stream adaptation |
+| `$produce`, `$yield`, `$forOf`, `$forStream` | Producers: a producer value is a `Stream` whose channel is the adapter and whose `$produce` property is its program (D402) |
+| `acquireRelease`, `acquireDisposable` | Effect's acquisitions, which also record the value whose release they registered, so `using` adds no second release (D401); a `.vibe` reference to Effect's own denotes these |
 
 The runtime's README lists the full ABI. Compiler and helper changes belong in
 one commit. The smoke harness builds the runtime and links every case to that
@@ -139,33 +142,43 @@ against it may rely on [Rule] (D366).
    error, and requirement types, the same service and control identities, and
    the same legal uses of its callbacks, as a consumer compiled from the
    source. An exported function returns a cold `Effect`, one with a plain
-   return annotation is a plain function, and a producer returns a `Stream`
-   (Chapter 10).
+   return annotation is a plain function, and a producer returns a `Stream`,
+   the same producer value a VibeLang caller receives: a TypeScript consumer
+   pulls it through the adapter, and a VibeLang consumer of the declaration
+   that iterates it with `for...of` runs it on the loop's fiber, as a source
+   consumer does (Chapter 10, D402).
 2. **More conservative, never different.** A declaration cannot prove what a
    body does: that a plain function never throws, or that a function whose R
    names a control operation never moves it to another fiber. A consumer that
    sees only declarations treats such a function as foreign code (EK4401,
-   EK4202) where a consumer of the source would not. It never runs or types a
-   call differently.
-3. **The plain form.** A function that compiles to plain JavaScript carries
-   its plain call signature in its declaration, D268's `$plain` member, and
-   its plain variant at run time as a property of the exported function
-   object, `f[$direct]` (D268), which survives re-exports, aliases, default
-   exports, and CommonJS. A consumer of the declaration passes the plain form
-   wherever a plain function is expected, as a consumer of the source does, so
-   `[1, 2].map(double)` is `[2, 4]` either way (D384). A function whose
-   declaration has no `$plain` member is an Effect function to its consumers,
-   and passing it where a plain function is expected is EK4301. A call of the
-   function may use either form: both produce the same observations. No
-   generated function, such as a direct variant, a region, or a helper, is a
-   public export.
+   EK4202) where a consumer of the source would not, except a function whose
+   declaration carries the plain marker (rule 3), which it calls as a trusted
+   plain call whose exceptions are defects. It never runs or types a call
+   differently.
+3. **The plain form.** A function that compiles to plain JavaScript, one with
+   a plain return annotation and an eligible unannotated one alike, carries
+   the plain marker in its declaration: a type-only `$plain` member of a
+   namespace merged with it, whose type is its plain call signature (D384,
+   D411). It declares no value, so stock TypeScript rejects `double.$plain(2)`
+   as it rejects any use of a type as a value, and no consumer can call what
+   the run time does not supply. An unannotated one's plain variant is a
+   property of the exported function object at run time, `f[$direct]` (D268),
+   which survives re-exports, aliases, default exports, and CommonJS. A
+   consumer of the declaration passes the plain form wherever a plain
+   function is expected, as a consumer of the source does, so
+   `[1, 2].map(double)` is `[2, 4]` either way. A function whose declaration
+   has no marker is an Effect function to its consumers, and passing it where
+   a plain function is expected is EK4301. A call of the function may use
+   either form: both produce the same observations. No generated function,
+   such as a direct variant, a region, or a helper, is a public export.
 4. **Standard TypeScript.** A declaration file is TypeScript that stock
    TypeScript checks with `skipLibCheck: false`: an Effect type is written
    `Effect.Effect<A, E, R>` or through the runtime's `Effect` alias, never in
    the `!` form, and no VibeLang keyword appears.
 5. **Every nesting level.** A `service`, `control`, `error`, `schema`, or
    `data` declaration emits the same declarations inside a `namespace` as at
-   a file's top level.
+   a file's top level. An `error` declaration's class declares its private
+   brand member, which makes it nominal to stock TypeScript too (D407).
 6. **Hygienic.** A name that declaration emit adds, such as a key's base
    constant or a prelude import's alias (D123), is fresh against every name
    the file declares or imports (Chapter 13, rule H6).

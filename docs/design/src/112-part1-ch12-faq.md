@@ -8,7 +8,7 @@ Short answers with code. Appendix C maps every section of Effect's documentation
 function loadProfile(id: string) {
   const user = Users.find(id)                       // waits for the database: no await
   const avatar = try(                               // a Promise from a TypeScript library
-    (avatarId, signal) => avatarSdk.fetch(avatarId, { signal }),
+    async (avatarId, signal) => avatarSdk.fetch(avatarId, { signal }),
     (cause) => new AvatarError({ cause }),
     user.avatarId                                   // an input: the hatch reads its own parameters
   )
@@ -218,7 +218,7 @@ function search(query: string) {
 }
 ```
 
-They are Effect's: `fork` starts a fiber owned by the enclosing block (Chapter 7), and `Fiber.join` and `Fiber.interrupt` work unchanged. Interruption runs every `finally` block and `using` release on the way out, and `catch` never catches it (Chapter 3). `Effect.uninterruptible(() => …)` protects a region, `Effect.onInterrupt` reacts to cancellation, and `Effect.timeout` and `Effect.race` interrupt the branches they discard. A Promise is cancelled through the `AbortSignal` that the `try` and `sync` hatches pass.
+They are Effect's: `fork` starts a fiber owned by the function body, loop iteration, or region around it (Chapter 7), and `Fiber.join` and `Fiber.interrupt` work unchanged. Interruption runs every `finally` block and `using` release on the way out, and `catch` never catches it (Chapter 3). `Effect.uninterruptible(() => …)` protects a region, `Effect.onInterrupt` reacts to cancellation, and `Effect.timeout` and `Effect.race` interrupt the branches they discard. A Promise is cancelled through the `AbortSignal` that the `try` and `sync` hatches pass.
 
 #### How do I wrap a callback API?
 
@@ -254,7 +254,7 @@ Five things, each with a replacement:
 
 - Generator-based APIs (`Effect.gen`, `Option.gen`) cannot be written in `.vibe` files; call them from TypeScript.
 - Effectful handlers in `Option.match` or `Match` are rejected (EK4301); use `if` or `switch`.
-- Runners inside code a fiber runs are rejected (EK1005); call or `fork` the program.
+- Runners inside code a fiber runs are rejected (EK1005); call the program, or `detach` it.
 - A TypeScript function whose requirements include a control operation is rejected (EK4202).
 - Effect 3 code, including `Micro`, runs only as foreign code behind a boundary, as above.
 

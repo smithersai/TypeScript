@@ -2,7 +2,7 @@
 
 A language for writing Effect programs. Specification, revised 2026-10-27. Runtime: `effect@4.0.6`.
 
-VibeLang is TypeScript syntax in which every function is an Effect. Seen from TypeScript, every VibeLang function is a function that returns a cold `Effect`, so calling it runs nothing; the two exceptions are a function with a plain return annotation, which is an ordinary JavaScript function, and a producer, `function*`, which returns a `Stream`. Inside VibeLang, a call of a function declared to return an Effect runs it where the call stands, and an arrow, `() => f(x)`, delays it (Chapter 13). You call functions normally, `throw` and `catch` typed errors, and ask for services by name. The compiler infers each function's `Effect<A, E, R>` and emits the Effect code you would write by hand, so TypeScript uses it like any other Effect library.
+VibeLang is TypeScript syntax in which every function is an Effect. Seen from TypeScript, every VibeLang function is a function that returns a cold `Effect`, so calling it runs nothing; the exceptions are a function or method with a plain return annotation, which is an ordinary JavaScript function; a method that implements a plain member of an interface or base class its class declares, or a JavaScript protocol method such as `toString`, which is plain too (Chapter 10); and a producer, `function*`, which returns a `Stream`. Inside VibeLang, a call of a function declared to return an Effect runs it where the call stands, and an arrow, `() => f(x)`, delays it (Chapter 13). You call functions normally, `throw` and `catch` typed errors, and ask for services by name. The compiler infers each function's `Effect<A, E, R>` and emits the Effect code you would write by hand, so TypeScript uses it like any other Effect library.
 
 ```ts effect
 const welcome = Effect.fn("welcome")(function* (id: string) {
@@ -40,7 +40,7 @@ The two functions do the same work, with two differences. `Effect.fn("welcome")`
 
 To learn VibeLang by task, not by rule, start with the [user guide](../../user/src/001-onboarding.md). The [cheat sheet](../../user/src/vibelang-features/115-cheat-sheet.md) puts every change beside the Effect code it replaces.
 
-**Status.** This revision decides every rule. A rule the compiler does not implement yet is listed as a gap in `typescript/VIBELANG.md`, and it still governs. `docs/design/DECISIONS.md` records each decision, D1-D391, with its reason and evidence; [Part V](#29-decisions) indexes them and marks the ones later decisions superseded. The Part III runtime is a working prototype: {{testCount}} tests pass in `experiments/`. The shipped compiler is the Go fork of TypeScript in `typescript/`, which infers contracts and lowers each call by its callee's declared type (Chapter 27); `prototype/esc`, on TypeScript's API, is the earlier prototype. The compiler, spec, runtime, and tooling share one repository (D60).
+**Status.** This revision decides every rule. A rule the compiler does not implement yet is listed as a gap in `typescript/VIBELANG.md`, and it still governs. `docs/design/DECISIONS.md` records each decision, D1-D420, with its reason and evidence; [Part V](#29-decisions) indexes them and marks the ones later decisions superseded. The Part III runtime is a working prototype: {{testCount}} tests pass in `experiments/`. The shipped compiler is the Go fork of TypeScript in `typescript/`, which infers contracts and lowers each call by its callee's declared type (Chapter 27); `prototype/esc`, on TypeScript's API, is the earlier prototype. The compiler, spec, runtime, and tooling share one repository (D60).
 
 ## Effect to VibeLang at a glance
 
@@ -60,7 +60,7 @@ To learn VibeLang by task, not by rule, start with the [user guide](../../user/s
 | `effect.pipe(Effect.retry(…), Effect.timeout(…))` | `timeout(() => retry(() => f(), …), …)` | [5](#5-programs-as-values-retry-timeout-and-pipe) |
 | `Effect.scoped` with `Effect.acquireRelease` | `using x = acquire()` | [6](#6-resources) |
 | `Effect.all([a, b], { concurrency: 2 })` | `Effect.all([() => a(), () => b()], { concurrency: 2 })` | [7](#7-concurrency) |
-| `Effect.forkScoped(effect)` | `fork f()`, owned by the enclosing block | [7](#7-concurrency) |
+| `Effect.forkScoped(effect)` | `fork f()`, owned by the function body, loop iteration, or region around it | [7](#7-concurrency) |
 | a `Stream` you build by hand | a `function*` producer and `for...of` | [8](#8-producers-streams-of-values) |
 | none | `control Op { ... }` and `handle` | [9](#9-handlers-defining-your-own-effects) |
 | `node:fs`, `fetch`, `process.env`, `child_process` | `FileSystem`, `HttpClient`, `Config`, `ChildProcessSpawner` | [11](#11-the-standard-library) |

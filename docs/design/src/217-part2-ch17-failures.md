@@ -60,9 +60,9 @@ Each kind of exit has one rule:
 
 **Applies to** `throw e` in VibeLang code outside a hatch, as a statement or an expression (D186).
 
-**Checked.** The declared type of `e` joins the function's E. When that type is a Cause type, resolved by symbol to Effect's `Cause.Cause<E>` or a union whose every member is one, the throw rethrows the cause, and the Cause's E joins the function's E (D177). A union that mixes a Cause type with any other type is EK2140: narrow it first, so that one `throw` never means two things. `unknown` and `any` are not Cause types. Under a plain contract, a throw that can escape is EK2003, since a plain function never fails (D282), and so is every Cause throw, even one the function's own catch handles, because rethrowing a whole cause is Effect work (D348). A function without a plain contract that contains a Cause throw compiles to frames.
+**Checked.** The declared type of `e` joins the function's E. A `throw` whose operand's type is a Cause type, resolved by symbol to Effect's `Cause.Cause<E>`, or a union with such a member, is EK2140 (D406): `throw` fails with the value it is given, so it would fail with the `Cause` object itself as an expected failure, which no reader means. Write `Effect.failCause(cause)`, a call that runs and fails with every reason the cause holds, as in Effect code. `unknown` and `any` are not Cause types, and a `throw` of one fails with the value, whatever it is at run time. Under a plain contract, a throw that can escape is EK2003, since a plain function never fails (D282).
 
-**At run time.** `throw e` fails with `Fail(e)`, as `Effect.fail` does. A Cause throw fails with every reason the cause holds, as `Effect.failCause` does, on every path the compiler emits.
+**At run time.** `throw e` fails with `Fail(e)`, as `Effect.fail` does, whatever `e` is, on every path the compiler emits. This is the machine's `throw` transition (Chapter 20), the one meaning `throw` has.
 
 ```ts es
 error Unavailable
@@ -75,8 +75,8 @@ function fetchSnapshot(): string!Unavailable! {
 function snapshotOrRethrow() {
   const outcome = exit(() => fetchSnapshot())
   if (outcome is Exit.Success(let value)) return value
-  if (outcome.cause.hasInterrupts()) throw outcome.cause   // a Cause: rethrows every reason
-  throw new Unavailable()                                  // any other value: Fail(Unavailable)
+  if (outcome.cause.hasInterrupts()) return Effect.failCause(outcome.cause)   // fails with every reason
+  throw new Unavailable()                                                   // Fail(Unavailable)
 }
 // string!Unavailable!
 ```
@@ -177,7 +177,7 @@ function firstOrFallback(pairs: Iterable<[number | undefined]>) {
 
 **Checked.** A `restore` block outside an `uninterruptible` block of the same function is EK2111. The blocks at a module's top level are EK1001.
 
-**At run time.** Interruption is Effect's (Chapter 20's interrupt transition). A request is recorded on the fiber. It is delivered at once to a parked interruptible fiber, at the next step of a running one, and when the mask ends for a masked one. Delivery fails the fiber with `Interrupt`: no `catch` runs, and cleanup runs with interruption held off. A function or region that compiles to plain JavaScript is one step, as an `Effect.sync` body is, so interruption never lands inside it. An `uninterruptible` block runs as `Effect.uninterruptibleMask`, a `restore` block inside it as the mask's `restore`, and an `interruptible` block as `Effect.interruptible`; their statements stay code of the enclosing function, and each block calls the prelude function of its name, which also takes a program (D180). A resource's acquisition is masked or interruptible as its `acquireRelease` says, and `using` masks only where Chapter 6 says. When `join`, an `await` operation, or `for concurrent` interrupts several fibers, it requests interruption of all of them before it waits for any; a block's exit closes its Scope region one owned thing at a time, newest first (Chapter 7, D354).
+**At run time.** Interruption is Effect's (Chapter 20's interrupt transition). A request is recorded on the fiber. It is delivered at once to a parked interruptible fiber, at the next step of a running one, and when the mask ends for a masked one. Delivery fails the fiber with `Interrupt`: no `catch` runs, and cleanup runs with interruption held off. A function or region that compiles to plain JavaScript is one step, as an `Effect.sync` body is, so interruption never lands inside it. An `uninterruptible` block runs as `Effect.uninterruptibleMask`, a `restore` block inside it as the mask's `restore`, and an `interruptible` block as `Effect.interruptible`; their statements stay code of the enclosing function, and each block calls the prelude function of its name, which also takes a program (D180). A resource's acquisition is masked or interruptible as its `acquireRelease` says, and `using` masks only where Chapter 6 says. When `join`, an `await` operation, or `for concurrent` interrupts several fibers, it requests interruption of all of them before it waits for any; a region's exit closes its Scope one owned thing at a time, newest first (Chapter 7, D354, D408).
 
 ```ts es
 function commit(rows: ReadonlyArray<string>) {
@@ -199,7 +199,7 @@ function commit(rows: ReadonlyArray<string>) {
 
 #### The Exit rule
 
-**Applies to** every lowering of a construct other than the frame lowering of Chapter 26: plain JavaScript functions and regions (Chapter 15), single-result bodies (D274), tail resumes (K11a), an exhaustive match's untested last arm (D294), trusted-call wrappers, and any later optimization.
+**Applies to** every lowering of a construct other than the frame lowering of Chapter 26: plain JavaScript functions and regions (Chapter 15), single-result bodies (D274), tail resumes (K11a), JavaScript's own `for...of` (D404), trusted-call wrappers, and any later optimization.
 
 **Checked.** The compiler applies such a lowering only where it produces the frame lowering's Exit: the same success value, or the same reasons in the same order. Chapter 26's observation model adds the other observations every lowering keeps, such as the order and count of side effects and the lifetimes of resources and fibers. Experiment G10 compiles a corpus both ways and compares.
 
@@ -209,7 +209,7 @@ function commit(rows: ReadonlyArray<string>) {
 
 **Statement.** In a program the compiler accepts, every `Fail` reason in a cause that leaves a function holds a value whose type is in that function's E. E bounds expected failures only: `Die` and `Interrupt` reasons are outside it, so a contract with E = `never` promises that no expected failure leaves the function, not that nothing crashes.
 
-**Assumptions.** The guarantee holds when TypeScript's own typing holds and foreign code keeps its contracts: no cast, `any`, non-null assertion, or structural copy of a class instance puts a value outside its type; TypeScript declarations of Effect functions, `@throws` tags, `trusted(…)` values, and `trustedPackages` say what the code does; and each hatch's mapper returns what its type says. Chapter 26 lists every such assumption once, as the trusted base (D373). Where an assumption fails at a class pattern, the match fails with a defect, the proposal's `TypeError`, rather than taking a wrong arm (Chapter 3).
+**Assumptions.** The guarantee holds when TypeScript's own typing holds and foreign code keeps its contracts: no cast, `any`, or non-null assertion puts a value outside its type; TypeScript declarations of Effect functions, `@throws` tags, `trusted(…)` values, and `trustedPackages` say what the code does; and each hatch's mapper returns what its type says. Chapter 26 lists every such assumption once, as the trusted base (D373). Where an assumption fails at a class pattern, the match fails with a defect, the proposal's `TypeError`, rather than taking a wrong arm (Chapter 3).
 
 #### The Effect-operator boundary
 
@@ -240,7 +240,7 @@ function snapshotOrFallback() {
     const outcome = exit(() => fetchSnapshot())
     if (outcome is Exit.Success(let snapshot)) return snapshot
     const cause = outcome.cause
-    if (cause.hasInterrupts()) throw cause
+    if (cause.hasInterrupts()) return Effect.failCause(cause)
     return cause.hasFails() ? "cached" : "degraded"
   } finally (exit) {
     logDebug(`snapshot ${exit._tag}`)
@@ -256,5 +256,5 @@ function moveFunds(from: Account, to: Account, amount: number) {
 ```
 
 - `exit(program)` holds every reason a failure holds, defects and interrupts included, as `Effect.exit` does; test it with `is` or `match` on `Exit.Success` and `Exit.Failure` to recover from the whole cause (D217). The earlier form, a catch clause typed `Cause` (D176), still compiles, as `Effect.catchCause` with a control operation's abandonment passed through untouched, but is retired: it draws warning EK2113, whose quick fix writes the `match`.
-- `throw` with a `Cause` rethrows every reason it holds (the throw rule).
+- `Effect.failCause(cause)` fails with every reason a cause holds; a `throw` of a Cause is EK2140 (the throw rule, D406).
 - `exit(program)`, `interrupt()`, and `yieldNow()` are bare functions (D179).

@@ -28,14 +28,17 @@ function readReport(path: string) {
 
 #### Exactly one release
 
-Every `using` declaration releases its resource exactly once, and exactly one party owns that release (D342). The initializer decides which party:
+Every `using` declaration releases its resource exactly once, through exactly one owner (D342, D401). For `using x = e` [Rule]:
 
-| Initializer | Example | Who releases it | What `using` adds |
-| --- | --- | --- | --- |
-| A **scoped acquisition**: an expression whose requirements include `Scope` | `Files.open(path)`, `Effect.acquireRelease(…)`, `Effect.acquireDisposable(…)` | The acquisition, through the release it registers in the block's Scope | Nothing: it supplies the block's Scope, and adds no release, no disposal call, and no mask |
-| Any other expression, whose value is a `Disposable`, an `AsyncDisposable`, `null`, or `undefined` | `new TempDir()`, `openDisposable()` | `using`, through one disposal it registers | One disposal, registered before any interruption can arrive |
+1. **The Scope.** `using` evaluates `e`, and runs a program that `e` runs, with the block's Scope as its Scope, so every release an acquisition in `e` registers there runs once when the block exits.
+2. **The owner of the value.** When `e` gives its value `v`, at run time:
+   - If an acquisition recorded that it registered the release of `v` itself in the block's Scope, the acquisition owns `v`, and `using` adds nothing.
+   - Otherwise, if `v` has a disposal method, `using` owns its one disposal. It reads the method once, when it registers the disposal: `[Symbol.asyncDispose]` if `v` has one, otherwise `[Symbol.dispose]`, as ECMAScript's `await using` and `Effect.acquireDisposable` choose (D343). At block exit it calls that method with `v` as `this` and waits for a returned promise. Replacing the method on `v` later changes nothing.
+   - Otherwise nothing more happens if `v` is `null` or `undefined`, or if `e` requires `Scope`: then `using` cannot release `v`, and whatever releases it is what its acquisition registered in the block's Scope. Any other value, which only a cast can produce, fails at the declaration with a `TypeError`, a defect, as ECMAScript's `using` does.
+3. **Acquisitions.** Only an acquisition records ownership: `vibelang-runtime`'s `acquireRelease` and `acquireDisposable`, which take Effect's arguments and do what Effect's do, and which TypeScript code calls. In VibeLang code every reference that resolves to Effect's `Effect.acquireRelease` or `Effect.acquireDisposable` (rule H4), a call or a value, denotes the runtime's recording form. Each registers the release of the value it returns and records that, in one uninterruptible step. Nothing else records ownership: not `Scope` in a contract, which may be wider than its body needs (Chapter 14), and not a release registered for another value.
+4. **Static check.** `e`'s type must be a `Disposable`, an `AsyncDisposable`, `null`, `undefined`, or a union of them, as TypeScript's TS2850 requires, unless `e` requires `Scope`. `Scope` in `e`'s requirements lets `using` bind a value it cannot dispose; it never decides who releases a value it can.
 
-**A scoped acquisition owns its release.** `using` evaluates the initializer with the block's Scope as its Scope. The acquisition registers its own release, and it decides whether cancellation can reach the acquisition (below). `using` never calls `[Symbol.dispose]` or `[Symbol.asyncDispose]` on a scoped acquisition's value, even when the value has one: a scoped acquisition that returns a `Disposable` disposes it itself, as `Effect.acquireDisposable` does. So this closes the file once:
+So this closes the file once: the acquisition records `file`, and `using` adds no disposal.
 
 ```ts es
 function firstLine(path: string) {
@@ -47,9 +50,25 @@ function firstLine(path: string) {
 }
 ```
 
-**Otherwise `using` owns the disposal.** The value must be a `Disposable`, an `AsyncDisposable`, `null`, or `undefined`; anything else is TypeScript's TS2850. `using` reads the value's disposal method once, when it registers it: `[Symbol.asyncDispose]` if the value has one, otherwise `[Symbol.dispose]`, as ECMAScript's `await using` and `Effect.acquireDisposable` choose (D343). At block exit it calls that method, with the value as `this`, and waits for a returned promise. Replacing the method on the value later changes nothing. `null` and `undefined` register nothing. A value with neither method, which only a cast can produce, fails at the declaration with a `TypeError`, a defect, as ECMAScript's `using` does.
+And this disposes the lease once, although `lease`'s contract names `Scope`: nothing recorded the lease, so `using` owns its disposal.
 
-**No interruption separates a value from its release.** When evaluating the initializer cannot pause, the value and its registration happen in one step, so no interruption can arrive between them. When it can pause, because it calls an Effect function, `using` holds interruption off from the start of the initializer until the disposal is registered, as `Effect.acquireDisposable` holds it off around its acquisition. A pending interruption is delivered right after, and the release runs. To let cancellation reach a long wait, define the resource as a scoped acquisition that passes `{ interruptible: true }` (below).
+```ts es
+class Lease {
+  [Symbol.dispose](): void {
+    released.push("lease")
+  }
+}
+
+function lease(): Lease!!Scope {                // Scope written, nothing registered
+  return new Lease()
+}
+
+function hold() {
+  using held = lease()                          // disposed once, when hold returns
+}
+```
+
+**No interruption separates a value from its release.** When evaluating `e` cannot pause, the value and its registration happen in one step, so no interruption can arrive between them. When it can pause and `e`'s type can have a disposal method, so that `using` may own the value, `using` holds interruption off from the start of `e` until the value's owner is settled, as `Effect.acquireDisposable` holds it off around its acquisition. A pending interruption is delivered right after, and the release runs. An acquisition inside `e` that passes `{ interruptible: true }` keeps that policy for its acquire step: `using`'s mask does not cover the step, because the acquisition registers and records the release itself (D401). When `e`'s type has no disposal method, `using` can never own the value, holds nothing off, and the acquisition's own policy alone decides whether cancellation reaches it (D25).
 
 **The release runs once.** It runs when the block exits by any path: return, jump, expected failure, defect, interruption, or abandonment. It runs with interruption held off, after the releases of `using` declarations and forked fibers that come later in the block. A release that throws or rejects is a defect, and the finalization rule combines it with the block's own failure (Chapter 17). Prior art agrees on once: ECMAScript's `DisposableStack`, C#'s `using`, Python's `with`, and Effect's `acquireRelease` each run one release per acquisition.
 
@@ -105,7 +124,7 @@ function lease(name: string) {
 
 The release is registered before anything else can happen, so a cancelled request never leaks a lock. A release runs its cleanup by calling it: a release written `(lock) => releaseProgram`, which returns a program instead of running it, would never release, and returning a program where the release's success type names no value is EK4802, an error (Chapter 13); write `(lock) => releaseProgram()`. By default the acquire step is also masked: an interruption that arrives while it runs waits for it to finish, then the release runs. That suits a quick step such as taking a lock or opening a file. An acquisition that waits on the outside world, such as a connection that may never complete, passes `{ interruptible: true }` so cancellation reaches the wait, as the adapter below does.
 
-For a scoped acquisition, `using` adds no policy of its own: it supplies the block's Scope, and the resource's `acquireRelease` decides whether acquisition can be interrupted (D25). `using` holds interruption off only for an initializer whose disposal it owns, as the rules above say.
+An acquisition decides whether its acquire step can be interrupted, inside `using` as outside it (D25, D401). `using` holds interruption off only around an initializer whose value it may own, as the rules above say.
 
 #### Resources and handlers
 
@@ -118,11 +137,11 @@ Wrapping a callback-based API is boundary code; it belongs in TypeScript, using 
 ```ts ts
 // net-adapter.ts
 import { Effect } from "effect"
-import { suspend } from "vibelang-runtime"
+import { acquireRelease, suspend } from "vibelang-runtime"
 import * as net from "node:net"
 
 export const connect = (host: string, port: number) =>
-  Effect.acquireRelease(
+  acquireRelease(                                      // the runtime's: records the socket's release (D401)
     suspend<net.Socket>((waiter) => {
       const socket = net.connect(port, host)
       socket.once("connect", () => {
@@ -155,7 +174,7 @@ The two acquisition policies differ when cancellation arrives during the wait:
 | Masked (the default) | Waits for the value, registers its release, then releases it | Effect, through the registered release |
 | `{ interruptible: true }` | Wins at once: the registration's cleanup runs and the fiber moves on | The producer, when `resume` returns `false`; the runtime, through `release`, for a value accepted but not yet delivered |
 
-Without `{ interruptible: true }`, `sessionWithin` would wait for a connection that never completes, and the race branches in the adapter would never run (Chapter 21).
+Without `{ interruptible: true }`, `sessionWithin` would wait for a connection that never completes, and the race branches in the adapter would never run (Chapter 21). A `net.Socket` has `[Symbol.asyncDispose]`, so `using` would dispose it too if nothing had recorded its release; the runtime's `acquireRelease` records it, so the socket is destroyed once, and keeps its `{ interruptible: true }` policy inside `using`. Effect's own `Effect.acquireRelease`, called from TypeScript, records nothing (Chapter 26's trusted base).
 
 Adapt a callback API that hands over a plain value, not a resource, in `.vibe` with the `callback` hatch (D148). Its register function is plain, self-contained TypeScript, so it can call the SDK directly, and it takes the file's values as inputs before `resume` (D230). `resume(value)` succeeds, `resume.fail(error)` fails, `resume.exit(exit)` adopts an `Exit`, and a function it returns runs on interruption:
 
