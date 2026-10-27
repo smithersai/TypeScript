@@ -19,9 +19,9 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 4,988 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,620 |
-| The skill and the user guide (133 pages) | 226,472 |
-| The user guide alone | 221,484 |
-| The specification (33 chapters) | 108,399 |
+| The skill and the user guide (133 pages) | 226,523 |
+| The user guide alone | 221,535 |
+| The specification (33 chapters) | 108,411 |
 | The decision log, `docs/design/DECISIONS.md` | 69,738 |
 
 ## Effect TypeScript beside VibeLang
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **11,253** |
-| [Release notes](../setup/release-notes.md) | 11,253 |
-| **All 15 pages** | **29,590** |
+| **Upgrade** | **11,304** |
+| [Release notes](../setup/release-notes.md) | 11,304 |
+| **All 15 pages** | **29,641** |
 
 ### Guides
 
@@ -300,15 +300,15 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 3,903 |
 | [25. Implementation strategies and costs](../../../design/src/325-part3-ch25-strategies.md) | 1,926 |
 | [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 3,057 |
-| **Part IV. The compiler** | **12,543** |
+| **Part IV. The compiler** | **12,555** |
 | [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 1,687 |
-| [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 10,856 |
+| [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 10,868 |
 | **Part V. Decisions** | **15,098** |
 | [29. Decisions](../../../design/src/529-part5-ch29-decisions.md) | 12,472 |
 | [30. Risks and experiments](../../../design/src/530-part5-ch30-risks.md) | 2,626 |
 | **Appendices** | **13,067** |
 | [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 4,826 |
 | [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,241 |
-| **All 33 pages** | **108,399** |
+| **All 33 pages** | **108,411** |
 
 <!-- token-counts: end -->

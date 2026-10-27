@@ -63,6 +63,12 @@ func checkModuleDeclarations(c *checker.Checker, file *ast.SourceFile) {
 			// TypeScript's own checks read the node as a namespace declared with module.
 			cover(c, node)
 			name := node.Name().Text()
+			if name == "" {
+				// module { }: the name's place, after the keyword, is empty.
+				keyword := core.NewTextRange(node.Name().Pos()-len("module"), node.Name().Pos())
+				reportAt(c, file, keyword, EK4408.With("A module declaration needs a name: module name { … }."))
+				return false
+			}
 			key := strings.ToLower(name)
 			switch {
 			case node.Parent != file.AsNode():

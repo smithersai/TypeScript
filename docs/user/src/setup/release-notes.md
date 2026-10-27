@@ -124,6 +124,9 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
 - EK4801 also reports a statement that names a program without calling
   it, such as `interrupt` or `yieldNow` alone on a line: it ran nothing,
   so the program went on. The quick fix writes `interrupt()`.
+- `module { … }` without a name is EK4408, "A module declaration needs a
+  name". Before, it parsed as a block passed to Node's `module` global and
+  drew EK4402's platform guidance.
 
 ## 0.0.10
 

@@ -37,11 +37,19 @@ import (
 
 // isStartOfVibeLangModuleDeclaration reports whether the current token,
 // module, starts a module declaration: an identifier follows it on the same
-// line, and a { follows the identifier.
+// line, and a { follows the identifier. A { in the identifier's place starts
+// one without its name, which the checker refuses (EK4408), rather than a
+// block passed to a function named module.
 func (p *Parser) isStartOfVibeLangModuleDeclaration() bool {
 	return p.isVibeLangFile() && p.token == ast.KindModuleKeyword && p.lookAhead(func(p *Parser) bool {
 		p.nextToken()
-		if p.hasPrecedingLineBreak() || !p.isIdentifier() {
+		if p.hasPrecedingLineBreak() {
+			return false
+		}
+		if p.token == ast.KindOpenBraceToken {
+			return true
+		}
+		if !p.isIdentifier() {
 			return false
 		}
 		p.nextToken()
@@ -57,7 +65,12 @@ func (p *Parser) parseVibeLangModuleDeclaration(pos int, jsdoc jsdocScannerInfo,
 	}
 	keyword := p.scanner.TokenStart()
 	p.nextToken() // module
-	name := p.parseIdentifier()
+	var name *ast.Node
+	if p.token == ast.KindOpenBraceToken {
+		name = p.createMissingIdentifier() // module { }: EK4408 asks for the name
+	} else {
+		name = p.parseIdentifier()
+	}
 	blockPos := p.nodePos()
 	open := p.scanner.TokenStart()
 	p.parseExpected(ast.KindOpenBraceToken)
@@ -172,12 +185,12 @@ func ModuleDeclarationBody(file *ast.SourceFile, node *ast.Node) core.TextRange 
 
 // attachVibeLangModules gives file, a .vibe file, one supplemental source
 // file for each module declaration at its top level. A second declaration of
-// a name gets none; the checker reports it.
+// a name, and one without a name, gets none; the checker reports it.
 func (p *Parser) attachVibeLangModules(file *ast.SourceFile) {
 	var modules []*ast.SourceFile
 	seen := map[string]bool{}
 	for _, statement := range file.Statements.Nodes {
-		if !IsVibeLangModuleDeclaration(statement) {
+		if !IsVibeLangModuleDeclaration(statement) || statement.Name().Text() == "" {
 			continue
 		}
 		suffix := ModuleDeclarationFileSuffix(statement.Name().Text())

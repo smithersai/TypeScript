@@ -1,0 +1,6 @@
+// expect: EK4408
+// A module declaration without its name (D283), not a block passed to
+// Node's module global.
+module { export function clean(): string { return "" } }
+
+export function main() {}

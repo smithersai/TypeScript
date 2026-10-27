@@ -202,7 +202,12 @@ func (c *converter) moduleDeclaration(n *ast.Node) *obj {
 	module := &converter{file: body, text: body.Text(), scan: scanner.NewScanner(), modules: c.modules}
 	module.scan.SetText(module.text)
 	block := c.node(n.Body(), "TSModuleBlock").set("body", module.convertBodyExpressions(listNodes(body.Statements), body.AsNode(), nil))
-	result := c.node(n, "VibeModuleDeclaration").set("body", block).set("id", c.convertChild(n.Name(), n))
+	result := c.node(n, "VibeModuleDeclaration").set("body", block)
+	if n.Name().Text() == "" {
+		result.set("id", nil) // module { }, which the checker refuses (EK4408)
+	} else {
+		result.set("id", c.convertChild(n.Name(), n))
+	}
 	return c.fixExports(n, result)
 }
 

@@ -188,6 +188,20 @@ func TestAnIdentifierModuleSpecifierIsTheIdentifier(t *testing.T) {
 	}
 }
 
+// TestAModuleDeclarationWithoutANameHasNoID checks module { }, which the
+// checker refuses (EK4408): ESLint still lints its body, and its id is null,
+// as an anonymous declaration's is.
+func TestAModuleDeclarationWithoutANameHasNoID(t *testing.T) {
+	text := "module {\n  export const one = 1\n}\n"
+	modules := find(parse(t, "/main.vibe", text), "VibeModuleDeclaration")
+	if len(modules) != 1 || modules[0]["id"] != nil {
+		t.Fatalf("got %v, want one module declaration without an id", modules)
+	}
+	if got := sourceOf(text, modules[0]["body"].(map[string]any)); got != "{\n  export const one = 1\n}" {
+		t.Errorf("the body is %q", got)
+	}
+}
+
 func TestEveryModuleDeclarationConvertsItsBody(t *testing.T) {
 	// Only a top-level declaration, the first of its name, has a source file
 	// of its own; the checker reports the others (EK4408), and ESLint still

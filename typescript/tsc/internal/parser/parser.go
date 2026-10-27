@@ -6365,6 +6365,9 @@ func (p *Parser) scanStartOfDeclaration() bool {
 		case ast.KindInterfaceKeyword, ast.KindTypeKeyword, ast.KindDeferKeyword, ast.KindSourceKeyword:
 			return p.nextTokenIsIdentifierOnSameLine()
 		case ast.KindModuleKeyword, ast.KindNamespaceKeyword:
+			if p.isStartOfVibeLangModuleDeclaration() {
+				return true // module text { } and module { } (vibelang_modules.go)
+			}
 			return p.nextTokenIsIdentifierOrStringLiteralOnSameLine()
 		case ast.KindAbstractKeyword, ast.KindAccessorKeyword, ast.KindAsyncKeyword, ast.KindDeclareKeyword, ast.KindPrivateKeyword,
 			ast.KindProtectedKeyword, ast.KindPublicKeyword, ast.KindReadonlyKeyword:

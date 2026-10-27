@@ -46,6 +46,9 @@ func checkModules(file *ast.SourceFile, source string) error {
 			continue
 		}
 		name := statement.Name().Text()
+		if name == "" {
+			return at(statement, "a module declaration needs a name")
+		}
 		suffix := parser.ModuleDeclarationFileSuffix(name)
 		if seen[suffix] {
 			return at(statement, "module %s is declared twice", name)
@@ -70,6 +73,9 @@ func checkModules(file *ast.SourceFile, source string) error {
 		return node.ForEachChild(visit)
 	}
 	file.AsNode().ForEachChild(visit)
+	if nested != nil && nested.Name().Text() == "" {
+		return at(nested, "a module declaration needs a name")
+	}
 	if nested != nil {
 		return at(nested, "module %s is not at the file's top level", nested.Name().Text())
 	}
