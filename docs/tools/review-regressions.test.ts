@@ -19,3 +19,11 @@ test("the HTTP client guide checks a request, JSON body read, and client layer t
     /HttpClient\.get\(/.test(block.source) && /response\.json\(\)/.test(block.source) &&
     /provide FetchHttpClient\.layer/.test(block.source))).toBe(true)
 })
+
+test("module-block onboarding enables Node declarations explicitly", () => {
+  const page = read("docs/user/src/getting-started/005-creating-effects.md")
+  const moduleSection = page.split("## Write TypeScript in a module declaration")[1].split("## Suspend work")[0]
+  expect(moduleSection).toContain("@types/node")
+  expect(moduleSection).toMatch(/"types": \["node"\]/)
+  expect(extract(moduleSection).find(block => block.source.includes('from "node:fs"'))?.source).toContain("// types: node")
+})

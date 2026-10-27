@@ -147,7 +147,15 @@ For resource acquisition, cancellation must also release a resource that arrives
 
 ## Write TypeScript in a module declaration
 
+A module that imports `node:*` needs Node's declarations, just as a `.ts` file
+does. Install them with `npm install --save-dev @types/node` (or
+`bun add --dev @types/node`). The starter sets `"types": []`; change it to
+`"types": ["node"]` in `compilerOptions` in `tsconfig.json`. Otherwise an
+import such as `node:fs` reports TS2591. Keep the Node import inside the
+module; enabling its types does not permit platform calls in VibeLang code.
+
 ```vibe
+// types: node
 // run: Console.log(linked("."))
 module links {
   import { lstatSync } from "node:fs"

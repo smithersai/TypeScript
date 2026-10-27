@@ -44,6 +44,9 @@ Use a header comment before the code:
 
 - `// expect-error: EK2001` declares an intentionally invalid example; separate
   several codes with spaces. Unexpected diagnostics still fail.
+- `// types: node` opts that page project into Node ambient declarations; the
+  default is `"types": []`, matching the starter. Document the declaration
+  package and tsconfig prerequisite beside any example that needs it.
 - `// fragment` opts out of classification for incomplete syntax or a prose
   sketch. The compiler still checks the block.
 - `// compiler-gap: <reason>` keeps the intended language example while the

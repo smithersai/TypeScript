@@ -339,3 +339,15 @@ test("snippet projects share the Effect resolved from an npm-installed runtime",
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test("Node ambient types are opt-in through a snippet header", () => {
+  const root = mkdtempSync(join(tmpdir(), "snippet-types-test-"))
+  try {
+    const defaults = join(root, "defaults")
+    writeProject(defaults, extract("```vibe\nfunction sample() { return 1 }\n```"))
+    expect(JSON.parse(readFileSync(join(defaults, "tsconfig.json"), "utf8")).compilerOptions.types).toEqual([])
+    const node = join(root, "node")
+    writeProject(node, extract('```vibe\n// types: node\nmodule files { import { lstatSync } from "node:fs"; export const stat = lstatSync }\n```'))
+    expect(JSON.parse(readFileSync(join(node, "tsconfig.json"), "utf8")).compilerOptions.types).toEqual(["node"])
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})

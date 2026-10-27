@@ -6,7 +6,7 @@ import { createRequire } from "node:module"
 
 const repo = resolve(import.meta.dir, "../..")
 export type Diagnostic = { code: string; message: string; line?: number; column?: number }
-export type Block = { number: number; line: number; language: "vibe" | "ts"; source: string; filename?: string; firstLine: string; expected: string[]; fragment: boolean; comparison?: boolean; gap?: string; output?: string; run?: string }
+export type Block = { number: number; line: number; language: "vibe" | "ts"; source: string; filename?: string; types?: string[]; firstLine: string; expected: string[]; fragment: boolean; comparison?: boolean; gap?: string; output?: string; run?: string }
 export type Result = Block & { status: "ok" | "fragment" | "compiler-gap" | "fail"; diagnostics: Diagnostic[]; reason?: string; execution?: Execution }
 export type Execution = { phase: "compile" | "run"; status: "passed" | "failed"; expectedStdout: string; stdout: string; stderr: string; exitCode: number; timedOut: boolean }
 
@@ -57,6 +57,7 @@ export function extract(markdown: string, options: { hatchExamples?: boolean } =
     const run = header.match(/\/\/ run:\s*([^\n]+)/)?.[1]
     if (run && output === undefined) throw new Error(`Block ${number} has a run marker without expected output`)
     blocks.push({ number, line: start + 1, language, source: body.join("\n"), filename, output, run,
+      types: header.match(/\/\/ types:\s*([^\n]+)/)?.[1].split(/[\s,]+/).filter(Boolean),
       firstLine: body.find(l => l.trim() && !/^\s*\/\//.test(l)) ?? body[0] ?? "",
       expected: [...(header.match(/\/\/ expect-error:\s*([^\n]+)/)?.[1] ?? "").matchAll(/(?:EK|TS)\d+/g)].map(m => m[0]),
       comparison: lang === "ts" && role === "effect",
@@ -307,7 +308,7 @@ export function writeProject(dir: string, blocks: Block[], options: { exportFunc
   }
   writeFileSync(join(dir, "tsconfig.json"), JSON.stringify({ compilerOptions: {
     strict: true, target: "ESNext", module: "NodeNext", moduleResolution: "NodeNext",
-    skipLibCheck: true, noEmit: true, types: [], rewriteRelativeImportExtensions: true
+    skipLibCheck: true, noEmit: true, types: [...new Set(blocks.flatMap(block => block.types ?? []))], rewriteRelativeImportExtensions: true
   }, files: blocks.filter(block => !(options.omitFragments && block.fragment)).map(block => filenames.get(block.number)!) }))
   return { filenames, offsets }
 }
