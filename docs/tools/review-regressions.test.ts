@@ -47,3 +47,9 @@ test("Bun starter instructions distinguish package manager and Node runtime", ()
     expect(page).toMatch(/\]\([^)]*vibelang-cli(?:\.md)?#run-sources-with-bun\)/)
   }
 })
+
+test("platform imports in non-entry files are documented as removed without providers", () => {
+  const page = read("docs/user/src/platform/105-introduction.md")
+  expect(page).toMatch(/non-entry file[^\n]*platform import[^\n]*silently removed/)
+  expect(page).toMatch(/supplies no services[^\n]*no runtime side effect/)
+})

@@ -21,6 +21,8 @@ export function main() {
 
 Call a service through its module's name, with no import: `FileSystem.readFileString(file)` runs the service's method and returns the text, and its `PlatformError` joins E. The module's own exports keep their meaning, as `FileSystem.layerNoop` does; `FileSystem()` is the implementation, and the type `FileSystem` is the service ([Effect's modules](../getting-started/008-importing-effect.md#a-modules-own-export)). `import "vibelang/platform/node"` names the platform, so `main` writes no `provide`: when Node starts the module, it runs `main` with `NodeServices.layer` from `@effect/platform-node`, which supplies the services `main` needs. The import loads nothing; the compiler removes it. The functions that call the services only require them, so a test provides others.
 
+In a non-entry file, a platform import is silently removed too: it supplies no services and has no runtime side effect. Put the import in the entry file that exports `main`. Shared functions only declare their requirements; the entry supplies the platform, and tests provide their own layers.
+
 ## Replacing Node.js and web calls
 
 Each Node.js or web call has an Effect replacement, which needs no import. EK4402 and EK4403 name it and its layer:
