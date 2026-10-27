@@ -158,7 +158,7 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 			}
 			p.planPlain(a, node)
 			p.planServiceNode(c, node)
-			if p.wireOrders[node] != nil {
+			if p.wireOrders[node] != nil || fiberHelper(node) == "$forConcurrent" {
 				p.noteStable(c, node.Arguments()...) // arguments emitted in another order (order.go)
 			}
 			p.planExhaustiveMatch(c, node) // D294 (match_lower.go)

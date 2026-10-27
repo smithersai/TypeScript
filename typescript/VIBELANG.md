@@ -1211,7 +1211,7 @@ need no new node kinds:
 | `await x` (outside `async`) | `$await(x)`, kept only so that EK4609 and EK4610 name the replacement (D226) |
 | `await.all x`, `await.allSettled x`, `await.race x`, `await.any x` | `$awaitAll(x)`, `$awaitAllSettled(x)`, `$awaitRace(x)`, `$awaitAny(x)` (D196); the callee stands on `await` alone |
 | `select { case const v = a(): S ... default: D }` | `$selectN: { const $selected = $select(hasDefault, () => a(), ...); ... }`, kept only so that EK4607 names its replacement (D197) |
-| `for concurrent(n) (const x of xs) S` | `$forConcurrent(xs, n, (x) => { S })` |
+| `for concurrent(n) (const x of xs) S` | `$forConcurrent(xs, n, (x) => { S })`; the lowering evaluates `n` before `xs`, as written (`concurrentForCall`) |
 
 The synthesized parts are anchored on the keyword they stand for, flagged
 `NodeFlagsReparsed`; the helper calls are known by their synthesized callee, not

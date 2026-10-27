@@ -571,7 +571,12 @@ func (tx *lowering) runtimeCall(name string, arguments ...*ast.Node) *ast.Node {
 
 // visitRunningCall turns `f(x)` into `yield* f(x)`.
 func (tx *lowering) visitRunningCall(node *ast.Node) *ast.Node {
-	call := tx.Visitor().VisitEachChild(node)
+	var call *ast.Node
+	if fiberHelper(node) == "$forConcurrent" && len(node.Arguments()) == 3 {
+		call = tx.concurrentForCall(node) // its limit runs before its items (order.go)
+	} else {
+		call = tx.Visitor().VisitEachChild(node)
+	}
 	if ast.IsOptionalChain(node) {
 		// Keep the native chain intact: it preserves the receiver and skips
 		// arguments when absent. Run its present Effect exactly once, and lift

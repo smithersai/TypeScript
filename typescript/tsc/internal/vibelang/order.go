@@ -156,3 +156,14 @@ func (tx *lowering) inOrder(operands, sources []*ast.Node, emit []int) []*ast.No
 	}
 	return emitted
 }
+
+// concurrentForCall lowers the call $forConcurrent(items, limit, body) that
+// the parser writes for `for concurrent(limit) (const x of items) body`: the
+// limit, written first, runs before the items.
+func (tx *lowering) concurrentForCall(node *ast.Node) *ast.Node {
+	sources := node.Arguments()
+	visited := tx.Visitor().VisitNodes(node.ArgumentList()).Nodes
+	operands := tx.inOrder([]*ast.Node{visited[1], visited[0], visited[2]}, []*ast.Node{sources[1], sources[0], sources[2]}, []int{1, 0, 2})
+	f := tx.Factory()
+	return f.UpdateCallExpression(node.AsCallExpression(), tx.Visitor().VisitNode(node.Expression()), node.QuestionDotToken(), nil /*typeArguments*/, f.NewNodeList(operands), node.Flags)
+}
