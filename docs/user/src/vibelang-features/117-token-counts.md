@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 4,988 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,612 |
-| The skill and the user guide (133 pages) | 226,536 |
-| The user guide alone | 221,548 |
+| The skill and the user guide (134 pages) | 227,339 |
+| The user guide alone | 222,351 |
 | The specification (33 chapters) | 108,411 |
 | The decision log, `docs/design/DECISIONS.md` | 69,738 |
 
@@ -108,7 +108,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 
 | Page | Tokens |
 | --- | ---: |
-| [Set up VibeLang](../setup.md) | 1,770 |
+| [Set up VibeLang](../setup.md) | 1,826 |
 | [Known limitations](../setup/known-limitations.md) | 476 |
 | **Start a project** | **1,586** |
 | [New project](../setup/new-project.md) | 482 |
@@ -129,7 +129,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Other editors](../setup/other-editors.md) | 327 |
 | **Upgrade** | **11,304** |
 | [Release notes](../setup/release-notes.md) | 11,304 |
-| **All 15 pages** | **29,641** |
+| **All 15 pages** | **29,697** |
 
 ### Guides
 
@@ -243,7 +243,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Equivalence](../schema/102-equivalence.md) | 770 |
 | [Formatter](../schema/103-formatter.md) | 541 |
 | [Schema Compilers](../schema/104-compilers.md) | 2,110 |
-| **Platform** | **11,660** |
+| **Platform** | **12,407** |
 | [Introduction](../platform/105-introduction.md) | 2,151 |
 | [FileSystem](../platform/106-file-system.md) | 1,211 |
 | [Path](../platform/107-path.md) | 927 |
@@ -251,7 +251,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Runtime](../platform/109-runtime.md) | 1,219 |
 | [Terminal](../platform/110-terminal.md) | 1,511 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 3,889 |
-| **All 99 pages** | **138,864** |
+| [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
+| **All 100 pages** | **139,611** |
 
 ### VibeLang features
 

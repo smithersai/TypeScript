@@ -112,6 +112,15 @@ Use `Console.log` for stable output. Logs with timestamps, randomness, network
 access, and interactive programs need deterministic fixtures before opting in.
 `--keep` retains emitted files and compiler logs for debugging.
 
+## The Cloudflare Workers page
+
+`sh docs/tools/check-worker-page.sh` builds the project of
+`platform/cloudflare-workers.md` from its code blocks, with this checkout's
+compiler, runtime and `vibelang-unplugin` and with esbuild 0.28.2 and wrangler
+4.152.0 from npm, serves it with `wrangler dev`, and compares each `curl`
+answer with the comment after it. It needs network access and runs nothing
+against a Cloudflare account; `KEEP=1` keeps the project.
+
 ## Compiler hovers
 
 scripts/deploy-docs.sh checks hover generation by default with the 0.0.2 release compiler. Vocs uses its own code highlighting; the hover cache remains available to tools. `VIBELANG_DOCS_HOVERS=0` skips hover generation.

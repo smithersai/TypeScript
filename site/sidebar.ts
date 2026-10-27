@@ -674,6 +674,10 @@ export const sidebar = [
           {
             "text": "Platform globals in VibeLang",
             "link": "/platform/platform-globals"
+          },
+          {
+            "text": "Cloudflare Workers",
+            "link": "/platform/cloudflare-workers"
           }
         ]
       }

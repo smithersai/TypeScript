@@ -25,6 +25,7 @@ Read the project's root directory and record:
 | | `webpack`, `rollup`, `esbuild`, or `@rspack/core` in `package.json`, or `bun build` in a script | Another bundler: `vibelang-unplugin` |
 | | None of these | The `vibelang` CLI |
 | Framework | `next` or `astro` in `package.json` | Follow Next.js or Astro below |
+| | `wrangler` in `package.json`, or a `wrangler.toml` or `wrangler.jsonc` file | Cloudflare Workers |
 | | `react`, `vue`, or `svelte` in `package.json`, with a Vite build | React, Vue, or Svelte. With `@sveltejs/kit` or `nuxt`, tell the user these pages don't cover it |
 | Editor | A `.vscode/` or `.cursor/` directory | VS Code or Cursor |
 | | A `.zed/` directory | Zed |
@@ -42,6 +43,7 @@ Follow each matching page, in this order: project, build or framework, editor.
 | Vite or Vitest, without React, Vue, or Svelte | [Vite and Vitest](setup/vite.md) |
 | React, Vue, or Svelte with Vite | [React](setup/react.md), [Vue](setup/vue.md), or [Svelte](setup/svelte.md), instead of the Vite page |
 | Next.js with webpack, or Astro | [Framework setup](#framework-setup) below |
+| Cloudflare Workers | [Cloudflare Workers](platform/cloudflare-workers.md), instead of the bundler's page |
 | Format with dprint, or a `dprint.json` in the project | [Format with dprint](setup/formatting.md) |
 | VS Code or Cursor | [VS Code and Cursor](setup/vscode.md) |
 | Neovim | [Neovim](setup/neovim.md) |
