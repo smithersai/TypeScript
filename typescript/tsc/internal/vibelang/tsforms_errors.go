@@ -186,11 +186,13 @@ func errorClassRewrite(c *checker.Checker, file *ast.SourceFile, class *ast.Node
 	}
 	declaration := "error " + name
 	if class.TypeParameters() != nil {
-		extendsKeyword := strings.Index(text[class.Name().End():], "extends")
-		if extendsKeyword < 0 {
+		// The parsed heritage clause starts after the entire type-parameter
+		// list. A constraint or comment may itself contain "extends".
+		heritage := ast.GetHeritageClause(class, ast.KindExtendsKeyword)
+		if heritage == nil {
 			return nil
 		}
-		declaration += strings.TrimSpace(text[class.Name().End() : class.Name().End()+extendsKeyword])
+		declaration += strings.TrimSpace(text[class.Name().End():heritage.Pos()])
 	}
 	if parts.fields != nil {
 		if fields := errorFieldsText(file, parts.fields); strings.Trim(fields, "{} \t\r\n") != "" {

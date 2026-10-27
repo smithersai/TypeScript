@@ -168,6 +168,8 @@ A block-form fix moves an invocation passed by name, a program written as an arr
 
 When a fix removes the last value imported from another module, it keeps a side-effect import in the same position. Removing an unused binding must not remove that module's initialization.
 
+Error-declaration fixes preserve the complete generic parameter list, including constraints, defaults and comments. Editor actions and the CLI use the same parsed heritage boundary.
+
 ## Effect language service rules
 
 The table accounts for the 108 diagnostics and editor features in `@effect/language-service` 0.87.5. Many rules address forms VibeLang replaces: there is no `Effect.gen` to misuse, a call already runs, and `catch` catches failures. Existing EK diagnostics cover others. The remaining checks are EK4801-EK4825, with mechanical quick fixes, alongside refactors, hovers, and completions. The table also marks features not implemented.
