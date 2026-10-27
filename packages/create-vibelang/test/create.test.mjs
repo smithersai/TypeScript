@@ -234,3 +234,14 @@ test("reserved npm package names use a valid fallback", (t) => {
     assert.equal(JSON.parse(readFileSync(join(directory, name, "package.json"), "utf8")).name, "vibelang-app")
   }
 })
+
+test("new npm package names stay within 214 characters", (t) => {
+  const directory = scratch(t)
+  for (const name of ["a".repeat(230), "b".repeat(213) + "-more"]) {
+    const result = run(directory, name, "--no-install")
+    assert.equal(result.status, 0, result.stderr)
+    const actual = JSON.parse(readFileSync(join(directory, name, "package.json"), "utf8")).name
+    assert.equal(actual.length, 214)
+    assert.equal(actual, name.slice(0, 214))
+  }
+})
