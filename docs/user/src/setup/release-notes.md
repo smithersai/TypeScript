@@ -22,18 +22,28 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
 ### Experimental platform APIs
 
 - `Experimental`, in scope in every `.vibe` file, holds what Effect lacks (D313).
-  Each service extends Effect's service of the same name and has its own key;
-  it is experimental and goes when Effect ships the API. See
+  Each service has its own key; it is experimental and goes when Effect ships
+  the API. See
   [Experimental platform APIs](../vibelang-features/118-experimental-platform-apis.md).
   - `Experimental.FileSystem` adds `access(path, { executable })`,
-    `open(path, { nonBlocking })` and `File.chmod`. `lstat` is Effect's own
-    since 4.0.6.
+    `open(path, { nonBlocking })` and `File.chmod` to Effect's `FileSystem`.
+    `lstat` is Effect's own since 4.0.6.
   - `Experimental.Crypto` adds `hmac`, `sign` and `verify` (ECDSA P-256 and
-    Ed25519), with secret keys as `Redacted<Uint8Array>`.
+    Ed25519) to Effect's `Crypto`, with secret keys as `Redacted<Uint8Array>`.
+  - `Experimental.Process` reads the process id, platform, architecture,
+    executable, versions, host name, available parallelism, time origin and
+    memory use, and signals processes with `kill` and `isRunning`. The home
+    directory is Effect's `UserDirectories.home()`. Browsers have no
+    `Process` layer.
+  - `Experimental.Locks` holds Web Locks with `hold`, `tryHold` and `query`.
+    Node.js's `NodeLocks.layer` locks only within one process; Bun has no
+    layer.
 - `vibelang-runtime/experimental/platform-node`, `-bun` and `-browser` hold
   the layers. `NodeServices.layer` and `BunServices.layer` there are the
-  platform bundles plus the experimental services; each layer provides the
-  experimental service and Effect's from one implementation.
+  platform bundles plus `FileSystem`, `Crypto` and `Process`, and
+  `BrowserServices.layer` provides `Crypto` and `Locks`. A layer of a
+  service that extends Effect's provides the experimental service and
+  Effect's from one implementation.
 - `vibelang-runtime` lists `@effect/platform-node`, `@effect/platform-bun` and
   `@effect/platform-browser` 4.0.6 as optional peer dependencies.
 

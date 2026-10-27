@@ -254,7 +254,7 @@ Tests provide fakes instead: a `Layer.succeed(FileSystem, { … })` with the met
 
 #### Experimental services
 
-Where Effect has no API for a platform call that programs need, VibeLang extends the Effect module it belongs to (D313). The extension is `vibelang-runtime/experimental/<Module>`, and the prelude's `Experimental` namespace holds every one, so `Experimental.FileSystem` is the module that extends `effect/FileSystem`:
+Where Effect has no API for a platform call that programs need, VibeLang adds one (D313): it extends the Effect module the call belongs to, or, where Effect has no such module, adds a service in Effect's style. Each is `vibelang-runtime/experimental/<Module>`, and the prelude's `Experimental` namespace holds every one, so `Experimental.FileSystem` is the module that extends `effect/FileSystem`:
 
 | You would use | In VibeLang | Import from |
 | --- | --- | --- |
@@ -264,6 +264,9 @@ Where Effect has no API for a platform call that programs need, VibeLang extends
 | `crypto.createHmac`, HMAC with `crypto.subtle` | `Crypto.hmac("SHA-256", key, data)` | `vibelang-runtime/experimental/Crypto` |
 | `crypto.sign`, `crypto.subtle.sign` with ECDSA P-256 or Ed25519 | `Crypto.sign("Ed25519", privateKey, data)` | `vibelang-runtime/experimental/Crypto` |
 | `crypto.verify`, `crypto.subtle.verify` | `Crypto.verify("Ed25519", publicKey, signature, data)` | `vibelang-runtime/experimental/Crypto` |
+| `process.pid`, `os.hostname()` | `Process.pid()`, `Process.hostname()` | `vibelang-runtime/experimental/Process` |
+| `process.kill(pid, signal)` | `Process.kill(pid, { killSignal })`, `Process.isRunning(pid)` | `vibelang-runtime/experimental/Process` |
+| `navigator.locks.request` | `using held = Locks.hold(name)` | `vibelang-runtime/experimental/Locks` |
 
 ```ts es
 import { FileSystem } from "vibelang-runtime/experimental/FileSystem"
@@ -275,4 +278,14 @@ function canRun(path: string) {
 // boolean!PlatformError!FileSystem
 ```
 
-An experimental service keeps its Effect module's name and Effect's style: a superset of Effect's interface under its own `Context.Service` key (`vibelang/experimental/FileSystem`), `PlatformError` failures, and a test layer (`FileSystem.layerNoop`, `Crypto.layerTest`). An import of the service by name shadows the prelude's Effect module, and Effect's members keep working on it. Its layers are in `vibelang-runtime/experimental/platform-node`, `-bun`, and `-browser`: each provides the experimental service and Effect's service of the same name from one implementation, Effect's own with the additions, and `NodeServices.layer` and `BunServices.layer` there are the platform bundles plus every experimental service. Secret keys are `Redacted<Uint8Array>`: raw bytes for HMAC, PKCS#8 DER for signing; public keys are SPKI DER, and ECDSA signatures are r‖s, as WebCrypto writes them. When Effect releases a member, its experimental module re-exports Effect's, and a later VibeLang release removes the module; Effect 4.0.6 released `FileSystem.lstat`, so it is Effect's own.
+```ts es
+import { Process } from "vibelang-runtime/experimental/Process"
+
+function claimOwner(previous: number) {
+  if (Process.isRunning(previous)) Process.kill(previous)
+  return `${Process.hostname()}-${Process.pid()}`
+}
+// string!PlatformError!Process
+```
+
+An experimental service keeps its Effect module's name and Effect's style: a superset of Effect's interface where Effect has the module, under its own `Context.Service` key (`vibelang/experimental/FileSystem`), `PlatformError` failures, and a test layer (`FileSystem.layerNoop`, `Crypto.layerTest`, `Process.layerTest`, `Locks.layerTest`). An import of the service by name shadows the prelude's Effect module, and Effect's members keep working on it. Its layers are in `vibelang-runtime/experimental/platform-node`, `-bun`, and `-browser`: a layer of a service that extends Effect's provides the experimental service and Effect's service of the same name from one implementation, Effect's own with the additions, and `NodeServices.layer` and `BunServices.layer` there are the platform bundles plus `FileSystem`, `Crypto` and `Process`. Secret keys are `Redacted<Uint8Array>`: raw bytes for HMAC, PKCS#8 DER for signing; public keys are SPKI DER, and ECDSA signatures are r‖s, as WebCrypto writes them. `Process` reads the process id, platform, architecture, executable, versions, host name, available parallelism, time origin and memory use as Effects that cannot fail, and `kill` and `isRunning` signal any process by id; browsers have no `Process` layer, and the home directory is Effect's `UserDirectories.home`. `Locks` holds exclusive Web Locks in the caller's scope: `BrowserLocks.layer`, also in `BrowserServices.layer`, provides it over `navigator.locks`; Bun has no `Locks` layer, and Node.js's `NodeLocks.layer` locks only within one process, so its bundle leaves it out. When Effect releases a member, its experimental module re-exports Effect's, and a later VibeLang release removes the module; Effect 4.0.6 released `FileSystem.lstat`, so it is Effect's own.
