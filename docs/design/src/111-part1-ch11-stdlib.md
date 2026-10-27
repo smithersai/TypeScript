@@ -53,6 +53,17 @@ The runtime packages supply the implementations and the runner: `@effect/platfor
 
 A module that exports a service of its own name, such as `FileSystem`, names that service, with no import (D311): `FileSystem.readFileString(path)` calls the service's member, `FileSystem()` is the implementation, and the type `FileSystem` is the service. The key itself is `FileSystem.FileSystem`, and `FileSystem.FileSystem.readFileString(path)` works too. A value member reads from the implementation, as on any key: `Path().sep` is the separator, and `Path.sep` is EK4503, as `Path.Path.sep` is. A member that is itself a program, such as `Terminal`'s `columns`, runs when called: `Terminal.columns()`.
 
+#### Module names and data-type methods
+
+Two conveniences make Effect's modules shorter to use: a module's name stands for its export of the same name, as above (D311), and a value of one of Effect's data types takes its module's data-first functions as methods, `stream.filter(p).take(3)` for `Stream.take(Stream.filter(stream, p), 3)` (D152, Chapter 13). Both are part of the language's API, so they are fixed, not inferred [Rule] (D369):
+
+- **By symbol.** A name has these meanings only where it resolves to an Effect module: through the prelude, through an import under any alias, or through the `Experimental` namespace. A local declaration or import of the same name shadows it completely.
+- **A pinned table.** Which modules stand for an export of their own name, which module functions are methods of which data types, and which parameter receives the value, come from a table generated from the declarations of the pinned `effect` version and shipped with the compiler. The table is the rule; a parameter's name, such as `self`, and the file that declares a type are only how the table is generated. The compiler's test suite regenerates it from the installed declarations and fails when they would change an entry, so an Effect upgrade, which VibeLang follows exactly, changes the table only in a VibeLang release, whose notes list each changed entry as a language change.
+- **Exports win, fixed per version.** Where a module's export and a member of its same-named service share a name, `M.x` is the module's export: `Console.log` is the module's function, which returns an `Effect`, and `Clock.currentTimeMillis` is the module's program. `M.M.x` reaches the member. The guide lists every such pair for the pinned version.
+- **Own members win.** A value's own member wins over a method of the same name from the table, as an `Effect`'s `pipe` does.
+
+A hover on a method or a module-named member names what it calls.
+
 #### Files
 
 ```ts effect
@@ -127,7 +138,7 @@ function describe(delivery: Delivery) {
 // string!!
 ```
 
-A `data` declaration declares both: the type `Delivery`, Effect's `Data.TaggedEnum` of the variants, and the constant `Delivery`, the constructors `Data.taggedEnum` makes, typed `Data.TaggedEnum.Constructor<Delivery>` (D307). A variant without fields is a bare name; a variant's fields are written as an `error`'s are, `name: Type` or `name?: Type`, and are readonly. A line break or `;` separates fields and variants; a comma is EK1013, as in an `error`'s body. `Delivery.Sent({ tracking: "parcel-8" })` and `Delivery.Waiting()` construct values, plain records with a `_tag` that compare and hash by their fields, and `Delivery.$is` and `Delivery.$match` are Effect's. Type parameters, at most four, pass through the interface `Data.TaggedEnum.WithGenerics` asks for, which the declaration names `NameDefinition`:
+A `data` declaration declares both: the type `Delivery`, Effect's `Data.TaggedEnum` of the variants, and the constant `Delivery`, the constructors `Data.taggedEnum` makes, typed `Data.TaggedEnum.Constructor<Delivery>` (D307). A variant without fields is a bare name; a variant's fields are written as an `error`'s are, `name: Type` or `name?: Type`, and are readonly. A line break or `;` separates fields and variants; a comma is EK1013, as in an `error`'s body. `Delivery.Sent({ tracking: "parcel-8" })` and `Delivery.Waiting()` construct values, plain records with a `_tag` that compare and hash by their fields, and `Delivery.$is` and `Delivery.$match` are Effect's. Type parameters pass through the interface `Data.TaggedEnum.WithGenerics` asks for, which the declaration names `NameDefinition`. [Restriction] `WithGenerics` passes at most four, unconstrained (EK2126): a limit of Effect's encoding, not of the language:
 
 ```ts es
 data LoadState<A, E> {
@@ -142,6 +153,8 @@ data LoadState<A, E> {
 ```
 
 A variant is a pattern (Chapter 3): `when Delivery.Sent:` and `delivery is Delivery.Sent` test the tag, and `when Delivery.Sent { let tracking }` also binds the fields its braces list, an optional field the value leaves out as `undefined`. The checker narrows the subject by the tag, and the lowering runs the test as `Delivery.$is("Sent")(delivery)`. `match` is exhaustive: without `default`, a match over a data type that leaves out a variant is EK4701, which names it, `This match does not handle every case of Delivery: Delivery.Rejected is left.` A data type a `.ts` file declares with `Data.taggedEnum` matches the same way, since what makes `Delivery` a data type is its constructors' type.
+
+A variant pattern names its data type by symbol, as every pattern name resolves (D367): `when Delivery.Sent` tests a variant because `Delivery` resolves to a data declaration, under any import alias, and a local `Delivery` that is not one shadows it. A data type's variants are a closed set, so a match over one is exhaustive when every variant is handled; a nested data pattern counts the combinations of its fields' variants. [Restriction] The compiler counts combinations up to a fixed bound; past it, the match needs `default`. The last arm of such a match runs without its test only when the test reads nothing a program can observe (D368, Chapter 26).
 
 #### HTTP
 
@@ -180,7 +193,7 @@ function greetLater(name: string) {
 }
 
 function heartbeat() {
-  repeat(log("alive"), Schedule.spaced("30 seconds"))
+  repeat(() => log("alive"), Schedule.spaced("30 seconds"))
 }
 ```
 
@@ -279,3 +292,25 @@ function claimOwner(previous: number) {
 ```
 
 An experimental service keeps its Effect module's name and Effect's style: a superset of Effect's interface where Effect has the module, under its own `Context.Service` key (`vibelang/experimental/FileSystem`), `PlatformError` failures, and a test layer (`FileSystem.layerNoop`, `Crypto.layerTest`, `Process.layerTest`, `Locks.layerTest`). An import of the service by name from its subpath shadows the prelude's Effect module, and Effect's members keep working on it. Its layers are in `vibelang-runtime/experimental/platform-node`, `-bun`, and `-browser`: a layer of a service that extends Effect's provides the experimental service and Effect's service of the same name from one implementation, Effect's own with the additions, and `ExperimentalNodeServices.layer` and `ExperimentalBunServices.layer` there are the platform bundles plus `FileSystem`, `Crypto` and `Process`. Secret keys are `Redacted<Uint8Array>`: raw bytes for HMAC, PKCS#8 DER for signing; public keys are SPKI DER, and ECDSA signatures are r‖s, as WebCrypto writes them. `Process` reads the process id, platform, architecture, executable, versions, host name, available parallelism, time origin and memory use as Effects that cannot fail, and `kill` and `isRunning` signal any process by id; browsers have no `Process` layer, and the home directory is Effect's `UserDirectories.home`. `Locks` holds exclusive Web Locks in the caller's scope: `ExperimentalBrowserLocks.layer`, also in `ExperimentalBrowserServices.layer`, provides it over `navigator.locks`; Bun has no `Locks` layer, and Node.js's `ExperimentalNodeLocks.layer` locks only within one process, so its bundle leaves it out. When Effect releases a member, its experimental module re-exports Effect's, and a later VibeLang release removes the module; Effect 4.0.6 released `FileSystem.lstat`, so it is Effect's own.
+
+#### Module declarations: TypeScript inside a `.vibe` file
+
+A `module` declaration holds TypeScript in a `.vibe` file (D283), for code that must keep JavaScript's meaning: a coroutine that a caller drives with `next()`, a function that must throw a JavaScript exception, or a Node.js API that Effect does not wrap.
+
+```ts es
+module counter {
+  export let count = 0
+  export function bump(): void { count++ }
+}
+
+import { count, bump } from counter
+
+export function main() {
+  sync(() => bump())
+  log(`count is ${count}`)       // count is 1: the import reads the module's binding
+}
+```
+
+The body is checked and compiled as a `.ts` file would be: JavaScript's `throw` and `catch`, `async`/`await`, generators and platform APIs mean there what they mean in TypeScript. It imports what it needs itself, its relative specifiers resolve from the `.vibe` file's directory, and it cannot read the `.vibe` file's own bindings. Its exports are reached only through an import, `import { bump } from counter`, and are foreign code to the `.vibe` file: a call of a plain export needs a boundary or a trusted contract (Chapter 10), as above.
+
+A module declaration is an ECMAScript module [Rule] (D364; Chapter 26 states the rule in full): an import of its export is a live binding, so `count` above reads 1 after `bump()`; the module runs where its first import stands among the file's imports; and its name is case-sensitive. [Restriction] A module declaration is named, unexported, and at the file's top level, and its name is not a value: `export module`, a nested or nameless declaration, and `import(counter)` are EK4408 or syntax errors, though TC39's proposal allows them.

@@ -66,15 +66,23 @@ function* steps(): Generator<number, number, unknown> {
 
 An iterator annotation keeps calls as JavaScript calls, so they run no returned Effect. It does not make `throw` a JavaScript exception (D296). A throw that can escape the generator is EK2003. Its own `catch` handles typed failures, while other exceptions pass through, including one injected with `generator.throw()`. A coroutine that uses JavaScript exceptions as a protocol belongs in a `.ts` file or a `module` body (Chapter 10). Cases `plain-generator`, `plain-async-generator`, and `plain-generator-throw.fail` cover these rules.
 
+Which functions are producers is decided by syntax alone [Rule] (D370):
+
+- A generator function, a `function*` declaration or `function*` expression, is a producer, whatever its return annotation says. An annotation is checked against the producer's type, `Stream<T, E, R>`; a JavaScript iterator type there, such as `Generator<T>` or `AsyncIterable<T>`, is EK1002.
+- A generator method, `*name() { … }` in a class or an object literal, is a JavaScript generator, as in TypeScript, so a class can implement `[Symbol.iterator]`. Its body is plain code: it cannot pause or fail (D282), as any plain function cannot.
+- A JavaScript generator function, such as a coroutine that a caller drives with `next()` and `throw()`, is written in a `module` block or a `.ts` file (Chapter 11). An `async function*` is EK1003 outside them, as every `async` function is.
+
 #### What `for...of` does depends on what it iterates
+
+What a loop does depends only on the value it iterates [Rule] (D371):
 
 | Iterated value | What `for...of` does |
 | --- | --- |
-| A producer | Runs it under a `Yield` handler: the loop body runs once per `yield` |
-| An Effect `Stream` | Pulls the stream chunk by chunk; leaving the loop closes the stream |
-| Any other iterable: an array, a `Map`, a `Set`, a string | JavaScript's loop, unchanged |
+| A producer's `Stream` | Runs the producer on the loop's fiber under a `Yield` handler: the loop body runs once per `yield` |
+| Any other `Stream` | Pulls the stream chunk by chunk; leaving the loop closes the stream |
+| Anything else: an array, a `Map`, a `Set`, a string, any iterable | Iterates it with the iterator protocol, and calls the iterator's `return()` on every early exit: a jump out of the loop, a failure, or an interruption |
 
-The static type decides, like every other call rule (Chapter 13).
+The compiler emits JavaScript's own loop where it does the same thing: when the iterated expression's static type has no `Stream` among its members and the body cannot pause, JavaScript's loop already calls `return()` on every exit the body can take. Otherwise the loop runs through the runtime, which tells the three rows apart by the value. A static type that is a union, `any`, or `unknown` therefore selects nothing: it only decides whether the shorter emit is safe. A producer's body runs on the loop's fiber, so its control operations reach the handlers around the loop; another Stream may run its work on other fibers (Chapter 9).
 
 #### Producers and Effect streams
 

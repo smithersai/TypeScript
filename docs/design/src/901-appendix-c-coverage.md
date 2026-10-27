@@ -4,7 +4,7 @@
 const Port = Config.withDefault(Config.Port("PORT"), 3000)      // unchanged by design: Effect's API, as is
 
 function loadUser(id: string) {
-  return retry(Users.find(id), { times: 3 })        // changed: the program is a function
+  return retry(() => Users.find(id), { times: 3 })  // changed: the program is a function
 }
 ```
 
@@ -23,7 +23,7 @@ Every section of Effect 4's documentation, the Effect 3 pages version 4 dropped,
 | `Effect.fail`, `failSync` | Changed | `throw new HttpError()` |
 | `Effect.sync` around a side effect | Changed | Call the code; platform side effects go through Effect modules (Chapter 11), or the `sync` hatch (D148) |
 | `Effect.try`, `tryPromise`, `promise` | Changed | The hatches `try(…)` and `sync(async () => …)`, whose first arguments are self-contained TypeScript that takes values as inputs (D148, D229) |
-| `Effect.suspend` | Changed | A call passed by name where a program is expected, or `() => …` (D147) |
+| `Effect.suspend` | Changed | A function with no parameters, `() => …`, where a program is expected (D7) |
 | `Effect.callback` | Changed | The hatch `callback((resume, signal) => …)`: `resume(value)`, `resume.fail(error)`; inputs come before `resume` (D43, D148, D230) |
 | `Effect.void`, `never`, `yieldNow`, `interrupt` | Changed | Bare functions: `yieldNow()`, `interrupt()` (D179) |
 | Runners (`runPromise`, `runSync`, `runFork`, `runCallback`) | Changed | In the prelude; `runPromise(main())` from TypeScript, a top-level call, or a hatch's body, where no fiber runs the code (EK1005, D38, D148) |
@@ -31,7 +31,7 @@ Every section of Effect 4's documentation, the Effect 3 pages version 4 dropped,
 | `Effect.gen({ self: this }, …)` | Changed | An ordinary method; `this` keeps its JavaScript meaning |
 | `Effect.fn`, `fnUntraced` | Changed | `function f() { … }`, untraced unless `tracing` asks for spans (Chapter 28) |
 | `map`, `flatMap`, `andThen`, `tap`, `as` | Changed | Statements |
-| `pipe` and `.pipe` over programs | Changed | `pipe(() => f(), Effect.retry(…), Effect.timeout(…))` (D8) |
+| `pipe` and `.pipe` over programs | Changed | `pipe(() => f(), Effect.retry(…), Effect.timeout(…))`: a function with no parameters is the program (D7, D110) |
 | `pipe` over data | Unchanged | `pipe(items, Array.filter(isActive))` |
 | `Effect.all`, `zip`, `zipWith` | Changed | Programs as functions: `Effect.all([() => a(), () => b()])` |
 | `Effect.fromOption`, `fromResult`, `fromNullishOr` | Unchanged | `const n = Effect.fromOption(parse(x))` |
@@ -143,7 +143,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 
 | Feature | In VibeLang | Form |
 | --- | --- | --- |
-| `NodeRuntime.runMain`, `BunRuntime.runMain` | Changed | `NodeRuntime.runMain(() => main())` at a module's top level |
+| `NodeRuntime.runMain`, `BunRuntime.runMain` | Changed | `export function main()` in a file that names its platform, `import "vibelang/platform/node"`; the entry statement runs it (D312) |
 | `runMain` options | Changed | The same options, with a program |
 | One-shot runners and `run*With(context)` | Changed | Programs as functions, only where no fiber runs the code (D38) |
 | `ManagedRuntime` | Unchanged | `ManagedRuntime.make(AppLive)`; `runtime.runPromise(() => handle(req))` in a framework callback, or from TypeScript |
@@ -280,7 +280,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 
 | Feature | In VibeLang | Form |
 | --- | --- | --- |
-| Run once, at the edge | Changed | `NodeRuntime.runMain(() => main())` |
+| Run once, at the edge | Changed | An exported `main` in the file that names its platform (D312) |
 | Avoid tacit calls | Unchanged | The same advice |
 | Dual APIs | Changed | Data-first with a program; data-last inside `pipe` |
 | Branded types | Unchanged | A failed check throws a defect; `Int.result(n)` for a typed error |
@@ -336,7 +336,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | Feature | In VibeLang | Form |
 | --- | --- | --- |
 | Node.js and browser APIs | Changed | Not callable from `.vibe` (EK4402); Chapter 11 names each replacement |
-| Platform layers (`NodeServices.layer`) | Changed | `Effect.provide(() => main(), NodeServices.layer)` |
+| Platform layers (`NodeServices.layer`) | Changed | The platform import provides its bundle to `main` (D312); elsewhere `Effect.provide(() => program(), NodeServices.layer)` |
 | `FileSystem` | Unchanged | `FileSystem.readFileString(path)`, from `effect/FileSystem` |
 | `FileSystem.open` (a scoped `File`) | Changed | `using file = FileSystem.open(path)` |
 | `FileSystem.layerNoop` | Changed | Its methods return values, not Effects |
@@ -355,7 +355,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | Response bodies | Unchanged | `response.json()` |
 | Client middleware | Unchanged | `.pipe` over a client value |
 | `HttpRouter.add` handlers | Unchanged | A handler function, or a program (D39) |
-| Serving | Changed | `NodeRuntime.runMain(() => Layer.launch(HttpRouter.serve(routes)))` |
+| Serving | Changed | `export function main() { Layer.launch(HttpRouter.serve(routes)) }` in the file that names its platform (D312) |
 | `HttpApi` definitions, middleware, security | Unchanged | Values |
 | `HttpApi` handlers | Unchanged | VibeLang functions |
 | `HttpApiClient` | Unchanged | Calls that run |

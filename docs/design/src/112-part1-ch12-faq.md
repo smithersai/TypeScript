@@ -23,16 +23,13 @@ A call waits for its callee, whether it finishes at once or after a network roun
 
 ```ts es
 function homePage(userId: string) {
-  const [feed, unread] = all(
-    [Feed.load(userId), Notifications.unread(userId)],
-    { concurrency: "unbounded" }
-  )
+  const [feed, unread] = await.all [Feed.load(userId), Notifications.unread(userId)]
   const previews = forEach(feed.items, (item) => preview(item), { concurrency: 8 })
   return { previews, unread }
 }
 ```
 
-Calls run in order. Concurrency is always a combinator over programs: `Effect.all`, `Effect.forEach`, `Effect.race`, `Effect.raceFirst`, or `fork` (Chapter 7). `Semaphore`, `Latch`, `Queue`, `Deferred`, and `PubSub` work unchanged.
+Calls run in order. Concurrency is always a combinator over programs: an await operation such as `await.all`, whose elements are programs by syntax, `fork`, or `Effect.all`, `Effect.forEach`, `Effect.race`, and `Effect.raceFirst` with programs written as functions, `() => Feed.load(userId)` (Chapter 7). `Semaphore`, `Latch`, `Queue`, `Deferred`, and `PubSub` work unchanged.
 
 #### Where did `Effect.gen` and `yield*` go?
 
@@ -42,7 +39,7 @@ function displayName(id: string) {
 }
 ```
 
-Every function body plays the generator, and every call that returns an Effect plays `yield*`. An unannotated `function*` declares a producer (Chapter 8), so passing it to `Effect.gen`, `Option.gen`, or `Result.gen` is EK1002. An explicit JavaScript iterator return annotation keeps the native generator form and may be passed to those APIs (D271). D296 still rejects a throw that can escape it. Chapter 10 describes the TypeScript escapes, and Chapter 28 records the conversion refactor as a design target.
+Every function body plays the generator, and every call whose callee is declared to return an `Effect` plays `yield*` (Chapter 13). `function*` now declares a producer (Chapter 8), so APIs that take a generator, such as `Effect.gen`, `Option.gen`, and `Result.gen`, stay in `.ts` files (EK1002). The editor converts an `Effect.gen` function for you (Chapter 28).
 
 #### What does `throw` mean now?
 
@@ -83,7 +80,7 @@ function displayName(user: User) {
 }
 
 function tryCharge(cartId: string) {
-  const outcome = Effect.result(Payments.charge(cartId))    // Result<Receipt, PaymentError>
+  const outcome = Effect.result(() => Payments.charge(cartId))    // Result<Receipt, PaymentError>
   return outcome.isSuccess() ? outcome.success : undefined
 }
 // Receipt | undefined!!Payments
@@ -146,13 +143,13 @@ const checkouts = Metric.counter("checkouts")
 
 function checkout(cartId: string) {
   log(`checkout ${cartId}`)
-  const receipt = withSpan(Payments.charge(cartId), "charge")
+  const receipt = withSpan(() => Payments.charge(cartId), "charge")
   Metric.update(checkouts, 1)
   return receipt
 }
 ```
 
-Unchanged: `Effect.log` and its levels, `Effect.annotateLogs`, `Effect.withLogSpan`, `Effect.withSpan`, `Logger`, and `Metric`, each taking a program argument where it takes an Effect today. Functions are untraced unless you add a span or turn on `tracing` for the project (Chapter 28). Exporters come from `effect/observability`.
+Unchanged: `Effect.log` and its levels, `Effect.annotateLogs`, `Effect.withLogSpan`, `Effect.withSpan`, `Logger`, and `Metric`, each taking a program, written `() => …`, where it takes an Effect today. Functions are untraced unless you add a span or turn on `tracing` for the project (Chapter 28). Exporters come from `effect/observability`.
 
 #### How do I read configuration?
 
@@ -171,37 +168,41 @@ A `Config` is data until you call it (Chapter 13), so `Config.all`, `Config.nest
 
 ```ts es
 // main.vibe
-import { NodeRuntime } from "@effect/platform-node"
+import "vibelang/platform/node"
 
-function main() {
+export function main() {
   provide AppLive { serve(8080) }
 }
-
-NodeRuntime.runMain(() => main())
 ```
 
-A program starts only at a runner: `NodeRuntime.runMain` or `BunRuntime.runMain` for a process, `it.effect` for a test, and `Effect.runPromise` or a `ManagedRuntime` where TypeScript code needs a result. A web framework that calls your handlers builds one `ManagedRuntime` from the application layer and runs each handler through it, so the layer is built once (Chapter 4). A module's top level cannot run a program (EK1001). Chapter 13 states when the compiler appends an entry statement and when an explicit top-level runner suppresses it (D135).
+A program starts only at a runner. The file that exports `main` names its platform once, and when the host starts that file, its entry statement runs `main` with the platform's services through `NodeRuntime.runMain` (D312, Chapter 11); importing the file, as a test does, starts nothing. `it.effect` runs a test, and `Effect.runPromise` or a `ManagedRuntime` runs a program where TypeScript code needs a result. A web framework that calls your handlers builds one `ManagedRuntime` from the application layer and runs each handler through it, so the layer is built once (Chapter 4). A module's top level cannot run a program (EK1001). Chapter 13 states when the compiler appends an entry statement and when an explicit top-level runner replaces it (D135).
 
 #### Do I still use `pipe`?
 
 ```ts es
-const user = fetchUser(id) |> retry(%, { times: 3 }) |> timeout(%, "2 seconds")
+const slug = title |> %.trim() |> %.toLowerCase() |> %.replaceAll(" ", "-")
+const user = timeout(() => retry(() => fetchUser(id), { times: 3 }), "2 seconds")
 ```
 
-Rarely. Statements replace sequencing, error handling, and cleanup, so most pipelines disappear. The pipe operator, `x |> f(%)`, stacks policies over a program, passing it by name where a policy expects a program, and works on data too (Chapter 5).
+Rarely. Statements replace sequencing, error handling, and cleanup, so most pipelines disappear. The pipe operator, `x |> f(%)`, evaluates `x` once and passes its value (Chapter 5). A policy over a program, such as `retry`, takes the program as a function, so stacked policies nest.
 
 #### How do I pattern match?
 
 ```ts es
-function area(shape: Circle | Square) {
+data Shape {
+  Circle { radius: number }
+  Square { side: number }
+}
+
+function area(shape: Shape) {
   return match (shape) {
-    when { _tag: "Circle", let radius }: Math.PI * radius ** 2;
-    when { _tag: "Square", let side }: side ** 2;
+    when Shape.Circle { let radius }: Math.PI * radius ** 2;
+    when Shape.Square { let side }: side ** 2;
   }
 }
 ```
 
-`match` is an expression, and `is` tests a pattern in a condition (D206-D215). A match without `default` over a finite union must cover every case (EK4701). Catch a failure with `catch (e)`, then use `match (e)` or `e is T` to narrow it (Chapter 3). TypeScript's `switch` and `instanceof` still work. Effect's `Match` module also works unchanged, with plain handlers that cannot pause (EK4301).
+With `match` and `is`, from TC39's pattern matching proposal (D206): arms are tried in order, a match over a closed type such as a data type must handle every case (EK4701), and an arm can call Effect functions (Chapter 3, Chapter 11). Catch a failure with `catch (e)`, then use `match (e)` or `e is T` to narrow it (Chapter 3). TypeScript's narrowing keeps working: `switch` on `_tag`, `instanceof`, and `catch` narrowing on errors. Effect's `Match` module works unchanged; its handlers are plain functions, so they cannot pause (EK4301).
 
 #### How do fibers, interruption, and cancellation work?
 
@@ -241,7 +242,7 @@ export function title(id: string) {
 }
 ```
 
-Yes, in one program: `vibelang` checks both and the editor serves both (Chapter 28). A TypeScript function that returns an `Effect` is called like a VibeLang function, and TypeScript sees every VibeLang function as one that returns an `Effect` (Chapter 10).
+Yes, in one program: `vibelang` checks both and the editor serves both (Chapter 28). A TypeScript function declared to return an `Effect` is called like a VibeLang function, and TypeScript sees a VibeLang function as one that returns an `Effect`, except one with a plain return annotation (Chapter 10).
 
 #### Is there anything from Effect I cannot use?
 
