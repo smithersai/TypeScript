@@ -1,0 +1,16 @@
+// A super update compiles the same whether the method's body is one return,
+// which runs in a thunk inside the method, or several statements, which run
+// in a generator.
+class Base {
+  value = 0
+  get count(): number { return this.value }
+  set count(n: number) { this.value = n }
+}
+
+export class Counter extends Base {
+  fast(): number!! { return super.count++ }
+  general(): number!! {
+    const before = super.count++
+    return before
+  }
+}

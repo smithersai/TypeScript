@@ -11,9 +11,8 @@ import (
 // JavaScript binds super, arguments and new.target afresh in every function
 // that is not an arrow: super is a SyntaxError in a function* expression,
 // and arguments and new.target would be the generator's own. An Effect
-// method's body runs in such a
-// generator, and so do an Effect arrow's body, a producer's body and the
-// regions of try, catch and finally:
+// method's body runs in such a generator, and so do an Effect arrow's body,
+// a producer's body and the regions of try, catch and finally:
 //
 //	greet(name) {
 //	  return Effect.gen({ self: this }, function* greet() {
@@ -24,7 +23,8 @@ import (
 //
 // So the function that binds them in the source declares them once at the
 // top of its lowered body, and the code that the lowering moved into a
-// generator reads those bindings:
+// generator reads those bindings. A class field, whose initializer has no
+// body, declares them in an arrow called in the initializer's place:
 //
 //	greet(name) {
 //	  const super_1 = (key) => super[key];
@@ -59,11 +59,14 @@ import (
 // The arrow sees the method's super. A generator that holds a super
 // reference also gets the method's this (usesThis counts super), so a call
 // keeps its receiver, and JavaScript's order: the method is looked up before
-// the arguments are evaluated. An assignment, super.name = value, calls a
-// second arrow, (key, value) => super[key] = value, and so does a compound
-// one, super.count += 1. A compound assignment to super[key] or an update
-// such as super.count++ would evaluate its key twice, so it keeps
-// JavaScript's form, which fails where it runs.
+// the arguments are evaluated; a tag, super.tag`…`, is bound to this. An
+// assignment, super.name = value, calls a second arrow, (key, value) =>
+// super[key] = value, and so does a compound one, super.count += 1. Every
+// other target, such as super.count++, super[key] += value or [super.name] =
+// pair, becomes superReference_1(key).value, an object whose value accessor
+// reads and writes super[key] through those arrows. The key is evaluated
+// once, and JavaScript applies the operator itself, in its own order:
+// getter, right side, setter, and an update's old or new number.
 
 // frameBinding is a set of the bindings that JavaScript gives every function
 // that is not an arrow, so that a generator the lowering introduces binds
@@ -81,15 +84,16 @@ const (
 // new.target reference in their scope, which arguments identifiers are
 // references, and which lowered generators run as their source function.
 type frameReferences struct {
-	binders    map[*ast.Node]bool // functions and static blocks whose super, arguments or new.target their scope refers to
+	binders    map[*ast.Node]bool // functions, static blocks and class fields whose super, arguments or new.target their scope refers to
 	arguments  map[*ast.Node]bool // identifiers that refer to their function's arguments
 	forwarders map[*ast.Node]bool // generators called with their source function's this and arguments on every run (forwarding)
 }
 
 // findFrameReferences finds, in file, each super property, arguments and
 // new.target reference and the function that binds it: the nearest
-// function or class static block whose scope holds it (bindsFrame), when
-// that one binds what the reference names (frameBindings).
+// function, class static block or class field whose scope holds it
+// (bindsFrame), when that one binds what the reference names
+// (frameBindings).
 func findFrameReferences(file *ast.SourceFile) frameReferences {
 	refs := frameReferences{binders: map[*ast.Node]bool{}, arguments: map[*ast.Node]bool{}, forwarders: map[*ast.Node]bool{}}
 	var visit func(node, binder *ast.Node) bool
@@ -143,14 +147,11 @@ func bindsFrame(node, child *ast.Node) bool {
 // frameBindings returns what fn, a node that bindsFrame says binds its
 // children's scope, binds there that the lowering can declare: arguments
 // and new.target in a function, and super in a method, accessor,
-// constructor or class static block. A class field binds super too, but its
-// initializer has no body to declare it in. new.target is undefined in a
-// static block and a field, as it is in a generator.
+// constructor, class static block or class field. new.target is undefined
+// in a static block and a field, as it is in a generator.
 func frameBindings(fn *ast.Node) frameBinding {
 	switch fn.Kind {
-	case ast.KindPropertyDeclaration:
-		return 0
-	case ast.KindClassStaticBlockDeclaration:
+	case ast.KindClassStaticBlockDeclaration, ast.KindPropertyDeclaration:
 		return bindsSuper
 	case ast.KindMethodDeclaration, ast.KindGetAccessor, ast.KindSetAccessor, ast.KindConstructor:
 		return bindsArguments | bindsNewTarget | bindsSuper
@@ -164,10 +165,10 @@ func isNewTarget(node *ast.Node) bool {
 }
 
 // opensFrame reports whether node binds arguments, new.target and super
-// afresh for its body: a function that is not an arrow, or a class static
-// block.
+// afresh for its body: a function that is not an arrow, a class static
+// block, or a class field for its initializer.
 func opensFrame(node *ast.Node) bool {
-	return ast.IsFunctionLike(node) && node.Kind != ast.KindArrowFunction || node.Kind == ast.KindClassStaticBlockDeclaration
+	return ast.IsFunctionLike(node) && node.Kind != ast.KindArrowFunction || node.Kind == ast.KindClassStaticBlockDeclaration || node.Kind == ast.KindPropertyDeclaration
 }
 
 // isSuperProperty reports whether node is super.name or super[key].
@@ -175,10 +176,14 @@ func isSuperProperty(node *ast.Node) bool {
 	return node != nil && (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && node.Expression().Kind == ast.KindSuperKeyword
 }
 
-// frameBody returns the body of fn, a function or class static block.
+// frameBody returns the body of fn, a function or class static block, or
+// nil for a class field.
 func frameBody(fn *ast.Node) *ast.Node {
-	if fn.Kind == ast.KindClassStaticBlockDeclaration {
+	switch fn.Kind {
+	case ast.KindClassStaticBlockDeclaration:
 		return fn.AsClassStaticBlockDeclaration().Body
+	case ast.KindPropertyDeclaration:
+		return nil
 	}
 	return fn.Body()
 }
@@ -203,8 +208,8 @@ func (tx *lowering) forwarding(generator *ast.Node) *ast.Node {
 // does, and the bindings it declares, once used, for the references that the
 // lowering moved out of it.
 type activation struct {
-	binds                                 frameBinding
-	super, superSet, arguments, newTarget *ast.Node
+	binds                                                 frameBinding
+	super, superSet, superReference, arguments, newTarget *ast.Node
 }
 
 // hoistFrameReferences rewrites each super, arguments and new.target
@@ -246,6 +251,19 @@ func (tx *lowering) hoistFrameReferences(binder *ast.Node, lowered *ast.Node) *a
 		}
 		return f.NewCallExpression(a.superSet, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{key, value}), ast.NodeFlagsNone)
 	}
+	reference := func(a *activation, key *ast.Node) *ast.Node {
+		if a.superReference == nil {
+			a.superReference = f.NewUniqueName("superReference")
+		}
+		if a.super == nil {
+			a.super = f.NewUniqueName("super")
+		}
+		if a.superSet == nil {
+			a.superSet = f.NewUniqueName("superSet")
+		}
+		object := f.NewCallExpression(a.superReference, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{key}), ast.NodeFlagsNone)
+		return f.NewPropertyAccessExpression(object, nil /*questionDotToken*/, f.NewIdentifier("value"), ast.NodeFlagsNone)
+	}
 	visitor := ec.NewNodeVisitor(nil)
 	// outside visits what a class or function of the source other than
 	// binder evaluates where it is defined: its extends clause, decorators
@@ -264,7 +282,7 @@ func (tx *lowering) hoistFrameReferences(binder *ast.Node, lowered *ast.Node) *a
 		source := ec.ParseNode(node)
 		super, arguments, newTarget := frameFor(bindsSuper), frameFor(bindsArguments), frameFor(bindsNewTarget)
 		switch {
-		case super != nil && isSuperAssignment(node):
+		case super != nil && isSuperAssignment(node) && !isAssignmentTarget(source):
 			binary := node.AsBinaryExpression()
 			operator := binary.OperatorToken.Kind
 			right := visitor.VisitNode(binary.Right)
@@ -292,8 +310,18 @@ func (tx *lowering) hoistFrameReferences(binder *ast.Node, lowered *ast.Node) *a
 			ec.SetOriginal(call, node)
 			call.Loc = node.Loc
 			return call
-		case super != nil && isSuperProperty(node) && !isSuperUpdateTarget(node):
-			value := read(super, tx.superKey(visitor, node))
+		case super != nil && ast.IsTaggedTemplateExpression(node) && isSuperProperty(node.AsTaggedTemplateExpression().Tag):
+			// super.tag`…` is super_1("tag").bind(this)`…`: the tag is called with this.
+			tagged := node.AsTaggedTemplateExpression()
+			tag := f.NewFunctionBindCall(read(super, tx.superKey(visitor, tagged.Tag)), f.NewThisExpression(), nil /*argumentsList*/)
+			return f.UpdateTaggedTemplateExpression(tagged, tag, tagged.QuestionDotToken, tagged.TypeArguments, visitor.VisitNode(tagged.Template), node.Flags)
+		case super != nil && isSuperProperty(node):
+			var value *ast.Node
+			if isAssignmentTarget(source) {
+				value = reference(super, tx.superKey(visitor, node))
+			} else {
+				value = read(super, tx.superKey(visitor, node))
+			}
 			ec.SetOriginal(value, node)
 			value.Loc = node.Loc
 			return value
@@ -379,23 +407,11 @@ func isSuperAssignment(node *ast.Node) bool {
 	return binary.OperatorToken.Kind == ast.KindEqualsToken || ast.IsPropertyAccessExpression(binary.Left)
 }
 
-// isSuperUpdateTarget reports whether node, a super property, is the operand
-// of ++ or -- or the target of a compound assignment that isSuperAssignment
-// leaves alone: rewriting it as a read would not assign.
-func isSuperUpdateTarget(node *ast.Node) bool {
-	parent := node.Parent
-	switch {
-	case parent == nil:
-		return false
-	case ast.IsPrefixUnaryExpression(parent):
-		operator := parent.AsPrefixUnaryExpression().Operator
-		return operator == ast.KindPlusPlusToken || operator == ast.KindMinusMinusToken
-	case ast.IsPostfixUnaryExpression(parent):
-		return true
-	case ast.IsBinaryExpression(parent):
-		return parent.AsBinaryExpression().Left == node && ast.IsAssignmentOperator(parent.AsBinaryExpression().OperatorToken.Kind)
-	}
-	return false
+// isAssignmentTarget reports whether source, a node of the source file or
+// nil, is what an assignment, an update, a destructuring assignment or a
+// for-in or for-of head writes to.
+func isAssignmentTarget(source *ast.Node) bool {
+	return source != nil && source.Parent != nil && ast.IsAssignmentTarget(source)
 }
 
 // superKey returns the key that the super property node reads, "name" for
@@ -407,14 +423,24 @@ func (tx *lowering) superKey(visitor *ast.NodeVisitor, node *ast.Node) *ast.Node
 	return visitor.VisitNode(node.AsElementAccessExpression().ArgumentExpression)
 }
 
-// declareFrameBindings returns fn, a lowered function or static block that
-// is the activation a, with `const super_1 = (key) => super[key]`, `const
-// superSet_1 = (key, value) => super[key] = value`, `const arguments_1 =
-// arguments` and `const newTarget_1 = new.target` at the top of its body,
-// after its directives, for the bindings that a's references used.
+// declareFrameBindings returns fn, a lowered function, static block or
+// class field that is the activation a, with `const super_1 = (key) =>
+// super[key]`, `const superSet_1 = (key, value) => super[key] = value`,
+// `const superReference_1 = (key) => ({ get value() { … }, set value(value)
+// { … } })`, `const arguments_1 = arguments` and `const newTarget_1 =
+// new.target` at the top of its body, after its directives, for the
+// bindings that a's references used. A field's initializer becomes an arrow
+// that declares them and returns it, called in its place.
 func (tx *lowering) declareFrameBindings(fn *ast.Node, a *activation) *ast.Node {
 	body := frameBody(fn)
-	if a.super == nil && a.superSet == nil && a.arguments == nil && a.newTarget == nil || body == nil || !ast.IsBlock(body) {
+	if a.super == nil && a.superSet == nil && a.superReference == nil && a.arguments == nil && a.newTarget == nil {
+		return fn
+	}
+	if fn.Kind == ast.KindPropertyDeclaration {
+		if fn.Initializer() == nil {
+			return fn
+		}
+	} else if body == nil || !ast.IsBlock(body) {
 		return fn
 	}
 	f := tx.Factory()
@@ -438,11 +464,31 @@ func (tx *lowering) declareFrameBindings(fn *ast.Node, a *activation) *ast.Node 
 		assign := f.NewBinaryExpression(nil /*modifiers*/, target, nil /*typeNode*/, f.NewToken(ast.KindEqualsToken), f.NewIdentifier("value"))
 		declare(a.superSet, f.NewArrowFunction(nil /*modifiers*/, nil /*typeParameters*/, f.NewNodeList([]*ast.Node{key, value}), nil /*type*/, nil /*fullSignature*/, f.NewToken(ast.KindEqualsGreaterThanToken), assign))
 	}
+	if a.superReference != nil {
+		// (key) => ({ get value() { return super_1(key); }, set value(value) { superSet_1(key, value); } })
+		key := func() *ast.Node { return f.NewIdentifier("key") }
+		get := f.NewCallExpression(a.super, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{key()}), ast.NodeFlagsNone)
+		getter := f.NewGetAccessorDeclaration(nil /*modifiers*/, f.NewIdentifier("value"), nil /*typeParameters*/, f.NewNodeList(nil), nil /*type*/, nil /*fullSignature*/, f.NewBlock(f.NewNodeList([]*ast.Node{f.NewReturnStatement(get)}), false /*multiLine*/))
+		set := f.NewCallExpression(a.superSet, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{key(), f.NewIdentifier("value")}), ast.NodeFlagsNone)
+		value := f.NewParameterDeclaration(nil /*modifiers*/, nil /*dotDotDotToken*/, f.NewIdentifier("value"), nil /*questionToken*/, nil /*type*/, nil /*initializer*/)
+		setter := f.NewSetAccessorDeclaration(nil /*modifiers*/, f.NewIdentifier("value"), nil /*typeParameters*/, f.NewNodeList([]*ast.Node{value}), nil /*type*/, nil /*fullSignature*/, f.NewBlock(f.NewNodeList([]*ast.Node{f.NewExpressionStatement(set)}), false /*multiLine*/))
+		object := f.NewParenthesizedExpression(f.NewObjectLiteralExpression(f.NewNodeList([]*ast.Node{getter, setter}), false /*multiLine*/))
+		parameter := f.NewParameterDeclaration(nil /*modifiers*/, nil /*dotDotDotToken*/, key(), nil /*questionToken*/, nil /*type*/, nil /*initializer*/)
+		declare(a.superReference, f.NewArrowFunction(nil /*modifiers*/, nil /*typeParameters*/, f.NewNodeList([]*ast.Node{parameter}), nil /*type*/, nil /*fullSignature*/, f.NewToken(ast.KindEqualsGreaterThanToken), object))
+	}
 	if a.arguments != nil {
 		declare(a.arguments, f.NewIdentifier("arguments"))
 	}
 	if a.newTarget != nil {
 		declare(a.newTarget, f.NewMetaProperty(ast.KindNewKeyword, f.NewIdentifier("target")))
+	}
+	if fn.Kind == ast.KindPropertyDeclaration {
+		// field = (() => { const super_1 = …; return initializer; })()
+		property := fn.AsPropertyDeclaration()
+		block := f.NewBlock(f.NewNodeList(append(declarations, f.NewReturnStatement(property.Initializer))), true /*multiLine*/)
+		arrow := f.NewArrowFunction(nil /*modifiers*/, nil /*typeParameters*/, f.NewNodeList(nil), nil /*type*/, nil /*fullSignature*/, f.NewToken(ast.KindEqualsGreaterThanToken), block)
+		initializer := f.NewCallExpression(f.NewParenthesizedExpression(arrow), nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList(nil), ast.NodeFlagsNone)
+		return f.UpdatePropertyDeclaration(property, fn.Modifiers(), fn.Name(), property.PostfixToken, property.Type, initializer)
 	}
 	statements := body.Statements()
 	directives := 0

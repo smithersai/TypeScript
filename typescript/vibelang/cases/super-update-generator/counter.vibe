@@ -1,0 +1,14 @@
+// super.count++ in an Effect method's generator, where super would be a
+// SyntaxError: the method declares a reference to super.count for it.
+class Base {
+  countValue = 0
+  get count(): number { return this.countValue }
+  set count(value: number) { this.countValue = value }
+}
+
+export class Counter extends Base {
+  bump() {
+    const tick = Effect.sync(() => 0)
+    return super.count++
+  }
+}

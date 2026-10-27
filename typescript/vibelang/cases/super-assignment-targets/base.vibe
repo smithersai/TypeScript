@@ -1,0 +1,33 @@
+// The superclass, whose accessors record each read and write.
+export const trace: string[] = []
+
+export function key() {
+  trace.push("key")
+  return "count" as const
+}
+
+export function rhs() {
+  trace.push("rhs")
+  return 2
+}
+
+export class Parent {
+  value = 10
+  bigValue = 1n
+  static counterValue = 0
+  get count(): number {
+    trace.push(`get ${this.value}`)
+    return this.value
+  }
+  set count(n: number) {
+    trace.push(`set ${n}`)
+    this.value = n
+  }
+  get big(): bigint { return this.bigValue }
+  set big(n: bigint) { this.bigValue = n }
+  static get counter(): number { return Parent.counterValue }
+  static set counter(n: number) { Parent.counterValue = n }
+  tag(strings: TemplateStringsArray, ...values: unknown[]) {
+    return `${this.value}:${strings.join("|")}:${values.join(",")}`
+  }
+}

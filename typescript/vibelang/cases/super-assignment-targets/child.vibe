@@ -1,0 +1,56 @@
+// Every form that writes to a super property, in an Effect method's
+// generator, an Effect arrow's and an Effect class field's: each must load,
+// evaluate its key once, and run the getter, right side and setter in
+// JavaScript's order, as reference.ts does natively.
+import { Parent, key, rhs, trace } from "./base.vibe"
+
+export class Child extends Parent {
+  keyMethod() {
+    const tick = Effect.sync(() => 0)
+    trace.push("key")
+    return "count" as const
+  }
+  rhsMethod() {
+    const tick = Effect.sync(() => 0)
+    trace.push("rhs")
+    return 2
+  }
+  update() {
+    sync(() => {})
+    super.count++
+    return this.value
+  }
+  computed() {
+    super[this.keyMethod()] += this.rhsMethod()
+    return this.value
+  }
+  post() { const t = Effect.sync(() => 0); const r = super.count++; return [r, this.value] }
+  pre() { const t = Effect.sync(() => 0); const r = --super.count; return [r, this.value] }
+  computedPost() { const t = Effect.sync(() => 0); const r = super[key()]++; return [r, this.value] }
+  computedAdd() { const t = Effect.sync(() => 0); const r = super[key()] += rhs(); return [r, this.value] }
+  computedPower() { const t = Effect.sync(() => 0); const r = super[key()] **= rhs(); return [r, this.value] }
+  computedNullish() { const t = Effect.sync(() => 0); const r = super[key()] ??= rhs(); return [r, this.value] }
+  computedOr() {
+    const t = Effect.sync(() => 0)
+    this.value = 0
+    const r = super[key()] ||= rhs()
+    return [r, this.value]
+  }
+  computedAnd() { const t = Effect.sync(() => 0); const r = super[key()] &&= rhs(); return [r, this.value] }
+  destructure() { const t = Effect.sync(() => 0); [super.count, super[key()]] = [7, 8]; return [this.value] }
+  destructureObject() { const t = Effect.sync(() => 0); ({ x: super.count } = { x: 9 }); return [this.value] }
+  destructureDefault() { const t = Effect.sync(() => 0); [super.count = 5] = []; return [this.value] }
+  forOf() {
+    const t = Effect.sync(() => 0)
+    const seen: number[] = []
+    for (super.count of [1, 2]) seen.push(this.value)
+    return seen
+  }
+  tagged() { const t = Effect.sync(() => 0); return [super.tag`a${1}b`] }
+  bigint() { const t = Effect.sync(() => 0); const r = super.big++; return [String(r), String(this.bigValue)] }
+  static staticPost() { const t = Effect.sync(() => 0); const r = super.counter++; return [r, Parent.counterValue] }
+  arrow() {
+    return () => { const t = Effect.sync(() => 0); const r = super.count++; return [r, this.value] }
+  }
+  field = () => { const t = Effect.sync(() => 0); const r = super.count--; return [r, this.value] }
+}
