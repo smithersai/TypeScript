@@ -64,7 +64,7 @@ func findBlockForms(c *checker.Checker, file *ast.SourceFile, report func(at *as
 	var visit func(node *ast.Node) bool
 	visit = func(node *ast.Node) bool {
 		if name := blockFormOf(c, node); name != "" {
-			if rewrite := blockFormRewrite(c, file, node); rewrite.fixable() {
+			if rewrite := blockFormRewrite(c, file, node); rewrite != nil {
 				form := "withSpan(name) { … }"
 				switch name {
 				case "provide":
@@ -87,6 +87,17 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 		return nil
 	}
 	arguments := call.Arguments()
+	// A block runs its program; it does not evaluate the call's first
+	// argument before the others as the call did. So only an invocation
+	// already passed by name, a function literal, or a read of a binding
+	// the other arguments cannot change may move into the block. Any other
+	// program expression, a getter or a factory call for example, is
+	// evaluated eagerly, in source order, and stays in its call: the
+	// warning then offers no fix.
+	operand := ast.SkipParentheses(arguments[0])
+	eager := !(isInvocation(operand) && analyzerFor(c).isByName(arguments[0])) &&
+		!ast.IsArrowFunction(operand) && !ast.IsFunctionExpression(operand) &&
+		!stableBindingRead(c, file, operand)
 	program, runs := runningText(c, file, arguments[0])
 	if !runs {
 		return nil
@@ -99,6 +110,9 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 	case "withSpan":
 		if shadowed(call, "withSpan") {
 			return nil
+		}
+		if eager {
+			return &formRewrite{why: eagerProgramNote}
 		}
 		head := "withSpan(" + expressionText(file, arguments[1]) + ")"
 		if ast.IsExpressionStatement(call.Parent) {
@@ -114,6 +128,9 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 		}
 		if !analyzerFor(c).runs(call) {
 			return nil
+		}
+		if eager {
+			return &formRewrite{why: eagerProgramNote}
 		}
 		var providers []string
 		if name == "provide" {
@@ -142,6 +159,52 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 		result = "provide " + strings.Join(providers, ", ") + blockText(program, indent, returns)
 	}
 	return withImportRemovals(file, &formRewrite{edits: []sourceEdit{{start, end, result}}, description: shortText(result, "the block form")})
+}
+
+// eagerProgramNote explains why an eagerly evaluated program expression keeps
+// its call.
+const eagerProgramNote = "No quick fix: a block would evaluate its program expression after the other arguments; bind it to a const first."
+
+// stableBindingRead reports whether node reads a binding whose value no
+// other argument of its call can change: an import, a const, or a parameter
+// or let that the file never assigns. Reading it after the other arguments
+// is then unobservable, so the block may run its program.
+func stableBindingRead(c *checker.Checker, file *ast.SourceFile, node *ast.Node) bool {
+	if !ast.IsIdentifier(node) {
+		return false
+	}
+	symbol := c.GetSymbolAtLocation(node)
+	if symbol == nil {
+		return false
+	}
+	if symbol.Flags()&ast.SymbolFlagsAlias != 0 {
+		return true // an import binding: only its own module assigns it
+	}
+	declaration := symbol.ValueDeclaration()
+	switch {
+	case declaration == nil:
+		return false
+	case ast.IsVariableDeclaration(declaration):
+		if ast.IsVarConstLike(declaration) {
+			return true
+		}
+		if ast.GetCombinedNodeFlags(declaration)&ast.NodeFlagsBlockScoped == 0 {
+			return false // var: hoisted, and redeclarable with an initializer
+		}
+	case declaration.Kind == ast.KindParameter:
+	default:
+		return false
+	}
+	assigned := false
+	var visit func(*ast.Node) bool
+	visit = func(n *ast.Node) bool {
+		if ast.IsIdentifier(n) && ast.IsAssignmentTarget(n) && c.GetSymbolAtLocation(n) == symbol {
+			assigned = true
+		}
+		return assigned || n.ForEachChild(visit)
+	}
+	file.AsNode().ForEachChild(visit)
+	return !assigned
 }
 
 // blockText returns a block that runs program, returning its value when

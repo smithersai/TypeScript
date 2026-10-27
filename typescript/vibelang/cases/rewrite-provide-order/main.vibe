@@ -1,0 +1,12 @@
+import "vibelang/platform/node"
+const events: string[] = []
+const cold: number!! = Effect.succeed(7)
+const holder = {
+  get program(): number!! { events.push("program"); return cold }
+}
+function layer() { events.push("layer"); return Layer.empty }
+function label(): string { events.push("label"); return "span" }
+function run() { return Effect.provide(holder.program, layer()) }
+export function main() {
+  Console.log(run(), events.join(","))
+}

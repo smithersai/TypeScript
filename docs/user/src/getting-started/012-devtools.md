@@ -164,6 +164,8 @@ npx vibelang -p tsconfig.json --fix --noEmit
 
 A service-class fix requires a literal key. A dynamic key stays as written, including its evaluation during class initialization.
 
+A block-form fix moves an invocation passed by name, a program written as an arrow function, or a program read from an import, a `const`, or a parameter or `let` the file never assigns. Any other program expression, such as a getter or a factory call, stays in its original combinator call, so it is evaluated before the providers or the span's arguments; the warning then offers no fix.
+
 ## Effect language service rules
 
 The table accounts for the 108 diagnostics and editor features in `@effect/language-service` 0.87.5. Many rules address forms VibeLang replaces: there is no `Effect.gen` to misuse, a call already runs, and `catch` catches failures. Existing EK diagnostics cover others. The remaining checks are EK4801-EK4825, with mechanical quick fixes, alongside refactors, hovers, and completions. The table also marks features not implemented.
