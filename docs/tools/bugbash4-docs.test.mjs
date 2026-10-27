@@ -37,3 +37,8 @@ test("CLI documents configuration tools and the initializer's ESM boundary", () 
   const text = read("docs/user/src/setup/vibelang-cli.md")
   for (const part of ["--init", "--showConfig", "--ignoreConfig", '"type": "module"', "generic"]) assert.ok(text.includes(part), part)
 })
+
+test("editor setup names the registered discovery and editing capabilities", () => {
+  const text = read("docs/user/src/setup/vscode.md").toLowerCase()
+  for (const part of ["call hierarchy", "type definition", "workspace symbols", "signature help", "selection ranges", "document highlights", "inlay hints", "code lens", "linked editing", "on-type formatting"]) assert.ok(text.includes(part), part)
+})

@@ -87,3 +87,22 @@ bun run derive-grammar   # regenerate syntaxes/ from the installed VS Code's Typ
 ## License
 
 The extension is MIT-licensed. The grammar and language configuration are derived from MIT-licensed work by Microsoft. `bun run build` generates `LICENSE` from the repository license and `ThirdPartyNotices.txt` from `scripts/grammar-notices.txt` plus the license and notice files of every dependency that contributes code to esbuild's bundle. Edit the grammar notices source rather than the generated file. `bun run package` verifies the license and complete dependency notices inside the packed VSIX.
+
+## Editor features
+
+The server advertises these features to LSP clients. In VS Code and Cursor, use the command palette or the symbol's context menu; availability and keyboard shortcuts depend on the client.
+
+| Feature | How to use it |
+| --- | --- |
+| Call hierarchy | **Show Call Hierarchy** on a function to explore callers and callees |
+| Type definition | **Go to Type Definition** on a value |
+| Workspace symbols | **Go to Symbol in Workspace** to search project symbols |
+| Signature help | **Trigger Parameter Hints** inside an argument list |
+| Selection ranges | **Expand Selection** / **Shrink Selection** to follow syntax boundaries |
+| Document highlights | Put the cursor on a symbol to highlight its uses in the current file |
+| Inlay hints | Enable the client's inlay hints and supported TypeScript inlay-hint preferences |
+| Code lens | Enable the client's code lens and TypeScript reference/implementation lens preferences |
+| Linked editing | Enable linked editing to update paired JSX tags together |
+| On-type formatting | Enable format-on-type for supported typed characters |
+
+These are language-server capabilities, not a guarantee that every construct offers a result. A client must enable and support each feature; for `.ts` files that import `.vibe`, use the VibeLang TypeScript handoff described above.

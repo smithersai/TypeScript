@@ -35,3 +35,22 @@ Tell the user to open the project directory and trust the workspace: the extensi
 VS Code's built-in TypeScript cannot resolve `.vibe` files, so if a `.ts` file imports a `.vibe` module, tell the user to run **VibeLang: Serve TypeScript Files in This Workspace** from the command palette. In Cursor, the command turns the built-in TypeScript features off for the workspace; in VS Code, it shows the extension to disable, "TypeScript and JavaScript Language Features".
 
 After updating `vibelang`, reinstall the extension from `node_modules`.
+
+## Editor features
+
+The server advertises these features to LSP clients. In VS Code and Cursor, use the command palette or the symbol's context menu; availability and keyboard shortcuts depend on the client.
+
+| Feature | How to use it |
+| --- | --- |
+| Call hierarchy | **Show Call Hierarchy** on a function to explore callers and callees |
+| Type definition | **Go to Type Definition** on a value |
+| Workspace symbols | **Go to Symbol in Workspace** to search project symbols |
+| Signature help | **Trigger Parameter Hints** inside an argument list |
+| Selection ranges | **Expand Selection** / **Shrink Selection** to follow syntax boundaries |
+| Document highlights | Put the cursor on a symbol to highlight its uses in the current file |
+| Inlay hints | Enable the client's inlay hints and supported TypeScript inlay-hint preferences |
+| Code lens | Enable the client's code lens and TypeScript reference/implementation lens preferences |
+| Linked editing | Enable linked editing to update paired JSX tags together |
+| On-type formatting | Enable format-on-type for supported typed characters |
+
+These are language-server capabilities, not a guarantee that every construct offers a result. A client must enable and support each feature; for `.ts` files that import `.vibe`, use the VibeLang TypeScript handoff described above.
