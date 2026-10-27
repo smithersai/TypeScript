@@ -295,7 +295,7 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK3201 | No provider for a required service, with the path that needs it | Add the provider the program defines to `wire` | 4 |
 | EK3202 | Two providers for one service | Remove one | 4 |
 | EK3203 | Providers form a cycle | None | 4 |
-| EK3204 | A `wire` argument whose type does not name its outputs | Compose it with `Layer.provide` | 4 |
+| EK3204 | A `wire` argument whose type does not name its outputs, or a spread argument whose layers `wire` cannot list one by one | Compose it with `Layer.provide`, or pass each layer as an argument | 4 |
 | EK3205 | An entry module's `main` needs a service that nothing provides when the host starts the module, the layer of the file's platform import included (D312); it names the layer that provides each of Effect's and the experimental services, as EK4402 does, and the platform import that would provide them; an error by default, adjustable, since the program would die with `Service not found` (D420); whether it is reported depends on the entry file alone, never on another module's imports (D387) | Provide it inside `main` with `provide`, or add the platform import | 4 |
 | EK3206 | A file names a second, different platform with a platform import, as `import "vibelang/platform/node"` then `import "vibelang/platform/browser"` (D312) | Keep the import of the platform the file runs on | 4 |
 | EK3207 | A provider that is not a layer, a non-empty list of layers, a `Context`, or `Key = value`, such as a value of an array type that may be empty, a union with a member of another kind, or `any`; an error that no setting lowers (D362) | Provide a layer, a non-empty tuple of layers, or a `Context` | 4 |

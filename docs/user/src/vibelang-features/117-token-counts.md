@@ -19,9 +19,9 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,113 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,705 |
-| The skill and the user guide (134 pages) | 245,073 |
-| The user guide alone | 239,960 |
-| The specification (33 chapters) | 166,290 |
+| The skill and the user guide (134 pages) | 245,210 |
+| The user guide alone | 240,097 |
+| The specification (33 chapters) | 166,414 |
 | The decision log, `docs/design/DECISIONS.md` | 107,236 |
 
 ## Effect TypeScript beside VibeLang
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **24,206** |
-| [Release notes](../setup/release-notes.md) | 24,206 |
-| **All 15 pages** | **43,352** |
+| **Upgrade** | **24,293** |
+| [Release notes](../setup/release-notes.md) | 24,293 |
+| **All 15 pages** | **43,439** |
 
 ### Guides
 
@@ -148,10 +148,10 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Error Channel Operations](../error-management/022-error-channel-operations.md) | 1,362 |
 | [Parallel and Sequential Errors](../error-management/023-parallel-and-sequential-errors.md) | 763 |
 | [Custom Error Classes](../error-management/024-yieldable-errors.md) | 1,088 |
-| **Requirements Management** | **6,237** |
+| **Requirements Management** | **6,287** |
 | [Managing Services](../requirements-management/025-services.md) | 1,930 |
 | [Default Services](../requirements-management/026-default-services.md) | 965 |
-| [Managing Layers](../requirements-management/027-layers.md) | 2,431 |
+| [Managing Layers](../requirements-management/027-layers.md) | 2,481 |
 | [Layer Memoization](../requirements-management/028-layer-memoization.md) | 911 |
 | **Resource Management** | **4,481** |
 | [Introduction](../resource-management/029-introduction.md) | 1,623 |
@@ -252,7 +252,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Terminal](../platform/110-terminal.md) | 1,508 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 4,125 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **140,984** |
+| **All 100 pages** | **141,034** |
 
 ### VibeLang features
 
@@ -272,11 +272,11 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | Page | Tokens |
 | --- | ---: |
 | [Introduction](../../../design/src/000-intro.md) | 1,791 |
-| **Part I. The language by example** | **46,850** |
+| **Part I. The language by example** | **46,952** |
 | [1. A first look](../../../design/src/101-part1-ch01-first-look.md) | 2,169 |
 | [2. Functions and calls](../../../design/src/102-part1-ch02-functions.md) | 1,895 |
 | [3. Errors: the E channel](../../../design/src/103-part1-ch03-errors.md) | 4,939 |
-| [4. Dependency injection: the R channel](../../../design/src/104-part1-ch04-di.md) | 6,386 |
+| [4. Dependency injection: the R channel](../../../design/src/104-part1-ch04-di.md) | 6,488 |
 | [5. Programs as values: retry, timeout, and pipe](../../../design/src/105-part1-ch05-programs.md) | 3,508 |
 | [6. Resources](../../../design/src/106-part1-ch06-resources.md) | 3,172 |
 | [7. Concurrency](../../../design/src/107-part1-ch07-concurrency.md) | 4,273 |
@@ -301,15 +301,15 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 4,364 |
 | [25. Implementation strategies and costs](../../../design/src/325-part3-ch25-strategies.md) | 1,946 |
 | [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 6,313 |
-| **Part IV. The compiler** | **18,025** |
+| **Part IV. The compiler** | **18,047** |
 | [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 4,093 |
-| [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 13,932 |
+| [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 13,954 |
 | **Part V. Decisions** | **26,462** |
 | [29. Decisions](../../../design/src/529-part5-ch29-decisions.md) | 21,089 |
 | [30. Risks and experiments](../../../design/src/530-part5-ch30-risks.md) | 5,373 |
 | **Appendices** | **18,900** |
 | [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 10,397 |
 | [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,503 |
-| **All 33 pages** | **166,290** |
+| **All 33 pages** | **166,414** |
 
 <!-- token-counts: end -->

@@ -1,0 +1,32 @@
+// expect-result: {"made":["a","b","a","b"],"value":"ab","tuple":"ab"}
+// A spread array literal lists wire's layers one by one, and wire passes
+// them in the order their services need; the expressions that make them
+// still run in the order written, each once (chapter 13). A spread tuple
+// constant lists its elements, read where the spread stands.
+service A { value: string }
+service B { value: string }
+
+const made: string[] = []
+
+function a(): Layer.Layer<A> {
+  made.push("a")
+  return Layer.succeed(A, { value: "a" })
+}
+
+function b(): Layer.Layer<B, never, A> {
+  made.push("b")
+  return Layer.effect(B) { return { value: A().value + "b" } }
+}
+
+function read(layer: Layer.Layer<B>): string!! {
+  provide layer {
+    return B().value
+  }
+}
+
+export function main() {
+  const layer = wire(...[a(), b()] as const)
+  const pair = [a(), b()] as const
+  const fromTuple = wire(...pair)
+  return { made, value: read(layer), tuple: read(fromTuple) }
+}

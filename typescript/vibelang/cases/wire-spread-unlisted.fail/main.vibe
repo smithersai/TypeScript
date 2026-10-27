@@ -1,0 +1,17 @@
+// expect: EK3204
+// wire orders its layers by their types, so it must see each one. A spread
+// whose layers it cannot list one by one, such as a call that returns a
+// tuple, is EK3204.
+service A { value: string }
+service B { value: string }
+
+const LA = Layer.succeed(A, { value: "a" })
+const LB = Layer.effect(B) {
+  return { value: A().value + "b" }
+}
+
+function layers(): readonly [typeof LA, typeof LB] {
+  return [LA, LB]
+}
+
+export const App = wire(...layers())

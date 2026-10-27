@@ -72,7 +72,7 @@ func wireOrderText(c *checker.Checker, call *ast.Node) string {
 	lines := []string{"wire builds its layers in this order:"}
 	for step, i := range slices.Backward(g.order) {
 		argument := g.arguments[i]
-		line := strconv.Itoa(len(g.order)-step) + ". `" + messageText(argument.node, "argument "+strconv.Itoa(i+1)) + "`"
+		line := strconv.Itoa(len(g.order)-step) + ". `" + wireArgumentText(argument, i) + "`"
 		var provides []string
 		for _, t := range argument.outputs {
 			provides = append(provides, "`"+c.TypeToString(t)+"`")
@@ -82,7 +82,7 @@ func wireOrderText(c *checker.Checker, call *ast.Node) string {
 		}
 		var from []string
 		for _, j := range g.needs[i] {
-			from = append(from, "`"+messageText(g.arguments[j].node, "argument "+strconv.Itoa(j+1))+"`")
+			from = append(from, "`"+wireArgumentText(g.arguments[j], j)+"`")
 		}
 		if len(from) > 0 {
 			line += ", using " + strings.Join(from, " and ")
@@ -90,6 +90,16 @@ func wireOrderText(c *checker.Checker, call *ast.Node) string {
 		lines = append(lines, line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// wireArgumentText names a, the layer at index i of a wire call, for
+// wireOrderText: its source text, with the element index of a spread tuple.
+func wireArgumentText(a wireArgument, i int) string {
+	text := messageText(a.node, "argument "+strconv.Itoa(i+1))
+	if a.index >= 0 {
+		text += "[" + strconv.Itoa(a.index) + "]"
+	}
+	return text
 }
 
 // durationUnits are the units of effect's Duration.Input strings.

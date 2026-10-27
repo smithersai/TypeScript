@@ -160,6 +160,9 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 			p.planServiceNode(c, node)
 			if p.wireOrders[node] != nil || fiberHelper(node) == "$forConcurrent" {
 				p.noteStable(c, node.Arguments()...) // arguments emitted in another order (order.go)
+				for _, layer := range p.wireLists[node] {
+					p.noteStable(c, layer.node) // a layer a spread lists (wire.go)
+				}
 			}
 			p.planExhaustiveMatch(c, node) // D294 (match_lower.go)
 			p.planVariantTest(c, node)     // D307 (data_lower.go)

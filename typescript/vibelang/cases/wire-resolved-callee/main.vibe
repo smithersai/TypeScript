@@ -1,0 +1,33 @@
+// wire is recognized by the symbol its callee resolves to, not its
+// spelling: an import under another name and a namespace import's member are
+// planned as the prelude's wire is, and a spread array literal or a spread
+// tuple constant lists its layers one by one. Each composition builds LB,
+// which needs A, after LA.
+import * as Runtime from "vibelang-runtime"
+import { wire as compose } from "vibelang-runtime"
+
+service A { value: string }
+service B { value: string }
+
+const LA = Layer.succeed(A, { value: "a" })
+const LB = Layer.effect(B) {
+  return { value: A().value + "b" }
+}
+const pair = [LA, LB] as const
+
+const Direct = wire(LA, LB)
+const Aliased = compose(LA, LB)
+const Namespaced = Runtime.wire(LA, LB)
+const SpreadLiteral = wire(...[LA, LB] as const)
+const SpreadTuple = wire(...pair)
+
+function read(layer: Layer.Layer<B>): string!! {
+  provide layer {
+    return B().value
+  }
+}
+
+// expect-result: ["ab","ab","ab","ab","ab"]
+export function main() {
+  return [read(Direct), read(Aliased), read(Namespaced), read(SpreadLiteral), read(SpreadTuple)]
+}

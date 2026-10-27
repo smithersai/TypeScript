@@ -15,10 +15,14 @@ type servicePlan struct {
 	aliases    map[*ast.Node]string // property accesses M.member read through M's export, and the export's name (D311)
 	keys       map[*ast.Node]string // service and control classes, by declaration, and their keys
 	wireOrders map[*ast.Node][]int  // wire calls whose arguments the lowering reorders
+
+	// wireLists holds the wire calls of wireOrders whose spread arguments
+	// list their layers, and those layers (wireArguments).
+	wireLists map[*ast.Node][]wireArgument
 }
 
 func newServicePlan() servicePlan {
-	return servicePlan{lookups: map[*ast.Node]bool{}, values: map[*ast.Node]bool{}, moduleKeys: map[*ast.Node]string{}, aliases: map[*ast.Node]string{}, keys: map[*ast.Node]string{}, wireOrders: map[*ast.Node][]int{}}
+	return servicePlan{lookups: map[*ast.Node]bool{}, values: map[*ast.Node]bool{}, moduleKeys: map[*ast.Node]string{}, aliases: map[*ast.Node]string{}, keys: map[*ast.Node]string{}, wireOrders: map[*ast.Node][]int{}, wireLists: map[*ast.Node][]wireArgument{}}
 }
 
 // planServiceCall records how call, in the body of a function the lowering

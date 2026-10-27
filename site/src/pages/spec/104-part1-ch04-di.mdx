@@ -321,6 +321,7 @@ The contract is bounded by what Layer types say [Rule]:
 - **Partial graphs.** Inputs that no argument provides stay in the result's `In`, as with `Layer.provide`, so you can wire part of a graph. EK3201 is reported where the program's requirements must be empty: at a runner, or at a contract whose R excludes them.
 - **Spread arguments.** A spread argument whose type is a tuple contributes its elements, as if written in place. A spread of an array type names no outputs and is EK3204.
 - **Unknown outputs.** An argument whose type does not name its outputs, such as a value typed `Layer<any>`, is EK3204: compose it with `Layer.provide`. A Layer chosen at run time with `Layer.unwrap` has a proper type and wires normally.
+- `wire` is the function its callee resolves to, however it is spelled: `import { wire as compose } from "vibelang-runtime"` and a namespace import's `Runtime.wire` are ordered as `wire` is. A spread array literal, `wire(...[UsersLive, DatabaseLive])`, and a spread tuple constant list their layers one by one; a spread whose layers `wire` cannot list, such as a call that returns a tuple, is EK3204.
 - `Layer.provide`, `Layer.merge`, and the rest keep working; `wire` is optional.
 
 #### Running with providers

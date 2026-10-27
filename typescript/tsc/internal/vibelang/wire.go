@@ -2,6 +2,7 @@ package vibelang
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -35,12 +36,25 @@ var (
 	anyMain    = EK3205.With("{0} has type any, so the services it needs are unknown.")
 )
 
-// wireArgument is what one argument of a wire call provides and needs.
+// wireArgument is what one layer of a wire call provides and needs: an
+// argument, or an element that a spread argument lists (wireArguments).
 type wireArgument struct {
 	node    *ast.Node
+	index   int             // the element of node, a spread tuple, that the layer is, or -1 for node itself
 	outputs []*checker.Type // the services it provides
 	inputs  []*checker.Type // the services it needs
 	opaque  bool            // its type does not name its outputs (EK3204)
+	spread  bool            // a spread argument whose elements wire cannot list (EK3204)
+}
+
+// text returns the layer's source text for a message: node's, or
+// node[index] for an element of a spread tuple.
+func (a wireArgument) text() string {
+	text := scanner.GetTextOfNode(a.node)
+	if a.index >= 0 {
+		text += "[" + strconv.Itoa(a.index) + "]"
+	}
+	return text
 }
 
 // wireGraph is the provider graph of one wire call.
@@ -52,25 +66,34 @@ type wireGraph struct {
 	order      []int // the emission order: consumers before providers
 }
 
-// isWireCall reports whether call calls the runtime's wire.
+// isWireCall reports whether call calls the runtime's wire, by the symbol
+// its callee resolves to, whatever it is spelled: the prelude's wire, an
+// import under any name, or a namespace import's member, Runtime.wire.
 func isWireCall(c *checker.Checker, call *ast.Node) bool {
-	return ast.IsCallExpression(call) && isRuntimeExport(c, call.Expression(), "wire")
+	return ast.IsCallExpression(call) && runtimeExportOf(c, ast.SkipParentheses(call.Expression())) == "wire"
 }
 
 // isRuntimeExport reports whether expr, an identifier, names the export name
 // of vibelang-runtime, through an import or the prelude.
 func isRuntimeExport(c *checker.Checker, expr *ast.Node, name string) bool {
-	if !ast.IsIdentifier(expr) || expr.Text() != name {
-		return false
+	return ast.IsIdentifier(expr) && expr.Text() == name && runtimeExportOf(c, expr) == name
+}
+
+// runtimeExportOf returns the name of the vibelang-runtime export that
+// expr, an identifier or a property access, resolves to through imports
+// and the prelude, or "" when it resolves to anything else.
+func runtimeExportOf(c *checker.Checker, expr *ast.Node) string {
+	if !ast.IsIdentifier(expr) && !ast.IsPropertyAccessExpression(expr) {
+		return ""
 	}
 	symbol := c.GetSymbolAtLocation(expr)
 	if symbol != nil && symbol.Flags()&ast.SymbolFlagsAlias != 0 {
 		symbol = c.GetAliasedSymbol(symbol)
 	}
-	if symbol == nil || symbol.ValueDeclaration() == nil {
-		return false
+	if symbol == nil || symbol.ValueDeclaration() == nil || packageNameOf(c, ast.GetSourceFileOfNode(symbol.ValueDeclaration())) != "vibelang-runtime" {
+		return ""
 	}
-	return packageNameOf(c, ast.GetSourceFileOfNode(symbol.ValueDeclaration())) == "vibelang-runtime"
+	return symbol.Name()
 }
 
 // packageNameOf returns the name in the package.json nearest to file.
@@ -127,13 +150,70 @@ func unionMembers(t *checker.Type) []*checker.Type {
 	return []*checker.Type{t}
 }
 
+// wireArguments lists the layers of call, a wire call: its arguments, and
+// for a spread argument the elements it lists, so wire(...[UsersLive,
+// DatabaseLive] as const) is planned as wire(UsersLive, DatabaseLive). A
+// spread array literal lists its elements, and a spread identifier whose type
+// is a tuple of fixed length lists its elements by index. Any other spread
+// hides its layers, and EK3204 reports it.
+func wireArguments(c *checker.Checker, call *ast.Node) []wireArgument {
+	var arguments []wireArgument
+	layer := func(node *ast.Node, index int, t *checker.Type) {
+		outputs, inputs, opaque, _ := layerParts(c, t)
+		arguments = append(arguments, wireArgument{node: node, index: index, outputs: outputs, inputs: inputs, opaque: opaque})
+	}
+	var add func(node *ast.Node)
+	add = func(node *ast.Node) {
+		if !ast.IsSpreadElement(node) {
+			layer(node, -1, c.GetTypeAtLocation(node))
+			return
+		}
+		if list := ast.SkipOuterExpressions(node.Expression(), ast.OEKAll); ast.IsArrayLiteralExpression(list) {
+			for _, element := range list.AsArrayLiteralExpression().Elements.Nodes {
+				add(element)
+			}
+			return
+		}
+		if elements := fixedTupleElements(c, node.Expression()); elements != nil {
+			for k, element := range elements {
+				layer(node.Expression(), k, element)
+			}
+			return
+		}
+		arguments = append(arguments, wireArgument{node: node, index: -1, spread: true})
+	}
+	for _, argument := range call.Arguments() {
+		add(argument)
+	}
+	return arguments
+}
+
+// fixedTupleElements returns the element types of expression, an identifier
+// whose type is a tuple with only required elements, or nil.
+func fixedTupleElements(c *checker.Checker, expression *ast.Node) []*checker.Type {
+	if !ast.IsIdentifier(expression) {
+		return nil
+	}
+	t := c.GetTypeAtLocation(expression)
+	if !checker.IsTupleType(t) {
+		return nil
+	}
+	flags := t.Target().AsTupleType().ElementFlags()
+	elements := c.GetTypeArguments(t)
+	if len(elements) < len(flags) {
+		return nil
+	}
+	for _, flag := range flags {
+		if flag&checker.ElementFlagsRequired == 0 {
+			return nil
+		}
+	}
+	return elements[:len(flags)]
+}
+
 // graphOfWire builds the provider graph of call, a wire call.
 func graphOfWire(c *checker.Checker, call *ast.Node) *wireGraph {
-	g := &wireGraph{duplicates: map[*checker.Type][]int{}}
-	for _, argument := range call.Arguments() {
-		outputs, inputs, opaque, _ := layerParts(c, c.GetTypeAtLocation(argument))
-		g.arguments = append(g.arguments, wireArgument{node: argument, outputs: outputs, inputs: inputs, opaque: opaque})
-	}
+	g := &wireGraph{duplicates: map[*checker.Type][]int{}, arguments: wireArguments(c, call)}
 	providers := map[*checker.Type][]int{}
 	for i, a := range g.arguments {
 		for _, output := range a.outputs {
@@ -250,8 +330,11 @@ func checkWires(c *checker.Checker, file *ast.SourceFile) {
 func checkWire(c *checker.Checker, call *ast.Node) {
 	g := graphOfWire(c, call)
 	for _, a := range g.arguments {
-		if a.opaque {
-			note(report(c, a.node, EK3204, scanner.GetTextOfNode(a.node)), "Compose it with Layer.provide instead.")
+		switch {
+		case a.spread:
+			note(report(c, a.node, EK3204.With("{0} spreads layers that wire cannot list one by one, so wire cannot place them."), scanner.GetTextOfNode(a.node)), "Pass each layer as an argument, or spread an array literal.")
+		case a.opaque:
+			note(report(c, a.node, EK3204, a.text()), "Compose it with Layer.provide instead.")
 		}
 	}
 	reported := map[int]bool{}
@@ -264,7 +347,7 @@ func checkWire(c *checker.Checker, call *ast.Node) {
 			reported[i] = true
 			names := make([]string, len(indexes))
 			for k, index := range indexes {
-				names[k] = scanner.GetTextOfNode(g.arguments[index].node)
+				names[k] = g.arguments[index].text()
 			}
 			report(c, a.node, EK3202, c.TypeToString(output), strings.Join(names, " and "))
 		}
@@ -272,7 +355,7 @@ func checkWire(c *checker.Checker, call *ast.Node) {
 	if g.cycle != nil {
 		var steps []string
 		for k, i := range g.cycle {
-			steps = append(steps, scanner.GetTextOfNode(g.arguments[i].node))
+			steps = append(steps, g.arguments[i].text())
 			if k+1 < len(g.cycle) {
 				if service := neededFrom(g, i, g.cycle[k+1]); service != nil {
 					steps = append(steps, c.TypeToString(service))
@@ -302,6 +385,9 @@ func (p *servicePlan) planWire(c *checker.Checker, call *ast.Node) {
 	g := graphOfWire(c, call)
 	if g.cycle == nil && !slices.IsSorted(g.order) {
 		p.wireOrders[call] = g.order
+		if len(g.arguments) != len(call.Arguments()) || slices.ContainsFunc(g.arguments, func(a wireArgument) bool { return a.index >= 0 }) {
+			p.wireLists[call] = g.arguments
+		}
 	}
 }
 
@@ -309,11 +395,41 @@ func (p *servicePlan) planWire(c *checker.Checker, call *ast.Node) {
 // The argument expressions still run in source order, each once (order.go):
 // only the layers they make change places.
 func (tx *lowering) visitWireCall(node *ast.Node) *ast.Node {
-	visited := tx.Visitor().VisitNodes(node.ArgumentList())
+	visited := tx.visitWireArguments(node)
 	callee := tx.Visitor().VisitNode(node.Expression())
-	arguments := tx.inOrder(visited.Nodes, node.Arguments(), tx.plan.wireOrders[node])
+	// The operands are the layers wireArguments lists when a spread lists
+	// them, each from its own source node (an element of a spread array
+	// literal, or the spread tuple itself).
+	sources := node.Arguments()
+	if list := tx.plan.wireLists[node]; list != nil {
+		sources = make([]*ast.Node, len(list))
+		for k, a := range list {
+			sources[k] = a.node
+		}
+	}
+	arguments := tx.inOrder(visited.Nodes, sources, tx.plan.wireOrders[node])
 	f := tx.Factory()
 	return f.UpdateCallExpression(node.AsCallExpression(), callee, nil /*questionDotToken*/, node.TypeArgumentList(), f.NewNodeList(arguments), ast.NodeFlagsNone)
+}
+
+// visitWireArguments visits the layers of node, a wire call, in source
+// order: its arguments, or, when a spread argument lists layers, the layers
+// wireArguments lists, a spread tuple's elements as tuple[index].
+func (tx *lowering) visitWireArguments(node *ast.Node) *ast.NodeList {
+	list := tx.plan.wireLists[node]
+	if list == nil {
+		return tx.Visitor().VisitNodes(node.ArgumentList())
+	}
+	f := tx.Factory()
+	layers := make([]*ast.Node, len(list))
+	for k, a := range list {
+		layer := tx.Visitor().VisitNode(a.node)
+		if a.index >= 0 {
+			layer = f.NewElementAccessExpression(f.DeepCloneNode(layer), nil /*questionDotToken*/, f.NewNumericLiteral(strconv.Itoa(a.index), ast.TokenFlagsNone), ast.NodeFlagsNone)
+		}
+		layers[k] = layer
+	}
+	return f.NewNodeList(layers)
 }
 
 // A runnerSite is where a runner gets the program checkProgram checks.
