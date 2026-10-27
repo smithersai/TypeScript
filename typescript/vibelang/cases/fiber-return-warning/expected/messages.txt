@@ -1,0 +1,1 @@
+warning EK4838: This returned fiber belongs to its block and is interrupted when the block exits.

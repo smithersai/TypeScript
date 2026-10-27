@@ -48,7 +48,7 @@ Declarations export like TypeScript declarations: `export data Shape { Circle { 
 | `Match.value(x)...Match.exhaustive` | `match (x) { when "a": 1; when E and { let id }: id; default: 0; }` |
 | `Option.match`, `Exit.isFailure` | `when Option.Some(let v):`, `when Option.None:`, `if (o is Exit.Failure(let cause))` |
 | `Delivery.$match({ Sent: ({ tracking }) => ... })`, `Delivery.$is("Sent")` | `when Delivery.Sent { let tracking }:`, `when Delivery.Waiting:`, `if (d is Delivery.Sent)` |
-| `Effect.forkChild` + `Fiber.join` | `const f = fork work()`, `join f`, `join [a, b]` |
+| block-owned `Effect.forkScoped` + `Fiber.join` | `const f = fork work()`, `join f`, `join [a, b]`; the enclosing block interrupts its fibers on exit |
 | `Effect.scoped` + `forkScoped(...)`, `forkDetach`, `forkIn` | `fork { ... }`, owned by the enclosing block; `detach(p)`; `forkIn(scope, p)`. `Effect.forkScoped(p)` alone still ties the fiber to the caller's scope (`Scope` in R) |
 | `Effect.all(xs, { concurrency: "unbounded" })` | `await.all [a(), b()]`, `await.all { x: a(), y: b() }` |
 | `Effect.all(xs, { ..., mode: "result" })` | `await.allSettled [a(), b()]`: typed failures become `Result`s |
@@ -85,6 +85,8 @@ Declarations export like TypeScript declarations: `export data Shape { Circle { 
 15. `do { ...; value }` is a block with a value, for a `match` arm or an `await.all` element; `return` inside it is TS1108. A block param instead needs `return`.
 16. A synchronous callback, such as `Array.map`'s, can't run an Effect or fail (EK4301): use `forEach` or a loop.
 17. A resource acquired without `using` belongs to the caller (`Scope` in R); don't `using` a resource a function or service hands out, or it closes first.
+A returned block-owned `fork` is interrupted at block exit (EK4838 warns). To keep it alive past the block, use `forkIn(scope, program)` with a scope the caller holds, or `detach(program)` with an explicit shutdown strategy.
+
 18. A handler covers only its own fiber: a forked branch installs its own (EK4201).
 19. A factory declared with an Effect return type, `(input: In): A!E!R => { ...; return () => ... }`, runs plain code at the call, then returns a program on every path (EK2116); its outer body runs no Effect and never throws (EK2115): fail in the program, `return () => { throw e }`.
 

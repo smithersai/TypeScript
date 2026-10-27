@@ -219,7 +219,7 @@ A later comment overrides an earlier one; within one comment, a code named on it
 
 | Option in the tsconfig's top-level `vibelang` object, or `compilerOptions.vibelang` (D275) | Values | Default |
 | --- | --- | --- |
-| `diagnostics` | `"EK1012"`, `"EK1016"`, `"EK2004"`, `"EK4403"`, `"EK4409"`, EK4801-EK4825 except `"EK4813"`, and EK4830-EK4837, each `"error"`, `"warning"`, or `"off"` | EK2004 `"warning"`, EK4403 `"error"`; EK48xx as the table below says |
+| `diagnostics` | `"EK1012"`, `"EK1016"`, `"EK2004"`, `"EK4403"`, `"EK4409"`, EK4801-EK4825 except `"EK4813"`, and EK4830-EK4838, each `"error"`, `"warning"`, or `"off"` | EK2004 `"warning"`, EK4403 `"error"`; EK48xx as the table below says |
 | `tracing` | `"none"`: no spans. `"exported"`: exported functions get `Effect.fn` spans. `"all"`: every named lowered function and method gets a span; anonymous lambdas don't (D104) | `"none"` |
 
 `vibelang` exits non-zero when it reports any error. The CLI prints `error EK1003:`; LSP sends source `EK` and numeric code `1003`, which VS Code displays as `EK(1003)` (D61). In the terminal, the editor, and Vite's overlay, diagnostics print at `.vibe` spans in the form this document's examples use.
@@ -359,6 +359,7 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK4835 | A warning: `Effect.catchTag`, `Effect.catchTags`, or `Effect.catch` in a VibeLang function (D289) | `x catch (e) => match (e) { when NotFound: …; default: throw e; }` (quick fix) | 3 |
 | EK4836 | A warning: `Effect.withSpan`, `Effect.provide`, or `Effect.provideService` in a VibeLang function (D290) | `withSpan("name") { … }`, `provide Layer { … }` (quick fix) | 4, 24 |
 | EK4837 | A warning: a class that extends `Schema.TaggedError` with an empty body, which an error declaration replaces only by dropping its Schema (D284) | `error Failed { … }` where nothing needs the Schema; turn the code off where errors are Schemas by design | 3 |
+| EK4838 | An adjustable warning: a returned fiber belongs to its block and is interrupted when that block exits | Use `forkIn(scope, program)` with a caller-held scope, or `detach(program)` with a shutdown strategy; the explicit detach quick fix is not applied by `--fix` | 6, 7 |
 | EK9100 | The text projector cannot decide a lambda or await element’s form (editor warning before the emit switch) | Annotate with the fork’s inferred form and channels where safe; program-form and await sites require an author’s annotation | 10 |
 | EK9101 | The text projector needs a data-method receiver annotation (editor-only suggestion; not emitted by the CLI) | Use “Annotate as the fork infers” to write the checker's receiver type on a local declaration or expression assertion | 10 |
 
