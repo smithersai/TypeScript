@@ -484,7 +484,9 @@ func (tx *lowering) hoist(name *ast.Node) {
 // What plain code throws stands for the Cause a frame would carry, so the
 // runtime decides what a catch recovers as $catch does: `throw cause` (D177)
 // becomes `throw runtime.$expectedCause(cause)`, which a catch receives as
-// the cause's first expected failure only when the cause holds no defect.
+// the cause's first expected failure only when the cause holds no defect,
+// and a failure a finally block raises joins the one in flight
+// (visitPlainTryStatement).
 
 // visitPlainThrowStatement turns `throw e` into `throw runtime.$expected(e)`,
 // and `throw cause` into `throw runtime.$expectedCause(cause)`.
@@ -529,6 +531,52 @@ func (tx *lowering) visitPlainCatchClause(node *ast.Node) *ast.Node {
 	statements := append([]*ast.Node{unwrap}, block.AsBlock().Statements.Nodes...)
 	block = f.UpdateBlock(block.AsBlock(), f.NewNodeList(statements), true /*multiLine*/)
 	return f.UpdateCatchClause(clause, declaration, block)
+}
+
+// visitPlainTryStatement lowers a try statement with a finally block in plain
+// code, so that a failure the finally block raises joins the one in flight,
+// as $finally's Effect.onExit joins them, where JavaScript's finally would
+// replace it (D15). A finally block cannot jump out (EK2006), so it ends
+// normally or throws:
+//
+//	try { work() } finally { cleanup() }
+//
+// becomes
+//
+//	let pending_1 = runtime.$normal;
+//	try { work() } catch (thrown_1) { pending_1 = thrown_1; throw thrown_1; }
+//	finally { try { cleanup() } catch (thrown_2) { throw runtime.$finallyFailure(pending_1, thrown_2); } }
+//
+// A catch clause stays with the try block in an inner try statement, so a
+// failure the catch block raises is in flight too.
+func (tx *lowering) visitPlainTryStatement(node *ast.Node) *ast.Node {
+	f := tx.Factory()
+	ec := tx.EmitContext()
+	try := node.AsTryStatement()
+	tryBlock := tx.Visitor().VisitNode(try.TryBlock)
+	if try.CatchClause != nil {
+		inner := f.NewTryStatement(tryBlock, tx.Visitor().VisitNode(try.CatchClause), nil /*finallyBlock*/)
+		inner.Loc = node.Loc
+		tryBlock = f.NewBlock(f.NewNodeList([]*ast.Node{inner}), true /*multiLine*/)
+	}
+	pending := f.NewUniqueName("pending")
+	thrown := f.NewUniqueName("thrown")
+	capture := f.NewCatchClause(f.NewVariableDeclaration(thrown, nil /*exclamationToken*/, nil /*typeNode*/, nil /*initializer*/), f.NewBlock(f.NewNodeList([]*ast.Node{
+		f.NewExpressionStatement(f.NewAssignmentExpression(pending, thrown)),
+		f.NewThrowStatement(thrown),
+	}), true /*multiLine*/))
+	cleanupThrown := f.NewUniqueName("thrown")
+	join := f.NewCatchClause(f.NewVariableDeclaration(cleanupThrown, nil /*exclamationToken*/, nil /*typeNode*/, nil /*initializer*/), f.NewBlock(f.NewNodeList([]*ast.Node{
+		f.NewThrowStatement(tx.runtimeCall("$finallyFailure", pending, cleanupThrown)),
+	}), true /*multiLine*/))
+	cleanup := f.NewBlock(f.NewNodeList([]*ast.Node{f.NewTryStatement(tx.Visitor().VisitNode(try.FinallyBlock), join, nil /*finallyBlock*/)}), true /*multiLine*/)
+	statement := f.NewTryStatement(tryBlock, capture, cleanup)
+	ec.SetOriginal(statement, node)
+	statement.Loc = node.Loc
+	declaration := f.NewVariableStatement(nil /*modifiers*/, f.NewVariableDeclarationList(f.NewNodeList([]*ast.Node{
+		f.NewVariableDeclaration(pending, nil /*exclamationToken*/, nil /*typeNode*/, tx.runtimeMember("$normal")),
+	}), ast.NodeFlagsLet))
+	return f.NewSyntaxList([]*ast.Node{declaration, statement})
 }
 
 func init() {

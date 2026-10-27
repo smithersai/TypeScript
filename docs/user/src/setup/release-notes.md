@@ -159,6 +159,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - `using` read a value's `[Symbol.dispose]` again at block exit, so replacing the method, or a getter that returned another one, changed which release ran. It now reads the method once, when it acquires the value, as JavaScript does.
 - `join` on an object or array read each element twice, so a getter could make it join one fiber and interrupt another. It now reads each element once.
 - In a function that compiles to plain JavaScript, `throw Cause.fail("bad")` gave its catch the Cause object instead of `"bad"`, and `throw Cause.die(...)` was caught as if it were an expected failure. The catch now receives the first expected failure only when the cause holds no defect, as in an Effect function; a defect passes through.
+- In a function that compiles to plain JavaScript, a `finally` block that failed while another failure was in flight replaced it, so an outer `catch` saw the cleanup failure instead of the first one. The two failures now join as `Effect.ensuring` joins them, and the outer `catch` receives the first, as in an Effect function.
 
 #### Editor and language server
 

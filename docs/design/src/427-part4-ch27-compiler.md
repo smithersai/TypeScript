@@ -149,7 +149,7 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 | --- | --- |
 | `$programs` | Convert the functions a spread supplies to an array or object literal where programs are expected, as the spread reads them (D423) |
 | `$catch`, `$finally` | Expected-failure handling and cleanup |
-| `$expected`, `$expectedCause`, `$caught` | A plain function's typed throw, its `throw cause`, and its catch's filter that rethrows defects (D54, D177, D282); with them the combining form that a failing `finally` or iterator close uses in plain code, which carries two defects across a JavaScript frame as a `SuppressedError` (D340, D341) |
+| `$expected`, `$expectedCause`, `$caught`, `$finallyFailure` | A plain function's typed throw, its `throw cause`, its catch's filter that rethrows defects, and its finally block's failure joined to the one in flight (D15, D54, D177, D282); with them the combining form that a failing `finally` or iterator close uses in plain code, which carries two defects across a JavaScript frame as a `SuppressedError` (D340, D341) |
 | `$region`, `$using`, `$fork` | Block-owned scopes, resources, and children |
 | `$service`, `$reference`, `$control` | Service keys, defaults, and control operations |
 | `$trusted`, `$trustedPlain` | Classify listed foreign exceptions |

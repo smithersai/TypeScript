@@ -288,6 +288,8 @@ func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 		return tx.visitJumpTarget(node)
 	case tx.inEffect && tx.frame.region != nil && varList(node) != nil:
 		return tx.visitVar(node)
+	case tx.plain && node.Kind == ast.KindTryStatement && node.AsTryStatement().FinallyBlock != nil:
+		return tx.visitPlainTryStatement(node)
 	case tx.plain && node.Kind == ast.KindThrowStatement:
 		return tx.visitPlainThrowStatement(node)
 	case tx.plain && node.Kind == ast.KindCatchClause:

@@ -33,6 +33,7 @@ export const {
   $fast,
   $finally,
   $finallyExit,
+  $finallyFailure,
   $forConcurrent,
   $forOf,
   $forStream,

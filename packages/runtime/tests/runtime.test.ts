@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Cause, Context, Deferred, Fiber, Stream } from "effect"
 import {
-  $bind, $catch, $caught, $control, $expected, $expectedCause, $finally, $fork, $forOf, $normal,
+  $bind, $catch, $caught, $control, $expected, $expectedCause, $finally, $finallyFailure, $fork, $forOf, $normal,
   $produce, $program, $programs, $reference, $region, $service, $tailResume,
   $tailResumeWith, $trusted, $trustedPlain, $using, $yield, $yieldAll, abandon, Control,
   Effect, Exit, fork, handle, handoff, Layer, pipe, resume,
@@ -74,6 +74,51 @@ test("regions: a plain-JavaScript catch recovers a thrown cause as catch does", 
   expect(thrown(() => plain(Cause.die(defect)))).toEqual({ thrown: defect })
   expect(thrown(() => plain(Cause.combine(Cause.fail("no"), Cause.die(defect))))).toEqual({ thrown: "no" })
   expect(thrown(() => plain(Cause.combine(Cause.die(defect), Cause.fail("no"))))).toEqual({ thrown: defect })
+})
+
+// D15: a plain finally block's failure joins the one in flight, that one
+// first, as $finally's Effect.onExit joins them; the lowering writes this
+// shape (visitPlainTryStatement).
+test("regions: a plain-JavaScript finally joins its failure to the one in flight", () => {
+  const plain = (body: () => void, cleanup: () => void) => {
+    try {
+      let pending: unknown = $normal
+      try {
+        body()
+      } catch (thrown) {
+        pending = thrown
+        throw thrown
+      } finally {
+        try {
+          cleanup()
+        } catch (thrown) {
+          throw $finallyFailure(pending, thrown)
+        }
+      }
+      return "completed"
+    } catch (e) {
+      return $caught(e)
+    }
+  }
+  const thrown = (f: () => unknown) => {
+    try {
+      return { returned: f() }
+    } catch (e) {
+      return { thrown: e }
+    }
+  }
+  const fail = (error: unknown) => () => {
+    throw $expected(error)
+  }
+  const defect = new TypeError("defect")
+  const crash = () => {
+    throw defect
+  }
+  expect(plain(fail("first"), fail("cleanup"))).toBe("first")
+  expect(plain(() => {}, fail("cleanup"))).toBe("cleanup")
+  expect(plain(() => {}, () => {})).toBe("completed")
+  expect(thrown(() => plain(fail("first"), crash))).toEqual({ thrown: "first" })
+  expect(thrown(() => plain(crash, fail("cleanup")))).toEqual({ thrown: defect })
 })
 
 test("regions: finally runs and completes when its body is interrupted", async () => {

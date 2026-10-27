@@ -125,6 +125,22 @@ export const $expected = (error: unknown): unknown => new ExpectedFailure(error)
 export const $expectedCause = (cause: Cause.Cause<unknown>): unknown => thrownFor(cause)
 
 /**
+ * D54, D15: a finally block of a function that compiles to plain JavaScript
+ * that throws while a failure is in flight. The two join, the pending failure
+ * first, as `$finally`'s Effect.onExit combines causes, rather than the
+ * finally block's replacing the other as in JavaScript: a catch outside
+ * recovers the first expected failure, and a defect on either side makes the
+ * whole a defect. pending is `$normal` when no failure was in flight.
+ */
+export const $finallyFailure = (pending: unknown, thrown: unknown): unknown =>
+  pending === $normal ? thrown : thrownFor(Cause.combine(causeOf(pending), causeOf(thrown)))
+
+// The cause a value thrown in plain code stands for: anything but an expected
+// failure is a defect.
+const causeOf = (thrown: unknown): Cause.Cause<unknown> =>
+  thrown instanceof ExpectedFailure ? thrown.cause : Cause.die(thrown)
+
+/**
  * D54, D13: a catch in a function that compiles to plain JavaScript starts
  * with `e = $caught(e)`. It returns the expected failure, and rethrows
  * anything else, a defect, so the catch never sees it.
