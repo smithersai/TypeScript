@@ -254,7 +254,8 @@ func (tx *lowering) regionStatements(r *region, block *ast.Node) []*ast.Node {
 // statements of block. binding is the variable declaration whose name the
 // closure takes as its parameter, a catch clause's or a Scope region's scope,
 // or nil. When a jump leaves r, a closure that can reach its end returns
-// $normal there.
+// $normal there. The generator's name binds in its body, so it is fresh
+// (hygiene.go): work$try$1 when the file spells work$try.
 func (tx *lowering) regionFunction(r *region, role string, binding *ast.Node, block *ast.Node, statements []*ast.Node) *ast.Node {
 	f := tx.Factory()
 	var parameters []*ast.Node
@@ -279,7 +280,7 @@ func (tx *lowering) regionFunction(r *region, role string, binding *ast.Node, bl
 	body.Loc = block.Loc
 	var name *ast.Node
 	if tx.frame.name != "" {
-		name = f.NewIdentifier(tx.frame.name + "$" + role)
+		name = f.NewIdentifier(tx.freshName(tx.frame.name + "$" + role))
 	}
 	generator := f.NewFunctionExpression(nil /*modifiers*/, f.NewToken(ast.KindAsteriskToken), name, nil /*typeParameters*/, f.NewNodeList(parameters), nil /*type*/, nil /*fullSignature*/, body)
 	tx.EmitContext().SetOriginal(generator, block)

@@ -292,7 +292,10 @@ func TestPurityCorpus(t *testing.T) {
 				plain++
 			}
 			rows = append(rows, fmt.Sprintf("%s:%d:%s %t %t", file, f.Start, f.Name, f.ProvablyPure, f.PlainLooking))
-			assert.Equal(t, strings.Contains(js, "function "+f.Name+"$direct("), f.ProvablyPure, "%s: %s", file, f.Name)
+			// The direct entry's name is fresh: f$direct, or f$direct_1 when
+			// the file spells f$direct (freshWord).
+			direct := regexp.MustCompile(`function ` + regexp.QuoteMeta(f.Name+"$direct") + `(_\d+)?\(`)
+			assert.Equal(t, direct.MatchString(js), f.ProvablyPure, "%s: %s", file, f.Name)
 		}
 	}
 	t.Logf("corpus: functions=%d ProvablyPure=%d PlainLooking=%d", total, pure, plain)

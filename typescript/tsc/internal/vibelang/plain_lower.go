@@ -22,11 +22,14 @@ import (
 // hoisted function declaration. The variant keeps no link to the source
 // declaration: TypeScript's CommonJS transform keys an exported function by
 // its original node, so a link would merge the variant's export into the
-// Effect form's and leave exports.double$direct unset.
+// Effect form's and leave exports.double$direct unset. The variants' names
+// are fresh (hygiene.go): double$direct$1 when the file spells
+// double$direct, exported as the name importers read (variantExportName).
 func (tx *lowering) visitPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 	f := tx.Factory()
 	ec := tx.EmitContext()
 	name := node.Name().Text()
+	directText := tx.directName(name)
 
 	saved, savedPlain := tx.inEffect, tx.plain
 	tx.inEffect, tx.plain = false, true // its catch clauses rethrow defects (D54)
@@ -34,11 +37,8 @@ func (tx *lowering) visitPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 	body := ec.VisitFunctionBody(node.Body(), tx.Visitor())
 	tx.inEffect, tx.plain = saved, savedPlain
 
-	var modifiers *ast.ModifierList
-	if ast.HasSyntacticModifier(node, ast.ModifierFlagsExport) {
-		modifiers = f.NewModifierList([]*ast.Node{f.NewModifier(ast.KindExportKeyword)})
-	}
-	directName := f.NewIdentifier(name + "$direct")
+	modifiers, export := tx.variantExport(node, directText)
+	directName := f.NewIdentifier(directText)
 	direct := f.NewFunctionDeclaration(modifiers, nil /*asteriskToken*/, directName, nil /*typeParameters*/, parameters, nil /*type*/, nil /*fullSignature*/, body)
 	// .vibe callers call the variant, so it keeps the source function's
 	// position, and the Effect wrapper maps to none (generated.go).
@@ -50,14 +50,15 @@ func (tx *lowering) visitPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 	// function double(...args) { return Effect.sync(() => double$direct.call(this, ...args)) }
 	args := f.NewIdentifier("args")
 	rest := f.NewParameterDeclaration(nil /*modifiers*/, f.NewToken(ast.KindDotDotDotToken), args, nil /*questionToken*/, nil /*type*/, nil /*initializer*/)
-	call := tx.generated(f.NewFunctionCallCall(f.NewIdentifier(name+"$direct"), f.NewThisExpression(), []*ast.Node{f.NewSpreadElement(args)}))
+	call := tx.generated(f.NewFunctionCallCall(f.NewIdentifier(directText), f.NewThisExpression(), []*ast.Node{f.NewSpreadElement(args)}))
 	thunk := tx.generated(f.NewArrowFunction(nil /*modifiers*/, nil /*typeParameters*/, f.NewNodeList(nil), nil /*type*/, nil /*fullSignature*/, f.NewToken(ast.KindEqualsGreaterThanToken), call))
 	sync := f.NewCallExpression(f.NewPropertyAccessExpression(tx.effectName(), nil /*questionDotToken*/, f.NewIdentifier("sync"), ast.NodeFlagsNone), nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{thunk}), ast.NodeFlagsNone)
 	wrapperBody := f.NewBlock(f.NewNodeList([]*ast.Node{tx.generated(f.NewReturnStatement(sync))}), false /*multiLine*/)
 	wrapper := f.UpdateFunctionDeclaration(node.AsFunctionDeclaration(), node.Modifiers(), nil /*asteriskToken*/, node.Name(), nil /*typeParameters*/, f.NewNodeList([]*ast.Node{rest}), nil /*type*/, nil /*fullSignature*/, wrapperBody)
 	ec.SetOriginal(wrapper, node)
 	tx.generated(wrapper)
-	statements := []*ast.Node{direct, wrapper}
+	statements := append([]*ast.Node{direct}, export...)
+	statements = append(statements, wrapper)
 	if tx.plan.budgetDirects[node] {
 		savedBudget, savedWeight, savedEscapes := tx.eagerBudget, tx.eagerWeight, tx.eagerEscapes
 		savedEffect, savedPlain := tx.inEffect, tx.plain
@@ -69,12 +70,13 @@ func (tx *lowering) visitPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 			body = tx.restorePlainBudget(body)
 		}
 		params := f.NewNodeList(append([]*ast.Node{f.NewParameterDeclaration(nil, nil, tx.eagerBudget, nil, nil, nil)}, parameters.Nodes...))
-		recur := f.NewFunctionDeclaration(nil, nil, f.NewIdentifier(name+"$recur"), nil, params, nil, nil, body)
+		recurText := tx.freshName(name + "$recur")
+		recur := f.NewFunctionDeclaration(nil, nil, f.NewIdentifier(recurText), nil, params, nil, nil, body)
 		tx.eagerBudget, tx.eagerWeight, tx.eagerEscapes = savedBudget, savedWeight, savedEscapes
 		tx.inEffect, tx.plain = savedEffect, savedPlain
 		register := f.NewPropertyAccessExpression(tx.runtimeMember("$eager"), nil, f.NewIdentifier("register"), ast.NodeFlagsNone)
 		statements = append(statements, recur, f.NewExpressionStatement(f.NewCallExpression(register, nil, nil,
-			f.NewNodeList([]*ast.Node{directName, directName, f.NewIdentifier(name + "$recur")}), ast.NodeFlagsNone)))
+			f.NewNodeList([]*ast.Node{directName, directName, f.NewIdentifier(recurText)}), ast.NodeFlagsNone)))
 	}
 	return f.NewSyntaxList(append(statements, tx.directMarker(node)...))
 }
@@ -87,6 +89,7 @@ func (tx *lowering) visitPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 	f := tx.Factory()
 	name := node.Name().Text()
+	directText, stackText := tx.directName(name), tx.freshName(name+"$stack")
 	savedCallbacks := tx.rawCallbacks
 	tx.rawCallbacks = true
 	effect := tx.visitEffectFunctionDeclaration(node)
@@ -147,7 +150,7 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 	eagerState := tx.runtimeMember("$eager")
 	eagerDepth := f.NewPropertyAccessExpression(eagerState, nil, f.NewIdentifier("depth"), ast.NodeFlagsNone)
 	eagerLimit := f.NewPropertyAccessExpression(eagerState, nil, f.NewIdentifier("limit"), ast.NodeFlagsNone)
-	eagerCall := f.NewCallExpression(f.NewPropertyAccessExpression(f.NewIdentifier(name+"$direct"), nil, f.NewIdentifier("apply"), ast.NodeFlagsNone), nil, nil,
+	eagerCall := f.NewCallExpression(f.NewPropertyAccessExpression(f.NewIdentifier(directText), nil, f.NewIdentifier("apply"), ast.NodeFlagsNone), nil, nil,
 		f.NewNodeList([]*ast.Node{f.NewThisExpression(), f.NewIdentifier("arguments")}), ast.NodeFlagsNone)
 	thunk := f.NewArrowFunction(nil, nil, f.NewNodeList(nil), nil, nil, f.NewToken(ast.KindEqualsGreaterThanToken), eagerCall)
 	sync := f.NewCallExpression(f.NewPropertyAccessExpression(tx.effectName(), nil, f.NewIdentifier("sync"), ast.NodeFlagsNone), nil, nil, f.NewNodeList([]*ast.Node{thunk}), ast.NodeFlagsNone)
@@ -167,10 +170,7 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 
 	tx.rawCallbacks = savedCallbacks
 
-	var modifiers *ast.ModifierList
-	if ast.HasSyntacticModifier(node, ast.ModifierFlagsExport) {
-		modifiers = f.NewModifierList([]*ast.Node{f.NewModifier(ast.KindExportKeyword)})
-	}
+	modifiers, export := tx.variantExport(node, directText)
 	savedEffect, savedPlain, savedRaw := tx.inEffect, tx.plain, tx.rawPlain
 	tx.inEffect, tx.plain = false, true
 	parameters := tx.EmitContext().VisitParameters(node.ParameterList(), tx.Visitor())
@@ -193,7 +193,7 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 	tx.eagerBudget, tx.eagerWeight, tx.eagerEscapes = savedBudget, savedWeight, savedEscapes
 	tx.inEffect, tx.plain, tx.rawPlain, tx.rawCallbacks = savedEffect, savedPlain, savedRaw, savedCallbacks
 
-	raw := f.NewFunctionDeclaration(nil, nil, f.NewIdentifier(name+"$stack"), nil, parameters, nil, nil, rawBody)
+	raw := f.NewFunctionDeclaration(nil, nil, f.NewIdentifier(stackText), nil, parameters, nil, nil, rawBody)
 	call := func(callee *ast.Node, args ...*ast.Node) *ast.Node {
 		return f.NewCallExpression(callee, nil, nil, f.NewNodeList(args), ast.NodeFlagsNone)
 	}
@@ -224,9 +224,10 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 		}
 	} else {
 		heapCall = call(member(f.NewIdentifier(name), "apply"), f.NewThisExpression(), f.NewIdentifier("arguments"))
-		eager := f.NewFunctionDeclaration(nil, nil, f.NewIdentifier(name+"$eager"), nil, parameters, nil, nil, eagerBody)
+		eagerText := tx.freshName(name + "$eager")
+		eager := f.NewFunctionDeclaration(nil, nil, f.NewIdentifier(eagerText), nil, parameters, nil, nil, eagerBody)
 		extra = append(extra, eager)
-		eagerBody = f.NewBlock(f.NewNodeList([]*ast.Node{f.NewReturnStatement(call(member(f.NewIdentifier(name+"$eager"), "apply"), f.NewThisExpression(), f.NewIdentifier("arguments")))}), true)
+		eagerBody = f.NewBlock(f.NewNodeList([]*ast.Node{f.NewReturnStatement(call(member(f.NewIdentifier(eagerText), "apply"), f.NewThisExpression(), f.NewIdentifier("arguments")))}), true)
 		var forwarded []*ast.Node
 		for _, parameter := range node.Parameters() {
 			if ast.IsIdentifier(parameter.Name()) && parameter.Name().Text() == "this" {
@@ -257,15 +258,15 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 			f.NewReturnStatement(call(member(budget, "call"), f.NewNumericLiteral("0", ast.TokenFlagsNone), f.NewArrowFunction(nil, nil, f.NewNodeList(nil), nil, nil, f.NewToken(ast.KindEqualsGreaterThanToken), call(member(tx.effectName(), "runSync"), heapCall)))), nil)
 		recurBody := f.NewBlock(f.NewNodeList(append([]*ast.Node{guard}, eagerBody.Statements()...)), true)
 		recurParams := f.NewNodeList(append([]*ast.Node{f.NewParameterDeclaration(nil, nil, budgetName, nil, nil, nil)}, parameters.Nodes...))
-		recur = f.NewFunctionDeclaration(nil, nil, f.NewIdentifier(name+"$recur"), nil, recurParams, nil, nil, recurBody)
+		recur = f.NewFunctionDeclaration(nil, nil, f.NewIdentifier(tx.freshName(name+"$recur")), nil, recurParams, nil, nil, recurBody)
 		// Every native body preserves the incoming shared state: only
 		// opaque exits publish it, and only heap entry reserves it. An
 		// ordinary direct entry can therefore forward the available
 		// budget without holding it away from nested acyclic helpers.
 		remaining := f.NewBinaryExpression(nil, member(budget, "limit"), nil, f.NewToken(ast.KindMinusToken), depth)
-		invoke := call(f.NewIdentifier(name+"$recur"), append([]*ast.Node{remaining}, args...)...)
+		invoke := call(f.NewIdentifier(tx.freshName(name+"$recur")), append([]*ast.Node{remaining}, args...)...)
 		if usesThis(node.Body()) {
-			invoke = call(member(f.NewIdentifier(name+"$recur"), "call"), append([]*ast.Node{f.NewThisExpression(), remaining}, args...)...)
+			invoke = call(member(f.NewIdentifier(tx.freshName(name+"$recur")), "call"), append([]*ast.Node{f.NewThisExpression(), remaining}, args...)...)
 		}
 		body = f.NewBlock(f.NewNodeList([]*ast.Node{f.NewReturnStatement(invoke)}), true)
 		if tx.hasPlainCallbackCycle(node) {
@@ -280,14 +281,15 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 		finally := f.NewBlock(f.NewNodeList([]*ast.Node{update(ast.KindMinusEqualsToken)}), true)
 		body = f.NewBlock(f.NewNodeList([]*ast.Node{guard, update(ast.KindPlusEqualsToken), f.NewTryStatement(eagerBody, nil, finally)}), true)
 	}
-	direct := f.NewFunctionDeclaration(modifiers, nil, f.NewIdentifier(name+"$direct"), nil, parameters, nil, nil, body)
+	direct := f.NewFunctionDeclaration(modifiers, nil, f.NewIdentifier(directText), nil, parameters, nil, nil, body)
 	tx.EmitContext().SetSourceMapRange(direct, node.Loc)
 	// Register private cross-module entries without mutating the function.
-	statements := append([]*ast.Node{effect, direct, raw}, extra...)
-	registration := []*ast.Node{f.NewIdentifier(name + "$direct"), f.NewIdentifier(name + "$stack")}
+	statements := append(append([]*ast.Node{effect, direct}, export...), raw)
+	statements = append(statements, extra...)
+	registration := []*ast.Node{f.NewIdentifier(directText), f.NewIdentifier(stackText)}
 	if recur != nil {
 		statements = append(statements, recur)
-		registration = append(registration, f.NewIdentifier(name+"$recur"))
+		registration = append(registration, f.NewIdentifier(tx.freshName(name+"$recur")))
 	}
 	statements = append(statements, f.NewExpressionStatement(call(member(budget, "register"), registration...)))
 	return f.NewSyntaxList(append(statements, tx.directMarker(node)...))
@@ -301,13 +303,43 @@ func (tx *lowering) directMarker(node *ast.Node) []*ast.Node {
 	f := tx.Factory()
 	name := node.Name().Text()
 	marker := f.NewElementAccessExpression(f.NewIdentifier(name), nil, tx.runtimeMember("$direct"), ast.NodeFlagsNone)
-	assign := f.NewBinaryExpression(nil, marker, nil, f.NewToken(ast.KindEqualsToken), f.NewIdentifier(name+"$direct"))
+	assign := f.NewBinaryExpression(nil, marker, nil, f.NewToken(ast.KindEqualsToken), f.NewIdentifier(tx.directName(name)))
 	statements := []*ast.Node{f.NewExpressionStatement(assign)}
 	if ast.HasSyntacticModifier(node, ast.ModifierFlagsDefault) {
-		alias := f.NewExportSpecifier(false, f.NewIdentifier(name+"$direct"), f.NewIdentifier("default$direct"))
+		alias := f.NewExportSpecifier(false, f.NewIdentifier(tx.directName(name)), f.NewIdentifier(variantExportName(tx.plan.ownExports, "default")))
 		statements = append(statements, f.NewExportDeclaration(nil, false, f.NewNamedExports(f.NewNodeList([]*ast.Node{alias})), nil, nil))
 	}
 	return statements
+}
+
+// variantExport returns how the $direct variant of node, a plain function
+// declaration, bound to local, is exported: not at all when node is not
+// exported; with an export modifier when local is the name importers read
+// (variantExportName); else by an export of local under that name.
+func (tx *lowering) variantExport(node *ast.Node, local string) (*ast.ModifierList, []*ast.Node) {
+	if !ast.HasSyntacticModifier(node, ast.ModifierFlagsExport) {
+		return nil, nil
+	}
+	f := tx.Factory()
+	exported := variantExportName(tx.plan.ownExports, node.Name().Text())
+	if exported == local {
+		return f.NewModifierList([]*ast.Node{f.NewModifier(ast.KindExportKeyword)}), nil
+	}
+	return nil, []*ast.Node{tx.exportVariantAs(local, exported)}
+}
+
+// exportVariantAs returns the statement that exports the variant bound to
+// local under the name exported: `export { local as exported }`, or, in a
+// file emitted as CommonJS, whose transform finds a local export's value
+// through the checker, which knows no variant, a live binding on exports
+// (defineDirectExports).
+func (tx *lowering) exportVariantAs(local string, exported string) *ast.Node {
+	f := tx.Factory()
+	if tx.commonJS {
+		return tx.defineExport(exported, f.NewIdentifier(local))
+	}
+	alias := f.NewExportSpecifier(false, f.NewIdentifier(local), f.NewIdentifier(exported))
+	return f.NewExportDeclaration(nil, false, f.NewNamedExports(f.NewNodeList([]*ast.Node{alias})), nil, nil)
 }
 
 // visitDirectReference writes the $direct variant in place of node: the
@@ -328,7 +360,7 @@ func (tx *lowering) visitDirectReference(node *ast.Node, ref *directReference) *
 	case node.Kind == ast.KindCallExpression && tx.eagerBudget != nil && tx.plan.fastRefs[ref] && !tx.rawPlain:
 		var callee, lookup *ast.Node
 		if ref.specifier == nil && ref.access == nil {
-			callee = f.NewIdentifier(ref.name[:len(ref.name)-len("$direct")] + "$recur")
+			callee = f.NewIdentifier(tx.freshName(ref.name + "$recur"))
 		} else {
 			callee = f.NewUniqueName("recur")
 			tx.EmitContext().AddVariableDeclaration(callee)
@@ -388,15 +420,15 @@ func (tx *lowering) directExpression(node *ast.Node, ref *directReference) *ast.
 	switch {
 	case ref.access != nil:
 		receiver := tx.Visitor().VisitNode(ref.access.Expression())
-		expression = f.NewPropertyAccessExpression(receiver, nil /*questionDotToken*/, f.NewIdentifier(ref.name), ast.NodeFlagsNone)
+		expression = f.NewPropertyAccessExpression(receiver, nil /*questionDotToken*/, f.NewIdentifier(ref.property), ast.NodeFlagsNone)
 	case ref.specifier != nil && tx.commonJS:
 		expression = tx.importedVariant(ref.specifier)
 	default:
-		expression = f.NewIdentifier(ref.name)
+		expression = f.NewIdentifier(tx.directName(ref.name))
 	}
 	if tx.rawPlain && tx.plan.rawRefs[ref] {
 		if ref.specifier == nil && ref.access == nil {
-			expression = f.NewIdentifier(ref.name[:len(ref.name)-len("$direct")] + "$stack")
+			expression = f.NewIdentifier(tx.freshName(ref.name + "$stack"))
 		} else {
 			expression = tx.eagerEntry("stack", expression)
 		}
@@ -413,22 +445,20 @@ func (tx *lowering) directExpression(node *ast.Node, ref *directReference) *ast.
 // names through the checker, which knows nothing of the variants import an ES
 // module gets (visitImportWithDirectVariants): it would rewrite double$direct
 // to the import's own binding, m_1.double. This is the property it writes for
-// that binding, with the variant's name.
+// that binding, with the name the module exports the variant under.
 func (tx *lowering) importedVariant(binding *ast.Node) *ast.Node {
 	f := tx.Factory()
 	module := f.NewGeneratedNameForNode(ast.FindAncestor(binding, ast.IsImportDeclaration))
-	if ast.IsImportClause(binding) {
-		return f.NewPropertyAccessExpression(module, nil /*questionDotToken*/, f.NewIdentifier("default$direct"), ast.NodeFlagsNone)
+	property := tx.plan.variantImports[binding]
+	if ast.IsImportSpecifier(binding) && ast.IsStringLiteral(binding.AsImportSpecifier().PropertyNameOrName()) {
+		return f.NewElementAccessExpression(module, nil /*questionDotToken*/, f.NewStringLiteral(property, ast.TokenFlagsNone), ast.NodeFlagsNone)
 	}
-	imported := binding.AsImportSpecifier().PropertyNameOrName()
-	if ast.IsStringLiteral(imported) {
-		return f.NewElementAccessExpression(module, nil /*questionDotToken*/, f.NewStringLiteral(imported.Text()+"$direct", ast.TokenFlagsNone), ast.NodeFlagsNone)
-	}
-	return f.NewPropertyAccessExpression(module, nil /*questionDotToken*/, f.NewIdentifier(imported.Text()+"$direct"), ast.NodeFlagsNone)
+	return f.NewPropertyAccessExpression(module, nil /*questionDotToken*/, f.NewIdentifier(property), ast.NodeFlagsNone)
 }
 
 // visitImportWithDirectVariants keeps an import of plain functions and adds
-// one that brings in their $direct variants:
+// one that brings in their $direct variants, each under its fresh local name
+// (hygiene.go):
 //
 //	import { double } from "./math.js"
 //	import { double$direct } from "./math.js"
@@ -437,19 +467,16 @@ func (tx *lowering) visitImportWithDirectVariants(node *ast.Node) *ast.Node {
 	visited := tx.visitImportOrExport(node)
 	var specifiers []*ast.Node
 	for _, specifier := range tx.plan.directImports[node] {
-		local := specifier.Name().Text()
+		local := tx.directName(specifier.Name().Text())
+		property := tx.plan.variantImports[specifier]
 		var propertyName *ast.Node
-		if ast.IsImportClause(specifier) {
-			propertyName = f.NewIdentifier("default$direct")
-		} else if property := specifier.AsImportSpecifier().PropertyName; property != nil {
-			imported := property.Text()
-			if ast.IsStringLiteral(property) {
-				propertyName = f.NewStringLiteral(imported+"$direct", ast.TokenFlagsNone)
-			} else if imported != local {
-				propertyName = f.NewIdentifier(imported + "$direct")
-			}
+		switch {
+		case ast.IsImportSpecifier(specifier) && ast.IsStringLiteral(specifier.AsImportSpecifier().PropertyNameOrName()):
+			propertyName = f.NewStringLiteral(property, ast.TokenFlagsNone)
+		case property != local:
+			propertyName = f.NewIdentifier(property)
 		}
-		specifiers = append(specifiers, f.NewImportSpecifier(false /*isTypeOnly*/, propertyName, f.NewIdentifier(local+"$direct")))
+		specifiers = append(specifiers, f.NewImportSpecifier(false /*isTypeOnly*/, propertyName, f.NewIdentifier(local)))
 	}
 	clause := f.NewImportClause(ast.KindUnknown, nil /*name*/, f.NewNamedImports(f.NewNodeList(specifiers)))
 	specifier := f.NewStringLiteral(tx.outputSpecifier(node.ModuleSpecifier()).Text(), ast.TokenFlagsNone)
@@ -472,13 +499,20 @@ func (tx *lowering) visitExportWithDirectVariants(node *ast.Node) *ast.Node {
 		if local == nil {
 			local = specifier.Name()
 		}
-		name := func(node *ast.Node) *ast.Node {
-			if ast.IsStringLiteral(node) {
-				return f.NewStringLiteral(node.Text()+"$direct", ast.TokenFlagsNone)
-			}
-			return f.NewIdentifier(node.Text() + "$direct")
+		// The variant is the module specifier's export, or a binding of this
+		// file: a plain function's variant or an imported one.
+		localVariant, ok := tx.plan.variantSources[specifier]
+		if !ok {
+			localVariant = tx.directName(local.Text())
 		}
-		specifiers = append(specifiers, f.NewExportSpecifier(false /*isTypeOnly*/, name(local), name(specifier.Name())))
+		name := func(node *ast.Node, text string) *ast.Node {
+			if ast.IsStringLiteral(node) {
+				return f.NewStringLiteral(text, ast.TokenFlagsNone)
+			}
+			return f.NewIdentifier(text)
+		}
+		exported := variantExportName(tx.plan.ownExports, specifier.Name().Text())
+		specifiers = append(specifiers, f.NewExportSpecifier(false /*isTypeOnly*/, name(local, localVariant), name(specifier.Name(), exported)))
 	}
 	decl := visited.AsExportDeclaration()
 	variants := f.NewExportDeclaration(nil /*modifiers*/, false /*isTypeOnly*/, f.NewNamedExports(f.NewNodeList(specifiers)), decl.ModuleSpecifier, decl.Attributes)
@@ -509,19 +543,27 @@ func (tx *lowering) defineDirectExports(node *ast.Node) []*ast.Node {
 			if local == nil {
 				local = specifier.Name()
 			}
-			value = f.NewIdentifier(local.Text() + "$direct")
+			value = f.NewIdentifier(tx.directName(local.Text()))
 		}
-		getter := f.NewArrowFunction(nil /*modifiers*/, nil /*typeParameters*/, f.NewNodeList(nil), nil /*type*/, nil /*fullSignature*/, f.NewToken(ast.KindEqualsGreaterThanToken), value)
-		descriptor := f.NewObjectLiteralExpression(f.NewNodeList([]*ast.Node{
-			f.NewPropertyAssignment(nil /*modifiers*/, f.NewIdentifier("enumerable"), nil /*postfixToken*/, nil /*typeNode*/, f.NewKeywordExpression(ast.KindTrueKeyword)),
-			f.NewPropertyAssignment(nil /*modifiers*/, f.NewIdentifier("get"), nil /*postfixToken*/, nil /*typeNode*/, getter),
-		}), false /*multiLine*/)
-		define := f.NewPropertyAccessExpression(f.NewIdentifier("Object"), nil /*questionDotToken*/, f.NewIdentifier("defineProperty"), ast.NodeFlagsNone)
-		name := f.NewStringLiteral(specifier.Name().Text()+"$direct", ast.TokenFlagsNone)
-		call := f.NewCallExpression(define, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{f.NewIdentifier("exports"), name, descriptor}), ast.NodeFlagsNone)
-		statements = append(statements, f.NewExpressionStatement(call))
+		statements = append(statements, tx.defineExport(variantExportName(tx.plan.ownExports, specifier.Name().Text()), value))
 	}
 	return statements
+}
+
+// defineExport returns, for a file emitted as CommonJS, the statement that
+// defines name on exports as a live binding of value:
+//
+//	Object.defineProperty(exports, "name", { enumerable: true, get: () => value })
+func (tx *lowering) defineExport(name string, value *ast.Node) *ast.Node {
+	f := tx.Factory()
+	getter := f.NewArrowFunction(nil /*modifiers*/, nil /*typeParameters*/, f.NewNodeList(nil), nil /*type*/, nil /*fullSignature*/, f.NewToken(ast.KindEqualsGreaterThanToken), value)
+	descriptor := f.NewObjectLiteralExpression(f.NewNodeList([]*ast.Node{
+		f.NewPropertyAssignment(nil /*modifiers*/, f.NewIdentifier("enumerable"), nil /*postfixToken*/, nil /*typeNode*/, f.NewKeywordExpression(ast.KindTrueKeyword)),
+		f.NewPropertyAssignment(nil /*modifiers*/, f.NewIdentifier("get"), nil /*postfixToken*/, nil /*typeNode*/, getter),
+	}), false /*multiLine*/)
+	define := f.NewPropertyAccessExpression(f.NewIdentifier("Object"), nil /*questionDotToken*/, f.NewIdentifier("defineProperty"), ast.NodeFlagsNone)
+	call := f.NewCallExpression(define, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{f.NewIdentifier("exports"), f.NewStringLiteral(name, ast.TokenFlagsNone), descriptor}), ast.NodeFlagsNone)
+	return f.NewExpressionStatement(call)
 }
 
 // visitExportDefaultWithDirectVariant keeps `export default double` and
@@ -538,8 +580,12 @@ func (tx *lowering) visitExportDefaultWithDirectVariant(node *ast.Node) *ast.Nod
 	f := tx.Factory()
 	visited := tx.Visitor().VisitEachChild(node)
 	variant := tx.directExpression(node.AsExportAssignment().Expression, tx.plan.directDefaults[node])
-	declaration := f.NewVariableDeclaration(f.NewIdentifier("default$direct"), nil /*exclamationToken*/, nil /*typeNode*/, variant)
+	local, exported := tx.freshName("default$direct"), variantExportName(tx.plan.ownExports, "default")
+	declaration := f.NewVariableDeclaration(f.NewIdentifier(local), nil /*exclamationToken*/, nil /*typeNode*/, variant)
 	list := f.NewVariableDeclarationList(f.NewNodeList([]*ast.Node{declaration}), ast.NodeFlagsConst)
+	if local != exported {
+		return f.NewSyntaxList([]*ast.Node{visited, f.NewVariableStatement(nil /*modifiers*/, list), tx.exportVariantAs(local, exported)})
+	}
 	export := f.NewVariableStatement(f.NewModifierList([]*ast.Node{f.NewModifier(ast.KindExportKeyword)}), list)
 	return f.NewSyntaxList([]*ast.Node{visited, export})
 }

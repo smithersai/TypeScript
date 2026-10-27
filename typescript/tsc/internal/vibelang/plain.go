@@ -223,7 +223,8 @@ func isUsingList(list *ast.Node) bool {
 // directReference describes how code in the callee expression's file reaches
 // the $direct variant of a plain function.
 type directReference struct {
-	name      string    // the identifier to write in place of the reference, such as "double$direct"
+	name      string    // the source name the reference reaches the function by: its own name, the local name of its import, or the member name after a namespace
+	property  string    // through an import or a namespace, the name the module exports the variant under, such as "double$direct" (variantExportName)
 	access    *ast.Node // for M.double through a namespace import, the access expression
 	specifier *ast.Node // for an import, the named specifier or default clause that must bring the variant in
 }
@@ -243,7 +244,7 @@ func (a *analyzer) directReferenceOf(node *ast.Node, fn *ast.Node) *directRefere
 		if symbol.Flags()&ast.SymbolFlagsAlias == 0 {
 			// An exported declaration's name resolves to its local symbol.
 			if slices.Contains(symbol.Declarations(), fn) {
-				return &directReference{name: node.Text() + "$direct"}
+				return &directReference{name: node.Text()}
 			}
 			return nil
 		}
@@ -252,7 +253,7 @@ func (a *analyzer) directReferenceOf(node *ast.Node, fn *ast.Node) *directRefere
 			// same clause also contains named or namespace bindings.
 			valueImport := ast.IsImportSpecifier(d) && !d.AsImportSpecifier().IsTypeOnly || ast.IsImportClause(d) && !d.AsImportClause().IsTypeOnly()
 			if valueImport && a.declares(a.checker.GetAliasedSymbol(symbol), fn) {
-				return &directReference{name: node.Text() + "$direct", specifier: d}
+				return &directReference{name: node.Text(), property: a.importedVariantName(d), specifier: d}
 			}
 		}
 	case ast.IsPropertyAccessExpression(node) && ast.IsIdentifier(node.Expression()) && ast.IsIdentifier(node.Name()):
@@ -261,10 +262,26 @@ func (a *analyzer) directReferenceOf(node *ast.Node, fn *ast.Node) *directRefere
 			return nil
 		}
 		if a.declares(a.checker.GetSymbolAtLocation(node.Name()), fn) {
-			return &directReference{name: node.Name().Text() + "$direct", access: node}
+			exports := moduleExportNames(a.checker, a.checker.GetAliasedSymbol(namespace))
+			return &directReference{name: node.Name().Text(), property: variantExportName(exports, node.Name().Text()), access: node}
 		}
 	}
 	return nil
+}
+
+// importedVariantName returns the name under which the module that binding,
+// an import specifier or default import clause, imports from exports the
+// $direct variant of the export that binding imports (variantExportName).
+func (a *analyzer) importedVariantName(binding *ast.Node) string {
+	name := "default"
+	if ast.IsImportSpecifier(binding) {
+		name = binding.AsImportSpecifier().PropertyNameOrName().Text()
+	}
+	var module *ast.Symbol
+	if declaration := ast.FindAncestor(binding, ast.IsImportDeclaration); declaration != nil {
+		module = a.checker.ResolveExternalModuleName(declaration.ModuleSpecifier(), nil /*importAttributesType*/)
+	}
+	return variantExportName(moduleExportNames(a.checker, module), name)
 }
 
 // declares reports whether symbol, or the symbol it aliases, declares fn.
@@ -340,10 +357,13 @@ type plainPlan struct {
 	directExports   map[*ast.Node][]*ast.Node      // named export declarations, and their plain-function specifiers
 	exportedImports map[*ast.Node]*ast.Node        // local export specifiers of an imported plain function, and the import binding they name
 	directDefaults  map[*ast.Node]*directReference // export default assignments of a plain function, and how they reach its variant
+	variantImports  map[*ast.Node]string           // import specifiers and default clauses that bring in a variant, and the name their module exports it under
+	variantSources  map[*ast.Node]string           // export specifiers with a module specifier, and the name their module exports the variant under
+	ownExports      map[string]bool                // the names the file exports, which its variants' export names avoid (variantExportName)
 }
 
 func newPlainPlan() plainPlan {
-	return plainPlan{budgetDirects: map[*ast.Node]bool{}, directs: map[*ast.Node]bool{}, cyclicDirects: map[*ast.Node]bool{}, cycleRefs: map[*ast.Node]*directReference{}, rawRefs: map[*directReference]bool{}, fastRefs: map[*directReference]bool{}, directRefs: map[*ast.Node]*directReference{}, directImports: map[*ast.Node][]*ast.Node{}, directExports: map[*ast.Node][]*ast.Node{}, exportedImports: map[*ast.Node]*ast.Node{}, directDefaults: map[*ast.Node]*directReference{}}
+	return plainPlan{budgetDirects: map[*ast.Node]bool{}, directs: map[*ast.Node]bool{}, cyclicDirects: map[*ast.Node]bool{}, cycleRefs: map[*ast.Node]*directReference{}, rawRefs: map[*directReference]bool{}, fastRefs: map[*directReference]bool{}, directRefs: map[*ast.Node]*directReference{}, directImports: map[*ast.Node][]*ast.Node{}, directExports: map[*ast.Node][]*ast.Node{}, exportedImports: map[*ast.Node]*ast.Node{}, directDefaults: map[*ast.Node]*directReference{}, variantImports: map[*ast.Node]string{}, variantSources: map[*ast.Node]string{}}
 }
 
 // planPlain records how the lowering treats node with respect to plain
@@ -372,7 +392,7 @@ func (p *plainPlan) planPlain(a *analyzer, node *ast.Node) {
 			p.cycleRefs[node] = ref
 			p.rawRefs[ref] = true
 			p.fastRefs[ref] = plainBudgetParameters(esFunctionOf(a.checker, ast.GetInvokedExpression(node)))
-			p.importVariant(ref.specifier)
+			p.importVariant(a, ref.specifier)
 		}
 		return
 	case isInvocation(node):
@@ -399,18 +419,20 @@ func (p *plainPlan) planPlain(a *analyzer, node *ast.Node) {
 		}
 	}
 	p.directRefs[node] = ref
-	p.importVariant(ref.specifier)
+	p.importVariant(a, ref.specifier)
 }
 
 // importVariant records that binding, an import specifier or default import
-// clause, or nil, must bring in its $direct variant.
-func (p *plainPlan) importVariant(binding *ast.Node) {
+// clause, or nil, must bring in its $direct variant, and the name its module
+// exports the variant under.
+func (p *plainPlan) importVariant(a *analyzer, binding *ast.Node) {
 	if binding == nil {
 		return
 	}
 	declaration := ast.FindAncestor(binding, ast.IsImportDeclaration)
 	if declaration != nil && !slices.Contains(p.directImports[declaration], binding) {
 		p.directImports[declaration] = append(p.directImports[declaration], binding)
+		p.variantImports[binding] = a.importedVariantName(binding)
 	}
 }
 
@@ -429,7 +451,7 @@ func (p *plainPlan) planPlainDefault(a *analyzer, node *ast.Node) {
 	}
 	if ref := a.directReferenceOf(assignment.Expression, fn); ref != nil {
 		p.directDefaults[node] = ref
-		p.importVariant(ref.specifier)
+		p.importVariant(a, ref.specifier)
 	}
 }
 
@@ -458,6 +480,12 @@ func (p *plainPlan) planPlainExports(a *analyzer, node *ast.Node) {
 		}
 		p.directExports[node] = append(p.directExports[node], specifier)
 		if decl.ModuleSpecifier != nil {
+			local := specifier.AsExportSpecifier().PropertyName
+			if local == nil {
+				local = specifier.Name()
+			}
+			module := a.checker.ResolveExternalModuleName(decl.ModuleSpecifier, nil /*importAttributesType*/)
+			p.variantSources[specifier] = variantExportName(moduleExportNames(a.checker, module), local.Text())
 			continue
 		}
 		// A local export can refer to an imported binding. Its direct
@@ -467,7 +495,7 @@ func (p *plainPlan) planPlainExports(a *analyzer, node *ast.Node) {
 				continue
 			}
 			p.exportedImports[specifier] = imported
-			p.importVariant(imported)
+			p.importVariant(a, imported)
 		}
 	}
 }

@@ -1,0 +1,4 @@
+// A module that exports a plain function beside a source export spelled like
+// its variant: importers read the variant under another name.
+export function inc(n: number) { return n + 1 }
+export function inc$direct(n: number): number { return n + 100 }

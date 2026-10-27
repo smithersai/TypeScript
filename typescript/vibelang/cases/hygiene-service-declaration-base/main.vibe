@@ -1,0 +1,8 @@
+// A service's declaration file declares a private constant for its key's
+// static side. Its name is fresh, so an export spelled like it keeps its own
+// declaration, and TypeScript accepts the file. run.mjs compiles
+// consumer/src/main.ts against out/main.d.ts and runs it.
+export const Users_base = 123
+export service Users { name: string }
+
+export function name() { return Users().name }

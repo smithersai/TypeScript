@@ -73,6 +73,7 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 	}
 	r.WithChecker(func(c *checker.Checker) {
 		p.prelude = preludeUses(c, file)
+		p.ownExports = moduleExportNames(c, file.Symbol)
 		a := analyzerFor(c)
 		var visit func(node *ast.Node) bool
 		visit = func(node *ast.Node) bool {

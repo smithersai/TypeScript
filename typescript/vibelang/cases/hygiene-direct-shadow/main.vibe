@@ -1,0 +1,22 @@
+// expect-result: [[3,102],[3,102],[3,102,3,4]]
+// A plain function compiles to a $direct variant that VibeLang callers call.
+// Its name is the compiler's, so a source binding spelled like it, in any
+// scope, keeps its own meaning, and the call keeps calling the function.
+import { inc, inc$direct } from "./lib.vibe"
+import * as Lib from "./lib.vibe"
+
+function add(n: number) { return n + 1 }
+
+// A local spelled like add's variant: add(2) still calls add.
+function shadow() {
+  const add$direct = (n: number): number => n + 100
+  return [add(2), add$direct(2)]
+}
+
+// A function of its own beside twice, in the same scope.
+function twice(n: number) { return n + 1 }
+function twice$direct(n: number): number { return n + 100 }
+
+export function main() {
+  return [shadow(), [twice(2), twice$direct(2)], [inc(2), inc$direct(2), Lib.inc(2), [3].map(inc)[0]]]
+}

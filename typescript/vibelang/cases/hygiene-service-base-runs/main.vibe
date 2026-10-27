@@ -1,0 +1,14 @@
+// A service beside a constant spelled like its declaration file's key base:
+// the program runs, and the declaration file declares each name once, so
+// TypeScript code can provide the service through it. run.mjs runs main,
+// then compiles consumer/src/main.ts against out/main.d.ts and runs it.
+export const S_base = 1
+export service S { value: string }
+
+export function read() { return S().value }
+
+export function main() {
+  provide S = { value: "ok" } {
+    return [read(), S_base]
+  }
+}

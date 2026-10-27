@@ -1,0 +1,26 @@
+// expect-result: [["number",true],["number",true],["number",true]]
+// A try, catch or finally block of an Effect function runs in a generator
+// named after the function, such as work$try. That name binds nothing the
+// source can see: locals spelled like it keep their values.
+error Oops
+
+function work() {
+  const work$try = 17
+  const work$catch = 19
+  const work$finally = 23
+  const seen: [string, boolean][] = []
+  try {
+    seen.push([typeof work$try, work$try === 17])
+    sleep("1 millis")
+    throw new Oops()
+  } catch (e) {
+    seen.push([typeof work$catch, work$catch === 19])
+  } finally {
+    seen.push([typeof work$finally, work$finally === 23])
+  }
+  return seen
+}
+
+export function main() {
+  return work()
+}

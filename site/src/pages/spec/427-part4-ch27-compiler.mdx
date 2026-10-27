@@ -82,6 +82,15 @@ Calls and operands keep source order. `throw` adds an expected failure; `try`,
 `catch`, and `finally` become regions with completion records for jumps (D13,
 D15, D46).
 
+Names the lowering introduces are hygienic. A plain function's `$direct`,
+`$recur`, `$stack` and `$eager` variants, a region's generator name such as
+`work$try`, and a declaration file's `Users_base` are spelled by no identifier
+of the file: the name takes a `$1`, `$2`, ... suffix when the source spells it.
+So no source binding captures generated code, and generated code captures no
+source binding. A module that exports a name spelled like a variant, such as
+`double$direct` beside a plain `double`, exports the variant as
+`double$direct$1`, and its importers compute the same name from its exports.
+
 #### Settings belong to the source package
 
 A `.vibe` file uses the VibeLang settings of the package that owns it (D297): trusted packages, diagnostic categories, and tracing. The nearest `package.json` that names a package identifies the owner. Files in the compiled project's package use the compiled tsconfig's settings, including changes in a test config that extends the package's config. Files in another package use the nearest `tsconfig.json` above them, including its extended settings. If none exists, they use the compiled project's settings.

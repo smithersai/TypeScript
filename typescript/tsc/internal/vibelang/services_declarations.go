@@ -61,9 +61,10 @@ func serviceDeclarations(resolver printer.EmitResolver, file *ast.SourceFile) fu
 	return func(declarations *ast.SourceFile) *ast.SourceFile {
 		var statements []*ast.Node
 		changed := false
+		names := &freshNames{file: file}
 		for _, statement := range declarations.Statements.Nodes {
 			if class := ec.MostOriginal(statement); ast.IsClassDeclaration(statement) && keys[class] != "" {
-				statements = append(statements, serviceDeclaration(ec, statement, class, keys[class])...)
+				statements = append(statements, serviceDeclaration(ec, names, statement, class, keys[class])...)
 				changed = true
 				continue
 			}
@@ -82,7 +83,9 @@ func serviceDeclarations(resolver printer.EmitResolver, file *ast.SourceFile) fu
 // class the declaration transform wrote for class, becomes an interface for
 // its instance members and the brand, a `<Name>_base` constant typed with the
 // runtime's key type, and a class that extends it with the static members.
-func serviceDeclaration(ec *printer.EmitContext, declared, class *ast.Node, key string) []*ast.Node {
+// The constant's name is fresh (hygiene.go): Users_base$1 when the source
+// spells Users_base.
+func serviceDeclaration(ec *printer.EmitContext, names *freshNames, declared, class *ast.Node, key string) []*ast.Node {
 	f := ec.Factory
 	name := declared.Name().Text()
 	isDefault := ast.HasSyntacticModifier(declared, ast.ModifierFlagsDefault)
@@ -126,7 +129,7 @@ func serviceDeclaration(ec *printer.EmitContext, declared, class *ast.Node, key 
 		keyType = "ReferenceKey"
 		keyArguments = keyArguments[len(keyArguments)-1:]
 	}
-	base := name + "_base"
+	base := names.freshName(name + "_base")
 	baseType := f.NewImportTypeNode(false /*isTypeOf*/, f.NewLiteralTypeNode(f.NewStringLiteral("vibelang-runtime", ast.TokenFlagsNone)), nil /*attributes*/, f.NewIdentifier(keyType), f.NewNodeList(keyArguments))
 	baseDeclaration := f.NewVariableStatement(
 		f.NewModifierList([]*ast.Node{f.NewModifier(ast.KindDeclareKeyword)}),

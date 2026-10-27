@@ -63,6 +63,9 @@ type lowering struct {
 	// functions, which a generator the lowering introduces cannot bind
 	// (frames_lower.go).
 	frames frameReferences
+
+	// fresh names the bindings the lowering introduces (hygiene.go).
+	fresh freshNames
 }
 
 func newLowering(opts *transformers.TransformOptions, file *ast.SourceFile) *transformers.Transformer {
@@ -72,6 +75,7 @@ func newLowering(opts *transformers.TransformOptions, file *ast.SourceFile) *tra
 	tx := &lowering{
 		plan:     planFile(opts.EmitResolver, file),
 		frames:   findFrameReferences(file),
+		fresh:    freshNames{file: file},
 		commonJS: opts.GetEmitModuleFormatOfFile != nil && opts.GetEmitModuleFormatOfFile(file) == core.ModuleKindCommonJS,
 	}
 	return tx.NewTransformer(tx.visit, opts.Context)

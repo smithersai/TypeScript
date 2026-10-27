@@ -402,7 +402,7 @@ func (tx *lowering) clauseFunction(r *region, clause handleClause, state *clause
 	block.Loc = clause.block.Loc
 	var name *ast.Node
 	if tx.frame.name != "" {
-		name = f.NewIdentifier(tx.frame.name + "$" + clause.name)
+		name = f.NewIdentifier(tx.freshName(tx.frame.name + "$" + clause.name)) // fresh, as a region's (regionFunction)
 	}
 	rest := f.NewParameterDeclaration(nil /*modifiers*/, f.NewToken(ast.KindDotDotDotToken), args, nil /*questionToken*/, nil /*typeNode*/, nil /*initializer*/)
 	generator := f.NewFunctionExpression(nil /*modifiers*/, f.NewToken(ast.KindAsteriskToken), name, nil /*typeParameters*/, f.NewNodeList([]*ast.Node{rest}), nil /*type*/, nil /*fullSignature*/, block)

@@ -1,0 +1,16 @@
+// expect-result: [[7,7],[1,2]]
+// A parameter spelled like a plain function's variant does not capture the
+// call of the function, and a function spelled like another's variant is a
+// function of its own.
+type Getter = () => number
+
+function original() { return 7 }
+function plain(f: Getter) { return original() }
+function shadowed(original$direct: Getter) { return original() }
+
+function ordinary() { return 1 }
+function ordinary$direct() { return 2 }
+
+export function main() {
+  return [[plain(() => 99), shadowed(() => 99)], [ordinary(), ordinary$direct()]]
+}

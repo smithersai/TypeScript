@@ -1,0 +1,18 @@
+// expect-result: [42,9,42,15,19]
+// Module-level bindings spelled like a plain function's variants: answer's
+// $direct and sum's $recur. They neither collide with the variants nor
+// capture the calls of answer and sum.
+function answer() { return 42 }
+const answer$direct = 9
+
+function sum(n: number): number!! { return n === 0 ? 0 : n + sum(n - 1) }
+const sum$recur = 19
+
+function shadowed() {
+  const answer$direct = () => 9
+  return answer()
+}
+
+export function main() {
+  return [answer(), answer$direct, shadowed(), sum(5), sum$recur]
+}
