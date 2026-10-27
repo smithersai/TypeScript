@@ -1,10 +1,14 @@
 // Compile a consumer of the experimental services against the package exports and emitted .d.ts files.
 import * as Effect from "effect/Effect"
 import type * as Layer from "effect/Layer"
+import type * as Option from "effect/Option"
 import type { PlatformError } from "effect/PlatformError"
-import { Process } from "vibelang-runtime/experimental"
+import type * as Scope from "effect/Scope"
+import { Locks, Process } from "vibelang-runtime/experimental"
+import { Locks as LocksModule } from "vibelang-runtime/experimental/Locks"
+import { BrowserLocks, BrowserServices } from "vibelang-runtime/experimental/platform-browser"
 import { BunProcess, BunServices } from "vibelang-runtime/experimental/platform-bun"
-import { NodeProcess, NodeServices } from "vibelang-runtime/experimental/platform-node"
+import { NodeLocks, NodeProcess, NodeServices } from "vibelang-runtime/experimental/platform-node"
 import { Process as ProcessModule } from "vibelang-runtime/experimental/Process"
 
 const host = Effect.service(Process.Process)
@@ -22,4 +26,12 @@ const processLayers: ReadonlyArray<Layer.Layer<Process.Process>> = [
 ]
 const sameKey: typeof Process.Process = ProcessModule
 
-void [pid, platform, memory, killed, running, failing, processLayers, sameKey]
+const locks = Effect.service(Locks.Locks)
+const held: Effect.Effect<Locks.Held, PlatformError, Locks.Locks | Scope.Scope> = Effect.flatMap(locks, (locks) => locks.hold("a", { steal: true }))
+const tried: Effect.Effect<Option.Option<Locks.Held>, PlatformError, Locks.Locks | Scope.Scope> = Effect.flatMap(locks, (locks) => locks.tryHold("a"))
+const snapshot: Effect.Effect<Locks.LockSnapshot, PlatformError, Locks.Locks> = Effect.flatMap(locks, (locks) => locks.query)
+const lost: Effect.Effect<void, PlatformError, Locks.Locks | Scope.Scope> = Effect.flatMap(held, (held) => held.lost)
+const lockLayers: ReadonlyArray<Layer.Layer<Locks.Locks>> = [BrowserLocks.layer, NodeLocks.layer, BrowserServices.layer, Locks.layerTest()]
+const overLockManager: Locks.Locks = Locks.make(navigator.locks)
+const sameLocksKey: typeof Locks.Locks = LocksModule
+void [pid, platform, memory, killed, running, failing, processLayers, sameKey, held, tried, snapshot, lost, lockLayers, overLockManager, sameLocksKey]

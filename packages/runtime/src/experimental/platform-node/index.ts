@@ -9,5 +9,6 @@
  */
 export * as NodeCrypto from "./NodeCrypto.js"
 export * as NodeFileSystem from "./NodeFileSystem.js"
+export * as NodeLocks from "./NodeLocks.js"
 export * as NodeProcess from "./NodeProcess.js"
 export * as NodeServices from "./NodeServices.js"

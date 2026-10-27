@@ -1,5 +1,6 @@
 /**
- * The Bun platform bundle with the `Experimental` services (D313).
+ * The Bun platform bundle with the `Experimental` services (D313). Bun has
+ * no Web Locks, so it has no `Locks` layer.
  *
  * @experimental
  * @since 0.0.11

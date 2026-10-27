@@ -1,5 +1,7 @@
 /**
  * The Node platform bundle with the `Experimental` services (D313).
+ * `Locks` is left out: Node.js's locks coordinate one process's threads,
+ * not processes, so a program provides `NodeLocks.layer` itself.
  *
  * @experimental
  * @since 0.0.11

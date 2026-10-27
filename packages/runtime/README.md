@@ -162,19 +162,23 @@ platform API (D313), one module per service, each also a subpath:
 `vibelang-runtime/experimental/FileSystem` (Effect's `FileSystem` plus
 `access` with `executable`, `open` with `nonBlocking` and `File.chmod`),
 `vibelang-runtime/experimental/Crypto` (Effect's `Crypto` plus `hmac`, `sign`
-and `verify`) and `vibelang-runtime/experimental/Process` (the process id,
-platform, host name and other facts, `kill` and `isRunning`). Each service
-has its own key; `FileSystem` and `Crypto` are supersets of Effect's
-interfaces. The layers are in `vibelang-runtime/experimental/platform-node`
-(`NodeServices`, `NodeFileSystem`, `NodeCrypto`, `NodeProcess`), `-bun`
+and `verify`), `vibelang-runtime/experimental/Process` (the process id,
+platform, host name and other facts, `kill` and `isRunning`) and
+`vibelang-runtime/experimental/Locks` (Web Locks: `hold`, `tryHold` and
+`query`). Each service has its own key; `FileSystem` and `Crypto` are
+supersets of Effect's interfaces. The layers are in
+`vibelang-runtime/experimental/platform-node` (`NodeServices`,
+`NodeFileSystem`, `NodeCrypto`, `NodeProcess`, `NodeLocks`), `-bun`
 (`BunServices`, `BunFileSystem`, `BunCrypto`, `BunProcess`) and `-browser`
-(`BrowserCrypto`). A layer of a service that extends Effect's provides the
-experimental service and Effect's service of the same name from one
-implementation, and `NodeServices` and `BunServices` are Effect's bundles
-plus the experimental services. Install the matching `@effect/platform-*`
-package, an optional peer dependency. The platform-neutral modules import
-only `effect`, and the service keys are pure, so a program that does not use
-them bundles none of them.
+(`BrowserServices`, `BrowserCrypto`, `BrowserLocks`). A layer of a service
+that extends Effect's provides the experimental service and Effect's service
+of the same name from one implementation. `NodeServices` and `BunServices`
+are Effect's bundles plus `FileSystem`, `Crypto` and `Process`;
+`BrowserServices` provides `Crypto` and `Locks`; `NodeLocks`, which locks
+within one process only, is in no bundle. Install the matching
+`@effect/platform-*` package, an optional peer dependency. The
+platform-neutral modules import only `effect`, and the service keys are pure,
+so a program that does not use them bundles none of them.
 
 ## Fast calls without types
 
