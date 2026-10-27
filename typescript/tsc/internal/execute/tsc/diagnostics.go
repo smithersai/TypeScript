@@ -175,7 +175,9 @@ func CreateWatchStatusReporter(sys System, locale locale.Locale, options *core.C
 			testing.OnWatchStatusReportStart()
 			defer testing.OnWatchStatusReportEnd()
 		}
-		diagnosticwriter.TryClearScreen(writer, writerDiagnostic, options)
+		if sys.WriteOutputIsTTY() {
+			diagnosticwriter.TryClearScreen(writer, writerDiagnostic, options)
+		}
 		writeStatus(writer, sys.Now().Format("03:04:05 PM"), writerDiagnostic, formatOpts)
 		fmt.Fprint(writer, formatOpts.NewLine, formatOpts.NewLine)
 	}
