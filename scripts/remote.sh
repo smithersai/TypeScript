@@ -49,6 +49,16 @@ rsync -a --delete -e "$SSH" \
 	--exclude '/packages/compiler/native' --exclude '*.vsix' --exclude '*.tgz' --exclude '/.cache' --exclude '/dist-npm' --exclude '.vibe' \
 	"$root/" "$HOST:$dest/"
 
+# The excludes above drop build outputs, but some cases track fixtures inside
+# node_modules or dist (symlinked packages, for one). Send every tracked file
+# those excludes would drop, keeping symlinks as symlinks.
+tracked=$(mktemp)
+(cd "$root" && jj file list) | grep -E '(^|/)(node_modules|dist)(/|$)' > "$tracked" || true
+if [ -s "$tracked" ]; then
+	rsync -a -e "$SSH" --files-from="$tracked" "$root/" "$HOST:$dest/"
+fi
+rm -f "$tracked"
+
 # Quote each argument for the remote shell.
 cmd=""
 for a in "$@"; do
