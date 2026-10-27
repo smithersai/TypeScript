@@ -139,7 +139,7 @@ export function addVibeLangSyntax(grammar) {
   }
   // join operand (D225): join a fiber, or an array or object of fibers. join( stays a call.
   repository["vibelang-join"] = {
-    match: "(?<![_$[:alnum:].])(join)\\s+(?=[_$[:alpha:]{\\[]|this\\b)",
+    match: "(?<![_$[:alnum:].])(join)\\s+(?!(?:in|instanceof|as|satisfies)\\b)(?=[_$[:alpha:]{\\[]|this\\b)",
     captures: { 1: { name: "keyword.control.flow.ts" } }
   }
   repository["vibelang-await-operation"] = {

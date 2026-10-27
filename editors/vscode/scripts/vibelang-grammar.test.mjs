@@ -18,3 +18,11 @@ test("fork remains an identifier before an in operator", () => {
   assert.equal(keyword("export const hit = fork work();", "fork"), true)
   assert.equal(keyword("export const hit = fork inspect();", "fork"), true)
 })
+
+test("join remains an identifier before TypeScript assertions and operators", () => {
+  for (const operator of ["as any", "satisfies unknown", "in table", "instanceof Fiber"]) {
+    assert.equal(keyword(`export const hit = join ${operator};`, "join"), false, operator)
+  }
+  assert.equal(keyword("export const hit = join fiber;", "join"), true)
+  assert.equal(keyword("export const hit = join assigned;", "join"), true)
+})

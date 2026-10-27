@@ -6112,7 +6112,7 @@
 			}
 		},
 		"vibelang-join": {
-			"match": "(?<![_$[:alnum:].])(join)\\s+(?=[_$[:alpha:]{\\[]|this\\b)",
+			"match": "(?<![_$[:alnum:].])(join)\\s+(?!(?:in|instanceof|as|satisfies)\\b)(?=[_$[:alpha:]{\\[]|this\\b)",
 			"captures": {
 				"1": {
 					"name": "keyword.control.flow.ts"
