@@ -120,6 +120,7 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 		// when restoring the public plain wrapper's zero arity.
 		factory := f.NewFunctionExpression(nil, nil, nil, nil, effect.ParameterList(), nil, nil, effect.Body())
 		tx.EmitContext().SetOriginal(factory, node)
+		tx.forwarding(factory) // invoked below with .apply(this, arguments)
 		method := func(key string, args ...*ast.Node) *ast.Node {
 			return f.NewCallExpression(f.NewPropertyAccessExpression(tx.runtimeMember("$eager"), nil, f.NewIdentifier(key), ast.NodeFlagsNone), nil, nil, f.NewNodeList(args), ast.NodeFlagsNone)
 		}

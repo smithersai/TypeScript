@@ -87,7 +87,9 @@ func (tx *lowering) lowerMethod(node *ast.Node) *ast.Node {
 func (tx *lowering) perRunMethod(node *ast.Node, parameters *ast.NodeList, body *ast.Node) *ast.Node {
 	f := tx.Factory()
 	method := node.AsMethodDeclaration()
-	generator := tx.generatedFunctions(tx.generatorFrom(node, parameters, body))
+	// fnUntraced calls the generator with the method's this and arguments on
+	// every run, so it runs as the source method (frames_lower.go).
+	generator := tx.generatedFunctions(tx.forwarding(tx.generatorFrom(node, parameters, body)))
 	lowered := tx.wrapGenerator("fnUntraced", node, generator)
 	apply := f.NewPropertyAccessExpression(lowered, nil, f.NewIdentifier("apply"), ast.NodeFlagsNone)
 	call := f.NewCallExpression(apply, nil, nil, f.NewNodeList([]*ast.Node{f.NewThisExpression(), f.NewIdentifier("arguments")}), ast.NodeFlagsNone)

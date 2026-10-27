@@ -583,7 +583,11 @@ func (tx *lowering) lowerFunction(node *ast.Node) *ast.Node {
 			return tx.directFunction(node, parameters, effect)
 		}
 	}
-	lowered := tx.wrapFunction(node, tx.generatorFrom(node, parameters, body))
+	generator := tx.generatorFrom(node, parameters, body)
+	if node.Kind != ast.KindArrowFunction {
+		tx.forwarding(generator) // Effect.fnUntraced calls it with the function's this and arguments
+	}
+	lowered := tx.wrapFunction(node, generator)
 	if keepsThis(node) {
 		lowered = tx.Factory().NewFunctionBindCall(lowered, tx.Factory().NewThisExpression(), nil /*argumentsList*/)
 	}
@@ -727,9 +731,10 @@ func (tx *lowering) visitEffectFunctionDeclaration(node *ast.Node) *ast.Node {
 		}
 	}
 	// The declaration stands for the source function; the generator it
-	// forwards to maps to no source position (generated.go).
+	// forwards to maps to no source position (generated.go) and runs as the
+	// source function on every run (frames_lower.go).
 	capture, pipeables := tx.forwardedTrace(node)
-	lowered := tx.wrapFunction(node, tx.generatedFunctions(tx.generatorFrom(node, loweredParameters, loweredBody)), pipeables...)
+	lowered := tx.wrapFunction(node, tx.generatedFunctions(tx.forwarding(tx.generatorFrom(node, loweredParameters, loweredBody))), pipeables...)
 
 	// Forward all arguments without evaluating the source parameters twice.
 	// Placeholder parameters preserve fnUntraced's observable function length.

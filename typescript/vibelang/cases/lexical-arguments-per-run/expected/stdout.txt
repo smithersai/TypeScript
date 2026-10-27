@@ -1,0 +1,5 @@
+nested [10,10,10]
+identity true
+shorthand true
+anonymous 8
+plain 5
