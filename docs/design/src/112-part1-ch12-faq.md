@@ -129,7 +129,6 @@ Effect's `Stream`, `Sink`, and `Channel` modules work unchanged: their operators
 
 ```ts es
 import { assert, it } from "@effect/vitest"
-import { TestClock } from "effect/testing"
 
 it.effect("a reminder fires after one day") {
   const reminder = fork remindLater("ada", "1 day")

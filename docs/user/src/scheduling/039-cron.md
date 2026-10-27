@@ -6,8 +6,6 @@
 
 ```vibe
 // run: provide TestClock.layer() { TestClock.setTime(Date.parse("2026-11-02T00:00:00Z")); const worker = fork reportJob(); Console.log("waiting for Monday morning"); TestClock.adjust("3 days"); worker.interrupt() }
-import { TestClock } from "effect/testing"
-
 const weekdayReport = Schedule.cron("45 7 * * 1-5", "UTC")
 
 function reportJob() {

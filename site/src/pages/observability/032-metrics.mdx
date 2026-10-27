@@ -86,8 +86,6 @@ A histogram sorts observations into configured buckets and tracks count, sum, mi
 ## Timing computations
 
 ```vibe
-import { TestClock } from "effect/testing"
-
 const renderTime = Metric.timer("guide_render_duration", {
   boundaries: [5, 20, 50, 100, 500]
 })

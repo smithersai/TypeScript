@@ -58,6 +58,20 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
   `FileSystem.lstat` for `lstat` and `UserDirectories.home()` for
   `os.homedir()`.
 
+### Prelude
+
+- Every module of `effect`'s subpath packages is in scope without an import,
+  as the root's modules are: `HttpRouter`, `HttpClient`,
+  `ChildProcess`, `ChildProcessSpawner`, `TestClock`, `Hex`, `SqlClient` and
+  the rest. Imports you already have keep working and shadow the global. Where
+  two names meet, a JavaScript or shared web global wins (`Headers`,
+  `Response`, and now `Event`), then a root module (`Utils`); `Model` and
+  `Prompt`, which two subpath packages share, still need an import, and
+  TS2304 names both. With the DOM in `lib`, the bare name `Worker` is now
+  `effect/workers`' module; write `globalThis.Worker` for the DOM's.
+  [Effect's modules](/getting-started/008-importing-effect) lists every
+  collision.
+
 ## 0.0.10
 
 Update `vibelang`, `vibelang-runtime` and the bundler plugin together. This

@@ -10,8 +10,6 @@ description: "Schedule works in VibeLang exactly as in Effect. Start with the ti
 ## Choosing a starting rule
 
 ```vibe
-import { TestClock } from "effect/testing"
-
 const immediate = Schedule.recurs(4)
 const afterCompletion = Schedule.spaced("20 seconds")
 const cadence = Schedule.fixed("20 seconds")

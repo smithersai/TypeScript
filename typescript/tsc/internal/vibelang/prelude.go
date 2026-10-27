@@ -116,8 +116,10 @@ var preludeModules = map[string]string{
 }
 
 // implicitRuntimeImport makes a .vibe file that may use the prelude resolve the
-// runtime, and one that may use an export of effect's root (effectroot.go)
-// resolve effect, so their declarations are in the program. A file with a
+// runtime, one that may use an export of effect's root (effectroot.go)
+// resolve effect, and one that may use a subpath module (effectsubpath.go)
+// resolve that module's package, such as effect/http, so their
+// declarations are in the program. A file with a
 // function that may compile to plain JavaScript resolves effect too: such a
 // function is still an Effect to TypeScript (plain.go), and its type needs
 // effect's Effect interface. A file with none of these compiles exactly as
@@ -128,7 +130,7 @@ func implicitRuntimeImport(file *ast.SourceFile) []string {
 	if !isVibeLangFile(file) {
 		return nil
 	}
-	prelude, root := mayUsePrelude(file)
+	prelude, root, barrels := mayUsePrelude(file)
 	effect, runtime := mayLowerToEffect(file)
 	entry := entryMain(file) != nil
 	var modules []string
@@ -138,6 +140,7 @@ func implicitRuntimeImport(file *ast.SourceFile) []string {
 	if root || effect || maySplitPlainFunction(file) {
 		modules = append(modules, effectRootModule)
 	}
+	modules = append(modules, barrels...)
 	if entry {
 		// An entry module runs main with NodeRuntime when the package resolves,
 		// and provides main the bundles of the platform it names (entry.go).
@@ -148,28 +151,58 @@ func implicitRuntimeImport(file *ast.SourceFile) []string {
 
 // mayUsePrelude reports whether file has an identifier with a prelude name,
 // and one with the name of an effect root export, that no top-level
-// declaration or import of file declares. It runs before binding, so it reads
-// names from the syntax, and a property named pipe or an inner declaration
-// counts as a use, which only loads a module.
-func mayUsePrelude(file *ast.SourceFile) (prelude bool, root bool) {
+// declaration or import of file declares, and returns the packages of the
+// subpath modules whose names it has, sorted. It runs before binding, so it
+// reads names from the syntax, and a property named pipe or an inner
+// declaration counts as a use, which only loads a module. A subpath package
+// can be large, such as effect/cluster's 40 modules, so a member name, such as
+// the Message of x.Message, never loads one.
+func mayUsePrelude(file *ast.SourceFile) (prelude bool, root bool, barrels []string) {
 	declared := map[string]bool{}
 	for _, statement := range file.Statements.Nodes {
 		forEachTopLevelName(statement, func(name string) { declared[name] = true })
 	}
+	loaded := map[string]bool{}
 	var visit func(node *ast.Node) bool
 	visit = func(node *ast.Node) bool {
-		if ast.IsIdentifier(node) && !declared[node.Text()] {
-			if _, ok := preludeModules[node.Text()]; ok {
-				prelude = true
-			} else if _, ok := effectRootNames[node.Text()]; ok || effectFunctionNames[node.Text()] {
-				root = true
+		if ast.IsIdentifier(node) {
+			name := node.Text()
+			if declared[name] {
+				return false
 			}
-			return prelude && root
+			if _, ok := preludeModules[name]; ok {
+				prelude = true
+			} else if _, ok := effectRootNames[name]; ok || effectFunctionNames[name] {
+				root = true
+			} else if subpath, ok := effectSubpathNames[name]; ok && !loaded[subpath.barrel] && !isMemberNameOf(node) {
+				loaded[subpath.barrel] = true
+				barrels = append(barrels, subpath.barrel)
+			}
+			return false
 		}
 		return node.ForEachChild(visit)
 	}
 	file.AsNode().ForEachChild(visit)
-	return prelude, root
+	slices.Sort(barrels)
+	return prelude, root, barrels
+}
+
+// isMemberNameOf reports whether identifier names a member, as the name of a
+// property access, a qualified name, or a property or method declaration
+// does, so that no scope resolves it.
+func isMemberNameOf(identifier *ast.Node) bool {
+	parent := identifier.Parent
+	switch {
+	case parent == nil:
+		return false
+	case ast.IsPropertyAccessExpression(parent), ast.IsQualifiedName(parent):
+		return parent.Name() == identifier
+	case ast.IsPropertyAssignment(parent), ast.IsPropertySignatureDeclaration(parent), ast.IsPropertyDeclaration(parent),
+		ast.IsMethodDeclaration(parent), ast.IsMethodSignatureDeclaration(parent), ast.IsGetAccessorDeclaration(parent),
+		ast.IsSetAccessorDeclaration(parent), ast.IsEnumMember(parent):
+		return parent.Name() == identifier
+	}
+	return false
 }
 
 // maySplitPlainFunction reports whether file declares a function that may
@@ -294,11 +327,12 @@ func forEachBindingName(name *ast.Node, fn func(name string)) {
 
 // preludeState is what one checker remembers about the prelude.
 type preludeState struct {
-	modules  map[*ast.SourceFile]*ast.Symbol     // the runtime module each .vibe file resolves
-	roots    map[*ast.SourceFile]*ast.Symbol     // the effect root module each .vibe file resolves
-	uses     map[*ast.SourceFile]map[string]bool // prelude names each .vibe file uses as values
-	typeUses map[*ast.SourceFile]map[string]bool // prelude names each .vibe file's declaration file writes (declarations.go)
-	typeRefs map[*ast.Node]bool                  // the identifiers that write those names
+	modules  map[*ast.SourceFile]*ast.Symbol            // the runtime module each .vibe file resolves
+	roots    map[*ast.SourceFile]*ast.Symbol            // the effect root module each .vibe file resolves
+	barrels  map[string]map[*ast.SourceFile]*ast.Symbol // each subpath package each .vibe file resolves, by name
+	uses     map[*ast.SourceFile]map[string]bool        // prelude names each .vibe file uses as values
+	typeUses map[*ast.SourceFile]map[string]bool        // prelude names each .vibe file's declaration file writes (declarations.go)
+	typeRefs map[*ast.Node]bool                         // the identifiers that write those names
 }
 
 type preludeStateKey struct{}
@@ -308,6 +342,7 @@ func preludeStateOf(c *checker.Checker) *preludeState {
 		return &preludeState{
 			modules:  map[*ast.SourceFile]*ast.Symbol{},
 			roots:    map[*ast.SourceFile]*ast.Symbol{},
+			barrels:  map[string]map[*ast.SourceFile]*ast.Symbol{},
 			uses:     map[*ast.SourceFile]map[string]bool{},
 			typeUses: map[*ast.SourceFile]map[string]bool{},
 			typeRefs: map[*ast.Node]bool{},
@@ -315,15 +350,27 @@ func preludeStateOf(c *checker.Checker) *preludeState {
 	}).(*preludeState)
 }
 
+// isPreludeName reports whether name is a name the prelude may supply: a
+// runtime prelude name, an effect root export, an unprefixed Effect function,
+// or a subpath module.
+func isPreludeName(name string) bool {
+	if _, ok := preludeModules[name]; ok {
+		return true
+	}
+	if _, ok := effectRootNames[name]; ok {
+		return true
+	}
+	_, ok := effectSubpathNames[name]
+	return ok || effectFunctionNames[name]
+}
+
 // resolvePreludeName resolves name, which no scope around location declares,
 // when location is in a .vibe file: a prelude name to the runtime's export,
-// and the name of an effect root export to that export unless a global value
-// has the name, in each case when the export has the meaning the checker asks
-// for.
+// and the name of an effect root export or subpath module to that export
+// unless a global value has the name, in each case when the export has the
+// meaning the checker asks for.
 func resolvePreludeName(c *checker.Checker, location *ast.Node, name string, meaning ast.SymbolFlags) *ast.Symbol {
-	_, isPrelude := preludeModules[name]
-	_, isRoot := effectRootNames[name]
-	if !isPrelude && !isRoot && !effectFunctionNames[name] {
+	if !isPreludeName(name) {
 		return nil
 	}
 	file := ast.GetSourceFileOfNode(location)
@@ -369,6 +416,9 @@ func preludeSpellingCandidates(c *checker.Checker, location *ast.Node, meaning a
 	for name := range effectFunctionNames {
 		offer(name)
 	}
+	for name := range effectSubpathNames {
+		offer(name)
+	}
 	return candidates
 }
 
@@ -382,9 +432,9 @@ func recordPreludeUse(state *preludeState, file *ast.SourceFile, name string) {
 }
 
 // preludeSymbol returns the export that name, a prelude name or the name of an
-// effect root export, refers to in file, or nil when its module is not
-// installed or, for an effect root export, JavaScript defines a global value
-// with the name.
+// effect root export or subpath module, refers to in file, or nil when its
+// module is not installed or file does not resolve it, or, for an effect
+// export, JavaScript defines a global value with the name.
 func preludeSymbol(c *checker.Checker, state *preludeState, file *ast.SourceFile, name string) *ast.Symbol {
 	if _, ok := preludeModules[name]; ok {
 		if module := runtimeModuleSymbol(c, state, file); module != nil {
@@ -393,6 +443,17 @@ func preludeSymbol(c *checker.Checker, state *preludeState, file *ast.SourceFile
 		return nil
 	}
 	if isBuiltinGlobal(c, name) {
+		return nil
+	}
+	if subpath, ok := effectSubpathNames[name]; ok {
+		cache := state.barrels[subpath.barrel]
+		if cache == nil {
+			cache = map[*ast.SourceFile]*ast.Symbol{}
+			state.barrels[subpath.barrel] = cache
+		}
+		if module := resolvedModuleSymbol(c, cache, file, subpath.barrel); module != nil {
+			return c.TryGetMemberInModuleExports(name, module)
+		}
 		return nil
 	}
 	module := effectRootModuleSymbol(c, state, file)
@@ -421,16 +482,23 @@ func isLoweredHatchCallee(location *ast.Node) bool {
 	return parent != nil && ast.IsCallExpression(parent) && parent.Expression() == location && (location.Text() == "sync" || location.Text() == "try")
 }
 
+// sharedWebGlobals are the web-standard globals that every runtime VibeLang
+// targets defines (D264). Event joined with D310, for effect/eventlog's Event.
+var sharedWebGlobals = map[string]bool{
+	"Request": true, "Response": true, "Headers": true, "URL": true, "URLSearchParams": true, "TextEncoder": true,
+	"TextDecoder": true, "AbortController": true, "AbortSignal": true, "Blob": true, "FormData": true,
+	"structuredClone": true, "fetch": true, "Event": true,
+}
+
 // isBuiltinGlobal gives ECMAScript and shared web-standard globals precedence
-// over effect root names (D146, D264). DOM-only globals such as Option lose.
+// over effect's module names (D146, D264, D310). DOM-only globals such as
+// Option and Worker lose.
 func isBuiltinGlobal(c *checker.Checker, name string) bool {
 	symbol := c.GlobalSymbol(name, ast.SymbolFlagsValue)
 	if symbol == nil {
 		return false
 	}
-	switch name {
-	case "Request", "Response", "Headers", "URL", "URLSearchParams", "TextEncoder", "TextDecoder",
-		"AbortController", "AbortSignal", "Blob", "FormData", "structuredClone", "fetch":
+	if sharedWebGlobals[name] {
 		return true
 	}
 	for _, declaration := range symbol.Declarations() {
@@ -556,19 +624,21 @@ func requireNamedImports(f *ast.NodeFactory, declaration *ast.Node) *ast.Node {
 	return statement
 }
 
-// preludeImports returns import declarations for names, the prelude names and
-// effect root exports a file uses as values, sorted:
+// preludeImports returns import declarations for names, the prelude names,
+// effect root exports, and subpath modules a file uses as values, sorted:
 //
 //	import * as Console from "effect/Console"
 //	import * as Effect from "effect/Effect"
 //	import { flow } from "effect/Function"
+//	import * as HttpRouter from "effect/http/HttpRouter"
 //	import { TaggedError, pipe } from "vibelang-runtime"
 //
 // The checker resolved each use to the runtime's or effect's export, so the
 // declarations bind the names the emitted code already refers to. A root
 // export is imported from its own module, never from effect's root, which
-// would load every module. They are ES module imports; for a file emitted
-// as CommonJS, requireNamedImports rewrites the named ones.
+// would load every module, and a subpath module from itself, never from its
+// package. They are ES module imports; for a file emitted as CommonJS,
+// requireNamedImports rewrites the named ones.
 func preludeImports(f *ast.NodeFactory, names []string) []*ast.Node {
 	var imports []*ast.Node
 	named := map[string][]*ast.Node{} // module -> named import specifiers
@@ -577,6 +647,8 @@ func preludeImports(f *ast.NodeFactory, names []string) []*ast.Node {
 		module, namespace := preludeModules[name], true
 		if module == "" && effectFunctionNames[name] {
 			module, namespace = "effect/Effect", false
+		} else if subpath, ok := effectSubpathNames[name]; module == "" && ok {
+			module = subpath.module
 		} else if module == "" {
 			root := effectRootNames[name]
 			module, namespace = root.module, root.namespace

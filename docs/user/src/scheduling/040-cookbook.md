@@ -6,8 +6,6 @@ These recipes use ordinary functions as repeatable programs. Each bounds its att
 
 ```vibe
 // run: provide TestClock.layer() { const worker = fork download(); TestClock.adjust("5 seconds"); Console.log(join worker) }
-import { TestClock } from "effect/testing"
-
 error Throttled {
   retryAfter: Duration.Duration
 }

@@ -127,8 +127,6 @@ For fibers you already hold, use `join`: `const [name, count] = join [titleFiber
 ## Racing events
 
 ```vibe
-import { TestClock } from "effect/testing"
-
 function nextEvent(jobs: Queue.Queue<string>, shutdown: Deferred.Deferred<void>) {
   return await.race [
     `job: ${Queue.take(jobs)}`,

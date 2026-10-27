@@ -10,8 +10,6 @@ A schedule decides when work runs again and when it stops. `Schedule` values wor
 ## Repeating successful computations
 
 ```vibe
-import { TestClock } from "effect/testing"
-
 function heartbeat() {
   repeat(
     Console.log("worker available"),

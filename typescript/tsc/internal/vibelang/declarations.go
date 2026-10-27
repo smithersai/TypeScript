@@ -3,6 +3,7 @@ package vibelang
 import (
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
@@ -30,8 +31,7 @@ func preludeNameVisible(c *checker.Checker, entityName *ast.Node, symbol *ast.Sy
 	first := ast.GetFirstIdentifier(entityName)
 	name := first.Text()
 	_, isPrelude := preludeModules[name]
-	_, isRoot := effectRootNames[name]
-	if !isPrelude && !isRoot {
+	if !isPrelude && !isEffectExportName(name) {
 		return false
 	}
 	file := ast.GetSourceFileOfNode(entityName)
@@ -163,13 +163,14 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 			declarations = renamer.TransformSourceFile(declarations)
 		}
 		// import type { Option } from "effect"
+		// import type { HttpRouter } from "effect/http"
 		// import type { Effect, Scope } from "vibelang-runtime"
 		f := resolver.EmitContext().Factory
 		var imports []*ast.Node
-		for _, module := range []string{effectRootModule, runtimeModule} {
+		for _, module := range declarationModules(names) {
 			var specifiers []*ast.Node
 			for _, name := range names {
-				if _, isPrelude := preludeModules[name]; isPrelude != (module == runtimeModule) {
+				if declarationModuleOf(name) != module {
 					continue
 				}
 				if alias, ok := aliases[name]; ok {
@@ -189,6 +190,49 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 		statements.Loc = declarations.Statements.Loc
 		return f.UpdateSourceFile(declarations, statements, declarations.EndOfFileToken).AsSourceFile()
 	}
+}
+
+// declarationModuleOf returns the module a declaration file imports name,
+// a prelude name, effect root export, or subpath module, from: the runtime,
+// effect's root, or the subpath module's package.
+func declarationModuleOf(name string) string {
+	if _, isPrelude := preludeModules[name]; isPrelude {
+		return runtimeModule
+	}
+	if subpath, ok := effectSubpathNames[name]; ok {
+		return subpath.barrel
+	}
+	return effectRootModule
+}
+
+// declarationModules returns the modules a declaration file imports names
+// from, in the order its imports stand: effect's root, the subpath packages
+// sorted, then the runtime.
+func declarationModules(names []string) []string {
+	seen := map[string]bool{}
+	var modules []string
+	for _, name := range names {
+		if module := declarationModuleOf(name); !seen[module] {
+			seen[module] = true
+			modules = append(modules, module)
+		}
+	}
+	rank := func(module string) int {
+		switch module {
+		case effectRootModule:
+			return 0
+		case runtimeModule:
+			return 2
+		}
+		return 1
+	}
+	slices.SortFunc(modules, func(a, b string) int {
+		if rank(a) != rank(b) {
+			return rank(a) - rank(b)
+		}
+		return strings.Compare(a, b)
+	})
+	return modules
 }
 
 // typeEntityName returns the name that n, a type reference such as
@@ -211,8 +255,7 @@ func typeEntityName(n *ast.Node) *ast.Node {
 func recordLibraryTypeUse(c *checker.Checker, state *preludeState, file *ast.SourceFile, identifier *ast.Node) {
 	name := identifier.Text()
 	_, isPrelude := preludeModules[name]
-	_, isRoot := effectRootNames[name]
-	if !isPrelude && !isRoot {
+	if !isPrelude && !isEffectExportName(name) {
 		return
 	}
 	resolve := func(symbol *ast.Symbol) *ast.Symbol {
@@ -384,8 +427,7 @@ func (tx *computedKeyRewriter) add(c *checker.Checker, file *ast.SourceFile, key
 	}
 	first := ast.GetFirstIdentifier(key)
 	_, isPrelude := preludeModules[first.Text()]
-	_, isRoot := effectRootNames[first.Text()]
-	if !isPrelude && !isRoot {
+	if !isPrelude && !isEffectExportName(first.Text()) {
 		return
 	}
 	if prelude := preludeSymbol(c, preludeStateOf(c), file, first.Text()); prelude == nil || c.GetSymbolAtLocation(first) != prelude {

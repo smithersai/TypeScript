@@ -10,8 +10,6 @@ These recipes use ordinary functions as repeatable programs. Each bounds its att
 ## Honoring server retry hints
 
 ```vibe
-import { TestClock } from "effect/testing"
-
 error Throttled {
   retryAfter: Duration.Duration
 }

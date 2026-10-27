@@ -128,8 +128,6 @@ For fibers you already hold, use `join`: `const [name, count] = join [titleFiber
 
 ```vibe
 // run: provide TestClock.layer() { const jobs = Queue.unbounded<string>(); const shutdown = Deferred.make<void>(); jobs.offer("build"); Console.log(nextEvent(jobs, shutdown)); shutdown.succeed(undefined); Console.log(nextEvent(jobs, shutdown)); const idle = fork nextEvent(jobs, Deferred.make<void>()); TestClock.adjust("30 seconds"); Console.log(join idle) }
-import { TestClock } from "effect/testing"
-
 function nextEvent(jobs: Queue.Queue<string>, shutdown: Deferred.Deferred<void>) {
   return await.race [
     `job: ${Queue.take(jobs)}`,

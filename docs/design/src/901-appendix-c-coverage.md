@@ -18,7 +18,7 @@ Every section of Effect 4's documentation, the Effect 3 pages version 4 dropped,
 | Type helpers (`Effect.Success`, `Error`, `Services`) | Unchanged | Apply them to the TypeScript type of a VibeLang function |
 | Annotate one channel, infer the rest | Changed (D57) | In a return annotation with a body, write `Effect<A, infer E, infer R>`; a slot left out of `Effect<…>` is `never` (D308), and `A!E` infers R (D309) |
 | Installation | Changed | `effect@4.0.6`, `vibelang-runtime`, and `vibelang` (Chapter 28) |
-| Importing Effect | Changed | `effect`'s root modules need no import (D146); import subpath packages such as `effect/http` |
+| Importing Effect | Changed | `effect`'s root modules and its subpath packages' modules need no import (D146, D310); import platform packages such as `@effect/platform-node` |
 | `Effect.succeed` | Changed | `return 42` |
 | `Effect.fail`, `failSync` | Changed | `throw new HttpError()` |
 | `Effect.sync` around a side effect | Changed | Call the code; platform side effects go through Effect modules (Chapter 11), or the `sync` hatch (D148) |

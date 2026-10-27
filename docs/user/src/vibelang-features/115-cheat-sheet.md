@@ -579,20 +579,21 @@ function cancellable() {
 
 A tagged template is a call of its tag (D267). If `sql` returns an Effect, the statement ``sql`CREATE TABLE example (id TEXT)` `` runs it, and ``const rows = sql`SELECT * FROM example` `` gets its success value. Plain tags keep JavaScript behavior. Discarding a structured Effect subtype, such as SQL Statement, is EK4301: call the result explicitly, or annotate the tag as returning `Effect<A, E, R>`. A program parameter takes an Effectful template by name, as it takes a call (D147).
 
-**No imports from `effect`** (D146).
+**No imports from `effect` or its subpath packages** (D146, D310).
 
 ```ts effect
 import { Console } from "effect"
+import { Hex } from "effect/encoding"
 
-const ready = Console.log("ready")
+const ready = Console.log(Hex.encode("ready"))
 ```
 
 ```vibe es
 // run: ready()
 function ready() {
-  Console.log("ready")
+  Console.log(Hex.encode("ready"))
 }
-// Output: ready
+// Output: 7265616479
 ```
 
 **Common functions without the `Effect.` prefix** (D151): `sleep`, `log`, `retry`, `repeat`, `timeout`, `race`, `all`, `forEach`, `die`, `withSpan`, and the `log` levels.

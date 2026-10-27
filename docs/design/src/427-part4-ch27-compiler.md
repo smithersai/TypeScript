@@ -54,9 +54,10 @@ applied patch series.
 ```
 
 The parser keeps TypeScript's grammar. The checker resolves prelude names as
-implicit imports from `vibelang-runtime`, and `effect`'s other root exports as
-implicit imports from `effect`, unless a local declaration or import shadows
-them (D4, D48, D146). Class hooks give fully abstract service classes an Effect
+implicit imports from `vibelang-runtime`, `effect`'s other root exports as
+implicit imports from `effect`, and the modules of its subpath packages as
+implicit imports of their packages, such as `effect/http`, unless a local
+declaration or import shadows them (D4, D48, D146, D310). Class hooks give fully abstract service classes an Effect
 Context key's static side and their abstract members' instance shape (D1, D45).
 
 Lowering runs before TypeScript's type erasure, queries the checker while

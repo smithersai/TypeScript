@@ -1,0 +1,24 @@
+// Every module of effect's subpath packages is in scope without an import
+// (D310), under its module name: Hex from effect/encoding, ChildProcess from
+// effect/process, TestClock from effect/testing. The emitted JavaScript
+// imports each module the file uses from its own file, and the declaration
+// file imports a module that a type names from its package. A web global
+// wins (Headers), and a local declaration shadows a module (Ndjson).
+const Ndjson = { label: "local" }
+
+export function encoded(bytes: Uint8Array): string {
+  return Hex.encode(bytes)
+}
+
+export const command: ChildProcess.Command = ChildProcess.make("git", ["status"])
+
+// expect-result: {"hex":"6869","command":"StandardCommand","headers":"text/plain","local":"local","adjust":"function"}
+export function main() {
+  return {
+    hex: encoded(new TextEncoder().encode("hi")),
+    command: command._tag,
+    headers: new Headers({ "content-type": "text/plain" }).get("content-type"),
+    local: Ndjson.label,
+    adjust: typeof TestClock.adjust,
+  }
+}

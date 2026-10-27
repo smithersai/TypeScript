@@ -7,14 +7,17 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
-// preludeCompletions offers the prelude names (prelude.go) and effect's root
-// exports (effectroot.go) in every scope of a .vibe file, so completions
-// list Effect, Layer, TaggedError, pipe, Console, Stream, and the rest
-// without an import. The file's own declarations and imports shadow
-// them, as they do in resolvePreludeName. A file that uses no prelude name
-// yet does not import the runtime, so its list comes from the runtime that
-// another .vibe file of the program imports; once the file uses a name, it
-// imports the runtime itself.
+// preludeCompletions offers the prelude names (prelude.go), effect's root
+// exports (effectroot.go), and its subpath modules (effectsubpath.go) in
+// every scope of a .vibe file, so completions list Effect, Layer,
+// TaggedError, pipe, Console, Stream, and the rest without an import. The
+// file's own declarations and imports shadow them, as they do in
+// resolvePreludeName. A file that uses no prelude name yet does not import
+// the runtime, so its list comes from the runtime that another .vibe file of
+// the program imports; once the file uses a name, it imports the runtime
+// itself. Likewise a subpath module is offered once a file of the program
+// loads its package, such as effect/http for HttpRouter: the program has
+// no declarations of a package no file loads.
 func preludeCompletions(c *checker.Checker, location *ast.Node, meaning ast.SymbolFlags) []*ast.Symbol {
 	file := ast.GetSourceFileOfNode(location)
 	if !isVibeLangFile(file) {
@@ -50,6 +53,25 @@ func preludeCompletions(c *checker.Checker, location *ast.Node, meaning ast.Symb
 					symbols = append(symbols, symbol)
 				}
 			}
+		}
+	}
+	barrels := map[string]*ast.Symbol{}
+	for name, subpath := range effectSubpathNames {
+		module, ok := barrels[subpath.barrel]
+		if !ok {
+			cache := state.barrels[subpath.barrel]
+			if cache == nil {
+				cache = map[*ast.SourceFile]*ast.Symbol{}
+				state.barrels[subpath.barrel] = cache
+			}
+			module = orProgramModule(c, resolvedModuleSymbol(c, cache, file, subpath.barrel), subpath.barrel)
+			barrels[subpath.barrel] = module
+		}
+		if module == nil || isBuiltinGlobal(c, name) {
+			continue
+		}
+		if symbol := c.TryGetMemberInModuleExports(name, module); symbol != nil && hasMeaning(c, symbol, meaning) {
+			symbols = append(symbols, symbol)
 		}
 	}
 	return symbols

@@ -1,6 +1,6 @@
 # TestClock
 
-`TestClock` replaces live time with time your test controls, so you can check sleeps, timeouts, recurring work, and clock reads without waiting for wall-clock time. Import it from `effect/testing`.
+`TestClock` replaces live time with time your test controls, so you can check sleeps, timeouts, recurring work, and clock reads without waiting for wall-clock time. It comes from `effect/testing` and needs no import (D310).
 
 ## Configure the test runner
 
@@ -23,7 +23,6 @@ Register `it.effect` at the top level or inside `describe`; its callback is a pr
 ## Controlling virtual time
 
 ```vibe
-import { TestClock } from "effect/testing"
 import { assert, it } from "@effect/vitest"
 
 function check(condition: boolean, message: string) {
@@ -50,8 +49,6 @@ it.effect("a deadline returns the fallback") {
 
 ```vibe
 // run: Console.log(standaloneClockExample())
-import { TestClock } from "effect/testing"
-
 function standaloneClockExample() {
   provide TestClock.layer() {
     TestClock.setTime(5_000)
@@ -70,7 +67,6 @@ Outside the test harness, provide `TestClock.layer()` yourself. Real time passin
 ## Advancing recurring computations
 
 ```vibe
-import { TestClock } from "effect/testing"
 import { it } from "@effect/vitest"
 
 // Output:
@@ -101,7 +97,6 @@ Use the `check` helper from the first example. Advancing to each boundary lets t
 ## Checking clock-dependent behavior
 
 ```vibe
-import { TestClock } from "effect/testing"
 import { it } from "@effect/vitest"
 
 function isExpired(createdAt: number, lifetimeMillis: number) {
@@ -123,7 +118,6 @@ Application code reads time with `Clock`: `Clock.currentTimeMillis()` reads the 
 ## Timed waits and deferred results
 
 ```vibe
-import { TestClock } from "effect/testing"
 import { it } from "@effect/vitest"
 
 // Output:

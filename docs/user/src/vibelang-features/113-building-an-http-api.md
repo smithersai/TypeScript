@@ -37,7 +37,6 @@ export const UsersLive = Layer.effect(Users) {
 ```vibe
 // routes.vibe
 // run: Effect.scoped { const app = HttpRouter.toHttpEffect(App); const statuses: number[] = []; for (const body of [{ name: "Ada" }, { name: "Ada" }, { name: 123 }]) { const request = HttpServerRequest.fromClientRequest(HttpClientRequest.bodyJson(HttpClientRequest.post("http://local/users"), body)); statuses.push(Effect.provideService(app, HttpServerRequest.HttpServerRequest, request).status) }; Console.log(JSON.stringify(statuses)) }
-import { HttpClientRequest, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { CreateUser, NameTaken, Users, UsersLive } from "./users.vibe"
 
 export function createUser() {
@@ -70,7 +69,6 @@ The JSON decoder runs at the call and returns the validated body. A repeated nam
 ```vibe
 // server.vibe
 // run: provide Logger.layer([]) { Effect.scoped { Layer.build(server(0)); Console.log("server acquired") }; Console.log("server released") }
-import { HttpRouter } from "effect/http"
 import { NodeHttpServer } from "@effect/platform-node"
 import { createServer } from "node:http"
 import { App } from "./routes.vibe"
@@ -97,7 +95,6 @@ The module top level constructs schemas, routes, and layers. `node server.js` st
 ```vibe
 // routes.test.vibe
 import { assert, it } from "@effect/vitest"
-import { HttpClientRequest, HttpRouter, HttpServerRequest } from "effect/http"
 import { App } from "./routes.vibe"
 
 function request(body: unknown) {

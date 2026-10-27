@@ -56,8 +56,6 @@ Missing key
 Put the enabling import before code that creates or runs parsers; importing the compiler namespace alone does not enable it. Operations compile lazily on first use, without eagerly running every check or default.
 
 ```vibe
-import { SchemaJITCompiler } from "effect/schema"
-
 function enableSelectedDirections() {
   SchemaJITCompiler.enable(Schema.FiniteFromString.ast)
   SchemaJITCompiler.enable(SchemaAST.toType(Schema.FiniteFromString.ast))

@@ -10,8 +10,6 @@ description: "Cron and Schedule.cron work in VibeLang exactly as in Effect. Use 
 ## Defining calendar execution
 
 ```vibe
-import { TestClock } from "effect/testing"
-
 const weekdayReport = Schedule.cron("45 7 * * 1-5", "UTC")
 
 function reportJob() {

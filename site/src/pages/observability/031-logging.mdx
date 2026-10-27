@@ -73,8 +73,6 @@ function scopedAnnotations() {
 ## Measuring log spans
 
 ```vibe
-import { TestClock } from "effect/testing"
-
 function timedExport() {
   Effect.withLogSpan("write-output") {
     logInfo("opening output")

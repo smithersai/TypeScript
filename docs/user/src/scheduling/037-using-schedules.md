@@ -6,8 +6,6 @@ A schedule decides when work runs again and when it stops. `Schedule` values wor
 
 ```vibe
 // run: provide TestClock.layer() { const worker = fork heartbeat(); TestClock.adjust("46 seconds"); worker.interrupt() }
-import { TestClock } from "effect/testing"
-
 function heartbeat() {
   repeat(
     Console.log("worker available"),

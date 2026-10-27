@@ -1,11 +1,11 @@
 ---
 title: "Effect's Modules"
-description: "In .vibe files, Effect's modules are already in scope: the prelude, and every module effect exports from its root, such as Console, Option, Stream, Schedule, Clock, and Duration. Import modules..."
+description: "In .vibe files, Effect's modules are already in scope: the prelude, every module effect exports from its root, such as Console, Option, Stream, Schedule, Clock, and Duration, and every module of..."
 ---
 
 # Effect's Modules
 
-In `.vibe` files, Effect's modules are already in scope: the prelude, and every module `effect` exports from its root, such as `Console`, `Option`, `Stream`, `Schedule`, `Clock`, and `Duration`. Import modules from `effect`'s subpath packages, such as `effect/http`, as you need them.
+In `.vibe` files, Effect's modules are already in scope: the prelude, every module `effect` exports from its root, such as `Console`, `Option`, `Stream`, `Schedule`, `Clock`, and `Duration`, and every module of its subpath packages, such as `HttpRouter` from `effect/http`, `ChildProcess` from `effect/process`, and `TestClock` from `effect/testing`. Platform packages such as `@effect/platform-node` still need imports.
 
 ## Install the core package
 
@@ -41,7 +41,33 @@ function firstTwo(values: ReadonlyArray<number>) {
 // Output: [1,2]
 ```
 
-Shared web-standard globals also keep their names: `Request`, `Response`, `Headers`, `URL`, `URLSearchParams`, `TextEncoder`, `TextDecoder`, `AbortController`, `AbortSignal`, `Blob`, `FormData`, `structuredClone`, and `fetch`. So `new Request("https://x.test")` is the web Request; write `import { Request } from "effect"` for Effect's module. DOM-only globals do not shadow Effect's modules: with the DOM in your `lib`, `Option` is still Effect's. An import or local declaration named like a module shadows it, as `import * as Duration from "effect/Duration"` would. Value constructors such as `Duration.millis` build data; `Clock.currentTimeMillis()` and `Effect.sleep(...)` run computations. Effect's own packages are trusted: their data functions need no foreign-call boundary, and their exceptions are defects.
+Shared web-standard globals also keep their names: `Request`, `Response`, `Headers`, `URL`, `URLSearchParams`, `TextEncoder`, `TextDecoder`, `AbortController`, `AbortSignal`, `Blob`, `FormData`, `structuredClone`, `fetch`, and `Event`. So `new Request("https://x.test")` is the web Request; write `import { Request } from "effect"` for Effect's module. DOM-only globals do not shadow Effect's modules: with the DOM in your `lib`, `Option` is still Effect's. An import or local declaration named like a module shadows it, as `import * as Duration from "effect/Duration"` would. Value constructors such as `Duration.millis` build data; `Clock.currentTimeMillis()` and `Effect.sleep(...)` run computations. Effect's own packages are trusted: their data functions need no foreign-call boundary, and their exceptions are defects.
+
+## Modules of subpath packages
+
+A subpath package's modules need no import either. The emitted JavaScript imports each module you use from its own file, such as `effect/encoding/Hex`, so a program loads only what it uses:
+
+```vibe
+function hexOf(text: string) {
+  return Hex.encode(new TextEncoder().encode(text))
+}
+// Output: 6869
+```
+
+Four rules settle a name that two globals share, in order: a JavaScript or shared web global wins; a root module wins over a subpath module; when two subpath packages have a module of the same name, neither is in scope, so import the one you mean; and an import or local declaration shadows any of them. These are the names they settle for `effect@4.0.6`:
+
+
+| Name | Modules | Without an import |
+| --- | --- | --- |
+| `Event` | `effect/eventlog` | the JavaScript or web global (rule 1) |
+| `Headers` | `effect/http` | the JavaScript or web global (rule 1) |
+| `Model` | `effect/ai`, `effect/schema` | nothing: import the one you mean (rule 3) |
+| `Prompt` | `effect/ai`, `effect/cli` | nothing: import the one you mean (rule 3) |
+| `Response` | `effect/ai` | the JavaScript or web global (rule 1) |
+| `Transferable` | `effect/workers` | Effect's module; the DOM declares only a type |
+| `Utils` | `effect`, `effect/rpc` | `effect`'s root module (rule 2) |
+| `Worker` | `effect/workers` | Effect's module: the DOM's global loses |
+
 
 ## Compose standalone functions
 

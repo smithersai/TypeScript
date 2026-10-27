@@ -52,8 +52,6 @@ const serialized = DateTime.makeZonedFromString(
 ## Reading current time
 
 ```vibe
-import { TestClock } from "effect/testing"
-
 function timestamp() {
   const now = DateTime.now()
   return now.formatIso()

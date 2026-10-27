@@ -10,8 +10,6 @@ Dependent computations often need several intermediate values at once. VibeLang 
 ## Recognizing nesting in dependent pipelines
 
 ```vibe
-import { TestClock } from "effect/testing"
-
 function elapsed<A>(program: () => A) {
   const started = Clock.currentTimeMillis()
   const value = program()

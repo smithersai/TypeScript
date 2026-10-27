@@ -20,7 +20,7 @@ export function names(ids: ReadonlyArray<string>) {
 ```
 
 - `throw new NotFound({ id })` fails; `x catch (e) => y` and `try { } catch (e) { }` recover; `match (e) { when NotFound: ...; default: throw e; }` picks error classes.
-- Imports keep extensions: `"./user.vibe"`. Effect root modules are in scope.
+- Imports keep extensions: `"./user.vibe"`. Effect's modules are in scope.
 - `.ts`: import `"./user.vibe"`; run its Effect with `Effect.runPromise` from `effect`; include `src/**/*.ts` in tsconfig.
 - `provide UsersLive { ... }` supplies `Users`; `const UsersLive = Layer.succeed(Users, { name(id) { ... } })`.
 - `await.all [a(), b()]` runs both; `%` is `x` in `x |> f(%)`.

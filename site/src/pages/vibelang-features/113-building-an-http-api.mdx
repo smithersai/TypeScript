@@ -40,7 +40,6 @@ export const UsersLive = Layer.effect(Users) {
 
 ```vibe
 // routes.vibe
-import { HttpClientRequest, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { CreateUser, NameTaken, Users, UsersLive } from "./users.vibe"
 
 export function createUser() {
@@ -72,7 +71,6 @@ The JSON decoder runs at the call and returns the validated body. A repeated nam
 
 ```vibe
 // server.vibe
-import { HttpRouter } from "effect/http"
 import { NodeHttpServer } from "@effect/platform-node"
 import { createServer } from "node:http"
 import { App } from "./routes.vibe"
@@ -99,7 +97,6 @@ The module top level constructs schemas, routes, and layers. `node server.js` st
 ```vibe
 // routes.test.vibe
 import { assert, it } from "@effect/vitest"
-import { HttpClientRequest, HttpRouter, HttpServerRequest } from "effect/http"
 import { App } from "./routes.vibe"
 
 function request(body: unknown) {

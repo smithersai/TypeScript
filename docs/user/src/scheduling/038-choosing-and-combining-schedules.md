@@ -6,8 +6,6 @@
 
 ```vibe
 // run: const rules: ReadonlyArray<Schedule.Schedule<unknown, unknown, Cron.CronParseError>> = [immediate, afterCompletion, cadence, backoff, calendar]; for (const rule of rules) { const step = Schedule.toStep(rule); const result = Effect.result(step(Date.parse("2026-11-02T00:00:00Z"), undefined)); if (result.isSuccess()) Console.log(result.success[1].toMillis()) }
-import { TestClock } from "effect/testing"
-
 const immediate = Schedule.recurs(4)
 const afterCompletion = Schedule.spaced("20 seconds")
 const cadence = Schedule.fixed("20 seconds")

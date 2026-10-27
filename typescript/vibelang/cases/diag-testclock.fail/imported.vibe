@@ -1,2 +1,0 @@
-import { TestClock } from "effect/testing"
-export function tick() { TestClock.adjust("1 second") }

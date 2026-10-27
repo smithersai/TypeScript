@@ -208,7 +208,7 @@ function discard(program: Effect.Effect<number>) {
 | Style | `effectMapVoid` | Not needed: statements | `f()` on its own line |
 | Style | `effectSucceedWithVoid` | Not needed: a function that returns nothing | `function done() { }` |
 | Style | `flatMapToMap` | Not needed: statements | `return g(f())` |
-| Style | `importFromBarrel` | Not needed: the compiler imports effect's root names | `Option.some(1)` with no import |
+| Style | `importFromBarrel` | Not needed: the compiler imports effect's root names and subpath modules | `Option.some(1)` with no import |
 | Style | `missedPipeableOpportunity` | Refactor: "Convert to a pipe" | `f(g(h(x)))` becomes `x \|> h(%) \|> g(%) \|> f(%)` |
 | Style | `missingEffectServiceDependency` | Effect 3 only; `wire` computes dependencies | `wire(UsersLive, DbLive)` |
 | Style | `nestedEffectGenYield` | Not needed: no `Effect.gen` | None |
@@ -231,7 +231,7 @@ function discard(program: Effect.Effect<number>) {
 | Completion | `Effect.fn` span name | Not needed: `tracing` names spans after functions | `"tracing": "exported",
       "trustedPackages": ["@acme/*"]` |
 | Completion | Duration strings | Completion: `"2 seconds"` and the other units where a `Duration.Input` goes | `Effect.sleep("1 second")` |
-| Completion | Namespace import style | Not needed: effect's root names are in scope | `Option.some(1)` |
+| Completion | Namespace import style | Not needed: effect's root names and subpath modules are in scope | `Option.some(1)` |
 | Completion | `Schema.brand` name | Completion: the declared name in `Schema.brand("…")` | `schema UserId = Schema.String.pipe(Schema.brand("UserId"))` |
 | Completion | Comment directives | `@vibelang-diagnostics` comments, whose codes complete | `// @vibelang-diagnostics-next-line EK4801:off` |
 | Refactor | async function to `Effect.gen` | Refactor: "Convert to a VibeLang function" | `await fetch(url)` becomes `try((url) => fetch(url), url)` |
@@ -360,7 +360,7 @@ Library debugging concepts still apply; VibeLang's call execution, service decla
 | EK1016 | An unused, unexported `function main()` will never start. Write `export function main()`. This warning can be turned off for an intentional unused helper. |
 | EK4409 | An `any` call can return an unrun program. A local constant whose initializer is known to be effectful is diagnosed even in a contracted function that compiles to plain code; give the callee its callable type. |
 | EK4835 | The catchTag/catchTags fix omits the default arm when its handlers cover every failure in E. Partial handlers keep the rethrow. |
-| TS2304 (TestClock) | TestClock is outside the root prelude. Import it with `import { TestClock } from "effect/testing"`. |
+| TS2304 (`Model`, `Prompt`) | Two of effect's subpath packages have a module of this name, so neither is in scope. The note names both imports; write the one you mean, such as `import { Model } from "effect/schema"`. |
 
 ---
 

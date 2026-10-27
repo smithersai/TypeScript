@@ -54,8 +54,6 @@ Put the enabling import before code that creates or runs parsers; importing the 
 
 ```vibe
 // run: enableSelectedDirections(); Console.log(Schema.decodeEffect(Schema.FiniteFromString)("2")); Console.log(Schema.is(Schema.toType(Schema.FiniteFromString))(2)); Console.log(Schema.encodeEffect(Schema.FiniteFromString)(2))
-import { SchemaJITCompiler } from "effect/schema"
-
 function enableSelectedDirections() {
   SchemaJITCompiler.enable(Schema.FiniteFromString.ast)
   SchemaJITCompiler.enable(SchemaAST.toType(Schema.FiniteFromString.ast))
