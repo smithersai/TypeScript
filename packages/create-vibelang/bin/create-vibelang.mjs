@@ -86,7 +86,7 @@ if (install) {
 
 console.log(`
 Next steps:
-  cd ${target}${install ? "" : `\n  ${manager} install`}
+  cd ${shellQuote(target)}${install ? "" : `\n  ${manager} install`}
   ${manager} run start    build and run src/main.vibe
   ${manager} run dev      rebuild and restart on every save
   ${manager} run test     run the .vibe tests with Vitest
@@ -114,4 +114,9 @@ function packageManager() {
 function fail(message) {
   console.error(`create-vibelang: ${message}`)
   process.exit(1)
+}
+
+// Quote paths for POSIX shells while keeping simple next steps readable.
+function shellQuote(value) {
+  return /^[a-zA-Z0-9_./-]+$/.test(value) ? value : "'" + value.replaceAll("'", "'\\''") + "'"
 }

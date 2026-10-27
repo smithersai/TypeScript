@@ -258,3 +258,16 @@ test("refuses a file target without an uncaught filesystem error", (t) => {
   assert.doesNotMatch(result.stderr, /ENOTDIR|at .*\.mjs:/)
   assert.equal(readFileSync(join(directory, "app"), "utf8"), "keep me")
 })
+
+test("printed cd commands reach targets containing shell metacharacters", (t) => {
+  const directory = scratch(t)
+  for (const name of ["My App", "it's here", "cash$HOME", "`literal`", "~", "./-leading"]) {
+    const result = run(directory, name, "--no-install")
+    assert.equal(result.status, 0, result.stderr)
+    const command = result.stdout.match(/^  (cd .+)$/m)?.[1]
+    assert.ok(command)
+    const changed = spawnSync("/bin/sh", ["-c", command + " && pwd -P"], { cwd: directory, encoding: "utf8" })
+    assert.equal(changed.status, 0, changed.stderr)
+    assert.equal(changed.stdout.trim(), realpathSync(join(directory, name)))
+  }
+})
