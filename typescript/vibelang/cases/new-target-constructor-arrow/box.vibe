@@ -1,0 +1,22 @@
+// An Effect arrow created in a constructor reads that constructor call's
+// new.target, as a plain arrow does. Its body runs in a generator, whose own
+// new.target is undefined, so the constructor declares its new.target for it.
+export class Box {
+  fast: () => (string | undefined)!!
+  slow: () => (string | undefined)!!
+  control: () => (string | undefined)!!
+  constructor() {
+    const target = new.target
+    this.fast = () => new.target?.name
+    this.slow = () => {
+      const tick = Effect.sync(() => 0)
+      return new.target?.name
+    }
+    this.control = () => {
+      const tick = Effect.sync(() => 0)
+      return target?.name
+    }
+  }
+}
+
+export class Crate extends Box {}

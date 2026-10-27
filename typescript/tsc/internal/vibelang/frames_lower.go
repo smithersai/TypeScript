@@ -5,12 +5,13 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/transformers"
 )
 
-// super and arguments in generated generators.
+// super, arguments and new.target in generated generators.
 //
 // A generator that the lowering introduces is a function of its own, and
-// JavaScript binds super and arguments afresh in every function that is not
-// an arrow: super is a SyntaxError in a function* expression, and arguments
-// would be the generator's own. An Effect method's body runs in such a
+// JavaScript binds super, arguments and new.target afresh in every function
+// that is not an arrow: super is a SyntaxError in a function* expression,
+// and arguments and new.target would be the generator's own. An Effect
+// method's body runs in such a
 // generator, and so do an Effect arrow's body, a producer's body and the
 // regions of try, catch and finally:
 //
@@ -37,13 +38,15 @@ import (
 // Which function binds a reference follows JavaScript's scopes (bindsFrame),
 // and one source function can stand behind several lowered functions. Those
 // that run as the source function are its activations. The function that
-// its caller calls binds arguments and, in a method, super. A generator that
-// it forwards its this and arguments to on every run, as
-// Effect.fnUntraced(…).apply(this, arguments) does, binds arguments, afresh
-// on each run (forwarding). Any other generator binds neither. A reference
-// that its own function does not bind reads the binding of the innermost
-// activation that does, so an Effect arrow sees the arguments object that
-// the body around it sees on the same run:
+// its caller calls binds arguments, new.target and, in a method, super. A
+// generator that this function forwards its this and arguments to on every
+// run, as Effect.fnUntraced(…).apply(this, arguments) does, binds arguments
+// afresh on each run (forwarding), but not new.target. Any other generator
+// binds none of them. A reference that its own function does not bind reads
+// the binding of the innermost activation that does: an Effect arrow in a
+// constructor reads the constructor's `const newTarget_1 = new.target`, and
+// one in an Effect function sees the arguments object that the body around
+// it sees on the same run:
 //
 //	function count(a) {
 //	  return Effect.fnUntraced(function* count(a) {
@@ -70,22 +73,23 @@ type frameBinding uint8
 
 const (
 	bindsArguments frameBinding = 1 << iota
+	bindsNewTarget
 	bindsSuper
 )
 
-// frameReferences records which source functions bind a super or arguments
-// reference in their scope, which arguments identifiers are references, and
-// which lowered generators run as their source function.
+// frameReferences records which source functions bind a super, arguments or
+// new.target reference in their scope, which arguments identifiers are
+// references, and which lowered generators run as their source function.
 type frameReferences struct {
-	binders    map[*ast.Node]bool // functions and static blocks whose super or arguments their scope refers to
+	binders    map[*ast.Node]bool // functions and static blocks whose super, arguments or new.target their scope refers to
 	arguments  map[*ast.Node]bool // identifiers that refer to their function's arguments
 	forwarders map[*ast.Node]bool // generators called with their source function's this and arguments on every run (forwarding)
 }
 
-// findFrameReferences finds, in file, each super property and arguments
-// reference and the function that binds it: the nearest function or class
-// static block whose scope holds it (bindsFrame), when that one binds what
-// the reference names (frameBindings).
+// findFrameReferences finds, in file, each super property, arguments and
+// new.target reference and the function that binds it: the nearest
+// function or class static block whose scope holds it (bindsFrame), when
+// that one binds what the reference names (frameBindings).
 func findFrameReferences(file *ast.SourceFile) frameReferences {
 	refs := frameReferences{binders: map[*ast.Node]bool{}, arguments: map[*ast.Node]bool{}, forwarders: map[*ast.Node]bool{}}
 	var visit func(node, binder *ast.Node) bool
@@ -96,6 +100,8 @@ func findFrameReferences(file *ast.SourceFile) frameReferences {
 			binding = bindsSuper
 		case ast.IsIdentifier(node) && node.Text() == "arguments" && !ast.IsRightSideOfQualifiedNameOrPropertyAccess(node) && (!ast.IsDeclarationName(node) || ast.IsShorthandPropertyAssignment(node.Parent)):
 			binding = bindsArguments
+		case isNewTarget(node):
+			binding = bindsNewTarget
 		}
 		if binding != 0 && binder != nil && frameBindings(binder)&binding != 0 {
 			refs.binders[binder] = true
@@ -135,10 +141,11 @@ func bindsFrame(node, child *ast.Node) bool {
 }
 
 // frameBindings returns what fn, a node that bindsFrame says binds its
-// children's scope, binds there that the lowering can declare: arguments in
-// a function, and super in a method, accessor, constructor or class static
-// block. A class field binds super too, but its initializer has no body to
-// declare it in.
+// children's scope, binds there that the lowering can declare: arguments
+// and new.target in a function, and super in a method, accessor,
+// constructor or class static block. A class field binds super too, but its
+// initializer has no body to declare it in. new.target is undefined in a
+// static block and a field, as it is in a generator.
 func frameBindings(fn *ast.Node) frameBinding {
 	switch fn.Kind {
 	case ast.KindPropertyDeclaration:
@@ -146,13 +153,19 @@ func frameBindings(fn *ast.Node) frameBinding {
 	case ast.KindClassStaticBlockDeclaration:
 		return bindsSuper
 	case ast.KindMethodDeclaration, ast.KindGetAccessor, ast.KindSetAccessor, ast.KindConstructor:
-		return bindsArguments | bindsSuper
+		return bindsArguments | bindsNewTarget | bindsSuper
 	}
-	return bindsArguments
+	return bindsArguments | bindsNewTarget
 }
 
-// opensFrame reports whether node binds arguments and super afresh for its
-// body: a function that is not an arrow, or a class static block.
+// isNewTarget reports whether node is new.target.
+func isNewTarget(node *ast.Node) bool {
+	return ast.IsMetaProperty(node) && node.AsMetaProperty().KeywordToken == ast.KindNewKeyword
+}
+
+// opensFrame reports whether node binds arguments, new.target and super
+// afresh for its body: a function that is not an arrow, or a class static
+// block.
 func opensFrame(node *ast.Node) bool {
 	return ast.IsFunctionLike(node) && node.Kind != ast.KindArrowFunction || node.Kind == ast.KindClassStaticBlockDeclaration
 }
@@ -172,8 +185,9 @@ func frameBody(fn *ast.Node) *ast.Node {
 
 // forwarding records generator as a generator that a lowered function calls
 // with its own this and arguments on every run, as Effect.fnUntraced and
-// Effect.fn do, so it runs as its source function, and returns it. generator
-// is a function* expression or the method form, { *name() { … } }.name
+// Effect.fn do, so it runs as its source function, with that function's
+// arguments though not its new.target, and returns it. generator is a
+// function* expression or the method form, { *name() { … } }.name
 // (names.go).
 func (tx *lowering) forwarding(generator *ast.Node) *ast.Node {
 	fn := generator
@@ -189,15 +203,15 @@ func (tx *lowering) forwarding(generator *ast.Node) *ast.Node {
 // does, and the bindings it declares, once used, for the references that the
 // lowering moved out of it.
 type activation struct {
-	binds                      frameBinding
-	super, superSet, arguments *ast.Node
+	binds                                 frameBinding
+	super, superSet, arguments, newTarget *ast.Node
 }
 
-// hoistFrameReferences rewrites each super and arguments reference that
-// binder binds and that its lowered form, lowered, holds in a function that
-// binds them afresh. Each rewritten reference reads a binding that the
-// innermost activation of binder around it that binds the same thing
-// declares at the top of its body.
+// hoistFrameReferences rewrites each super, arguments and new.target
+// reference that binder binds and that its lowered form, lowered, holds in a
+// function that binds them afresh. Each rewritten reference reads a binding
+// that the innermost activation of binder around it that binds the same
+// thing declares at the top of its body.
 func (tx *lowering) hoistFrameReferences(binder *ast.Node, lowered *ast.Node) *ast.Node {
 	if lowered == nil {
 		return nil
@@ -248,7 +262,7 @@ func (tx *lowering) hoistFrameReferences(binder *ast.Node, lowered *ast.Node) *a
 	}
 	visitor.Visit = func(node *ast.Node) *ast.Node {
 		source := ec.ParseNode(node)
-		super, arguments := frameFor(bindsSuper), frameFor(bindsArguments)
+		super, arguments, newTarget := frameFor(bindsSuper), frameFor(bindsArguments), frameFor(bindsNewTarget)
 		switch {
 		case super != nil && isSuperAssignment(node):
 			binary := node.AsBinaryExpression()
@@ -297,6 +311,11 @@ func (tx *lowering) hoistFrameReferences(binder *ast.Node, lowered *ast.Node) *a
 				arguments.arguments = f.NewUniqueName("arguments")
 			}
 			return arguments.arguments
+		case newTarget != nil && isNewTarget(node):
+			if newTarget.newTarget == nil {
+				newTarget.newTarget = f.NewUniqueName("newTarget")
+			}
+			return newTarget.newTarget
 		case node.Kind == ast.KindArrowFunction:
 			return visitor.VisitEachChild(node)
 		case ast.IsClassLike(node) && source != nil:
@@ -390,12 +409,12 @@ func (tx *lowering) superKey(visitor *ast.NodeVisitor, node *ast.Node) *ast.Node
 
 // declareFrameBindings returns fn, a lowered function or static block that
 // is the activation a, with `const super_1 = (key) => super[key]`, `const
-// superSet_1 = (key, value) => super[key] = value` and `const arguments_1 =
-// arguments` at the top of its body, after its directives, for the bindings
-// that a's references used.
+// superSet_1 = (key, value) => super[key] = value`, `const arguments_1 =
+// arguments` and `const newTarget_1 = new.target` at the top of its body,
+// after its directives, for the bindings that a's references used.
 func (tx *lowering) declareFrameBindings(fn *ast.Node, a *activation) *ast.Node {
 	body := frameBody(fn)
-	if a.super == nil && a.superSet == nil && a.arguments == nil || body == nil || !ast.IsBlock(body) {
+	if a.super == nil && a.superSet == nil && a.arguments == nil && a.newTarget == nil || body == nil || !ast.IsBlock(body) {
 		return fn
 	}
 	f := tx.Factory()
@@ -421,6 +440,9 @@ func (tx *lowering) declareFrameBindings(fn *ast.Node, a *activation) *ast.Node 
 	}
 	if a.arguments != nil {
 		declare(a.arguments, f.NewIdentifier("arguments"))
+	}
+	if a.newTarget != nil {
+		declare(a.newTarget, f.NewMetaProperty(ast.KindNewKeyword, f.NewIdentifier("target")))
 	}
 	statements := body.Statements()
 	directives := 0

@@ -1,0 +1,16 @@
+// A hatch makes the arrow an Effect, whose body runs in a generator: it
+// still compares the constructor call's new.target.
+class Maker {
+  run: () => boolean!!
+  constructor() {
+    this.run = () => {
+      sync(() => {})
+      return new.target === Maker
+    }
+  }
+}
+
+// expect-result: true
+export function main() {
+  return new Maker().run()
+}
