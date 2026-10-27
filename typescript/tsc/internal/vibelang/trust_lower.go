@@ -30,17 +30,20 @@ import (
 // trustedPlan records the calls whose expected failures the lowering
 // converts.
 type trustedPlan struct {
-	trusted map[*ast.Node][]classRef // call -> the classes of its expected failures
+	trusted      map[*ast.Node][]classRef // call -> the classes of its expected failures
+	classAliases map[*ast.Node]bool       // class declarations whose name a binding around such a call shadows, declared with an alias (classAlias)
 }
 
 func newTrustedPlan() trustedPlan {
-	return trustedPlan{trusted: map[*ast.Node][]classRef{}}
+	return trustedPlan{trusted: map[*ast.Node][]classRef{}, classAliases: map[*ast.Node]bool{}}
 }
 
 // classRef says how generated code names a class at run time.
 type classRef struct {
 	module string // the module specifier to import it from, or "" for a name in scope
 	name   string // its export's name, or its name in scope
+	global bool   // a global that a binding around the call shadows, reached through the runtime's $global
+	alias  bool   // a class of the file that a binding around the call shadows, reached through the alias declared after it (classAliases)
 }
 
 // planTrustedCalls records the calls with expected failures in file's
@@ -62,7 +65,11 @@ func (p *plan) planTrustedCalls(c *checker.Checker, a *analyzer, file *ast.Sourc
 					if !ok {
 						return false // EK4401 says why
 					}
-					refs = append(refs, classRef{module: module, name: name})
+					ref := classRef{module: module, name: name}
+					if module == "" {
+						ref = p.unshadowedClass(c, call, f, ref)
+					}
+					refs = append(refs, ref)
 				}
 				p.trusted[call] = refs
 				return false
@@ -72,6 +79,27 @@ func (p *plan) planTrustedCalls(c *checker.Checker, a *analyzer, file *ast.Sourc
 		return false
 	}
 	file.AsNode().ForEachChild(visit)
+}
+
+// unshadowedClass returns how the generated code at call reaches f's class,
+// which ref names in scope. A binding around call may shadow that name, as a
+// parameter named SyntaxError does: the code then reaches a global through
+// the runtime's $global, captured where no binding of the file can shadow it,
+// and a class of the file through an alias of fresh name declared after the
+// class. Otherwise it names the class as source code there would.
+func (p *plan) unshadowedClass(c *checker.Checker, call *ast.Node, f failure, ref classRef) classRef {
+	if lexical := c.ResolveLexicalName(ref.name, call, ast.SymbolFlagsValue); lexical != nil && c.GetMergedSymbol(aliasTarget(c, lexical)) == f.class {
+		return ref
+	}
+	if f.global {
+		ref.global = true
+		return ref
+	}
+	if declaration := f.class.ValueDeclaration(); declaration != nil {
+		ref.alias = true
+		p.classAliases[declaration] = true
+	}
+	return ref
 }
 
 // expectedFailures returns the exceptions of call that are expected failures
@@ -141,7 +169,12 @@ type namedImport struct {
 
 // classReference returns an expression for ref's class.
 func (tx *lowering) classReference(ref classRef) *ast.Node {
-	if ref.module == "" {
+	switch {
+	case ref.global:
+		return tx.Factory().NewPropertyAccessExpression(tx.runtimeMember("$global"), nil /*questionDotToken*/, tx.Factory().NewIdentifier(ref.name), ast.NodeFlagsNone)
+	case ref.alias:
+		return tx.Factory().NewIdentifier(tx.freshName(ref.name + "$class"))
+	case ref.module == "":
 		return tx.Factory().NewIdentifier(ref.name)
 	}
 	for _, imported := range tx.imports {
@@ -152,6 +185,23 @@ func (tx *lowering) classReference(ref classRef) *ast.Node {
 	local := tx.fileName(ref.name)
 	tx.imports = append(tx.imports, namedImport{module: ref.module, name: ref.name, local: local})
 	return local
+}
+
+// classAlias returns visited, the lowered declaration of node, a class whose
+// name a binding around a call with its failures shadows (unshadowedClass),
+// followed by an alias of fresh name for the class, which that call's
+// generated code names instead: `const Missing$class = Missing`.
+func (tx *lowering) classAlias(node *ast.Node, visited *ast.Node) *ast.Node {
+	f := tx.Factory()
+	name := node.Name().Text()
+	alias := f.NewVariableStatement(nil /*modifiers*/, f.NewVariableDeclarationList(f.NewNodeList([]*ast.Node{
+		f.NewVariableDeclaration(f.NewIdentifier(tx.freshName(name+"$class")), nil /*exclamationToken*/, nil /*typeNode*/, f.NewIdentifier(name)),
+	}), ast.NodeFlagsConst))
+	statements := []*ast.Node{visited}
+	if visited != nil && visited.Kind == ast.KindSyntaxList {
+		statements = visited.AsSyntaxList().Children
+	}
+	return f.NewSyntaxList(append(append([]*ast.Node{}, statements...), tx.generated(alias)))
 }
 
 // namedImportDeclarations returns the declarations of the imports the

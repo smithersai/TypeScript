@@ -97,7 +97,10 @@ The prelude exports that the parser's forms call or extend, such as `$is`,
 `$awaitAll` or `TaggedError`, are intrinsics: they mean the prelude's export
 whatever the file declares. Where a source binding of another meaning would
 capture one, the emitted JavaScript reaches the export through the lowering's
-own import, as `runtime.$is`.
+own import, as `runtime.$is`. Likewise, where a binding around a call shadows
+a failure class its contract lists, the generated test reaches a global such
+as `SyntaxError` through the runtime's `$global`, and a class of the file
+through an alias declared after the class.
 An Effect function's generator carries the function's name for stack traces
 (D36) but binds none: a named function expression that refers to itself, in
 its body or a parameter default, forwards to the generator as a declaration

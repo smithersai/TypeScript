@@ -37,6 +37,7 @@ export const {
   $forStream,
   $fork,
   $freeze,
+  $global,
   $is,
   $isFailure,
   $isRun,

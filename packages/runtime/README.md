@@ -102,6 +102,7 @@ JavaScript value. Decisions are in [`docs/design/DECISIONS.md`](../../docs/desig
 | `$finallyExit` | Run cleanup with the try block exit | — |
 | `$forConcurrent` | Run a concurrent loop | — |
 | `$freeze` | Captured Object.freeze intrinsic | — |
+| `$global` | Captured global object, for a global failure class such as SyntaxError that a binding of the module shadows | — |
 | `$is` | Test a lowered pattern | — |
 | `$join` | Join a fiber or collection of fibers | — |
 | `$noFailure` | Sentinel for a Cause without a recoverable expected failure | — |

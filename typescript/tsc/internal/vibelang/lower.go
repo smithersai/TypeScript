@@ -90,6 +90,9 @@ func (tx *lowering) visit(node *ast.Node) *ast.Node {
 	if tx.frames.binders[node] && !tx.plan.cyclicDirects[node] {
 		return tx.hoistFrameReferences(node, tx.visitSource(node)) // super and arguments (frames_lower.go)
 	}
+	if tx.plan.classAliases[node] {
+		return tx.classAlias(node, tx.visitSource(node)) // a shadowed failure class (trust_lower.go)
+	}
 	visited := tx.visitSource(node)
 	if tx.eagerBudget != nil && !tx.rawPlain && !tx.inEffect {
 		ref := tx.plan.cycleRefs[node]

@@ -1,0 +1,67 @@
+// expect-result: ["caught:SyntaxError","caught:SyntaxError","caught:Bad","caught:Bad","caught:Bad"]
+// A call whose contract lists failures, such as JSON.parse's SyntaxError or a
+// trusted function's classes, tests what it throws against those classes. A
+// binding around the call spelled like a class, here a parameter, does not
+// replace the class in that test: the failure stays expected, and catch
+// receives it.
+import { trusted } from "vibelang-runtime"
+import { parse, parseDeclared } from "./helpers.ts"
+
+export error Bad
+
+const parseTrusted = trusted(parse, [Bad])
+
+// A function that compiles to plain JavaScript.
+function plainParse(SyntaxError: number) {
+  try {
+    JSON.parse("{")
+    return "ok"
+  } catch (e) {
+    return "caught:" + e.name
+  }
+}
+
+// An Effect function.
+function effectParse(SyntaxError: number) {
+  sleep("0 millis")
+  try {
+    JSON.parse("{")
+    return "ok"
+  } catch (e) {
+    return "caught:" + e.name
+  }
+}
+
+function plainTrusted(Bad: number) {
+  try {
+    parseTrusted("")
+    return "ok"
+  } catch (e) {
+    return "caught:" + e._tag
+  }
+}
+
+// A legacy trusted declaration lists Bad by name: the generated test names
+// the class of this file, which the parameter shadows.
+function plainDeclared(Bad: number) {
+  try {
+    parseDeclared("")
+    return "ok"
+  } catch (e) {
+    return "caught:" + e._tag
+  }
+}
+
+function effectTrusted(Bad: number) {
+  sleep("0 millis")
+  try {
+    parseTrusted("")
+    return "ok"
+  } catch (e) {
+    return "caught:" + e._tag
+  }
+}
+
+export function main() {
+  return [plainParse(0), effectParse(0), plainTrusted(0), effectTrusted(0), plainDeclared(0)]
+}
