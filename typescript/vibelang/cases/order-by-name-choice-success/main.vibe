@@ -1,0 +1,28 @@
+// expect-result: {"or":[7,7],"nullish":[8,8],"and":[0,0],"log":["or-left","or-right","or-left","or-right","nullish-left","nullish-right","nullish-left","nullish-right","and-left","and-left"]}
+// A by-name || or ?? tests the success value of the call on its left, as the
+// same expression in a lambda does: the right side runs when that value is
+// falsy or nullish (chapter 13). The tail-program shortcut tested the Effect
+// that runs the call, which is always truthy, and never ran the right side.
+const log: string[] = []
+
+function value(name: string, n: number | undefined) {
+  Effect.yieldNow()
+  log.push(name)
+  return n
+}
+
+export function main() {
+  const or = [
+    retry(value("or-left", 0) || value("or-right", 7), { times: 0 }),
+    retry(() => value("or-left", 0) || value("or-right", 7), { times: 0 })
+  ]
+  const nullish = [
+    retry(value("nullish-left", undefined) ?? value("nullish-right", 8), { times: 0 }),
+    retry(() => value("nullish-left", undefined) ?? value("nullish-right", 8), { times: 0 })
+  ]
+  const and = [
+    retry(value("and-left", 0) && value("and-right", 9), { times: 0 }),
+    retry(() => value("and-left", 0) && value("and-right", 9), { times: 0 })
+  ]
+  return { or, nullish, and, log }
+}

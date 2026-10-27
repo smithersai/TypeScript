@@ -516,12 +516,13 @@ func (tx *lowering) byNameResult(node *ast.Node) (*ast.Node, bool) {
 			right, program := tx.byNameResult(binary.Right)
 			return f.UpdateBinaryExpression(binary, binary.Modifiers(), left, binary.Type, binary.OperatorToken, right), program
 		case ast.KindBarBarToken, ast.KindQuestionQuestionToken:
-			left, leftProgram := tx.byNameResult(binary.Left)
-			if !leftProgram {
-				// A scalar left operand tests its value, including the success
-				// of any calls inside it, before selecting the right side.
+			if !tx.holdsPrograms(binary.Left) {
+				// The left operand's value decides, including the success of a
+				// call in its result position, which runs before the test.
 				return tx.visitNode(node), false
 			}
+			// A left operand that holds a program tests the program itself.
+			left, _ := tx.byNameResult(binary.Left)
 			right, rightProgram := tx.byNameResult(binary.Right)
 			if !rightProgram {
 				right = tx.succeedByName(right)
@@ -540,6 +541,16 @@ func (tx *lowering) byNameResult(node *ast.Node) (*ast.Node, bool) {
 		return tail.Expression(), true
 	}
 	return value, tx.plan.heldPrograms[node]
+}
+
+// holdsPrograms reports whether each result position of node, the left side
+// of a by-name || or ??, holds a program as a value (byNameResults), which the
+// operator may test and return untested. A call there runs instead, and the
+// operator tests its success value.
+func (tx *lowering) holdsPrograms(node *ast.Node) bool {
+	held := true
+	byNameResults(node, func(result *ast.Node) { held = held && tx.plan.heldPrograms[result] })
+	return held
 }
 
 // succeedByName makes `Effect.succeed(value)` with value's source range: the

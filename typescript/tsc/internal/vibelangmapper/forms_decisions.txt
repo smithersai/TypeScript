@@ -1676,6 +1676,12 @@ typescript/vibelang/cases/optional-member-factory/main.vibe:14:14 lambda effectF
 typescript/vibelang/cases/optional-member-factory/main.vibe:18:40 lambda plain fallback
 typescript/vibelang/cases/optional-member-factory/main.vibe:19:42 lambda dual fallback
 typescript/vibelang/cases/optional-member-factory/main.vibe:24:65 byname program table
+typescript/vibelang/cases/order-by-name-choice-success/main.vibe:16:11 byname program table
+typescript/vibelang/cases/order-by-name-choice-success/main.vibe:17:11 lambda program table
+typescript/vibelang/cases/order-by-name-choice-success/main.vibe:20:11 byname program table
+typescript/vibelang/cases/order-by-name-choice-success/main.vibe:21:11 lambda program table
+typescript/vibelang/cases/order-by-name-choice-success/main.vibe:24:11 byname program table
+typescript/vibelang/cases/order-by-name-choice-success/main.vibe:25:11 lambda program table
 typescript/vibelang/cases/overload-program-ranking.fail/main.vibe:6:27 byname program table
 typescript/vibelang/cases/overload-program-ranking/main.vibe:101:17 byname program annotation
 typescript/vibelang/cases/overload-program-ranking/main.vibe:101:36 byname program annotation

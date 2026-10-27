@@ -134,6 +134,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - A binding spelled like a helper that a form calls, such as a `$is` or `$noMatch` function beside a `match`, or `$awaitAll` and `$forConcurrent` beside `await.all` and `for concurrent`, replaced the helper: a match chose the wrong arm or returned the binding instead of failing, and the fiber forms ran the binding instead of their fibers. The forms now always call the runtime's helpers.
 - A parameter or local named like a failure class that a call lists, such as `SyntaxError` around `JSON.parse`, replaced the class in the call's generated test: the failure became a `TypeError` defect that `catch` could not receive. The test now reaches the class itself.
 - Plain functions that call one another, with a parameter or local named like the function, such as `function even(even: number)`, failed with `TypeError: even is not a function` once the recursion ran deep. The deep path now calls the function.
+- A by-name `a() || b()` or `a() ?? b()`, such as `retry(first() || second(), policy)`, tested the Effect that runs `a()` instead of its value, so `b()` never ran. It now tests the value, as the same expression in a lambda does.
 
 #### Runtime
 
