@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
+import { fileURLToPath } from "node:url"
 import { createUnplugin } from "unplugin"
 
 const cleanId = (id) => id.split("?")[0]
@@ -20,7 +20,9 @@ async function loadBackend(root) {
     } catch {
       continue
     }
-    return import(pathToFileURL(path).href)
+    // Node 26 can require this synchronous ESM graph. A computed import()
+    // makes webpack's filesystem-cache dependency scanner warn and skip it.
+    return { ...createRequire(base)(path), backendPath: path }
   }
   throw new Error("vibelang-unplugin needs the vibelang package: npm install --save-dev vibelang")
 }
@@ -168,7 +170,17 @@ export const unplugin = createUnplugin((options = {}, meta) => {
       }
     },
     vite: { configResolved(config) { configure(config.root) } },
-    webpack(compiler) { configure(compiler.context) },
+    webpack(compiler) {
+      configure(compiler.context)
+      compiler.hooks.beforeCompile.tapPromise("vibelang-backend", loaded)
+      compiler.hooks.thisCompilation.tap("vibelang-backend", (compilation) => {
+        // The backend is selected from the app, so record the actual files
+        // rather than a static dependency on the plugin's fallback install.
+        for (const file of [backend.backendPath, backend.findCompiler(root, options.compiler), join(dirname(backend.backendPath), "native/vibelang")]) {
+          if (existsSync(file)) compilation.buildDependencies.add(file)
+        }
+      })
+    },
     rspack(compiler) { configure(compiler.context) },
     esbuild: {
       config(initialOptions) { configure(initialOptions.absWorkingDir) },
