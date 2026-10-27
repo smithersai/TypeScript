@@ -750,7 +750,6 @@ function loaded() {
 ```
 
 ```vibe
-// block-params.test.vibe
 import { assert, it } from "@effect/vitest"
 
 it.live("finds a user") {

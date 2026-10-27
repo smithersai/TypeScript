@@ -25,3 +25,12 @@ test("the skill sends a struct of named schemas to a schema declaration, as EK48
   assert.match(data, /`schema` declarations, fields of any schema \(`Schema\.\w+From\w+`\)/)
   assert.match(data, /`Schema\.Struct` for struct checks and `optionalKey`/)
 })
+
+test("a block captioned as a test file imports what it tests, as a test file must", () => {
+  // The snippet checker lets a later block see an earlier block's names, but a
+  // reader who saves a captioned test file has only what it imports.
+  const tests = pages("docs/user/src").flatMap(path => [...read(path).matchAll(/```vibe[^\n]*\n\/\/ ([\w./-]+\.test\.vibe)\n([\s\S]*?)```/g)]
+    .map(m => ({ path, file: m[1], body: m[2] })))
+  assert.ok(tests.length >= 7)
+  for (const { path, file, body } of tests) assert.match(body, /^import \{[^}]+\} from "\.\/[\w./-]+\.vibe"$/m, `${path}: ${file}`)
+})

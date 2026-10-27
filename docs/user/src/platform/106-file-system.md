@@ -81,13 +81,14 @@ export function main() {
 ## Replacing behavior in tests
 
 ```vibe
+// files.vibe
 // run: provide FilesTest { Console.log(readFixture()) }
-function readFixture() {
+export function readFixture() {
   if (!FileSystem.exists("/fixtures/title.txt")) return "Untitled"
   return FileSystem.readFileString("/fixtures/title.txt")
 }
 
-const FilesTest = FileSystem.layerNoop({
+export const FilesTest = FileSystem.layerNoop({
   exists: (path) => path === "/fixtures/title.txt",
   readFileString: () => "Release notes"
 })
@@ -97,6 +98,7 @@ const FilesTest = FileSystem.layerNoop({
 ```vibe
 // files.test.vibe
 import { it } from "@effect/vitest"
+import { FilesTest, readFixture } from "./files.vibe"
 
 it.effect("reads the configured title") {
   const title = Effect.provide(() => readFixture(), FilesTest)
