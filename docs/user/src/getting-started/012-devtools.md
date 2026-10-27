@@ -150,7 +150,7 @@ Effect declarations and combinator calls written in TypeScript's style compile i
 | EK4832 | `const User = Schema.Struct({ id: Schema.String })` | `schema User { id: string }` | When every field has a declaration form; `Schema.optionalKey` or a check keeps the constant, without a warning |
 | EK4833 | `Effect.Effect<User, NotFound, Db>` | `User!NotFound!Db` | Except for `infer` in a slot other than a function's dependencies; the prelude's `Effect<User, NotFound, Db>` draws no warning |
 | EK4834 | `return Effect.succeed(user)`, `return Effect.fail(error)`, where the call runs | `return user`, `throw error` | When the function stays an Effect function |
-| EK4835 | `Effect.catchTag(find(id), "NotFound", (e) => …)` | `find(id) catch (e) => match (e) { when NotFound: …; default: throw e; }` | When each handler is an arrow function with one value |
+| EK4835 | `Effect.catchTag(find(id), "NotFound", (e) => …)` | `find(id) catch (e) => match (e) { when NotFound: …; default: throw e; }` | When each handler is an arrow function with one value; merged handlers keep their own bindings |
 | EK4836 | `Effect.withSpan(load(), "load")`, `Effect.provide(main(), AppLive)` | `withSpan("load") { return load() }`, `provide AppLive { return main() }` | Where a block can stand |
 | EK4837 | `class Failed extends Schema.TaggedError<Failed>()("Failed", { … }) {}` | `error Failed { … }`, which is not a Schema | None; turn the code off where errors are Schemas by design |
 

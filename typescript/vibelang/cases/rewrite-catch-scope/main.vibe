@@ -1,0 +1,24 @@
+import "vibelang/platform/node"
+error A { n: number }
+error B { n: number }
+const e = { n: 100 }
+function fail(n: number): number!A | B {
+  if (n === 1) throw new A({ n: 1 })
+  throw new B({ n: 2 })
+}
+function recover(n: number) {
+  return Effect.catchTags(fail(n), {
+    A: (e) => e.n,
+    B: () => e.n
+  })
+}
+function nested(n: number) {
+  return Effect.catchTags(fail(n), {
+    A: (problem) => ({ problem }).problem.n + ((problem: number) => problem)(10),
+    B: (other) => e.n + other.n - other.n
+  })
+}
+export function main() {
+  Console.log(recover(1), recover(2))
+  Console.log(nested(1), nested(2))
+}

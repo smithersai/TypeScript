@@ -119,6 +119,7 @@ func findCatchCombinators(c *checker.Checker, file *ast.SourceFile, report func(
 // catchHandler is a handler's parameter name, or "", and its value.
 type catchHandler struct {
 	parameter string
+	binding   *ast.Node
 	value     *ast.Node
 }
 
@@ -139,6 +140,7 @@ func catchHandlerOf(handler *ast.Node) (catchHandler, bool) {
 			return catchHandler{}, false
 		}
 		result.parameter = p.Name().Text()
+		result.binding = p.Name()
 	default:
 		return catchHandler{}, false
 	}
@@ -208,18 +210,26 @@ func catchCombinatorRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.
 			return nil
 		}
 	}
-	// The catch variable: the handlers' parameter, or a name no handler reads.
+	// Reuse a shared parameter only when it cannot capture another handler's
+	// free name. Otherwise choose a name absent from every handler's scopes
+	// and alpha-rename references by symbol, preserving nested bindings.
 	variable := ""
+	fresh := false
 	for _, h := range handlers {
 		switch {
 		case h.parameter == "":
 		case variable == "":
 			variable = h.parameter
 		case variable != h.parameter:
-			return nil
+			fresh = true
 		}
 	}
-	if variable == "" {
+	for _, h := range handlers {
+		if h.parameter == "" && containsIdentifier(h.value, variable) {
+			fresh = true
+		}
+	}
+	if variable == "" || fresh {
 		variable = freshCatchName(handlers)
 	}
 	values := make([]string, len(handlers))
@@ -236,7 +246,11 @@ func catchCombinatorRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.
 			}
 			valueNode = argument
 		}
-		value, _ := runningText(c, file, valueNode)
+		valueText, ok := catchValueText(c, file, valueNode, h, variable)
+		if !ok {
+			return nil
+		}
+		value, _ := runningExpressionText(c, valueNode, valueText)
 		if strings.HasPrefix(value, "{") || isLowPrecedence(valueNode) {
 			value = "(" + value + ")"
 		}
@@ -294,6 +308,36 @@ func catchCombinatorRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.
 		rewrite.message = catchHandlerMessage
 	}
 	return rewrite
+}
+
+// catchValueText preserves identifier identity when independent handler scopes
+// are merged into one catch. Shorthand keys keep their spelling; only their
+// value is renamed. No wrapper is introduced around lexical this or arguments.
+func catchValueText(c *checker.Checker, file *ast.SourceFile, value *ast.Node, handler catchHandler, variable string) (string, bool) {
+	text := expressionText(file, value)
+	if handler.parameter == "" || handler.parameter == variable {
+		return text, true
+	}
+	symbol := c.GetSymbolAtLocation(handler.binding)
+	if symbol == nil {
+		return "", false
+	}
+	start := nodeStart(file, value)
+	var edits []sourceEdit
+	var visit func(*ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		if ast.IsShorthandPropertyAssignment(node) && c.GetShorthandAssignmentValueSymbol(node) == symbol {
+			name := node.Name()
+			edits = append(edits, sourceEdit{nodeStart(file, name) - start, name.End() - start, name.Text() + ": " + variable})
+			return false
+		}
+		if ast.IsIdentifier(node) && c.GetSymbolAtLocation(node) == symbol {
+			edits = append(edits, sourceEdit{nodeStart(file, node) - start, node.End() - start, variable})
+		}
+		return node.ForEachChild(visit)
+	}
+	visit(value)
+	return applyEdits(text, edits), true
 }
 
 // freshCatchName returns a name for the catch variable that no handler's

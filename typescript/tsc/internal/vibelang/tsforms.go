@@ -449,7 +449,12 @@ func isEffectFunction(c *checker.Checker, callee *ast.Node, module string, names
 // and node called when it is an Effect value. It returns false for any other
 // node, which a rewrite cannot run.
 func runningText(c *checker.Checker, file *ast.SourceFile, node *ast.Node) (string, bool) {
-	text := expressionText(file, node)
+	return runningExpressionText(c, node, expressionText(file, node))
+}
+
+// runningExpressionText is runningText with source text whose identifiers may
+// have been hygienically renamed by a source rewrite.
+func runningExpressionText(c *checker.Checker, node *ast.Node, text string) (string, bool) {
 	if isInvocation(ast.SkipParentheses(node)) {
 		return text, true
 	}

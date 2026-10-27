@@ -78,6 +78,8 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 ### Bugs fixed since 0.0.10
 
+- The `catchTags` quick fix gave the merged handlers one shared `catch (e)` parameter, so a handler that read an outer variable named `e` read the caught failure instead and returned the wrong value. Handlers now keep their own bindings: the shared variable is renamed when a handler's own name would be captured.
+
 #### Compiler and diagnostics
 
 - A non-tail `resume` could receive a value outside its type and crash after only EK2119 warned. EK2119 is now an error; write a success type covering the handler's answers.
