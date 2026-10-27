@@ -415,3 +415,45 @@ catchAll()
     (call_expression
       function: (identifier)
       arguments: (arguments))))
+
+================================================================================
+Using remains a contextual identifier
+================================================================================
+
+export function f(using: number) { return using + 1 }
+
+--------------------------------------------------------------------------------
+
+(program
+  (export_statement
+    declaration: (function_declaration
+      name: (identifier)
+      parameters: (formal_parameters
+        (required_parameter
+          pattern: (identifier)
+          type: (type_annotation (predefined_type))))
+      body: (statement_block
+        (return_statement
+          (binary_expression
+            left: (identifier)
+            right: (number)))))))
+
+================================================================================
+Using resource declarations still parse
+================================================================================
+
+function program() { using resource = acquire(); }
+
+--------------------------------------------------------------------------------
+
+(program
+  (function_declaration
+    name: (identifier)
+    parameters: (formal_parameters)
+    body: (statement_block
+      (expression_statement
+        (assignment_expression
+          left: (identifier)
+          right: (call_expression
+            function: (identifier)
+            arguments: (arguments)))))))

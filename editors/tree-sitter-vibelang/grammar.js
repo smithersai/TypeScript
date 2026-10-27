@@ -370,6 +370,23 @@ module.exports = grammar(TypeScript, {
       ),
     ),
 
+    // The inherited `optional(using)` also accepts a unary expression as an
+    // assignment LHS through non_null_expression, stealing `using + 1` from
+    // the identifier parse. Resource declarations bind a name.
+    assignment_expression: $ => prec.right('assign', choice(
+      seq(
+        field('left', choice($.parenthesized_expression, $._lhs_expression)),
+        '=',
+        field('right', $.expression),
+      ),
+      seq(
+        'using',
+        field('left', $.identifier),
+        '=',
+        field('right', $.expression),
+      ),
+    )),
+
     // ------------------------------------------------------ Expressions
 
     expression: ($, previous) => choice(
@@ -615,6 +632,7 @@ module.exports = grammar(TypeScript, {
       'join',
       'match',
       'mutable',
+      'using',
     ),
   },
 });
