@@ -54,3 +54,21 @@ test('user prose drops decision annotations without damaging diagnostics, propos
   assert.match(page, /const D126 = "\(D126\)"/)
   assert.doesNotMatch(page, /D278|D304|D188|D108|D284|D290|D186/)
 })
+
+test('descriptions skip complete fenced blocks before the first prose paragraph', () => {
+  for (const marker of ['```', '~~~~', '  ~~~']) {
+    const page = render([
+      '# Example', '', marker + 'sh', 'bun create vibelang my-app',
+      ...(marker.trim() === '```' ? [] : ['```']), 'cd my-app', marker.trim(), '',
+      'The native `compiler` supports [apps](https://example.com).',
+      'Install it with your package manager.', '', 'A later paragraph.', '',
+    ].join('\n'))
+    assert.match(page, /description: "The native compiler supports apps\. Install it with your package manager\."/)
+    assert.match(page, /bun create vibelang my-app/)
+  }
+})
+
+test('a code-only page has no description and code ends an existing paragraph', () => {
+  assert.doesNotMatch(render('# Example\n\n```sh\ncommand\n```\n'), /^description:/m)
+  assert.match(render('# Example\n\nFirst prose.\n```sh\ncommand\n```\nLater prose.\n'), /description: "First prose\."/)
+})

@@ -155,7 +155,12 @@ function convertPage(rel) {
   const title = (raw.match(/^# (.+)$/m)?.[1] ?? rel).replace(/`/g, '')
   const afterTitle = raw.split('\n').slice(raw.split('\n').findIndex((l) => l.startsWith('# ')) + 1)
   const paragraph = []
-  for (const line of afterTitle) {
+  for (const part of readFences(afterTitle)) {
+    if (part.type === 'code') {
+      if (paragraph.length > 0) break
+      continue
+    }
+    const line = part.line
     if (line.trim() === '' && paragraph.length > 0) break
     if (line.trim() === '') continue
     if (/^(```|~~~|#|>|\||- |\* |\d+\. )/.test(line.trim())) {
