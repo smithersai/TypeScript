@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 4,941 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,565 |
-| The skill and the user guide (134 pages) | 229,543 |
-| The user guide alone | 224,602 |
+| The skill and the user guide (134 pages) | 229,926 |
+| The user guide alone | 224,985 |
 | The specification (33 chapters) | 108,411 |
 | The decision log, `docs/design/DECISIONS.md` | 69,738 |
 
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **13,471** |
-| [Release notes](../setup/release-notes.md) | 13,471 |
-| **All 15 pages** | **31,840** |
+| **Upgrade** | **13,730** |
+| [Release notes](../setup/release-notes.md) | 13,730 |
+| **All 15 pages** | **32,099** |
 
 ### Guides
 
@@ -243,16 +243,16 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Equivalence](../schema/102-equivalence.md) | 770 |
 | [Formatter](../schema/103-formatter.md) | 541 |
 | [Schema Compilers](../schema/104-compilers.md) | 2,110 |
-| **Platform** | **12,407** |
+| **Platform** | **12,531** |
 | [Introduction](../platform/105-introduction.md) | 2,151 |
 | [FileSystem](../platform/106-file-system.md) | 1,211 |
 | [Path](../platform/107-path.md) | 927 |
 | [PlatformLogger](../platform/108-platformlogger.md) | 752 |
 | [Runtime](../platform/109-runtime.md) | 1,219 |
 | [Terminal](../platform/110-terminal.md) | 1,511 |
-| [Platform globals in VibeLang](../platform/platform-globals.md) | 3,889 |
+| [Platform globals in VibeLang](../platform/platform-globals.md) | 4,013 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **139,611** |
+| **All 100 pages** | **139,735** |
 
 ### VibeLang features
 

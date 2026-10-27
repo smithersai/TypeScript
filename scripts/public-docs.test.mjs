@@ -19,3 +19,15 @@ test("the shipped skill demonstrates Effect 4 config and scoped file IO", () => 
   assert.match(skill, /using directory = FileSystem\.makeTempDirectoryScoped\(\)/)
   assert.match(skill, /import "vibelang\/platform\/node"/)
 })
+
+test("the current release discloses resource and static platform limits", () => {
+  const notes = read("docs/user/src/setup/release-notes.md").split("## 0.0.11")[1]?.split(/^## /m)[0] ?? ""
+  const limits = notes.split("### Known limitations")[1]?.split(/^### /m)[0] ?? ""
+  for (const text of ["scopes-using-pending-interrupt", "Effect.acquireRelease", "{ value: disposable }", "holder.value", "not a sandbox", "globalThis; g.process.pid", "as any", "Reflect.get", "Intl.DateTimeFormat().format()", "without EK4403"]) {
+    assert.ok(limits.includes(text), text)
+  }
+  for (const path of ["../resource-management/030-scope.md#known-limitation-pending-interruption-and-javascript-disposables", "../platform/platform-globals.md#limits-of-static-checks"]) {
+    assert.ok(limits.includes(path), path)
+  }
+  assert.match(read("docs/user/src/platform/platform-globals.md"), /## Limits of static checks/)
+})

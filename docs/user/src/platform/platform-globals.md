@@ -259,3 +259,16 @@ module node {
 }
 import { server } from node
 ```
+
+
+## Limits of static checks
+
+EK4402 and EK4403 are static, lint-strength checks, not a sandbox or a
+security boundary. They recognize direct uses, but aliases such as
+`const g = globalThis; g.process.pid`, `as any`, and reflection through
+`Reflect.get` can bypass them. Use process isolation when running untrusted
+code.
+
+`Intl.DateTimeFormat().format()` with no argument reads the current clock
+without EK4403. Read time through `Clock.currentTimeMillis()` and pass that
+value to the formatter when you need controlled time, including in tests.

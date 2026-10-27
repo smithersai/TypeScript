@@ -78,6 +78,23 @@ instead of installing the Vite plugin. See the 0.0.10 notes below for the
 Effect 4.0.6 defect-precedence and interruption migration.
 
 
+### Known limitations
+
+- A JavaScript Disposable acquired while interruption is masked can leak if
+  interruption is already pending when the mask ends, before `using`
+  registers disposal (`scopes-using-pending-interrupt`). Use
+  `Effect.acquireRelease` with its default protected acquisition, return a
+  plain holder `{ value: disposable }`, and dispose `holder.value` in
+  the release callback. Bind the holder with `using` to avoid double
+  disposal. See [the pending-interruption limitation and safe pattern](/resource-management/030-scope#known-limitation-pending-interruption-and-javascript-disposables).
+- Platform checks are static, lint-strength checks, not a sandbox. Aliases
+  such as `const g = globalThis; g.process.pid`, calls through `as any`,
+  and `Reflect.get` can bypass them. See [the scope of platform checks](/platform/platform-globals#limits-of-static-checks).
+- `Intl.DateTimeFormat().format()` reads the current clock without EK4403
+  when no argument is supplied. Read time with `Clock` and pass the value
+  explicitly. See [clock-check limitations](/platform/platform-globals#limits-of-static-checks).
+
+
 ### Platform
 
 - The file that exports `main` names its platform once with
