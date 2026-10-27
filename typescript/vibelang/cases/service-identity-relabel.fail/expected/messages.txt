@@ -1,0 +1,1 @@
+Property '[serviceBrand]' is missing in type 'Shape' but required in type 'B'.

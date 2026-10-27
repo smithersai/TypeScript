@@ -182,7 +182,7 @@ When a larger graph fails to initialize, acquired resources still release. Initi
 service Banner {
   text(title: string): string!!
 
-  static make(): Banner!!Settings {
+  static make(): Banner.Shape!!Settings {
     const settings = Settings()
     return { text: (title) => `${settings.prefix}: ${title}` }
   }

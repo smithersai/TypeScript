@@ -82,3 +82,112 @@ func (c *Checker) initializerContextualTypeFromHooks(declaration *ast.Node) *Typ
 func (c *Checker) CheckExpressionAssignableTo(node *ast.Node, target *Type) {
 	c.checkTypeAssignableToAndOptionallyElaborate(c.checkExpressionCached(node), target, node, node, nil, nil)
 }
+
+// NewReadonlyPropertyType returns the object type `{ readonly [name]: t }`.
+func (c *Checker) NewReadonlyPropertyType(name string, t *Type) *Type {
+	property := c.newSymbolEx(ast.SymbolFlagsProperty, name, ast.CheckFlagsReadonly)
+	c.valueSymbolLinks.Get(property).resolvedType = t
+	return c.newAnonymousType(nil, ast.SymbolTable{name: property}, nil, nil, nil)
+}
+
+// NewAliasedObjectType returns an object type whose properties are members,
+// symbols declared elsewhere, such as a class's instance members, and a type
+// alias symbol named aliasName whose declared type it is. The alias has
+// parent as its parent, so the type prints as Parent.AliasName, and it is
+// declared nowhere: a hook resolves the name.
+func (c *Checker) NewAliasedObjectType(members ast.SymbolTable, aliasName string, parent *ast.Symbol) (*Type, *ast.Symbol) {
+	alias := c.newSymbol(ast.SymbolFlagsTypeAlias, aliasName)
+	alias.SetParent(parent)
+	t := c.newAnonymousType(nil, members, nil, nil, nil)
+	t.alias = &TypeAlias{symbol: alias}
+	c.typeAliasLinks.Get(alias).declaredType = t
+	return t, alias
+}
+
+// NewTypeAliasSymbol returns a type alias symbol named name whose declared
+// type is t and whose parent is parent. It is declared nowhere: a hook
+// resolves the name.
+func (c *Checker) NewTypeAliasSymbol(name string, parent *ast.Symbol, t *Type) *ast.Symbol {
+	alias := c.newSymbol(ast.SymbolFlagsTypeAlias, name)
+	alias.SetParent(parent)
+	c.typeAliasLinks.Get(alias).declaredType = t
+	return alias
+}
+
+// ResolveEntityName resolves name, an identifier, qualified name, or property
+// access, with meaning, following aliases, without reporting an error. It
+// returns nil when name resolves to nothing with that meaning.
+func (c *Checker) ResolveEntityName(name *ast.Node, meaning ast.SymbolFlags) *ast.Symbol {
+	symbol := c.resolveEntityName(name, meaning, true /*ignoreErrors*/, false /*dontResolveAlias*/, nil /*location*/)
+	if symbol == c.unknownSymbol {
+		return nil
+	}
+	return symbol
+}
+
+// ImplementedTypeHook can replace t, the type that typeNode, an element of
+// class's implements clause, names, with the type the class must be
+// assignable to. It returns t when it has nothing to say.
+type ImplementedTypeHook func(c *Checker, class *ast.Node, typeNode *ast.Node, t *Type) *Type
+
+var implementedTypeHooks []ImplementedTypeHook
+
+// RegisterImplementedTypeHook adds hook to every checker. Call it only from
+// the init function of an in-tree package that tsc/cmd/tsc imports;
+// registration is not synchronized.
+func RegisterImplementedTypeHook(hook ImplementedTypeHook) {
+	implementedTypeHooks = append(implementedTypeHooks, hook)
+}
+
+func (c *Checker) implementedTypeFromHooks(class *ast.Node, typeNode *ast.Node, t *Type) *Type {
+	for _, hook := range implementedTypeHooks {
+		t = hook(c, class, typeNode, t)
+	}
+	return t
+}
+
+// QualifiedTypeNameHook can supply a symbol for name, a qualified name or
+// property access in a type whose left side is left and whose right side is
+// right, before the checker resolves left as a namespace. A class that is not
+// a namespace can then have a member type, as a service's Shape is. It
+// returns nil when it has nothing to supply, and it runs for every qualified
+// name of a type, so it must be cheap.
+type QualifiedTypeNameHook func(c *Checker, name *ast.Node, left *ast.Node, right *ast.Node, meaning ast.SymbolFlags) *ast.Symbol
+
+var qualifiedTypeNameHooks []QualifiedTypeNameHook
+
+// RegisterQualifiedTypeNameHook adds hook to every checker. Call it only from
+// the init function of an in-tree package that tsc/cmd/tsc imports;
+// registration is not synchronized.
+func RegisterQualifiedTypeNameHook(hook QualifiedTypeNameHook) {
+	qualifiedTypeNameHooks = append(qualifiedTypeNameHooks, hook)
+}
+
+func (c *Checker) resolveQualifiedTypeNameFromHooks(name *ast.Node, left *ast.Node, right *ast.Node, meaning ast.SymbolFlags) *ast.Symbol {
+	for _, hook := range qualifiedTypeNameHooks {
+		if symbol := hook(c, name, left, right, meaning); symbol != nil {
+			return symbol
+		}
+	}
+	return nil
+}
+
+// IsServiceBrandProperty reports whether p is the brand of a VibeLang
+// service's identifier (D361): the property of the runtime's ServiceBrand,
+// whose name is a unique symbol no program can write, or, where the program
+// has no runtime that declares it, the property "~vibelang/service". The
+// brand takes part in typing, but it is not a member that source declares.
+func IsServiceBrandProperty(p *ast.Symbol) bool {
+	if p.Name() == "~vibelang/service" {
+		return true
+	}
+	if !isLateBoundName(p.Name()) {
+		return false
+	}
+	for _, declaration := range p.Declarations() {
+		if parent := declaration.Parent; parent != nil && ast.IsInterfaceDeclaration(parent) && parent.Name() != nil && parent.Name().Text() == "ServiceBrand" {
+			return true
+		}
+	}
+	return false
+}

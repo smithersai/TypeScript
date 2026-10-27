@@ -4447,7 +4447,7 @@ func (c *Checker) checkClassLikeDeclaration(node *ast.Node) {
 			}
 		}
 		c.checkTypeReferenceNode(typeRefNode)
-		t := c.getReducedType(c.getTypeFromTypeNode(typeRefNode))
+		t := c.implementedTypeFromHooks(node, typeRefNode, c.getReducedType(c.getTypeFromTypeNode(typeRefNode)))
 		if !c.isErrorType(t) {
 			if c.isValidBaseType(t) {
 				genericDiag := core.IfElse(t.symbol != nil && t.symbol.Flags()&ast.SymbolFlagsClass != 0,
@@ -16298,6 +16298,11 @@ func (c *Checker) resolveEntityName(name *ast.Node, meaning ast.SymbolFlags, ign
 }
 
 func (c *Checker) resolveQualifiedName(name *ast.Node, left *ast.Node, right *ast.Node, meaning ast.SymbolFlags, ignoreErrors bool, location *ast.Node) *ast.Symbol {
+	if meaning&ast.SymbolFlagsType != 0 && len(qualifiedTypeNameHooks) != 0 && !ast.NodeIsMissing(right) {
+		if symbol := c.resolveQualifiedTypeNameFromHooks(name, left, right, meaning); symbol != nil {
+			return symbol
+		}
+	}
 	namespace := c.resolveEntityName(left, ast.SymbolFlagsNamespace, ignoreErrors, false /*dontResolveAlias*/, location)
 	if namespace == nil || ast.NodeIsMissing(right) {
 		return nil

@@ -14,7 +14,7 @@ abstract class Sessions {
 
   static make() {
     const entries = new Map<string, Session>()
-    const impl: Sessions = {
+    const impl: Sessions.Shape = {
       get: (token: string) => Effect.succeed(entries.get(token)),
       set: (token: string, session: Session) => Effect.sync(() => { entries.set(token, session) })
     }
@@ -26,7 +26,7 @@ abstract class Sessions {
 
 abstract class FeatureFlags {
   abstract readonly newCheckout: boolean
-  static readonly default: FeatureFlags = { newCheckout: false }
+  static readonly default: FeatureFlags.Shape = { newCheckout: false }
 }
 
 export function checkoutPage(cartId: string) {

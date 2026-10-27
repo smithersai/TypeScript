@@ -1,0 +1,5 @@
+user 7 from fake, beta true
+7 from literal, beta true
+Ada via memory, beta true
+in-memory
+here shaped here 2 > hit:q beta true

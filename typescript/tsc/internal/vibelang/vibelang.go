@@ -35,6 +35,8 @@ func init() {
 	checker.RegisterDiagnosticsFilterHook(filterCoveredDiagnostics)
 	checker.RegisterDiagnosticsFilterHook(filterPlatformImports)
 	checker.RegisterClassBaseHook(classBases)
+	checker.RegisterImplementedTypeHook(implementedServiceShape)
+	checker.RegisterQualifiedTypeNameHook(resolveServiceShapeName)
 	checker.RegisterMemberReceiverHook(memberReceiver)
 	checker.RegisterCallSignaturesHook(effectValueCall)
 	checker.RegisterExpressionTypeHook(returnedExpressionType)

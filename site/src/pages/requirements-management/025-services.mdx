@@ -89,15 +89,18 @@ Declared members win over the key's own, including `pipe`, `use`, `key`, and `ca
 
 `provideService` removes the dependency only within its program. Nested overrides are local, a captured implementation stays the same object across later overrides or pauses, and forked fibers inherit the context present when they start.
 
-## Extracting service shapes
+## Service identifiers and shapes
 
 ```vibe
-type SequenceImplementation = Context.Service.Shape<typeof Sequence>
+type SequenceImplementation = Sequence.Shape
+type SameImplementation = Context.Service.Shape<typeof Sequence>
 ```
 
-Effect 4's `Context.Service.Shape` extracts a key's implementation type. A service compiles to an implementation interface and a class whose static side is a `Context.Key`, so the utility takes `typeof Sequence`. The type `Sequence` also names the implementation, so `implements Sequence` checks its methods; the generated key keeps the requirement nominal.
+A service has two types, as an Effect `Context.Key` has. As a type, `Sequence` is the service's identifier: its members plus a brand that only `Sequence` carries, so neither another service with the same members nor a structural type such as `{ next(): number!! }` can stand for it in `R`. `Sequence.Shape`, which Effect spells `Context.Service.Shape<typeof Sequence>`, is the members alone, the type of an implementation. `Layer.succeed`, `Layer.effect`, `provideService`, `provide Sequence = …`, and a default check an implementation against the shape, and `implements Sequence` in a `.vibe` file checks a class against it.
 
-Providers infer and check the implementation from the key argument, so most layers don't need the utility. At a TypeScript boundary, it describes the emitted implementation's Effect-returning methods.
+`Sequence()` returns the implementation typed as the identifier, so a parameter typed `Sequence` takes it. A plain object has the shape, not the identifier: type a parameter or a default that takes one `Sequence.Shape`, or passing `{ … }` is TS2741. A TypeScript class implements the emitted service with `implements Sequence.Shape`.
+
+Providers infer and check the implementation from the key argument, so most layers don't need either name. At a TypeScript boundary, the shape describes the emitted implementation's Effect-returning methods.
 
 ## Combining multiple dependencies
 

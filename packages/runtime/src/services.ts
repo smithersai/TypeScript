@@ -61,26 +61,45 @@ export const $control = (cls: Context.Key<any, any>, methods: ReadonlyArray<stri
 }
 
 /**
- * D45: the static side of a compiled service or control class, as its
+ * The type of a service's brand property. It is declared as a type only and
+ * not exported, so no object has the property and no program can name it.
+ */
+declare const serviceBrand: unique symbol
+
+/**
+ * D361: the brand that makes a service's identifier nominal. A compiled
+ * service's declaration file writes its identifier as
+ * `interface Users extends Users.Shape, ServiceBrand<"app/users#Users"> {}`,
+ * so only a type that carries the key `Key` is `Users`: neither a structural
+ * type with the same members nor another service can stand for it in R.
+ */
+export interface ServiceBrand<Key extends string> {
+  readonly [serviceBrand]: Key
+}
+
+/**
+ * D361: the static side of a compiled service or control class, as its
  * declaration file names it: an Effect 4 `Context.Service` whose identifier
- * and shape are both the service's interface, and an abstract constructor
- * with an empty instance side, so the merged interface is the class's type.
- * A service of any shape (D281), `service Prefix: string`, names its shape:
- * `ServiceKey<Prefix, string>`, whose identifier is the class's branded type.
+ * is `I`, the service's interface, and whose shape is `S`, the type of an
+ * implementation, and an abstract constructor with an empty instance side, so
+ * the merged interface is the class's type. A service writes
+ * `ServiceKey<Users, Users.Shape>`, a service of any shape (D281) its shape,
+ * `ServiceKey<Prefix, string>`, and a control operation
+ * `ServiceKey<Approval>`, whose shape is its interface.
  */
 export type ServiceKey<I, S = I> = (abstract new () => {}) & Context.Service<I, S>
 
 /**
  * D40: the static side of a compiled service class that declares
- * `static readonly default`: a `Context.Reference`, which needs no provider.
+ * `static readonly default`: a `Context.Reference` of the service's shape,
+ * `ReferenceKey<Flags.Shape>`, which needs no provider.
  */
-export type ReferenceKey<I> = (abstract new () => {}) & Context.Reference<I>
+export type ReferenceKey<S> = (abstract new () => {}) & Context.Reference<S>
 
 /**
  * D1: the base of a generated service class. Its static side is an Effect 4
- * Context key whose identifier and shape are both the service's interface;
- * its instance side is empty, so the merged interface is the class's type.
- * A service of any shape (D281) passes its shape: `$service<Prefix, string>`.
+ * Context key whose identifier is `I` and whose shape is `S` (D361); its
+ * instance side is empty, so the merged interface is the class's type.
  */
 export const $service = <I, S = I>(key: string): ServiceKey<I, S> =>
   Context.Service<I, S>()(key) as any

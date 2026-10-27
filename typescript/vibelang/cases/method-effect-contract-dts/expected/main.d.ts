@@ -1,10 +1,14 @@
 import { Effect } from "effect";
-export interface Count {
-    readonly n: number;
-    readonly "~vibelang/service"?: "method-effect-contract-dts/main#Count";
+import { ServiceBrand } from "vibelang-runtime";
+export interface Count extends Count.Shape, ServiceBrand<"method-effect-contract-dts/main#Count"> {
 }
-declare const Count_base: import("vibelang-runtime").ServiceKey<Count>;
+declare const Count_base: import("vibelang-runtime").ServiceKey<Count, Count.Shape>;
 export declare abstract class Count extends Count_base {
+}
+export declare namespace Count {
+    interface Shape {
+        readonly n: number;
+    }
 }
 export interface CounterApi {
     count(): Effect.Effect<number>;

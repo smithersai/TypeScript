@@ -2243,6 +2243,15 @@ func (r *Resolver) annotatedMember(fn *ast.Node) (Class, string, bool) {
 			m = formsClassMember(d, name)
 		}
 	}
+	if t.Kind == ast.KindTypeReference && t.AsTypeReferenceNode().TypeName.Kind == ast.KindQualifiedName {
+		// Users.Shape, the shape of a service (D361), has the service's members.
+		q := t.AsTypeReferenceNode().TypeName.AsQualifiedName()
+		if ast.IsIdentifier(q.Left) && q.Right.Text() == "Shape" {
+			if d := r.binding(q.Left, q.Left.Text()); d != nil && formsIsServiceClass(d) {
+				m = formsClassMember(d, name)
+			}
+		}
+	}
 	if m == nil {
 		if lit := r.typeLiteral(t, 0); lit != nil {
 			m = formsShapeMember(lit, name)

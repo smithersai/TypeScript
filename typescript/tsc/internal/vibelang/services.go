@@ -9,29 +9,46 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
-// Services and control operations (design D1, D2, D41, D45).
+// Services and control operations (design D1, D2, D41, D45, D361).
 //
 // An abstract class in a .vibe file whose instance members are all abstract
 // declares a service, and one that extends Control declares a control
-// operation. The checker sees such a class as this TypeScript would declare
-// it:
+// operation. A service has two types, as Effect's Context.Key<Identifier,
+// Shape> has (D361). The checker sees a service as this TypeScript would
+// declare it:
 //
-//	interface Users {
-//	  find(id: string): Effect<User, UserNotFound, never>
-//	  readonly "~vibelang/service"?: "app/users#Users"
+//	interface Users extends Users.Shape, ServiceBrand<"app/users#Users"> {}
+//	namespace Users {
+//	  interface Shape { find(id: string): Effect<User, UserNotFound, never> }
 //	}
-//	class Users extends Context.Service<Users, Users> {}
+//	class Users extends Context.Service<Users, Users.Shape> {}
 //
-// As a type, Users is the service's shape, branded with its key so that two
-// services with the same members stay distinct requirements. As a value,
-// Users is a Context key, so Layer.succeed(Users, …), Effect.provideService,
-// and yield* Users work as they do with a Context.Service class. In a .vibe
-// function body, Users.find(id) calls a member through the key and Users()
-// returns the implementation.
+// As a type, Users is the service's identifier: its members plus a required
+// brand whose type is its key, so neither a structural type with the same
+// members nor another service is assignable to it, and a requirement for
+// Users is discharged only by a provider of Users. Users.Shape, the members
+// alone, is the type of an implementation: Layer.succeed(Users, …),
+// Effect.provideService, and `implements Users` in a .vibe file check against
+// it. As a value, Users is a Context key. In a .vibe function body,
+// Users.find(id) calls a member through the key and Users() returns the
+// implementation, typed as the identifier.
+//
+// A control operation keeps one type for both, its interface, with an
+// optional brand that keeps two controls with the same members distinct.
 
-// serviceBrandProperty is the optional property that brands a service's
-// shape with its key.
+// serviceBrandProperty names the brand of a control operation's interface,
+// and of a service's identifier in a program whose runtime does not declare
+// ServiceBrand.
 const serviceBrandProperty = "~vibelang/service"
+
+// serviceBrandName is the runtime's type that brands a service's identifier
+// with its key (D361). Its property is a unique symbol the runtime declares
+// as a type only, so no program can name it.
+const serviceBrandName = "ServiceBrand"
+
+// serviceShapeName names a service's shape as a member type of the service:
+// Users.Shape (D361).
+const serviceShapeName = "Shape"
 
 // contextServiceTypeID names the property that every Effect 4 Context key
 // has: `readonly [ServiceTypeId]: ServiceTypeId`.
@@ -198,6 +215,9 @@ type services struct {
 	keys       map[*ast.Node]string
 	byKey      map[string][]*ast.Node        // every service and control class in the program, by key
 	unprovided map[*checker.Type][]*ast.Node // wire arguments, by a service they need and their wire does not provide
+	shapes     map[*ast.Node]*checker.Type   // service classes, by declaration, and their shapes (D361)
+	shapeNames map[*ast.Node]*ast.Symbol     // service classes and the type alias that Name.Shape resolves to
+	brands     map[*ast.Node]*checker.Type   // service classes and the brand their identifiers carry
 }
 
 type servicesKey struct{}
@@ -206,7 +226,7 @@ type servicesKey struct{}
 // so they are freed with c.
 func servicesFor(c *checker.Checker) *services {
 	return c.ExtensionState(servicesKey{}, func() any {
-		return &services{checker: c, modules: map[string]*ast.Symbol{}, keys: map[*ast.Node]string{}}
+		return &services{checker: c, modules: map[string]*ast.Symbol{}, keys: map[*ast.Node]string{}, shapes: map[*ast.Node]*checker.Type{}, shapeNames: map[*ast.Node]*ast.Symbol{}, brands: map[*ast.Node]*checker.Type{}}
 	}).(*services)
 }
 
@@ -274,21 +294,27 @@ func (s *services) key(class *ast.Node) string {
 	return key
 }
 
-// classBases is the checker's class base hook. A service or control class
-// inherits the static side of Context.Service<Self, Self>, or of
-// Context.Service<never, Self> when a static default makes its key a
-// reference, and its instances inherit the brand
-// { readonly "~vibelang/service"?: key }. A control class's own extends clause
-// is ignored. A service of any shape (D281) has the written shape in place of
-// the second Self: service Prefix: string inherits Context.Service<Prefix,
-// string>, and its type, Prefix, is the identifier: the brand alone.
+// classBases is the checker's class base hook. A service class inherits the
+// static side of Context.Service<Self, Self.Shape>, or of
+// Context.Service<never, Self.Shape> when a static default makes its key a
+// reference, and its instances inherit the required brand
+// ServiceBrand<key>, so Self is the identifier: the shape's members and the
+// brand (D361). A service of any shape (D281) has the written shape in place
+// of Self.Shape: service Search: SearchApi inherits Context.Service<Search,
+// SearchApi>, and its instances inherit SearchApi's members and the brand.
+// Where the written shape is not an object type, as for service Prefix:
+// string, the identifier is the brand alone. A control class inherits the
+// static side of Context.Service<Self, Self> and the optional brand
+// { readonly "~vibelang/service"?: key }, and its own extends clause is
+// ignored.
 func classBases(c *checker.Checker, class *checker.Type) (*checker.Type, *checker.Type) {
 	symbol := class.Symbol()
 	if symbol == nil {
 		return nil, nil
 	}
 	declaration := symbol.ValueDeclaration()
-	if classKindOf(declaration) == ordinaryClass {
+	kind := classKindOf(declaration)
+	if kind == ordinaryClass {
 		return nil, nil
 	}
 	s := servicesFor(c)
@@ -296,20 +322,191 @@ func classBases(c *checker.Checker, class *checker.Type) (*checker.Type, *checke
 	if service == nil {
 		return nil, nil
 	}
-	identifier, shape := class, class
-	if node := serviceShape(declaration); node != nil {
-		if serviceShapeSelfReference(c, declaration) != nil {
-			shape = c.GetErrorType()
-		} else {
-			shape = c.GetTypeFromTypeNode(node)
-		}
+	if kind == controlClass {
+		key := c.NewTypeReference(c.GetDeclaredTypeOfSymbol(service), []*checker.Type{class, class})
+		return key, c.NewOptionalReadonlyPropertyType(serviceBrandProperty, c.GetStringLiteralType(s.key(declaration)))
 	}
+	identifier, shape := class, s.shapeOf(declaration)
 	if hasStaticDefault(declaration) {
 		identifier = c.GetNeverType()
 	}
 	key := c.NewTypeReference(c.GetDeclaredTypeOfSymbol(service), []*checker.Type{identifier, shape})
-	brand := c.NewOptionalReadonlyPropertyType(serviceBrandProperty, c.GetStringLiteralType(s.key(declaration)))
+	brand := s.brandOf(declaration)
+	if serviceShape(declaration) != nil && shapeHasMembers(c, shape) {
+		return key, c.GetIntersectionType([]*checker.Type{shape, brand})
+	}
 	return key, brand
+}
+
+// shapeOf returns the shape of the service that class declares (D361): the
+// written type of a service of any shape, or else an object type whose
+// properties are class's instance members, which Users.Shape names.
+func (s *services) shapeOf(class *ast.Node) *checker.Type {
+	if shape, ok := s.shapes[class]; ok {
+		return shape
+	}
+	c := s.checker
+	var shape *checker.Type
+	if node := serviceShape(class); node != nil {
+		if serviceShapeSelfReference(c, class) != nil {
+			shape = c.GetErrorType()
+		} else {
+			shape = c.GetTypeFromTypeNode(node)
+		}
+	} else {
+		symbol := c.GetSymbolOfDeclaration(class)
+		members := ast.SymbolTable{}
+		for name, member := range symbol.Members() {
+			if member.Flags()&(ast.SymbolFlagsProperty|ast.SymbolFlagsMethod|ast.SymbolFlagsAccessor) != 0 {
+				members[name] = member
+			}
+		}
+		var alias *ast.Symbol
+		shape, alias = c.NewAliasedObjectType(members, serviceShapeName, symbol)
+		s.shapeNames[class] = alias
+	}
+	s.shapes[class] = shape
+	return shape
+}
+
+// shapeName returns the type alias that Name.Shape resolves to for the
+// service that class declares.
+func (s *services) shapeName(class *ast.Node) *ast.Symbol {
+	shape := s.shapeOf(class)
+	if alias := s.shapeNames[class]; alias != nil {
+		return alias
+	}
+	alias := s.checker.NewTypeAliasSymbol(serviceShapeName, s.checker.GetSymbolOfDeclaration(class), shape)
+	s.shapeNames[class] = alias
+	return alias
+}
+
+// brandOf returns the brand that the identifier of the service class
+// declares carries: the runtime's ServiceBrand<key>, or, where the program's
+// runtime does not declare ServiceBrand, { readonly "~vibelang/service": key }.
+func (s *services) brandOf(class *ast.Node) *checker.Type {
+	if brand, ok := s.brands[class]; ok {
+		return brand
+	}
+	c := s.checker
+	key := c.GetStringLiteralType(s.key(class))
+	var brand *checker.Type
+	if module := runtimeModuleSymbol(c, preludeStateOf(c), ast.GetSourceFileOfNode(class)); module != nil {
+		if symbol := c.TryGetMemberInModuleExports(serviceBrandName, module); symbol != nil {
+			if symbol.Flags()&ast.SymbolFlagsAlias != 0 {
+				symbol = c.GetAliasedSymbol(symbol)
+			}
+			if symbol != nil && symbol.Flags()&ast.SymbolFlagsInterface != 0 {
+				brand = c.NewTypeReference(c.GetDeclaredTypeOfSymbol(symbol), []*checker.Type{key})
+			}
+		}
+	}
+	if brand == nil {
+		brand = c.NewReadonlyPropertyType(serviceBrandProperty, key)
+	}
+	s.brands[class] = brand
+	return brand
+}
+
+// shapeHasMembers reports whether the identifier of a service whose shape is
+// shape has the shape's members (D361): the shape is an object type, or an
+// intersection of them, with no call or construct signature, as an interface
+// can extend. A primitive, a function type, or a union is not.
+func shapeHasMembers(c *checker.Checker, shape *checker.Type) bool {
+	switch {
+	case shape == nil || shape == c.GetErrorType():
+		return false
+	case shape.Flags()&checker.TypeFlagsIntersection != 0:
+		for _, member := range shape.Types() {
+			if !shapeHasMembers(c, member) {
+				return false
+			}
+		}
+		return true
+	case shape.Flags()&checker.TypeFlagsObject == 0:
+		return false
+	}
+	return len(c.GetSignaturesOfType(shape, checker.SignatureKindCall)) == 0 && len(c.GetSignaturesOfType(shape, checker.SignatureKindConstruct)) == 0
+}
+
+// serviceBrandOf returns the brand property of t when t is a service's
+// identifier, or nil.
+func serviceBrandOf(c *checker.Checker, t *checker.Type) *ast.Symbol {
+	if t == nil || t.Flags()&(checker.TypeFlagsObject|checker.TypeFlagsIntersection) == 0 {
+		return nil
+	}
+	for _, property := range c.GetPropertiesOfType(t) {
+		if checker.IsServiceBrandProperty(property) && property.Flags()&ast.SymbolFlagsOptional == 0 {
+			return property
+		}
+	}
+	return nil
+}
+
+// serviceShapeOfIdentifier returns the shape of the service whose identifier
+// is t, the declared type of a service class, or nil when t is not a
+// service's identifier. It reads the shape from the key, so it serves a
+// service a declaration file declares as well as one in source.
+func serviceShapeOfIdentifier(c *checker.Checker, t *checker.Type) *checker.Type {
+	symbol := t.Symbol()
+	if symbol == nil || symbol.Flags()&ast.SymbolFlagsClass == 0 || serviceBrandOf(c, t) == nil {
+		return nil
+	}
+	_, shape := serviceOfKey(c, c.GetApparentType(c.GetTypeOfSymbol(symbol)))
+	return shape
+}
+
+// implementedServiceShape is the checker's implemented type hook: in a .vibe
+// file, `implements Users` checks the class against Users.Shape, the type of
+// an implementation, since no implementation carries the brand (D361).
+func implementedServiceShape(c *checker.Checker, class *ast.Node, typeNode *ast.Node, t *checker.Type) *checker.Type {
+	if !isVibeLangFile(ast.GetSourceFileOfNode(class)) {
+		return t
+	}
+	if shape := serviceShapeOfIdentifier(c, t); shape != nil {
+		return shape
+	}
+	return t
+}
+
+// resolveServiceShapeName is the checker's qualified type name hook: as a
+// type, Users.Shape is the shape of the service Users that a .vibe file
+// declares (D361). A service a declaration file declares has a namespace that
+// declares Shape, which TypeScript resolves.
+func resolveServiceShapeName(c *checker.Checker, name *ast.Node, left *ast.Node, right *ast.Node, meaning ast.SymbolFlags) *ast.Symbol {
+	if !ast.IsIdentifier(right) || right.Text() != serviceShapeName {
+		return nil
+	}
+	symbol := c.ResolveEntityName(left, ast.SymbolFlagsClass)
+	if symbol == nil || symbol.Flags()&ast.SymbolFlagsNamespace != 0 {
+		return nil
+	}
+	declaration := symbol.ValueDeclaration()
+	if classKindOf(declaration) != serviceClass || declaration.TypeParameters() != nil {
+		return nil
+	}
+	return servicesFor(c).shapeName(declaration)
+}
+
+// serviceIdentifierOfCall returns the identifier of the service that callee,
+// the S of S(), names, when the identifier has the members of what S() yields,
+// shape: S() returns the implementation typed as the identifier, so a
+// parameter typed S takes it (D361). It returns nil for a service whose
+// identifier is its brand alone, such as service Prefix: string, whose S()
+// returns the shape, and for any other key.
+func serviceIdentifierOfCall(c *checker.Checker, callee *ast.Node, shape *checker.Type) *checker.Type {
+	symbol := c.GetSymbolAtLocation(callee)
+	if symbol != nil && symbol.Flags()&ast.SymbolFlagsAlias != 0 {
+		symbol = c.GetAliasedSymbol(symbol)
+	}
+	if symbol == nil || symbol.Flags()&ast.SymbolFlagsClass == 0 {
+		return nil
+	}
+	identifier := c.GetDeclaredTypeOfSymbol(symbol)
+	if serviceBrandOf(c, identifier) == nil || !c.IsTypeAssignableTo(identifier, shape) {
+		return nil
+	}
+	return identifier
 }
 
 // serviceOfKey returns the identifier and the shape of the service that t,
@@ -398,6 +595,11 @@ func effectValueCall(c *checker.Checker, call *ast.Node, callee *checker.Type) [
 		return nil
 	}
 	if effect := effectOfValue(c, callee); effect != nil {
+		if channels := c.GetTypeArguments(effect); len(channels) == 3 {
+			if identifier := serviceIdentifierOfCall(c, call.Expression(), channels[0]); identifier != nil {
+				effect = c.NewTypeReference(effect.Target(), []*checker.Type{identifier, channels[1], channels[2]})
+			}
+		}
 		return []*checker.Signature{c.NewCallSignature(effect)}
 	}
 	// FileSystem(): the module's name names its service (D311).

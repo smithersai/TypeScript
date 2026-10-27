@@ -153,7 +153,7 @@ func (b *NodeBuilderImpl) expandClassDecl(symbol *ast.Symbol) *ast.Node {
 	// Static members
 	staticProps := core.Filter(b.ch.getPropertiesOfType(staticType), func(p *ast.Symbol) bool {
 		// The service brand participates in typing, but is not a source member.
-		return p.Flags()&ast.SymbolFlagsPrototype == 0 && p.Name() != "~vibelang/service" && p.Name() != "prototype" && !b.isNamespaceMember(p)
+		return p.Flags()&ast.SymbolFlagsPrototype == 0 && !IsServiceBrandProperty(p) && p.Name() != "prototype" && !b.isNamespaceMember(p)
 	})
 	var staticMembers []*ast.Node
 	staticMembers = b.serializePropertiesWithTruncation(staticProps, staticMembers)
@@ -300,7 +300,7 @@ func (b *NodeBuilderImpl) hoverHeritageClauses(declarations []*ast.Node) []*ast.
 func (b *NodeBuilderImpl) serializePropertiesWithTruncation(properties []*ast.Symbol, elements []*ast.Node) []*ast.Node {
 	properties = core.Filter(properties, func(p *ast.Symbol) bool {
 		// The service brand participates in typing, but is not a source member.
-		return p.Flags()&ast.SymbolFlagsPrototype == 0 && p.Name() != "~vibelang/service"
+		return p.Flags()&ast.SymbolFlagsPrototype == 0 && !IsServiceBrandProperty(p)
 	})
 	for i, p := range properties {
 		if b.checkTruncationLengthIfExpanding() && (i+3 < len(properties)-1) {

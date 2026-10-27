@@ -256,7 +256,7 @@ func checkHandleClauses(c *checker.Checker, node *ast.Node) {
 		}
 		var missing []string
 		for _, property := range c.GetPropertiesOfType(shape) {
-			if name := property.Name(); name != serviceBrandProperty && !answered[name] {
+			if name := property.Name(); !checker.IsServiceBrandProperty(property) && !answered[name] {
 				missing = append(missing, entityText(control)+"."+name)
 			}
 		}

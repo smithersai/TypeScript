@@ -554,7 +554,7 @@ func (r *ruleCheck) checkLeakingRequirements(service *ast.Node) {
 	var shared []*checker.Type
 	members := 0
 	for _, member := range r.c.GetPropertiesOfType(r.c.GetDeclaredTypeOfSymbol(symbol)) {
-		if member.Name() == serviceBrandProperty {
+		if checker.IsServiceBrandProperty(member) {
 			continue
 		}
 		requirements := memberRequirements(r.c, r.c.GetTypeOfSymbol(member))

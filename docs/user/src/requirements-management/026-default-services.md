@@ -55,7 +55,7 @@ An override holds across pauses, is inherited by new child fibers, and leaves un
 // run: Console.log(defaultLabel(17)); provide DisplaySettings = { prefix: "Order" } { Console.log(defaultLabel(17)) }
 service DisplaySettings {
   prefix: string
-  static readonly default: DisplaySettings = { prefix: "Ticket" }
+  static readonly default: DisplaySettings.Shape = { prefix: "Ticket" }
 }
 
 function defaultLabel(id: number) {

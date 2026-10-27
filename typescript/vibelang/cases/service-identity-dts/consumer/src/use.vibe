@@ -1,0 +1,27 @@
+// VibeLang code compiled against the declarations alone sees the same two
+// types as code compiled from the source: `implements Users` checks the
+// shape, Users.Shape types a plain object, and Users() is the identifier.
+import { Flags, Prefix, Search, sourceOf, Users } from "../../out/main.js"
+
+class UsersHere implements Users {
+  readonly source = "here"
+  find(id: string) {
+    return { id, name: `here ${id}` }
+  }
+}
+
+const shaped: Users.Shape = { source: "shaped", find: (id: string) => ({ id, name: id }) }
+
+function describe(users: Users) {
+  return users.source
+}
+
+function lookup() {
+  return `${describe(Users())} ${sourceOf(shaped)} ${Users.find("2").name} ${Prefix()}${Search.find("q")} beta ${Flags().beta}`
+}
+
+export function viaVibe() {
+  provide Users = new UsersHere(), Search = { find: (q: string) => `hit:${q}` }, Prefix = "> " {
+    return lookup()
+  }
+}

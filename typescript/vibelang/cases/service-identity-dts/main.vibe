@@ -1,0 +1,63 @@
+// A service's declaration file states both of its types (D361): an interface
+// for the identifier that extends the shape and the runtime's ServiceBrand,
+// a key class whose base is ServiceKey<Users, Users.Shape>, and a namespace
+// holding the shape. TypeScript and VibeLang code compiled against the
+// declarations alone implement and provide the shape and require the
+// identifier; consumer/src does both, and run.mjs compiles and runs it.
+export interface User {
+  id: string
+  name: string
+}
+
+export service Users {
+  find(id: string): User!!
+  readonly source: string
+
+  static readonly layer = Layer.succeed(Users, {
+    find: (id: string) => ({ id, name: "Ada" }),
+    source: "memory"
+  })
+}
+
+export service Flags {
+  readonly beta: boolean
+  static readonly default: Flags.Shape = { beta: true }
+}
+
+export interface SearchApi {
+  find(query: string): string!!
+}
+
+export service Search: SearchApi
+export service Prefix: string
+
+// A member that names the file's own type Shape keeps naming it in the
+// declaration file, outside the service's namespace.
+export interface Shape {
+  sides: number
+}
+
+export service Geometry {
+  area(shape: Shape): number!!
+}
+
+// `implements Users` checks the shape, so the declaration writes Users.Shape.
+export class UsersInMemory implements Users {
+  readonly source = "in-memory"
+  find(id: string) {
+    return { id, name: `user ${id}` }
+  }
+}
+
+export function sourceOf(users: Users.Shape) {
+  return users.source
+}
+
+export function current() {
+  return Users()
+}
+
+export function greet(id: string) {
+  const user = Users.find(id)
+  return `${user.name} via ${Users().source}, beta ${Flags().beta}`
+}

@@ -141,7 +141,7 @@ func implicitRuntimeImport(file *ast.SourceFile) []string {
 	effect, runtime := mayLowerToEffect(file)
 	entry := entryCandidate(file) != nil
 	var modules []string
-	if prelude || entry || runtime {
+	if prelude || entry || runtime || declaresService(file) {
 		modules = append(modules, runtimeModule)
 	}
 	if root || effect || maySplitPlainFunction(file) {
@@ -154,6 +154,22 @@ func implicitRuntimeImport(file *ast.SourceFile) []string {
 		modules = append(modules, entryModules(file)...)
 	}
 	return modules
+}
+
+// declaresService reports whether file declares a service, whose identifier
+// carries the runtime's ServiceBrand (D361). It reads syntax, before binding.
+func declaresService(file *ast.SourceFile) bool {
+	var visit func(node *ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		switch {
+		case node.Kind == ast.KindModuleDeclaration:
+			return false
+		case ast.IsClassDeclaration(node) && shapeKindOf(node) == serviceClass:
+			return true
+		}
+		return node.ForEachChild(visit)
+	}
+	return file.AsNode().ForEachChild(visit)
 }
 
 // mayUsePrelude reports whether file has an identifier with a prelude name,

@@ -2,7 +2,7 @@
 import { Effect, Layer } from "effect"
 import { Flags, greet, Users } from "../../out/main.js"
 
-class UsersFake implements Users {
+class UsersFake implements Users.Shape {
   readonly source = "fake"
   find(id: string) {
     return Effect.succeed({ id, name: `user ${id}` })

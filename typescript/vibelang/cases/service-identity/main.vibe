@@ -1,0 +1,89 @@
+// A service has two types (D361). As a type, its name is the identifier: the
+// shape's members plus a brand that only the service carries. Name.Shape,
+// which Effect spells Context.Service.Shape<typeof Name>, is the members
+// alone, the type of an implementation: providers check an implementation
+// against it, and `implements Name` in a .vibe file checks a class against
+// it. Name() returns the implementation typed as the identifier, so a
+// parameter typed with the service's name takes it.
+error NotFound { id: string }
+
+service Users {
+  find(id: string): string!NotFound
+  readonly region: string
+}
+
+service Flags {
+  readonly beta: boolean
+  static readonly default: Flags.Shape = { beta: true }
+}
+
+export interface SearchApi {
+  find(query: string): string!!
+}
+
+// Where the shape is an object type, the identifier has its members; where
+// it is not, the identifier is the brand alone and Prefix() is a string.
+service Search: SearchApi
+service Prefix: string
+
+class UsersInMemory implements Users {
+  readonly region = "memory"
+  find(id: string) {
+    if (id !== "1") throw new NotFound({ id })
+    return "Ada"
+  }
+}
+
+const fake: Users.Shape = { region: "fake", find: (id: string) => `fake ${id}` }
+const shaped: Context.Service.Shape<typeof Users> = fake
+
+// A plain object has the shape, so a parameter that takes one has that type.
+function regionOfShape(users: Users.Shape) {
+  return users.region
+}
+
+function regionOf(users: Users) {
+  return users.region
+}
+
+function lookup(id: string) {
+  const users = Users()
+  return `${Users.find(id)} in ${regionOf(users)}, beta ${Flags().beta}`
+}
+
+function search(query: string) {
+  const engine: Search = Search()
+  const prefix: string = Prefix()
+  return `${prefix}${engine.find(query)}`
+}
+
+const UsersLive = Layer.succeed(Users, new UsersInMemory())
+
+const UsersEffect = Layer.effect(Users) {
+  return { region: "effect", find: (id) => `effect ${id}` }
+}
+
+function provided(id: string) {
+  provide Users = shaped {
+    return lookup(id)
+  }
+}
+
+function searched(query: string) {
+  provide Search = { find: (q: string) => `hit:${q}` }, Prefix = "> " {
+    return search(query)
+  }
+}
+
+// expect-result: {"live":"Ada in memory, beta true","effect":"effect 2 in effect, beta true","service":"fake 3 in fake, beta false","block":"fake 4 in fake, beta true","missing":"NotFound","shape":"fake","search":"> hit:q"}
+export function main() {
+  return {
+    live: Effect.provide(() => lookup("1"), UsersLive),
+    effect: Effect.provide(() => lookup("2"), UsersEffect),
+    service: Effect.provideService(() => Effect.provideService(() => lookup("3"), Flags, { beta: false }), Users, fake),
+    block: provided("4"),
+    missing: Effect.flip(() => Effect.provide(() => lookup("9"), UsersLive))._tag,
+    shape: regionOfShape(fake),
+    search: searched("q")
+  }
+}

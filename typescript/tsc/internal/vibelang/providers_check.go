@@ -76,13 +76,11 @@ func serviceDefaultShape(c *checker.Checker, declaration *ast.Node) *checker.Typ
 		classKindOf(declaration.Parent) != serviceClass {
 		return nil
 	}
-	if shape := serviceShape(declaration.Parent); shape != nil {
-		if serviceShapeSelfReference(c, declaration.Parent) != nil {
-			return nil // the service declaration reports the self-reference
-		}
-		return c.GetTypeFromTypeNode(shape)
+	shape := servicesFor(c).shapeOf(declaration.Parent)
+	if shape == c.GetErrorType() {
+		return nil // the service declaration reports the self-reference
 	}
-	return c.GetDeclaredTypeOfSymbol(declaration.Parent.Symbol())
+	return shape
 }
 
 func checkServiceDefault(c *checker.Checker, declaration *ast.Node) {
@@ -348,12 +346,24 @@ func containsTypeParameter(t *checker.Type) bool {
 // object type literal written in place, whose symbol has an internal name.
 func serviceNameOf(c *checker.Checker, t *checker.Type) string {
 	if symbol := t.Symbol(); symbol != nil && isWrittenName(symbol.Name()) {
-		return symbol.Name()
+		return shapeOwnerName(c, symbol)
 	}
 	if alias := t.Alias(); alias != nil && alias.Symbol() != nil && isWrittenName(alias.Symbol().Name()) {
-		return alias.Symbol().Name()
+		return shapeOwnerName(c, alias.Symbol())
 	}
 	return ""
+}
+
+// shapeOwnerName returns the name of the service whose shape symbol names,
+// Users for Users.Shape (D361), or symbol's own name for any other type.
+func shapeOwnerName(c *checker.Checker, symbol *ast.Symbol) string {
+	if symbol.Name() != serviceShapeName || symbol.Parent() == nil {
+		return symbol.Name()
+	}
+	if owner := c.GetMergedSymbol(symbol.Parent()); owner != nil && owner.Flags()&ast.SymbolFlagsClass != 0 {
+		return owner.Name()
+	}
+	return symbol.Name()
 }
 
 // isWrittenName reports whether name is a name an author wrote, not the

@@ -37,7 +37,7 @@ const DirectoryLive = Layer.succeed(Directory, {
 // requirement of the layer, not of Users.find.
 function makeUsers() {
   const directory = Directory()
-  const impl: Users = {
+  const impl: Users.Shape = {
     find(id) {
       const user = directory.lookup(id)
       if (user === undefined) return Effect.fail(new UserNotFound({ id }))
