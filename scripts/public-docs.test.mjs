@@ -40,3 +40,11 @@ test("platform installation follows the canonical exact-version setup", () => {
   for (const platform of ["node", "bun", "browser"]) assert.ok(installs.includes(`@effect/platform-${platform}@4.0.6`))
   assert.doesNotMatch(installs, /(?:npm install|bun add|deno add).*@effect\/platform-(?:node|bun|browser)(?!@)[\s\n]/)
 })
+
+test("the upgrade table names every DOM type that loses its bare name", () => {
+  const notes = read("docs/user/src/setup/release-notes.md")
+  const row = notes.split("\n").find(line => line.startsWith("| A DOM type named")) ?? ""
+  for (const name of ["Cache", "Console", "Crypto", "FileSystem", "Scheduler", "Transferable", "Worker"]) {
+    assert.ok(row.includes("`" + name + "`"), name)
+  }
+})
