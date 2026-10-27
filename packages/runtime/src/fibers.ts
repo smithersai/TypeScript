@@ -84,29 +84,37 @@ export function $join(value: unknown): any {
   return awaitValue(value)
 }
 
+// An array or object is read once: each element once, in order. The fibers
+// it joins are the fibers it interrupts when one fails, so a getter that
+// returns another fiber the second time cannot make it join one child and
+// interrupt another.
 function awaitValue(value: unknown): Effect.Effect<unknown, unknown> {
   if (Fiber.isFiber(value)) return Fiber.join(value)
   if (Deferred.isDeferred(value)) return Deferred.await(value)
   if (typeof value !== "object" || value === null) return Effect.die(new TypeError("await expects a Fiber, a Deferred, or an array or object of them"))
   const fibers: Array<Fiber.Fiber<unknown, unknown>> = []
-  collectFibers(value, fibers)
-  const all: Effect.Effect<unknown, unknown> = Array.isArray(value)
-    ? Effect.all(value.map(awaitValue), { concurrency: "unbounded" })
-    : Effect.map(
-      Effect.all(Object.fromEntries(Object.entries(value).map(([key, item]) => [key, awaitValue(item)])), { concurrency: "unbounded" }),
-      (result: Record<string, unknown>) => Object.fromEntries(Object.keys(value).map((key) => [key, result[key]])) // the order written
-    )
-  return Effect.onError(all, () => Effect.forEach(fibers, Fiber.interrupt, { discard: true }))
+  return Effect.onError(joinParts(value, fibers), () => Effect.forEach(fibers, Fiber.interrupt, { discard: true }))
 }
 
-function collectFibers(value: unknown, fibers: Array<Fiber.Fiber<unknown, unknown>>): void {
-  if (Fiber.isFiber(value)) {
-    fibers.push(value)
-  } else if (Array.isArray(value)) {
-    for (const item of value) collectFibers(item, fibers)
-  } else if (typeof value === "object" && value !== null && !Deferred.isDeferred(value)) {
-    for (const item of Object.values(value)) collectFibers(item, fibers)
+// The Effect that waits for each element of value, an array or object of
+// Fibers, Deferreds, or arrays or objects of them, keeping its shape. It adds
+// each Fiber it joins to fibers.
+function joinParts(value: object, fibers: Array<Fiber.Fiber<unknown, unknown>>): Effect.Effect<unknown, unknown> {
+  const join = (item: unknown): Effect.Effect<unknown, unknown> => {
+    if (Fiber.isFiber(item)) {
+      fibers.push(item)
+      return Fiber.join(item)
+    }
+    if (Deferred.isDeferred(item)) return Deferred.await(item)
+    if (typeof item !== "object" || item === null) return Effect.die(new TypeError("await expects a Fiber, a Deferred, or an array or object of them"))
+    return joinParts(item, fibers)
   }
+  if (Array.isArray(value)) return Effect.all(Array.from(value, join), { concurrency: "unbounded" })
+  const entries = Object.entries(value).map(([key, item]) => [key, join(item)] as const)
+  return Effect.map(
+    Effect.all(Object.fromEntries(entries), { concurrency: "unbounded" }),
+    (result: Record<string, unknown>) => Object.fromEntries(entries.map(([key]) => [key, result[key]])) // the order written
+  )
 }
 
 // ---------------------------------------------------------------------------

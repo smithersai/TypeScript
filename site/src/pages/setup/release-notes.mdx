@@ -155,6 +155,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - Running the same Effect again could see an earlier run's changes to a rest-parameter array or to a method's default parameter value, and program lambdas with optional or rest parameters could fail with a missing-variable defect. Each execution now binds its parameters afresh.
 - Running the same Effect again could start from an earlier run's assignment to a parameter, such as `++n` or `n += 1`. Each execution now starts from the original arguments.
 - `using` read a value's `[Symbol.dispose]` again at block exit, so replacing the method, or a getter that returned another one, changed which release ran. It now reads the method once, when it acquires the value, as JavaScript does.
+- `join` on an object or array read each element twice, so a getter could make it join one fiber and interrupt another. It now reads each element once.
 
 #### Editor and language server
 

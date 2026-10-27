@@ -1,0 +1,16 @@
+// expect-result: {"joined":{"task":"A"},"reads":1}
+// join reads each element of an object or array once (D225): the fiber it
+// joins is the fiber it would interrupt, and a getter runs once.
+export function main() {
+  const a = fork { return "A" }
+  const b = fork { return "B" }
+  let reads = 0
+  const tasks = {
+    get task() {
+      reads++
+      return reads === 1 ? a : b
+    }
+  }
+  const joined = join tasks
+  return { joined, reads }
+}
