@@ -138,6 +138,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Tooling and bundlers
 
+- Release docs checks could fail to load a runtime platform entry with ERR_MODULE_NOT_FOUND. The extracted runtime now resolves its pinned platform peers and Node's shared platform package.
 - A running call followed by .pipe(Effect.catchTag(...)) had no catch quick fix. The compiler now offers a VibeLang catch rewrite for a single catch operator.
 - `--fix` could leave an unnecessary `Effect.succeed` in a rewritten catch arm. It now simplifies that handler.
 - A missing `tsconfig.json` could leave the compiler or bundler retrying forever. It now stops with TS5058.

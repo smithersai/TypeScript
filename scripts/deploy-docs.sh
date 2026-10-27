@@ -59,10 +59,17 @@ if $check_snippets || [ "$hovers" = 1 ]; then
 		tar xzf "$tarballs/$name-$release.tgz" -C "$release_dir/$name" 2>/dev/null ||
 			{ echo "deploy-docs: missing $tarballs/$name-$release.tgz; set VIBELANG_RELEASE_TARBALLS" >&2; exit 1; }
 	done
-	# As an npm install puts effect beside vibelang-runtime, give the extracted runtime
-	# the repository's pinned effect, so its declarations resolve their imports.
-	mkdir -p "$release_dir/vibelang-runtime/package/node_modules"
-	ln -s "$(cd "$root/packages/runtime/node_modules/effect" && pwd -P)" "$release_dir/vibelang-runtime/package/node_modules/effect"
+	# Give the extracted runtime the pinned dependencies npm installs beside it:
+	# Effect, the optional platform peers, and Node's shared platform package.
+	# Experimental platform entry points import these packages at runtime too.
+	for package in effect @effect/platform-node @effect/platform-node-shared @effect/platform-bun @effect/platform-browser; do
+		source_dir="$root/packages/runtime/node_modules/$package"
+		[ -d "$source_dir" ] ||
+			{ echo "deploy-docs: missing pinned runtime dependency $package in $source_dir" >&2; exit 1; }
+		target="$release_dir/vibelang-runtime/package/node_modules/$package"
+		mkdir -p "$(dirname "$target")"
+		ln -s "$(cd "$source_dir" && pwd -P)" "$target"
+	done
 	release_binary="$release_dir/vibelang-$platform/package/bin/vibelang"
 	release_runtime="$release_dir/vibelang-runtime/package"
 fi
