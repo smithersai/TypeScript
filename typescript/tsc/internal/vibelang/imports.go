@@ -1,6 +1,9 @@
 package vibelang
 
 import (
+	"net/url"
+	"strings"
+
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/outputpaths"
@@ -53,5 +56,13 @@ func outputSpecifierText(text string) (string, bool) {
 	if !tspath.ToModuleSpecifier(text).ShouldRewriteExtension(nil /*rewrites*/, tspath.CaseSensitive) {
 		return text, false
 	}
-	return tspath.ChangeExtension(text, outputpaths.GetOutputExtension(text, core.JsxEmitNone)), true
+	output := tspath.ChangeExtension(text, outputpaths.GetOutputExtension(text, core.JsxEmitNone))
+	// Source specifiers name filesystem paths; emitted ESM specifiers are URLs.
+	// Escape each segment separately so separators retain their meaning, and
+	// literal percent sequences cannot be interpreted as already encoded URLs.
+	segments := strings.Split(output, "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+	return strings.Join(segments, "/"), true
 }
