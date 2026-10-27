@@ -83,6 +83,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Compiler and diagnostics
 
+- A non-tail `resume` could receive a value outside its type and crash after only EK2119 warned. EK2119 is now an error; write a success type covering the handler's answers.
 - Explicitly empty service keys could be missed. A `service Empty {}` key is now recognized.
 - Imports from paths containing spaces, `#`, `?` or percent signs could fail at runtime. Generated imports now escape those characters.
 - Deeply nested arrow functions could take a long time to check. Effect return inference now shares the guarded type lookup.
@@ -509,20 +510,6 @@ listed with an upgrade step.
   catch (e) { return match (e) {
     when KnownError: 1; // another subclass of the family can arrive
   } }
-  ```
-
-- **A handler's inferred answer type can omit a clause result.** A non-tail
-  `resume()` can be typed as a number yet receive a string returned by a
-  later invocation of the handler clause; EK2119 only warns. Today, treat
-  EK2119 as a build failure, prefer tail resumption (`return resume(...)`),
-  and keep the body and every clause's answer compatible. If you must inspect
-  a resumed answer, receive it as `unknown` and narrow it at runtime.
-
-  ```vibe
-  // fragment
-  handle Step.next() {
-    const n = resume(); return n.toFixed(1) // nested clause may return a string
-  }
   ```
 
 - **Extracting a callback type alias changes what callbacks are accepted.**

@@ -70,6 +70,8 @@ A `return` in the try block or a clause returns from the enclosing function; `br
 
 A clause can work after `resume`: the try block runs to its end, then the clause continues, then the statement ends the way the try block did. A `return` in the try block takes effect after the clause, as a pending `return` waits for a `finally` block. That `resume` returns the value the statement ends with: what the try block returns, or `undefined` when it ends without returning. If the block performs an operation again first, a clause that returns ends the statement with its value instead, so `resume`'s type includes what every clause returns.
 
+Every `resume` of the statement has one answer type H. The compiler computes H once from the try block's and clauses' returns, leaving out clause returns computed from a non-tail `resume` result, then checks those returns against H. A return outside H is EK2119, an error. Write the enclosing function's success type to cover those answers; H then uses that written type. In either case, H also includes `undefined` when the try block, or a clause that has not resumed, can finish without returning a value.
+
 A continuation can be consumed once; the runtime rejects a second resume. Call `resume`, `resumeWith`, and `abandon` in the clause's own code, not in a nested function.
 
 ## Stop and clean up
@@ -178,7 +180,7 @@ Handle the operation inside each concurrent branch. A handler on the parent fibe
 | EK2107 | A handle clause names an operation of a non-control, such as a service | Provide a service with a layer or a `provide` block |
 | EK2108 | A handle statement leaves an operation of its control without a clause, or gives one two clauses | Add the missing clause, or remove the second |
 | EK2110 | A `handle(...)` clause reads a `resume`'s result, but a clause or `onReturn` can produce a value of another type | Return the program's type from every clause, or return `resume`'s result unread |
-| EK2119 | Warning: a clause returns a value computed from `resume`'s result that `resume`'s type does not include | Write the function's success type to include it |
+| EK2119 | A clause returns a value computed from `resume`'s result outside the handler's answer type | Write the function's success type to include it |
 | EK4201 | Work sent to another fiber still requires a control operation | Handle it inside the branch, or run sequentially where the combinator supports it |
 | EK4202 | A TypeScript function's declared requirements include a control operation | Write it in VibeLang, or handle the operation in the TypeScript implementation |
 
