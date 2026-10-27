@@ -76,11 +76,14 @@ func checkExhaustive(c *checker.Checker, file *ast.SourceFile, call *ast.Node) {
 	if declared == nil || left == c.GetErrorType() || left.Flags()&checker.TypeFlagsNever != 0 {
 		return
 	}
-	declaredText, leftText := c.TypeToString(declared), c.TypeToString(left)
+	declaredText, leftText := diagnosticUnionText(c, declared), diagnosticUnionText(c, left)
 	if symbol := c.GetSymbolAtLocation(declaredSubject(c, call.Arguments()[0])); symbol != nil {
 		// A data type's variants by name, Delivery.Sent, not their object types (D307).
 		if names := dataNamesFor(c, symbol, call); names.hasVariants(c, declared) {
-			declaredText, leftText = names.typeText(c, declared), names.unionText(c, left)
+			declaredText, leftText = names.typeText(c, declared), diagnosticListText(names.unionTexts(c, left), " | ")
+			if len(members(declared)) > diagnosticListLimit && declaredText == names.unionText(c, declared) {
+				declaredText = diagnosticListText(names.unionTexts(c, declared), " | ")
+			}
 		}
 	}
 	if nested := nestedMatchRemainder(c, call, left); nested != "" {

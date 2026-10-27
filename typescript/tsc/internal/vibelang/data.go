@@ -665,6 +665,11 @@ func (n dataNames) typeText(c *checker.Checker, t *checker.Type) string {
 // the order its declaration lists the variants, and what TypeScript prints
 // for any other member, after them.
 func (n dataNames) unionText(c *checker.Checker, t *checker.Type) string {
+	return strings.Join(n.unionTexts(c, t), " | ")
+}
+
+// unionTexts preserves declaration order for diagnostics that bound a list.
+func (n dataNames) unionTexts(c *checker.Checker, t *checker.Type) []string {
 	var variants, others []string
 	for _, member := range members(t) {
 		if variant, _ := n.variantName(c, member); variant != "" {
@@ -676,7 +681,7 @@ func (n dataNames) unionText(c *checker.Checker, t *checker.Type) string {
 	slices.SortStableFunc(variants, func(a, b string) int {
 		return n.order[a[strings.LastIndexByte(a, '.')+1:]] - n.order[b[strings.LastIndexByte(b, '.')+1:]]
 	})
-	return strings.Join(append(variants, others...), " | ")
+	return append(variants, others...)
 }
 
 // hasVariants reports whether some member of t is a variant these names know.

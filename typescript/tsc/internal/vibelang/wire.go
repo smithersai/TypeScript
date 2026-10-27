@@ -484,13 +484,21 @@ func checkProgram(c *checker.Checker, program *ast.Node, accepted *checker.Type,
 	if site == runnerEntry {
 		code = EK3205
 	}
-	d := report(c, program, code, strings.Join(names, ", "))
-	for _, path := range paths {
+	namesText := strings.Join(names, ", ")
+	if site == runnerEntry {
+		namesText = diagnosticListText(names, ", ")
+	}
+	d := report(c, program, code, namesText)
+	visiblePaths := paths
+	if site == runnerEntry && len(visiblePaths) > diagnosticListLimit {
+		visiblePaths = visiblePaths[:diagnosticListLimit]
+	}
+	for _, path := range visiblePaths {
 		note(d, "{0}, and no argument of its wire provides it.", path)
 	}
 	switch {
 	case len(paths) > 0:
-		note(d, "Add a provider of {0} to wire.", strings.Join(names, ", "))
+		note(d, "Add a provider of {0} to wire.", namesText)
 	case site == runnerTest:
 		note(d, "Provide it to the test with Effect.provide(() => …, layer), or register the test inside layer(…).")
 	case site == runnerEntry:

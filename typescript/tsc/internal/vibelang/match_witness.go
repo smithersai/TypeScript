@@ -152,7 +152,7 @@ func nestedMatchRemainder(c *checker.Checker, call *ast.Node, left *checker.Type
 			missing = append(missing, candidate.text())
 		}
 	}
-	return strings.Join(missing, " | ")
+	return diagnosticListText(missing, " | ")
 }
 
 func finiteWitnesses(c *checker.Checker, t *checker.Type, shape *witnessShape) ([]matchWitness, bool) {
