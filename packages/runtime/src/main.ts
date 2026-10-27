@@ -1,4 +1,5 @@
-import { Runtime } from "effect"
+import { Cause, Effect, Runtime } from "effect"
+import { dual } from "effect/Function"
 
 // The part of a host's process object that the runner uses: Node.js, Bun,
 // and Deno provide it; a browser does not.
@@ -82,7 +83,7 @@ export const $entry = (started: boolean | undefined, url: string | undefined, ma
  * SIGINT and SIGTERM interrupt the program when the host has a process, and
  * the exit code follows `Runtime.defaultTeardown`.
  */
-export const $runMain = Runtime.makeRunMain(({ fiber, teardown }) => {
+const mainRunner = Runtime.makeRunMain(({ fiber, teardown }) => {
   const host = (globalThis as { readonly process?: Host }).process
   let receivedSignal = false
   const onSignal = () => {
@@ -100,3 +101,32 @@ export const $runMain = Runtime.makeRunMain(({ fiber, teardown }) => {
     })
   })
 })
+
+
+// Keep Effect's reporting policy and original cause/exit, while including the
+// own data fields Error's stack formatter omits. Accessors are never evaluated.
+export const $runMain: ReturnType<typeof Runtime.makeRunMain> = dual(
+  (args) => Effect.isEffect(args[0]),
+  <A, E>(program: Effect.Effect<A, E>, options?: {
+    readonly disableErrorReporting?: boolean
+    readonly teardown?: Runtime.Teardown
+  }): void => {
+    if (options?.disableErrorReporting) return mainRunner(program, options)
+    const reported = Effect.tapCause(program, (cause) => {
+      if (Cause.hasInterruptsOnly(cause) || !Runtime.getErrorReported(Cause.squash(cause))) return Effect.void
+      const fields: Array<Record<string, unknown>> = []
+      for (const reason of cause.reasons) {
+        if (reason._tag !== "Fail" || !(reason.error instanceof Error)) continue
+        const own: Record<string, unknown> = {}
+        for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(reason.error))) {
+          if (key !== "_tag" && descriptor.enumerable && "value" in descriptor) {
+            Object.defineProperty(own, key, { value: descriptor.value, enumerable: true })
+          }
+        }
+        if (Object.keys(own).length > 0) fields.push(own)
+      }
+      return Effect.logError(cause, ...fields)
+    })
+    mainRunner(reported, { ...options, disableErrorReporting: true })
+  }
+)
