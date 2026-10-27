@@ -1,0 +1,12 @@
+// A match holds its subject in a const, $match<N>: a module-level const and a
+// local spelled like it keep their values in the arms.
+const $match1 = "m1"
+
+function local(x: "a" | "b") {
+  const $match2 = "local"
+  return match (x) { when "a": $match2; when "b": "B"; }
+}
+
+export function subject(n: number) {
+  return [match (n) { when 1: $match1; default: "?" }, local("a")]
+}

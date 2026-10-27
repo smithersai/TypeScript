@@ -1,0 +1,16 @@
+// expect-result: [["m1","local"],[true,false],"x1 x2 x3 x4 x5","then"]
+// A match or is holds its subject, and an extractor its values, in a const,
+// parameter or label the compiler names: $match1, $is1, $extracted2 and so
+// on, numbered per file. A source binding or label spelled the same keeps
+// its own meaning where the generated one is in scope. Each form is in a
+// file of its own, whose names count from 1.
+import { subject } from "./subject.vibe"
+import { isFunction } from "./is.vibe"
+import { extractor } from "./extract.vibe"
+import { label } from "./label.vibe"
+
+error NotFound { id: string }
+
+export function main() {
+  return [subject(1), [isFunction(1), isFunction(2)], extractor(new NotFound({ id: "a" })), label({ a: 1 })]
+}

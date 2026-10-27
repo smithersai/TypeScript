@@ -106,6 +106,7 @@ type Parser struct {
 	vibelangSelects             int                      // select statements parsed so far, which number their labels (vibelang_fibers.go)
 	vibelangNoBlockParams       bool                     // a { after an expression is not a block param here: heritage clauses and provide's providers (vibelang_blocks.go)
 	vibelangMatchTemps          int                      // names written for match and is, numbered per file (vibelang_match.go)
+	vibelangTemps               []*ast.Node              // the identifiers of those names, which freshenVibeLangTemps renames when the file spells them (vibelang_match.go)
 	vibelangMatches             map[*ast.Node]*matchInfo // match expressions as written, by the call that stands for each (vibelang_match.go)
 	vibelangIsBindings          map[*ast.Node]*isInfo    // is expressions whose patterns bind names, by their markers (vibelang_match.go)
 	vibelangOmittedDependencies map[*ast.Node]bool       // Effect types whose dependencies were left out (vibelang.go)
@@ -476,6 +477,7 @@ func (p *Parser) parseSourceFileWorker() *ast.SourceFile {
 		result.SetJSDiagnostics(attachFileToDiagnostics(p.jsDiagnostics, result))
 	}
 	if p.isVibeLangFile() {
+		p.freshenVibeLangTemps(result)  // the names written for match and is (vibelang_match.go)
 		p.attachVibeLangModules(result) // module declarations' bodies (vibelang_modules.go)
 	}
 	return result

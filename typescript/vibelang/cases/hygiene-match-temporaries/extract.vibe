@@ -1,0 +1,13 @@
+// An extractor's values are held in a const, $extracted<N>, inside the arm.
+const $extracted1 = "x1"
+const $extracted2 = "x2"
+const $extracted3 = "x3"
+const $extracted4 = "x4"
+const $extracted5 = "x5"
+
+export function extractor(e: unknown) {
+  return match (e) {
+    when Error(let found): [$extracted1, $extracted2, $extracted3, $extracted4, $extracted5].join(" ");
+    default: "?";
+  }
+}

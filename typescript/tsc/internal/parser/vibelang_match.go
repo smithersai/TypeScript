@@ -2,6 +2,7 @@ package parser
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/core"
@@ -530,6 +531,66 @@ func (p *Parser) mIdent(name string, at core.TextRange) *ast.Node {
 	return p.vibelangSynthesized(p.factory.NewIdentifier(name), at)
 }
 
+// mTemp writes a reference to name, a const, parameter or label that the
+// parser introduces for a match or is, such as $match1, at at, and records
+// it, so that freshenVibeLangTemps can rename every reference to it.
+func (p *Parser) mTemp(name string, at core.TextRange) *ast.Node {
+	id := p.mIdent(name, at)
+	p.vibelangTemps = append(p.vibelangTemps, id)
+	return id
+}
+
+// freshenVibeLangTemps keeps the names the parser introduces for match and
+// is hygienic. A subject's const ($match1), an is function's parameter
+// ($is2), an extractor's values ($extracted3) and a statement's label are
+// numbered per file, but the source may spell the same name: the generated
+// binding would then capture the source's references in the arms, or the
+// source's binding would shadow it. Once the whole file is parsed and every
+// identifier it spells is known, each such name that the file spells takes
+// the next free number, in every reference.
+func (p *Parser) freshenVibeLangTemps(file *ast.SourceFile) {
+	if len(p.vibelangTemps) == 0 {
+		return
+	}
+	temps := make(map[*ast.Node]bool, len(p.vibelangTemps))
+	names := map[string]bool{}
+	for _, id := range p.vibelangTemps {
+		temps[id] = true
+		names[id.Text()] = true
+	}
+	spelled := map[string]bool{}
+	var visit func(node *ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		if ast.IsIdentifier(node) && !temps[node] {
+			spelled[node.Text()] = true
+		}
+		node.ForEachChild(visit)
+		return false
+	}
+	file.AsNode().ForEachChild(visit)
+	renamed := map[string]string{}
+	for _, id := range p.vibelangTemps {
+		name := id.Text()
+		fresh, ok := renamed[name]
+		if !ok {
+			if !spelled[name] {
+				continue
+			}
+			prefix := strings.TrimRight(name, "0123456789")
+			for {
+				p.vibelangMatchTemps++
+				fresh = prefix + strconv.Itoa(p.vibelangMatchTemps)
+				if !spelled[fresh] && !names[fresh] {
+					break
+				}
+			}
+			names[fresh] = true
+			renamed[name] = fresh
+		}
+		id.AsIdentifier().Text = fresh
+	}
+}
+
 func (p *Parser) mToken(kind ast.Kind, at core.TextRange) *ast.Node {
 	return p.vibelangSynthesized(p.factory.NewToken(kind), at)
 }
@@ -636,8 +697,8 @@ func (p *Parser) cloneIdentExpression(expr *ast.Node) *ast.Node {
 func (p *Parser) subjectPath(subject *ast.Node, anchor core.TextRange, prefix string) (matchPath, *ast.Node) {
 	p.vibelangMatchTemps++
 	name := prefix + strconv.Itoa(p.vibelangMatchTemps)
-	decl := p.mConst(p.mIdent(name, anchor), ast.NodeFlagsConst, subject, core.NewTextRange(min(anchor.Pos(), subject.Pos()), subject.End()))
-	return func() *ast.Node { return p.mIdent(name, anchor) }, decl
+	decl := p.mConst(p.mTemp(name, anchor), ast.NodeFlagsConst, subject, core.NewTextRange(min(anchor.Pos(), subject.Pos()), subject.End()))
+	return func() *ast.Node { return p.mTemp(name, anchor) }, decl
 }
 
 // propertyPath returns the path of the property key of base's subject.
@@ -859,8 +920,8 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 		} else {
 			p.vibelangMatchTemps++
 			name := "$extracted" + strconv.Itoa(p.vibelangMatchTemps)
-			*steps = append(*steps, matchStep{decl: p.mConst(p.mIdent(name, at), ast.NodeFlagsConst, p.mCall(p.mIdent("$extract", at), []*ast.Node{matcher, path()}, at), at)})
-			extracted = func() *ast.Node { return p.mIdent(name, at) }
+			*steps = append(*steps, matchStep{decl: p.mConst(p.mTemp(name, at), ast.NodeFlagsConst, p.mCall(p.mIdent("$extract", at), []*ast.Node{matcher, path()}, at), at)})
+			extracted = func() *ast.Node { return p.mTemp(name, at) }
 		}
 		test(p.mBinary(extracted(), ast.KindExclamationEqualsEqualsToken, p.mKeyword(ast.KindFalseKeyword, at), at))
 		p.compileList(pat, extracted, len(pat.items), func(i int) matchPath {
@@ -983,9 +1044,9 @@ func (p *Parser) isExpression(info *isInfo, pos int) *ast.Node {
 	}
 	p.vibelangMatchTemps++
 	name := "$is" + strconv.Itoa(p.vibelangMatchTemps)
-	path := func() *ast.Node { return p.mIdent(name, info.anchor) }
+	path := func() *ast.Node { return p.mTemp(name, info.anchor) }
 	body := p.inlinePattern(info.pattern, path, ctx)
-	parameter := p.vibelangSpanning(p.factory.NewParameterDeclaration(nil, nil, p.mIdent(name, info.anchor), nil, nil, nil), info.anchor)
+	parameter := p.vibelangSpanning(p.factory.NewParameterDeclaration(nil, nil, p.mTemp(name, info.anchor), nil, nil, nil), info.anchor)
 	arrow := p.vibelangProgramArrow([]*ast.Node{parameter}, body, info.anchor)
 	callee := p.mParens(arrow, info.anchor)
 	call := p.vibelangSpanning(p.factory.NewCallExpression(callee, nil, nil, p.newNodeList(info.subject.Loc, []*ast.Node{info.subject}), ast.NodeFlagsNone), core.NewTextRange(pos, p.nodePos()))
@@ -1050,13 +1111,13 @@ func (p *Parser) matchStatement(info *matchInfo, pos int) *ast.Node {
 	p.vibelangMatchTemps++
 	label := "$match" + strconv.Itoa(p.vibelangMatchTemps)
 	statements := p.matchStatements(info, func(value *ast.Node, at core.TextRange) []*ast.Node {
-		leave := p.vibelangSpanning(p.factory.NewBreakStatement(p.mIdent(label, info.anchor)), info.anchor)
+		leave := p.vibelangSpanning(p.factory.NewBreakStatement(p.mTemp(label, info.anchor)), info.anchor)
 		return []*ast.Node{p.vibelangSpanning(p.factory.NewExpressionStatement(value), at), leave}
 	}, func(noMatch *ast.Node, at core.TextRange) *ast.Node {
 		return p.vibelangSpanning(p.factory.NewExpressionStatement(noMatch), at)
 	})
 	block := p.finishNode(p.factory.NewBlock(p.newNodeList(core.NewTextRange(info.anchor.End(), p.nodePos()), statements), true /*multiLine*/), info.anchor.End())
-	return p.finishNode(p.factory.NewLabeledStatement(p.mIdent(label, info.anchor), block), pos)
+	return p.finishNode(p.factory.NewLabeledStatement(p.mTemp(label, info.anchor), block), pos)
 }
 
 // conjuncts returns the operands of the && chain expr, outermost first.
@@ -1132,11 +1193,11 @@ func (p *Parser) restructureVibeLangIf(condition, then, otherwise *ast.Node, pos
 	label := "$is" + strconv.Itoa(p.vibelangMatchTemps)
 	success := []*ast.Node{then}
 	if !endsInJump(then) {
-		success = append(success, p.vibelangSpanning(p.factory.NewBreakStatement(p.mIdent(label, anchor)), anchor))
+		success = append(success, p.vibelangSpanning(p.factory.NewBreakStatement(p.mTemp(label, anchor)), anchor))
 	}
 	statements := append(p.emitSteps(steps, success, anchor), otherwise)
 	block := p.finishNode(p.factory.NewBlock(p.newNodeList(core.NewTextRange(pos, p.nodePos()), statements), true /*multiLine*/), pos)
-	return p.finishNode(p.factory.NewLabeledStatement(p.mIdent(label, anchor), block), pos)
+	return p.finishNode(p.factory.NewLabeledStatement(p.mTemp(label, anchor), block), pos)
 }
 
 // restructureVibeLangWhile rewrites while (... && x is P && ...) S, when P

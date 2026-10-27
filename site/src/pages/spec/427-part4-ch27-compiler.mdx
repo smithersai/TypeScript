@@ -90,6 +90,9 @@ So no source binding captures generated code, and generated code captures no
 source binding. A module that exports a name spelled like a variant, such as
 `double$direct` beside a plain `double`, exports the variant as
 `double$direct$1`, and its importers compute the same name from its exports.
+The parser's names follow the same rule: the const or parameter that holds a
+`match` or `is` subject (`$match1`, `$is2`), an extractor's values and the
+labels it writes take the next free number when the file spells theirs.
 An Effect function's generator carries the function's name for stack traces
 (D36) but binds none: a named function expression that refers to itself, in
 its body or a parameter default, forwards to the generator as a declaration

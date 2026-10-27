@@ -1,0 +1,15 @@
+// An if whose is binds a name holds the subject in $is1 and labels the
+// statement $is2. The source label $is2 stays the one break leaves.
+export function label(x: unknown) {
+  let out = "none"
+  $is2: {
+    if (x is { a: let a }) {
+      out = "then"
+      break $is2
+    } else {
+      out = "else"
+    }
+    out = "after"
+  }
+  return out
+}

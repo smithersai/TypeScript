@@ -1,0 +1,8 @@
+// twice(n) is read twice by the pattern, so it is held in a parameter, $is1.
+const $is1 = 1
+
+function twice(n: number) { return { a: n, b: n } }
+
+export function isFunction(n: number) {
+  return twice(n) is { a: $is1, b: $is1 }
+}
