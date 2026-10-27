@@ -583,6 +583,9 @@ func (tx *lowering) lowerFunction(node *ast.Node) *ast.Node {
 			return tx.directFunction(node, parameters, effect)
 		}
 	}
+	if refersToOwnName(node) {
+		return tx.selfBoundFunction(node, parameters, body)
+	}
 	generator := tx.generatorFrom(node, parameters, body)
 	if node.Kind != ast.KindArrowFunction {
 		tx.forwarding(generator) // Effect.fnUntraced calls it with the function's this and arguments

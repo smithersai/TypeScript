@@ -340,6 +340,10 @@ func (tx *lowering) visitProducer(node *ast.Node) *ast.Node {
 	tx.inEffect, tx.frame, tx.plain = saved, savedFrame, savedPlain
 
 	generator := tx.generatorExpression(node, sourceName(node), f.NewNodeList(nil), body)
+	if refersToOwnName(node) {
+		// The plain function keeps the name (frames_lower.go).
+		generator = tx.nameFreeGenerator(node, node.Name().Text(), f.NewNodeList(nil), body)
+	}
 	tx.EmitContext().SetOriginal(generator, node)
 	run := tx.wrapGenerator("fnUntraced", node, generator)
 	run.Loc = core.UndefinedTextRange() // the function keeps the source's comments

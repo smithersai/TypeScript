@@ -506,3 +506,90 @@ func (tx *lowering) declareFrameBindings(fn *ast.Node, a *activation) *ast.Node 
 	}
 	return replace.VisitEachChild(fn)
 }
+
+// A named function expression's own name.
+//
+// A function expression's name is bound in its own scope, as arguments is,
+// and refers to the function that the caller calls: an Effect function, so
+// `self(n - 1)` returns an Effect. A generator that the lowering names after
+// it with `function* self` binds the name again, to the generator: the call
+// returns an iterator, which Effect rejects, and recursion delegates
+// iterators on the JavaScript stack. So when the parameters or body refer to
+// the name, the lowering keeps it where the source binds it, on the
+// function that the caller calls, and gives the generator the method form,
+// which binds nothing: an Effect function expression forwards to it as a
+// function declaration does (selfBoundFunction), and a producer keeps its
+// plain function's name (visitProducer).
+
+// refersToOwnName reports whether fn is a named function expression whose
+// parameters or body may refer to its name. It answers true for a name that
+// a nested scope declares, which only costs the forwarding form.
+func refersToOwnName(fn *ast.Node) bool {
+	if fn.Kind != ast.KindFunctionExpression || fn.Name() == nil {
+		return false
+	}
+	name := fn.Name().Text()
+	for _, parameter := range fn.Parameters() {
+		if refersTo(parameter, name) {
+			return true
+		}
+	}
+	return refersTo(fn.Body(), name)
+}
+
+// nameFreeGenerator returns `{ *name(parameters) { body } }.name`, the
+// generator for original, which a stack trace shows as name but which binds
+// no name in its body.
+func (tx *lowering) nameFreeGenerator(original *ast.Node, name string, parameters *ast.NodeList, body *ast.Node) *ast.Node {
+	f := tx.Factory()
+	method := f.NewMethodDeclaration(nil /*modifiers*/, f.NewToken(ast.KindAsteriskToken), f.NewIdentifier(name), nil /*postfixToken*/, nil /*typeParameters*/, parameters, nil /*type*/, nil /*fullSignature*/, body)
+	tx.EmitContext().SetOriginal(method, original) // the method binds what original binds
+	object := f.NewObjectLiteralExpression(f.NewNodeList([]*ast.Node{method}), false /*multiLine*/)
+	generator := f.NewPropertyAccessExpression(object, nil /*questionDotToken*/, f.NewIdentifier(name), ast.NodeFlagsNone)
+	tx.EmitContext().SetOriginal(generator, original)
+	return generator
+}
+
+// selfBoundFunction lowers fn, a named Effect function expression that
+// refers to its own name, with its lowered parameters and body, as
+// visitEffectFunctionDeclaration lowers a declaration: the function
+// expression keeps the name and forwards its this and arguments to the
+// generator on every call.
+//
+//	const recursive = function self(arg_1) {
+//	  return Effect.fnUntraced({ *self(n) { … yield* self(n - 1) … } }.self).apply(this, arguments);
+//	};
+func (tx *lowering) selfBoundFunction(fn *ast.Node, parameters *ast.NodeList, body *ast.Node) *ast.Node {
+	f := tx.Factory()
+	generator := tx.forwarding(tx.nameFreeGenerator(fn, fn.Name().Text(), parameters, body))
+	// A traced expression captures its caller before forwarding, as a
+	// declaration does (forwardedTrace).
+	capture, pipeables := tx.forwardedTrace(fn)
+	lowered := tx.wrapFunction(fn, tx.generatedFunctions(generator), pipeables...)
+	apply := f.NewPropertyAccessExpression(lowered, nil /*questionDotToken*/, f.NewIdentifier("apply"), ast.NodeFlagsNone)
+	call := f.NewCallExpression(apply, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{f.NewThisExpression(), f.NewIdentifier("arguments")}), ast.NodeFlagsNone)
+	// Placeholder parameters keep the function's length, as a declaration's do.
+	var placeholders []*ast.Node
+	for _, parameter := range fn.Parameters() {
+		if ast.IsIdentifier(parameter.Name()) && parameter.Name().Text() == "this" {
+			continue
+		}
+		if parameter.Initializer() != nil || parameter.AsParameterDeclaration().DotDotDotToken != nil {
+			break
+		}
+		placeholders = append(placeholders, f.NewParameterDeclaration(nil /*modifiers*/, nil /*dotDotDotToken*/, f.NewUniqueName("arg"), nil /*questionToken*/, nil /*type*/, nil /*initializer*/))
+	}
+	var statements []*ast.Node
+	for _, statement := range fn.Body().Statements() {
+		if !ast.IsPrologueDirective(statement) {
+			break
+		}
+		statements = append(statements, f.NewExpressionStatement(f.NewStringLiteralFromNode(statement.Expression())))
+	}
+	statements = append(statements, capture...)
+	statements = append(statements, tx.generated(f.NewReturnStatement(call)))
+	expression := f.NewFunctionExpression(nil /*modifiers*/, nil /*asteriskToken*/, fn.Name(), nil /*typeParameters*/, f.NewNodeList(placeholders), nil /*type*/, nil /*fullSignature*/, f.NewBlock(f.NewNodeList(statements), true /*multiLine*/))
+	tx.EmitContext().SetOriginal(expression, fn)
+	expression.Loc = fn.Loc
+	return expression
+}
