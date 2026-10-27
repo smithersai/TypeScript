@@ -197,7 +197,7 @@ func errorClassRewrite(c *checker.Checker, file *ast.SourceFile, class *ast.Node
 			declaration += " " + fields
 		}
 	}
-	return withImportRemovals(file, &formRewrite{
+	return withImportRemovals(c, file, &formRewrite{
 		edits:       []sourceEdit{{start, class.End(), declaration}},
 		description: shortText(declaration, "error "+name+" { … }"),
 	})

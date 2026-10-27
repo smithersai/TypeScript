@@ -297,7 +297,7 @@ func catchCombinatorRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.
 	if catchNeedsParentheses(call) {
 		text = "(" + text + ")"
 	}
-	rewrite := withImportRemovals(file, &formRewrite{
+	rewrite := withImportRemovals(c, file, &formRewrite{
 		edits:       []sourceEdit{{nodeStart(file, call), call.End(), text}},
 		description: shortText(text, "a catch expression"),
 	})

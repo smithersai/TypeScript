@@ -6,7 +6,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-export async function compareRewrite(url, expected, { mode = "fix", present = [], absent = [] } = {}) {
+export async function compareRewrite(url, expected, { mode = "fix", present = [], absent = [], editorClass = "Bad" } = {}) {
   const dir = path.dirname(fileURLToPath(url))
   const compiler = process.env.VIBELANG_REWRITE_BINARY || fileURLToPath(new URL("../built/local/tsc", import.meta.url))
   const work = path.join(dir, "out/rewrite-evidence")
@@ -30,7 +30,7 @@ export async function compareRewrite(url, expected, { mode = "fix", present = []
   const before = command("run-before", process.execPath, ["out/main.js"])
   assert.equal(before, expected, "original behavior")
   if (mode === "editor") {
-    fs.writeFileSync(source, await editorRewrite(compiler, work, source, original))
+    fs.writeFileSync(source, await editorRewrite(compiler, work, source, original, editorClass))
   } else if (mode === "format") {
     // Exercise the actual process plugin with an import-sorting host. The
     // minimal host obeys the plugin's per-request TypeScript overrides.
@@ -56,7 +56,7 @@ export async function compareRewrite(url, expected, { mode = "fix", present = []
   process.stdout.write("rewrite preserves " + path.basename(dir).slice("rewrite-".length) + "\n")
 }
 
-async function editorRewrite(compiler, cwd, file, source) {
+async function editorRewrite(compiler, cwd, file, source, className) {
   const child = spawn(compiler, ["--lsp", "--stdio"], { cwd, stdio: ["pipe", "pipe", "pipe"] })
   const transcript = []
   let buffer = Buffer.alloc(0)
@@ -95,9 +95,9 @@ async function editorRewrite(compiler, cwd, file, source) {
     await request("initialize", { processId: process.pid, rootUri: new URL("file://" + cwd).href, capabilities: {}, initializationOptions: { disableAutomaticTypingAcquisition: true } })
     send({ method: "initialized", params: {} })
     send({ method: "textDocument/didOpen", params: { textDocument: { uri, languageId: "vibelang", version: 1, text: source } } })
-    const line = source.split("\n").findIndex((line) => line.includes("class Bad"))
-    const range = { start: { line, character: 6 }, end: { line, character: 9 } }
-    const actions = await request("textDocument/codeAction", { textDocument: { uri }, range, context: { diagnostics: [{ range, severity: 2, code: 4830, source: "EK", message: "Bad extends Data.TaggedError" }], only: ["quickfix"] } })
+    const line = source.split("\n").findIndex((line) => line.includes("class " + className))
+    const range = { start: { line, character: 6 }, end: { line, character: 6 + className.length } }
+    const actions = await request("textDocument/codeAction", { textDocument: { uri }, range, context: { diagnostics: [{ range, severity: 2, code: 4830, source: "EK", message: className + " extends Data.TaggedError" }], only: ["quickfix"] } })
     const chosen = actions.result?.find((action) => action.title.startsWith("Write error"))
     assert.ok(chosen, JSON.stringify(actions))
     const offset = ({ line, character }) => source.split("\n").slice(0, line).reduce((n, text) => n + text.length + 1, 0) + character

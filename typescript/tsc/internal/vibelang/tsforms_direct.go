@@ -171,7 +171,7 @@ func directFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node)
 			return nil
 		}
 	}
-	rewrite := withImportRemovals(file, &formRewrite{edits: []sourceEdit{{start, end, text}}, description: shortText(text, core.IfElse(name == "fail", "a throw", "its argument alone"))})
+	rewrite := withImportRemovals(c, file, &formRewrite{edits: []sourceEdit{{start, end, text}}, description: shortText(text, core.IfElse(name == "fail", "a throw", "its argument alone"))})
 	if name == "fail" {
 		rewrite.message = directFailMessage
 	}

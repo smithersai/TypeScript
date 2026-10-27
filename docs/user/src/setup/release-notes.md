@@ -78,6 +78,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 ### Bugs fixed since 0.0.10
 
+- `--fix` and the editor removed an import when a rewrite dropped its last binding, including an import of a local module whose initialization the program relied on, so that module no longer ran. A module that was loaded now keeps a side-effect import, `import "./adapter.ts"`, in the same position.
 - The `Effect.provide`, `Effect.provideService` and `Effect.withSpan` quick fixes moved the program expression into the block, so a getter or a factory call ran after the providers instead of before them. A program expression other than a call passed by name, an arrow function or a variable the file never assigns now stays in its original call, and its warning offers no fix.
 - The service-class quick fix replaced a class whose key is an expression, such as `keys.pop()!`, with a `service` declaration, so the key's evaluation and its side effects were lost. A class with a dynamic key now stays as written; only literal keys are rewritten.
 - The `catchTag` and `catchTags` quick fixes wrote a class test, `when Gone:`, so a failure that carries the tag without the class's prototype, such as a copied error object, failed at run time with `No match arm matched`. The fixes now write the structural test the call made, `when { _tag: "Gone" }:`.

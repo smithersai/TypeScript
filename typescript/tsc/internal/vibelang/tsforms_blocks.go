@@ -158,7 +158,7 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 		start, end = nodeStart(file, statement), statement.End()
 		result = "provide " + strings.Join(providers, ", ") + blockText(program, indent, returns)
 	}
-	return withImportRemovals(file, &formRewrite{edits: []sourceEdit{{start, end, result}}, description: shortText(result, "the block form")})
+	return withImportRemovals(c, file, &formRewrite{edits: []sourceEdit{{start, end, result}}, description: shortText(result, "the block form")})
 }
 
 // eagerProgramNote explains why an eagerly evaluated program expression keeps

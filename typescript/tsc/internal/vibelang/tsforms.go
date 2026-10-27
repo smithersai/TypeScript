@@ -179,6 +179,9 @@ var typeScriptFormFix = &ls.CodeFixProvider{
 		}
 		c, done := fix.Program.GetTypeCheckerForFile(ctx, fix.SourceFile)
 		defer done()
+		// Import cleanup reads runtime alias references collected by the
+		// complete file check, including for editor requests with supplied diagnostics.
+		c.GetDiagnostics(ctx, fix.SourceFile)
 		rewrite := rule.plan(c, fix.SourceFile, at)
 		if !rewrite.fixable() {
 			return nil, nil
@@ -194,7 +197,7 @@ var typeScriptFormFix = &ls.CodeFixProvider{
 // withImportRemovals adds to r's edits the removal of every import binding
 // whose only uses in file lie in the ranges r's edits replace: a rewrite that
 // drops the last use of Data or Context drops its import too.
-func withImportRemovals(file *ast.SourceFile, r *formRewrite) *formRewrite {
+func withImportRemovals(c *checker.Checker, file *ast.SourceFile, r *formRewrite) *formRewrite {
 	if !r.fixable() {
 		return r
 	}
@@ -204,7 +207,11 @@ func withImportRemovals(file *ast.SourceFile, r *formRewrite) *formRewrite {
 		replaced = append(replaced, core.NewTextRange(edit.start, edit.end))
 		written = append(written, edit.text)
 	}
-	r.edits = append(r.edits, unusedImportEdits(file, replaced, nil, written...)...)
+	cleanup, why := importRemovalEdits(c, file, replaced, nil, written...)
+	if why != "" {
+		return &formRewrite{why: why}
+	}
+	r.edits = append(r.edits, cleanup...)
 	return r
 }
 
@@ -269,8 +276,18 @@ func identifierUses(file *ast.SourceFile, names map[string]bool, replaced []core
 // unusedImportEdits returns the edits that remove each import binding of file
 // that has uses in replaced and none elsewhere, or, when used is not nil, each
 // binding that used counts and file no longer uses at all. A declaration that
-// loses every binding is removed with its line.
+// loses every binding keeps its module initialization unless it was type-only
+// or names Effect itself, whose modules the prelude already supplies.
 func unusedImportEdits(file *ast.SourceFile, replaced []core.TextRange, used map[string]int, written ...string) []sourceEdit {
+	// The final cleanup uses this only for Effect's prelude modules.
+	edits, _ := importRemovalEdits(nil, file, replaced, used, written...)
+	return edits
+}
+
+// importRemovalEdits preserves whether each dependency was initialized before
+// the rewrite. A syntactic value import may be erased when used only as a type;
+// conversely, surviving type bindings do not preserve a removed value's load.
+func importRemovalEdits(c *checker.Checker, file *ast.SourceFile, replaced []core.TextRange, used map[string]int, written ...string) ([]sourceEdit, string) {
 	bindings := importBindingsOf(file)
 	names := map[string]bool{}
 	for _, b := range bindings {
@@ -296,7 +313,7 @@ func unusedImportEdits(file *ast.SourceFile, replaced []core.TextRange, used map
 		}
 	}
 	if len(unused) == 0 {
-		return nil
+		return nil, ""
 	}
 	text := file.Text()
 	var edits []sourceEdit
@@ -316,20 +333,62 @@ func unusedImportEdits(file *ast.SourceFile, replaced []core.TextRange, used map
 		if len(gone) == 0 {
 			continue
 		}
+		start, end := nodeStart(file, statement), statement.End()
+		module := statement.ModuleSpecifier()
+		custom := module.Text() != "effect" && !strings.HasPrefix(module.Text(), "effect/")
+		loaded := false
+		if custom {
+			clause := statement.ImportClause().AsImportClause()
+			if clause.PhaseModifier == ast.KindDeferKeyword {
+				return nil, "No quick fix: a deferred import's initialization timing must be preserved."
+			}
+			if c == nil {
+				return nil, "No quick fix: its import initialization cannot be proved."
+			}
+			// Under verbatimModuleSyntax, even import { type T } emits an
+			// empty value import; only an import type clause is erased.
+			loaded = c.CompilerOptions().VerbatimModuleSyntax.IsTrue() && !clause.IsTypeOnly()
+			for _, binding := range all {
+				if clause.IsTypeOnly() || ast.IsImportSpecifier(binding) && binding.AsImportSpecifier().IsTypeOnly {
+					continue
+				}
+				if c.CompilerOptions().VerbatimModuleSyntax.IsTrue() {
+					continue
+				}
+				name := binding.Name()
+				if name == nil {
+					name = binding // a default import's identifier
+				}
+				value, known := c.ImportBindingValueReference(name)
+				if !known {
+					return nil, "No quick fix: its import initialization cannot be proved."
+				}
+				loaded = loaded || value
+			}
+		}
+		bare := "import " + expressionText(file, module) + text[module.End():end]
 		if len(gone) == len(all) {
-			start := nodeStart(file, statement)
-			end := statement.End()
+			if custom && loaded {
+				edits = append(edits, sourceEdit{start, end, bare})
+				continue
+			}
 			if newline := strings.IndexByte(text[end:], '\n'); newline >= 0 && strings.TrimSpace(text[end:end+newline]) == "" {
 				end += newline + 1
 			}
 			edits = append(edits, sourceEdit{start, end, ""})
 			continue
 		}
+		if custom && loaded {
+			// Some surviving names may be type-only after rewriting. An
+			// explicit dependency retains the original module edge regardless
+			// of binding elision; ESM initializes duplicate imports only once.
+			edits = append(edits, sourceEdit{start, start, bare + "\n" + lineIndent(text, start)})
+		}
 		for _, node := range gone {
 			edits = append(edits, bindingRemoval(file, node))
 		}
 	}
-	return edits
+	return edits, ""
 }
 
 // containsWord reports whether text holds word as a whole identifier.

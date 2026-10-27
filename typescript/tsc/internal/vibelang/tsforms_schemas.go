@@ -122,7 +122,7 @@ func schemaConstantRewrite(c *checker.Checker, file *ast.SourceFile, name *ast.N
 	end := statement.End()
 	declarationText := "schema " + name.Text() + " " + fields
 	edits = append([]sourceEdit{{start, end, declarationText}}, edits...)
-	return withImportRemovals(file, &formRewrite{edits: edits, description: shortText(declarationText, "schema "+name.Text()+" { … }")})
+	return withImportRemovals(c, file, &formRewrite{edits: edits, description: shortText(declarationText, "schema "+name.Text()+" { … }")})
 }
 
 // schemaTypeEdits returns the edits that remove the struct's own type written

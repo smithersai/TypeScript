@@ -113,6 +113,18 @@ func (c *Checker) CompilerOptions() *core.CompilerOptions {
 	return c.compilerOptions
 }
 
+// ImportBindingValueReference reports whether an import alias was referenced
+// in emitted value code. Type-only references do not initialize its module.
+// The caller has checked the source file; this reads the same alias-reference
+// evidence the emitter uses, without entering the emit resolver's lock.
+func (c *Checker) ImportBindingValueReference(name *ast.Node) (referenced, known bool) {
+	symbol := c.GetSymbolAtLocation(name)
+	if symbol == nil || symbol.Flags()&ast.SymbolFlagsAlias == 0 || !c.canCollectSymbolAliasAccessibilityData {
+		return false, false
+	}
+	return c.aliasSymbolLinks.Get(symbol).referenced, true
+}
+
 // AddDiagnostic records d in the matching semantic or suggestion collection,
 // so editor suggestions do not become CLI semantic errors.
 // Its node must belong to the file being checked: the program reads each

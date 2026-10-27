@@ -140,7 +140,7 @@ func serviceClassRewrite(c *checker.Checker, file *ast.SourceFile, class *ast.No
 		return nil
 	}
 	declaration := "service " + name + " " + body
-	rewrite := withImportRemovals(file, &formRewrite{
+	rewrite := withImportRemovals(c, file, &formRewrite{
 		edits:       []sourceEdit{{start, class.End(), declaration}},
 		description: shortText(declaration, "service "+name+" { … }"),
 	})
