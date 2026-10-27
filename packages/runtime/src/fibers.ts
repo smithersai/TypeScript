@@ -93,7 +93,7 @@ function awaitValue(value: unknown): Effect.Effect<unknown, unknown> {
   if (Deferred.isDeferred(value)) return Deferred.await(value)
   if (typeof value !== "object" || value === null) return Effect.die(new TypeError("await expects a Fiber, a Deferred, or an array or object of them"))
   const fibers: Array<Fiber.Fiber<unknown, unknown>> = []
-  return Effect.onError(joinParts(value, fibers), () => Effect.forEach(fibers, Fiber.interrupt, { discard: true }))
+  return Effect.onError(joinParts(value, fibers), () => Fiber.interruptAll(fibers))
 }
 
 // The Effect that waits for each element of value, an array or object of
@@ -200,10 +200,11 @@ const inOrderWritten = (
     : Effect.map(all, (result: Record<string, unknown>) => Object.fromEntries(Object.keys(effects).map((key) => [key, result[key]])))
 
 // Interrupts the fibers the operand held, except the one at index keep.
+// Fiber.interruptAll signals every fiber before it waits for any to finish,
+// so one fiber's cleanup can wait for a sibling's (D167, D196). Interrupting
+// them one by one, each waited for in turn, never signals that sibling.
 const interruptHeld = (held: ReadonlyArray<Fiber.Fiber<unknown, unknown> | undefined>, keep = -1) =>
-  Effect.forEach(held.filter((f, index): f is Fiber.Fiber<unknown, unknown> => f !== undefined && index !== keep), Fiber.interrupt, {
-    discard: true
-  })
+  Fiber.interruptAll(held.filter((f, index): f is Fiber.Fiber<unknown, unknown> => f !== undefined && index !== keep))
 
 /**
  * `await.all x`: waits for every element, keeping the shape of an array,
@@ -300,8 +301,8 @@ export const $select = <const D extends boolean, const P extends ReadonlyArray<P
   Effect.uninterruptibleMask((restore) =>
     Effect.gen(function*() {
       const fibers: Array<Fiber.Fiber<unknown, unknown>> = []
-      const interruptOthers = (winner: number) =>
-        Effect.forEach(fibers.filter((_, index) => index !== winner), Fiber.interrupt, { discard: true })
+      // Every loser is signalled before any is waited for, as interruptHeld does.
+      const interruptOthers = (winner: number) => Fiber.interruptAll(fibers.filter((_, index) => index !== winner))
       for (let index = 0; index < programs.length; index++) {
         const fiber = yield* Effect.forkChild(Effect.suspend(programs[index]), { startImmediately: true })
         fibers.push(fiber)

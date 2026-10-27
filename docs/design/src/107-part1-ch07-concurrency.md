@@ -69,6 +69,8 @@ function settle(ready: Deferred.Deferred<void>) {
 // both losers are interrupted at once, so both cleanups finish, then "winner"
 ```
 
+A form that interrupts several branches signals every one before it waits for any to finish its cleanup, as `Fiber.interruptAll` does, so one branch's cleanup can wait for a sibling's.
+
 #### Background work with a lifetime
 
 `fork` starts a program on a new fiber owned by the region around it: the function body, one iteration of a loop, a `try`, `catch`, or `finally` block, a block that declares `using`, or a `provide` or mask block (D408). When the region exits by any path, it interrupts the fiber and waits for its cleanup before releasing anything acquired earlier in it. A function body is such a region, so `fork` needs no `using` nearby.

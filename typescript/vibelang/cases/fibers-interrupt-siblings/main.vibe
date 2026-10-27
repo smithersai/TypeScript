@@ -1,0 +1,83 @@
+// A failed join or await.all, and a decided race, interrupt the other
+// fibers and wait for their cleanup (D167, D196, D225). Every fiber is
+// signalled before any is waited for, as Fiber.interruptAll does: here A's
+// cleanup waits for B's, so interrupting A and waiting for it before
+// signalling B would never end.
+error Bad
+
+function joined(log: string[]) {
+  const startedA = Deferred.make<void>()
+  const startedB = Deferred.make<void>()
+  const releasedB = Deferred.make<void>()
+  const a = fork {
+    try { Deferred.succeed(startedA, undefined); Effect.never() }
+    finally { log.push("A waits"); releasedB.await(); log.push("A done") }
+  }
+  const b = fork {
+    try { Deferred.succeed(startedB, undefined); Effect.never() }
+    finally { log.push("B done"); Deferred.succeed(releasedB, undefined) }
+  }
+  startedA.await()
+  startedB.await()
+  const bad = fork { throw new Bad() }
+  try { join [bad, a, b] } catch (e) { log.push("caught " + e._tag) }
+}
+
+function all(log: string[]) {
+  const startedA = Deferred.make<void>()
+  const startedB = Deferred.make<void>()
+  const releasedB = Deferred.make<void>()
+  const a = fork {
+    try { Deferred.succeed(startedA, undefined); Effect.never() }
+    finally { log.push("A waits"); releasedB.await(); log.push("A done") }
+  }
+  const b = fork {
+    try { Deferred.succeed(startedB, undefined); Effect.never() }
+    finally { log.push("B done"); Deferred.succeed(releasedB, undefined) }
+  }
+  startedA.await()
+  startedB.await()
+  try { await.all [do { throw new Bad() }, a, b] } catch (e) { log.push("caught " + e._tag) }
+}
+
+function raceHeld(log: string[]) {
+  const startedA = Deferred.make<void>()
+  const startedB = Deferred.make<void>()
+  const releasedB = Deferred.make<void>()
+  const a = fork {
+    try { Deferred.succeed(startedA, undefined); Effect.never() }
+    finally { log.push("A waits"); releasedB.await(); log.push("A done") }
+  }
+  const b = fork {
+    try { Deferred.succeed(startedB, undefined); Effect.never() }
+    finally { log.push("B done"); Deferred.succeed(releasedB, undefined) }
+  }
+  startedA.await()
+  startedB.await()
+  log.push(String(await.race [do { "winner" }, a, b]))
+}
+
+function racePrograms(log: string[]) {
+  const releasedB = Deferred.make<void>()
+  log.push(await.race [
+    do {
+      try { Effect.never() }
+      finally { log.push("A waits"); releasedB.await(); log.push("A done") }
+    },
+    do {
+      try { Effect.never() }
+      finally { log.push("B done"); Deferred.succeed(releasedB, undefined) }
+    },
+    do { "winner" }
+  ])
+}
+
+// expect-result: {"joined":["A waits","B done","A done","caught Bad"],"all":["A waits","B done","A done","caught Bad"],"raceHeld":["A waits","B done","A done","winner"],"racePrograms":["A waits","B done","A done","winner"]}
+export function main() {
+  const logs = { joined: [] as string[], all: [] as string[], raceHeld: [] as string[], racePrograms: [] as string[] }
+  joined(logs.joined)
+  all(logs.all)
+  raceHeld(logs.raceHeld)
+  racePrograms(logs.racePrograms)
+  return logs
+}
