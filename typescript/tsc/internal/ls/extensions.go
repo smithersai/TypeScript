@@ -101,7 +101,7 @@ func withQuickInfoHooks(c *checker.Checker, node *ast.Node, quickInfo string, do
 	if len(paragraphs) == 0 {
 		return quickInfo, documentation
 	}
-	notes := strings.Join(paragraphs, "\n\n")
+	notes := "\n\n" + strings.Join(paragraphs, "\n\n")
 	if documentation == "" {
 		return quickInfo, notes
 	}

@@ -197,7 +197,7 @@ func TestEditorHoverOnByNameArgumentBeforeCheck(t *testing.T) {
 	line := strings.Split(source, "\n")[2]
 	first := hoverText(t, service, uri, lsproto.Position{Line: 2, Character: uint32(strings.Index(line, "(%,") + 1)})
 	second := hoverText(t, service, uri, lsproto.Position{Line: 2, Character: uint32(strings.Index(line, "${%}") + 2)})
-	if !strings.Contains(first, "(topic) %: string!!") || !strings.HasPrefix(second, "(topic) %: stringThe value") {
+	if !strings.Contains(first, "(topic) %: string!!") || !strings.HasPrefix(second, "(topic) %: string\n\nThe value") {
 		t.Fatalf("hovers %q, then %q; want the program string!!, then the value string", first, second)
 	}
 }
