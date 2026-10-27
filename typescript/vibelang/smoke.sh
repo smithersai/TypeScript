@@ -7,6 +7,11 @@
 #   --status    one line per case: name, owner, and ok, FAIL, pending, or XPASS
 #   case        a case name, or a substring that selects every case containing it
 #
+# Prerequisites (from the repository root):
+#   (cd experiments && bun install --frozen-lockfile)
+#   (cd packages/runtime && bun install --frozen-lockfile)
+# Runtime build dependencies include Node types and all platform packages.
+#
 # Environment:
 #   EFFECT_NODE_MODULES    a node_modules directory that holds effect 4.0.6
 #                          (default: ../experiments/node_modules)
@@ -24,6 +29,17 @@ if [ -z "$effect_modules" ]; then
 fi
 runtime=${VIBELANG_RUNTIME:-$root/../packages/runtime}
 runtime=$(cd "$runtime" && pwd)
+
+# Report missing build dependencies before starting an expensive Go build.
+if [ -f "$runtime/tsconfig.json" ]; then
+	for dependency in @types/node @effect/platform-node @effect/platform-bun @effect/platform-browser; do
+		if [ ! -f "$runtime/node_modules/$dependency/package.json" ]; then
+			echo "smoke.sh: missing runtime build dependency $dependency in $runtime." >&2
+			echo "Run: (cd \"$runtime\" && bun install --frozen-lockfile)" >&2
+			exit 2
+		fi
+	done
+fi
 
 # -trimpath keys the Go build cache by module path instead of directory, so
 # every jj workspace shares one set of cache entries. Without DWARF the cache

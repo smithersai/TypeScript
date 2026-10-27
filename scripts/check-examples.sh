@@ -1,6 +1,10 @@
 #!/bin/sh
 # Compile all examples, then compare finite programs with their output fixtures.
-# VIBELANG=/absolute/path/to/vibelang scripts/check-examples.sh
+# After sh scripts/setup.sh (or building the compiler and installing runtime deps):
+# VIBELANG=/absolute/path/to/native/vibelang \
+#   VIBELANG_BINARY=/absolute/path/to/native/vibelang sh scripts/check-examples.sh
+# VIBELANG selects the direct checks; VIBELANG_BINARY also selects the native
+# compiler used by example package scripts, Vite and Vitest.
 # Detailed diagnostics and output remain in .cache/check-examples/.
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
