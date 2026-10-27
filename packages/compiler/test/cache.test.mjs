@@ -304,7 +304,7 @@ test("a source edited while the compiler runs is not cached", { skip }, async (t
   writeFileSync(compiler, recorder(calls, `import { writeFileSync } from "node:fs"
 writeFileSync(${JSON.stringify(path)}, ${JSON.stringify(edited)})`))
   const first = run()
-  assert.match(first.stderr, /shout\.vibe changed during the compile/)
+  assert.match(first.stderr, /shout\.vibe changed during or too close to the compile/)
   // The process itself compiles again for the module that changed (register).
   assert.equal(ok(first).text, "hi!")
   assert.equal(compiles(), 2)

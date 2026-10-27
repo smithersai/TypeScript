@@ -473,14 +473,14 @@ export function projectCache({ project, root, compiler, cache, debug = () => {} 
     const nearest = new Map()
     for (const path of files) {
       const record = recordFile(path, snapshot.started)
-      if (record === undefined) return debug(`not caching ${project}: ${path} changed during the compile`)
+      if (record === undefined) return debug(`not caching ${project}: ${path} changed during or too close to the compile`)
       records.push(record)
       const manifest = nearestFile(dirname(path), "package.json", nearest)
       if (manifest !== null && !packages.has(manifest)) packages.set(manifest, undefined)
     }
     for (const path of packages.keys()) {
       const record = recordFile(path, snapshot.started)
-      if (record === undefined) return debug(`not caching ${project}: ${path} changed during the compile`)
+      if (record === undefined) return debug(`not caching ${project}: ${path} changed during or too close to the compile`)
       packages.set(path, record)
     }
     // The checker gives a .vibe file of another package the settings of the
@@ -496,7 +496,7 @@ export function projectCache({ project, root, compiler, cache, debug = () => {} 
     }
     for (const path of settings.keys()) {
       const record = recordFile(path, snapshot.started)
-      if (record === undefined) return debug(`not caching ${project}: ${path} changed during the compile`)
+      if (record === undefined) return debug(`not caching ${project}: ${path} changed during or too close to the compile`)
       settings.set(path, record)
     }
     const outputs = new Map()
