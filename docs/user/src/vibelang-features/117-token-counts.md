@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 4,941 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,355 |
-| The skill and the user guide (134 pages) | 229,520 |
-| The user guide alone | 224,579 |
+| The skill and the user guide (134 pages) | 229,664 |
+| The user guide alone | 224,723 |
 | The specification (33 chapters) | 108,411 |
 | The decision log, `docs/design/DECISIONS.md` | 69,738 |
 
@@ -135,7 +135,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 
 | Page | Tokens |
 | --- | ---: |
-| [Getting Started](../013-getting-started.md) | 943 |
+| [Getting Started](../013-getting-started.md) | 1,087 |
 | **Error Management** | **13,304** |
 | [Expected Errors](../error-management/014-expected-errors.md) | 4,109 |
 | [Unexpected Errors](../error-management/015-unexpected-errors.md) | 1,300 |
@@ -252,7 +252,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Terminal](../platform/110-terminal.md) | 1,508 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 4,010 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **139,599** |
+| **All 100 pages** | **139,743** |
 
 ### VibeLang features
 

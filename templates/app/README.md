@@ -23,6 +23,21 @@ Edit `src/main.vibe` for the service and layer, and `src/greeting.vibe` for
 a typed failure. Import local `.vibe` source files; the compiler emits `.js`
 imports. Source maps connect Node debugging to those sources.
 
+## Debugging failures
+
+During development, set `vibelang.tracing` to `"all"` at the top level of
+`tsconfig.json`:
+
+```json
+{ "vibelang": { "tracing": "all" } }
+```
+
+Merge this setting into your existing config, then rebuild or restart
+`bun run dev`. It adds source-located spans for local and exported function
+calls, making the caller chain visible when a defect occurs. Tracing adds
+runtime work; the default is `"none"`. See
+[Debug stack traces](https://vibelang.sh/getting-started/012-devtools#debug-stack-traces).
+
 ## Editor
 
 ```sh

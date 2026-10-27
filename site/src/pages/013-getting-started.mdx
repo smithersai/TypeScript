@@ -42,6 +42,21 @@ code --install-extension node_modules/vibelang/editor/vibelang.vsix
 
 [Installation](/getting-started/004-installation) covers prerequisites, supported platforms, editor setup, and existing projects.
 
+## Debug your first program
+
+For source-located caller traces during development, set `vibelang.tracing`
+to `"all"` at the top level of `tsconfig.json`:
+
+```json
+{ "vibelang": { "tracing": "all" } }
+```
+
+Merge this into your existing config, then rebuild or restart `npm run dev`
+(or `bun run dev`). It records local and exported function calls; source
+maps alone do not record that caller chain. Tracing adds runtime work and
+defaults to `"none"`. See [Debug stack traces](/getting-started/012-devtools#debug-stack-traces)
+for source maps, named spans and a debugging entry.
+
 ## Guides and reference material
 
 ```vibe

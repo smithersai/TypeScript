@@ -67,3 +67,14 @@ test("existing-project migration explains same-stem output collisions", () => {
   const page = read("docs/user/src/setup/existing-project.md")
   for (const text of ["settings.vibe", "settings.ts", "settings.js", "TS5056", "load-settings.vibe"]) assert.ok(page.includes(text), text)
 })
+
+test("first-run readers can enable source-located development traces", () => {
+  for (const path of ["templates/app/README.md", "docs/user/src/013-getting-started.md"]) {
+    const page = read(path)
+    assert.match(page, /vibelang\.tracing/)
+    assert.match(page, /"vibelang":\s*\{\s*"tracing":\s*"all"/)
+    assert.match(page, /012-devtools(?:\.md)?#debug-stack-traces/)
+    assert.match(page, /rebuild or restart/)
+  }
+  assert.notEqual(JSON.parse(read("templates/app/tsconfig.json")).vibelang?.tracing, "all", "tracing stays opt-in")
+})
