@@ -4,11 +4,11 @@
 
 ```text
 settled before this document      1-7        the original design decisions
-decisions                         D1-D379    every decision since; a number without a row is unassigned
+decisions                         D1-D391    every decision since; a number without a row is unassigned
 rules of the runtime and compiler P1-P22     adopted by D29, revised by verified counterexamples
 ```
 
-This chapter indexes the decisions. The rules they adopt are stated in the chapters, which are normative (D360); `docs/design/DECISIONS.md` gives each decision's reason, evidence, and history. A decision's status is blank while it is in force as written; **Amended by** names the later decisions that changed its rule, and the chapters state the rule as amended; **Superseded by** marks a decision that is history only. Unassigned numbers: D84-D89, D114-D119, D136-D145, D157-D165, D181-D185, D189-D195, D198-D205, D224, D233-D235, D300-D302, D314-D319, D337-D339, D357-D359, and D376-D379.
+This chapter indexes the decisions. The rules they adopt are stated in the chapters, which are normative (D360); `docs/design/DECISIONS.md` gives each decision's reason, evidence, and history. A decision's status is blank while it is in force as written; **Amended by** names the later decisions that changed its rule, and the chapters state the rule as amended; **Superseded by** marks a decision that is history only. Unassigned numbers: D84-D89, D114-D119, D136-D145, D157-D165, D181-D185, D189-D195, D198-D205, D224, D233-D235, D300-D302, D314-D319, D337-D339, and D357-D359.
 
 #### Settled before this document
 
@@ -34,7 +34,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D4 | The prelude: `Effect`, `Schema`, `Layer`, `TaggedError`, `Control`, and the built-ins; imports shadow it | What 77-81%, 39-44%, and 34-44% of Effect files import |  | 1 |
 | D5 | Calls to non-Effect code need a declared trust level | Foreign code may throw; platform APIs are replaced; clock reads go through services | Amended by D148, D249, D329 | 10 |
 | D6 | The standard library is Effect's | Effect ships the modules and the platform implementations |  | 11 |
-| D7 | Program values are functions with no arguments | No new syntax; `() =>` already means "not yet" | Amended by D320, D322 | 5, 13 |
+| D7 | Program values are functions with no arguments | No new syntax; `() =>` already means "not yet" | Amended by D320, D322, D381 | 5, 13 |
 | D8 | No `\|>` in v0; the `pipe(program, …stages)` built-in stays. | Calls run before a pipe sees them; Stage 2 since 2021; 1.1% and 2.6% of pipes keep two stages | Superseded by D154 | 5 |
 | D9 | A function value where a plain function is expected passes its plain-JavaScript form, or EK4301 | Plain JavaScript callbacks need a direct calling convention | Amended by D66, D112, D113, D324 | 13, 16 |
 | D10 | Plain JavaScript when a function performs no Effect operation and E is never; source order kept; a function on a cycle of plain calls keeps its plain type, runs shallow recursion as fast JavaScript, then continues on heap frames without a recursion-depth limit | Preserves source order and fast JavaScript recursion for plain helpers; plain `countdown` overflowed at 20,000 calls (case `recursion-stack-safe`) | Amended by D65, D67, D326, D333, D341, D372 | 15 |
@@ -50,7 +50,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D20 | A TypeScript function whose R holds a control operation is EK4202 in v0 | Foreign functions may fork where the handler cannot reach |  | 9, 16 |
 | D21 | Each `Effect.provide` builds its layers once; provide at `main`; `ManagedRuntime` for several entry points | Avoids rebuilding a layer for every request; conformance test D05 |  | 4 |
 | D22 | Effect's own packages are trusted, with the functions and values they return | D6; `Option` and `Result` are data in Effect 4 |  | 10 |
-| D23 | A trusted contract is the `@vibelang trusted` JSDoc tag, with `@throws` | TypeScript syntax only; the compiler's metadata channel | Amended by D249 | 10, 27 |
+| D23 | A trusted contract is the `@vibelang trusted` JSDoc tag, with `@throws` | TypeScript syntax only; the compiler's metadata channel | Amended by D249, D389 | 10, 27 |
 | D24 | A call runs only `Effect` itself; subtypes are data until called; `new` never runs | `Config`, `Exit`, keys, and errors extend `Effect` | Amended by D90, D109, D320, D321, D323 | 13 |
 | D25 | `using` adds no masking policy | K15a-K15c | Amended by D342 | 6, 21 |
 | D26 | Producers: `for...of` by type; a producer is a `Stream` to TypeScript; the adapter runs it on its own fiber behind a zero-capacity handoff | Stream operators pull on other fibers; continuations are fiber-affine; a one-element buffer runs ahead | Amended by D82, D371 | 8, 26 |
@@ -68,7 +68,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D38 | Runners only where no fiber runs the code; EK1005 elsewhere | Coverage audit X4 |  | 13 |
 | D39 | A function-or-Effect parameter: a function if plain, a program if it can pause | Coverage audit X9 | Superseded by D324 | 13 |
 | D40 | Service statics: `layer`, `make`; `static readonly default` makes a `Context.Reference` | Coverage audit X12 | Amended by D362 | 4 |
-| D41 | `S.member(…)` always adds `S` to R; service members win over the key's members; EK3006 for a static that shares a member's name | Coverage audit X13; prototype findings 3, 4 |  | 4, 13 |
+| D41 | `S.member(…)` always adds `S` to R; service members win over the key's members; EK3006 for a static that shares a member's name | Coverage audit X13; prototype findings 3, 4 | Amended by D90, D388 | 4, 13 |
 | D42 | Workflow bodies are ordinary programs: interrupted on durable suspension, rerun on replay | Coverage audit X17; `workflow/Workflow.ts:695-780, 1031-1036` |  | 23 |
 | D43 | `Effect.callback` is an explicit boundary; its `resume` takes an Effect, and `.vibe` passes an `Exit` | Coverage audit X11; `Effect.ts` |  | 6, 10 |
 | D44 | "The expected type" is the declared, uninstantiated parameter type of the resolved overload | the contextual type is inferred from the lambda itself | Amended by D324 | 13 |
@@ -83,7 +83,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D53 | Diagnostic codes follow the prototype | Prototype diagnostics | Amended by D67, D70, D71, D74 | 28 |
 | D54 | Inside a plain-JavaScript function, `try`, `catch`, and `finally` are JavaScript's own statements, and its catch still receives typed failures only (D282) | D10 with D5: nothing in the function can pause | Amended by D260, D282, D333; superseded in part by D340 | 15 |
 | D55 | A method implementing a plain-function member (`[Equal.symbol]`, `[Hash.symbol]`) compiles to a plain JavaScript method, or EK4301 | The member's declared type is not an Effect |  | 15 |
-| D56 | Each overload candidate's declared parameter type, never the lambda's own inferred type, decides a lambda's form (plain, Effect function, program); the first candidate that accepts it wins. D10 eligibility is computed on demand | Single-pass experiment: 0 disagreements in 46 files; 6 probe lambdas with two self-consistent lowerings | Amended by D324 | 13, 15, 27 |
+| D56 | Each overload candidate's declared parameter type, never the lambda's own inferred type, decides a lambda's form (plain, Effect function, program); the first candidate that accepts it wins. D10 eligibility is computed on demand | Single-pass experiment: 0 disagreements in 46 files; 6 probe lambdas with two self-consistent lowerings | Amended by D324, D380 | 13, 15, 27 |
 | D57 | Partial annotations use `infer Name` per channel in a function return annotation with a body; a slot left out of `Effect<…>` is `never`, as in TypeScript (D308, D309). D12 stands | TypeScript 7 parses `infer`; explicit slots distinguish inference from `never` | Amended by D308, D309 | 2, 14, 16, 28 |
 | D58 | Keep EffectScript, `esc`, `.es`, and `@effectscript`; superseded by D125 | Another compile-to-JavaScript language uses the name | Superseded by D125, D255 | 28 |
 | D59 | Draft upstream issues and proposals in `docs/upstream/`; status: drafted, not filed | Upstream filing requires maintainer approval |  | 24, 25, 30 |
@@ -131,7 +131,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D107 | Sources must sit under Vite's root; the plugin overrides emit paths and source roots there | One source root makes output lookup and source maps predictable | Amended by D374 | 28 |
 | D108 | (Amended by D310.) EK4402 reports platform execution, including calls and property reads; imports and passing values are allowed. Supersedes the import half of D102 | Effect adapters must accept host function values | Amended by D310 | 10, 11, 28 |
 | D109 | An expected callback or program asks for the Effect form only when its type is effect's own `Effect` interface, or a type parameter constrained to it; subtypes such as `Config` are data, so `Config.orElse`'s fallback stays plain | D24 keeps structured subtypes as data |  | 13, 16 |
-| D110 | The `pipe` look-ahead (D8) reads the first stage's callee signatures, or a function value's own signatures; it runs only when the first argument can be a program, and never checks the stage early | Reading signatures avoids circular inference | Amended by D328 | 5, 13 |
+| D110 | The `pipe` look-ahead (D8) reads the first stage's callee signatures, or a function value's own signatures; it runs only when the first argument can be a program, and never checks the stage early | Reading signatures avoids circular inference | Superseded by D383 | 5, 13 |
 | D111 | The D49 conversion covers any iterable (`Set`, a `Map`'s values) through its iterated type; an iterable never converts as a record | Matches `Effect.all` at run time |  | 5, 13 |
 | D112 | A callback whose expected return mixes plain and Effect (`boolean \| Effect<…>`) is plain when D10 allows and an Effect function otherwise; the same holds wherever both forms fit | D10 selects the eligible form without Effect work | Amended by D324 | 13, 16 |
 | D113 | A lambda with a contract that takes the plain form has type `(…) => A`; where only a plain function fits, inference from its annotation starts from A | Plain inference needs A rather than its Effect wrapper | Amended by D324 | 14, 16 |
@@ -150,7 +150,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D132 | `try { } handle Op(x) { }` clauses handle a control's operations | Bodies and clauses stay code of the enclosing function |  | 9 |
 | D133 | `schema` declares a struct schema and its decoded type | One declaration, so the schema and its type cannot drift |  | 11 |
 | D134 | Members are readonly unless written `mutable` | Immutable data is the common case; the docs wrote `readonly` 186 times |  | 10 |
-| D135 | An exported parameterless `main` runs when the host starts its module; a top-level runner, resolved by symbol, suppresses the entry | `node dist/main.js` runs the program, and importing the module runs nothing | Amended by D312 | 1, 13 |
+| D135 | An exported parameterless `main` runs when the host starts its module; a top-level runner, resolved by symbol, suppresses the entry | `node dist/main.js` runs the program, and importing the module runs nothing | Amended by D312, D387 | 1, 13 |
 | D146 | Every export of `effect`'s root is in scope; JavaScript's own globals win, host globals do not | Imports from `effect` were 5.9% of the docs' tokens |  | 1, 27 |
 | D147 | A call is passed by name where a parameter expects a program: `fork(fetchReport())` | Thunks around single calls were 2.6% of the docs' tokens | Superseded by D320, D322 | 5, 13 |
 | D148 | (Amended by D229-D232.) `sync`, `try`, and `callback` are boundary hatches whose first arguments are plain TypeScript | One visible escape hatch replaces five Effect constructors and their lambda rules | Amended by D229-D232, D328, D330 | 10, 28 |
@@ -162,11 +162,11 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D154 | The Hack pipe operator in `.vibe` files: `x \|> f(%, a)`, topic `%`, left-associative, looser than every binary operator; supersedes D8 | Fewer tokens and no nesting for operator chains; any argument position | Amended by D325, D326 | 5, 27 |
 | D155 | A topic follows the by-name rule: where `%` stands for a program, the left side is passed by name; elsewhere it runs once, before the body; both in one pipe is EK1008 | `fetchUser(id) \|> retry(%, policy)` must retry the call, as `retry(fetchUser(id), policy)` does | Superseded by D325 | 5, 13 |
 | D156 | A pipe's body must use `%` (EK1006); `%` outside a pipe's body is EK1007; after an operand `%` is still the remainder | The proposal's early errors; `%` keeps its JavaScript meaning where it already has one |  | 5, 28 |
-| D166 | `fork` is a keyword: `fork x` is `fork(x)` and `fork { ... }` forks a block | Concurrency reads as one word, with no lambda | Amended by D320, D322, D328 | 7 |
+| D166 | `fork` is a keyword: `fork x` is `fork(x)` and `fork { ... }` forks a block | Concurrency reads as one word, with no lambda | Amended by D320, D322, D328, D391 | 7 |
 | D167 | `await` waits for a Fiber, a Deferred, or an array or object of them, failing fast; superseded by D225 and D226 | Fibers need a join, and `await` was free outside hatches | Superseded by D225, D226 | 7 |
 | D168 | `select` runs the first case to finish and interrupts the rest; ties go to the first written; `default` polls; `break` leaves it | First-of-several events without `raceAll` plumbing | Superseded by D197 | 7 |
 | D169 | `for concurrent(n)` runs the body per item in its own fiber; `continue` ends an item; `break` and `return` are EK4605 and EK4606 | `forEach` with a concurrency option, as a loop | Amended by D326 | 7 |
-| D170 | `detach(program)` and `forkIn(scope, program)` are fork's variants | Longer lifetimes without Effect's names |  | 7 |
+| D170 | `detach(program)` and `forkIn(scope, program)` are fork's variants | Longer lifetimes without Effect's names | Amended by D322 | 7 |
 | D171 | `await`'s types accept one level of arrays and objects; D228 carries the rule to `join` | Deeper recursive types exceed TypeScript's limits | Amended by D374 | 7 |
 | D172 | `provide AppLive { ... }` replaces `with AppLive { ... }`; `with` still compiles, with warning EK1009 and a quick fix | VibeLang keywords reuse Effect's own names, so `provide` reads as `Effect.provide` |  | 4 |
 | D173 | `provide Key = value` provides one service; comma-separated providers mix layers and services; `provide(...) { }` means the same | `Effect.provideService` without a layer, in the same block form | Amended by D362 | 4 |
@@ -175,12 +175,12 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D176 | `catch (cause: Cause)` catches every reason, as Effect.catchCause; superseded by D217 | Effect's catchCause in a typed clause's shape | Superseded by D217 | 17 |
 | D177 | `throw cause` with a Cause rethrows every reason | Effect.failCause without a new keyword | Amended by D348 | 17 |
 | D178 | `finally (exit)` binds the try statement's Exit | Effect.onExit in finally's shape |  | 17 |
-| D179 | `exit`, `interrupt`, and `yieldNow` are bare functions | Effect's names; no bare `yield` |  | 7, 17 |
+| D179 | `exit`, `interrupt`, and `yieldNow` are bare functions | Effect's names; no bare `yield` | Amended by D322 | 7, 17 |
 | D180 | `uninterruptible`, `restore`, and `interruptible` blocks | Effect's names in a block that keeps jumps |  | 17 |
 | D186 | `throw` is also an expression: `x ?? throw new NotFound({ id })` | TC39 throw expressions (stage 2); fails as the throw statement does | Amended by D327, D350 | 3 |
 | D187 | `do { }` is an expression whose value is its last statement's | TC39 do expressions (stage 1); a racer or an arm gets several statements | Amended by D320, D322, D327 | 13 |
-| D188 | A block after a call is its program: `withSpan("load") { ... }`, `it.effect("name") { ... }`; an Effect dual takes it in its program's place | TC39 block params (stage 1); removes `() => { }` around multi-statement programs | Clarified by D273, D334 | 13 |
-| D196 | `await.all`, `await.allSettled`, `await.race`, `await.any` start programs by name and behave as the `Promise` methods; EK4608 | TC39 await operations and Await Dictionary; `await.x` reads as `Promise.x` | Amended by D258, D320, D322, D326 | 7 |
+| D188 | A block after a call is its program: `withSpan("load") { ... }`, `it.effect("name") { ... }`; an Effect dual takes it in its program's place | TC39 block params (stage 1); removes `() => { }` around multi-statement programs | Amended by D273, D376 | 13 |
+| D196 | `await.all`, `await.allSettled`, `await.race`, `await.any` start programs by name and behave as the `Promise` methods; EK4608 | TC39 await operations and Await Dictionary; `await.x` reads as `Promise.x` | Amended by D258, D320, D322, D326, D377 | 7 |
 | D197 | `await.race [...]` replaces `select`, which is EK4607 | `case` read as value comparison and "select" is not Effect's word |  | 7 |
 | D206 | `match (x) { when P: v; default: d; }` is an expression; mixed `and`/`or`/`not` need parentheses (EK4705) | TC39 pattern matching (stage 1); one expression per arm, `do { }` for more |  | 3 |
 | D207 | The supported pattern subset: literals, bindings, arrays, objects, matchers, extractors, `and`/`or`/`not`, guards, `is` | The proposal's core; regular expression, relational, and async forms deferred |  | 3 |
@@ -200,7 +200,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D221 | A layer is Effect's own call, `Layer.effect(Users) { setup; return { ... } }` through block params, or `Layer.succeed(Users, { ... })`; `layer X: Y { }` warns (EK2121) | Layers use Effect's own calls through block params |  | 4 |
 | D222 | A layer block's returned members are typed by the service; a mismatch is TS2345 at the call, a member's failures and call-time requirements must fit its contract (EK2001, EK3101), and the setup's failures, requirements, and `using` flow into the layer | Contextual typing through `Layer.effect` | Amended by D344 | 4 |
 | D223 | `service Users { ... }` and `control Approval { ... }` are the spelling again; `service class` and `control class` warn (EK2120), and the quick fix removes `class` | The class keyword is redundant in a service declaration |  | 4, 9 |
-| D225 | `join` is a keyword: `join f`, `join [a, b]`, `join { a, b }` join fibers (Fiber.join), failing fast; `join(` stays a call; EK4611, EK4612 | `await` on fibers confused readers about promises; Effect's own word is join | Amended by D326, D328 | 7 |
+| D225 | `join` is a keyword: `join f`, `join [a, b]`, `join { a, b }` join fibers (Fiber.join), failing fast; `join(` stays a call; EK4611, EK4612 | `await` on fibers confused readers about promises; Effect's own word is join | Amended by D326, D328, D391 | 7 |
 | D226 | A plain `await` in VibeLang code is an error: EK4609 (fix: `join`), EK4610 (fix: `d.await()`), EK4601-EK4604; the await operations stay | In JavaScript `await` means a promise; keep that meaning |  | 7 |
 | D227 | A Deferred waits with `d.await()` | Method syntax (D152) already names Deferred.await |  | 7 |
 | D228 | `join`'s types reach one level of arrays and objects, as D171's did | Deeper recursive types exceed TypeScript's limits | Amended by D326, D374 | 7 |
@@ -221,7 +221,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D246 | A layer's hover lists what it provides, needs, and fails with; `wire`'s hover its build order; `Duration.Input` strings, a brand's name, and `@vibelang-diagnostics` codes complete | Effect's hovers and completions that still apply |  | 28 |
 | D247 | Platform packages are unscoped `vibelang-<os>-<cpu>` | Publishing without an npm organization | Withdrawn | 28 |
 | D248 | The text projector keeps D24's reading or asks for an annotation (EK9100) | A renderer never changes a program without a diagnostic | Amended by D251, D366 | 27 |
-| D249 | A trusted contract can be a value, `trusted(impl, [Errors])` | A projector that reads one file cannot see another file's JSDoc |  | 10 |
+| D249 | A trusted contract can be a value, `trusted(impl, [Errors])` | A projector that reads one file cannot see another file's JSDoc | Amended by D389 | 10 |
 | D250 | The projector treats an `Exit` as data | An `Exit` and `Effect.succeed` share a TypeId at run time | Withdrawn by D251 | 27 |
 | D251 | At run time an `Exit` runs; the checking rendering rejects running a D24 data type | Only the static type tells an `Exit` from a program |  | 27 |
 | D252 | The projector dispatches an unproven data-method receiver at run time | One file cannot always prove a receiver's module (131 calls in the docs) | Amended by D253 | 27 |
@@ -240,7 +240,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D265 | An Effect-typed object field holds its initializer as a program | D147 applied to record fields | Superseded by D320, D322, D323 | 13 |
 | D266 | EK diagnostics belong to `.vibe` files; `.ts` files keep TypeScript's verdict | A `.ts` file keeps TypeScript's meaning exactly |  | 28 |
 | D267 | A tagged template runs like a call of its tag | SQL statements built with a template | Amended by D320, D322 | 13 |
-| D268 | A pure export carries its direct variant, `f[$direct]`, across files | Survives aliases, barrels, default exports, and CommonJS | Amended by D332, D366 | 15, 27 |
+| D268 | A pure export carries its direct variant, `f[$direct]`, across files | Survives aliases, barrels, default exports, and CommonJS | Amended by D332, D366, D384 | 15, 27 |
 | D269 | A function declared to return an Effect may return a program (a factory); an Effect-typed `const` holds its initializer at any scope | Two-phase APIs from TypeScript | Superseded by D320, D323 | 5, 13 |
 | D270 | A union made only of Effects runs where it stands | One predicate for checking and lowering |  | 13 |
 | D271 | A `function*` with a JavaScript iterator annotation is a JavaScript generator | Generators that implement JavaScript protocols | Superseded by D370 | 8 |
@@ -262,7 +262,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D287 | An `Effect.Effect<A, E, R>` type draws EK4833 | The same |  | 2, 28 |
 | D288 | A running `Effect.succeed` or `Effect.fail` draws EK4834 | The same |  | 2, 28 |
 | D289 | Effect's catch combinators draw EK4835 | The same |  | 3, 28 |
-| D290 | `Effect.withSpan`, `Effect.provide`, and `Effect.provideService` draw EK4836 | The same |  | 4, 28 |
+| D290 | `Effect.withSpan`, `Effect.provide`, and `Effect.provideService` draw EK4836 | The same | Amended by D376 | 4, 28 |
 | D291 | `vibelang --fix` applies every safe fix to a project | One command migrates a project | Amended by D372 | 28 |
 | D292 | The VibeLang skill ships in the `vibelang` package | An agent reads the skill of the installed version |  | 28 |
 | D293 | Both sides of a catch expression take its contextual type | Literal tags stay literal |  | 3 |
@@ -281,23 +281,23 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D309 | The `!` form is restored as an alias of `Effect<A, E, R>` and is the documented form; `Effect<…>` keeps D308's meaning; EK1014 is retired; EK4833 reports only `Effect.Effect<…>` and its fix writes the `!` form (supersedes D308, restores D127) | Fewer tokens in every contract |  | 2, 14, 28 |
 | D310 | Every module of `effect`'s subpath packages is in scope without an import; a JavaScript or shared web global wins (`Event` joins D264's), then a root module, and a name two subpath packages share needs an import; Node's globals and the web's I/O globals leave `.vibe` scope, and a Node.js module is not imported as a value (EK4402, amends D108) | The owner's rulings: every namespace below Effect is global; Node.js only through injection or TypeScript |  | 1, 11, 27 |
 | D311 | A module's name also names its export of the same name: `Option<A>` is `Option.Option<A>`, a member the module lacks reads the export (a service call for a key, D41), `M()` is a service's implementation; the module's exports win | The owner's ruling; a deliberate change from TypeScript | Amended by D369 | 1, 4, 27 |
-| D312 | The file that exports `main` names its platform once, `import "vibelang/platform/node"` (or `bun`, `browser`), and its entry statement provides that platform's bundle, `NodeServices.layer`, to a `main` that needs its services, or the experimental bundle, which holds Effect's, when `main` needs a D313 service; a provide inside `main` wins; the import loads nothing | Effect's canonical entry without a `provide NodeServices.layer` in every program, while the platform stays named in the program; EK3205 names only what the layer does not provide |  | 11 |
+| D312 | The file that exports `main` names its platform once, `import "vibelang/platform/node"` (or `bun`, `browser`), and its entry statement provides that platform's bundle, `NodeServices.layer`, to a `main` that needs its services, or the experimental bundle, which holds Effect's, when `main` needs a D313 service; a provide inside `main` wins; the import loads nothing | Effect's canonical entry without a `provide NodeServices.layer` in every program, while the platform stays named in the program; EK3205 names only what the layer does not provide | Amended by D375, D387 | 11 |
 | D313 | `Experimental` holds what Effect lacks, under Effect's module names | Platform APIs Effect does not wrap yet |  | 11 |
 | D320 | Calls work as a TypeScript developer expects: a call runs by its callee's declared type, and only syntax delays | Types, annotations, and overload order chose evaluation |  | 2, 5, 13 |
 | D321 | A call runs when its callee's declared return type is definitely an Effect; `p()` runs a program value | Instantiated types broke parametricity; returns depended on assignability |  | 13 |
-| D322 | Programs are built only by syntax; a running call where a program is expected is EK1018 | By-name passing re-evaluated arguments and reordered them |  | 5, 13 |
-| D323 | Annotations never hold a program or run a return; EK2115 and EK2116 retired | An annotation changed when code ran |  | 5, 13, 14 |
-| D324 | A function literal is always a function; its form follows its destination's declared type | Body purity chose what an API received |  | 13, 16 |
-| D325 | A pipe's topic is its left side's value; EK1008 retired | The by-name topic followed the parameter's type |  | 5 |
+| D322 | Programs are built only by syntax; a running call where a program is expected is EK1018 | By-name passing re-evaluated arguments and reordered them | Amended by D377, D381, D391 | 5, 13 |
+| D323 | Annotations never hold a program or run a return; EK2115 and EK2116 retired | An annotation changed when code ran | Amended by D390 | 5, 13, 14 |
+| D324 | A function literal is always a function; its form follows its destination's declared type | Body purity chose what an API received | Amended by D380, D381 | 13, 16 |
+| D325 | A pipe's topic is its left side's value; EK1008 retired | The by-name topic followed the parameter's type | Amended by D383 | 5 |
 | D326 | Evaluation order and binding time follow one law, rule E | Shortcuts broke operand order one at a time |  | 13 |
 | D327 | Lowering keeps JavaScript's lexical context, rule L; EK1019, EK1020 | Generated functions rebound `this`, `arguments`, and `super` |  | 13 |
-| D328 | Generated names are fresh, and features are recognized by resolved symbol, rule H | Generated names captured user bindings; spellings chose meaning |  | 13, 26, 27 |
+| D328 | Generated names are fresh, and features are recognized by resolved symbol, rule H | Generated names captured user bindings; spellings chose meaning | Amended by D391 | 13, 26, 27 |
 | D329 | EK4401 applies in every function a fiber can call | A plain annotation bypassed the trust boundary |  | 10, 15 |
 | D330 | Hatches have one calling convention, decided by syntax; EK4410 | An aliased hatch behaved differently |  | 10 |
 | D331 | Callback polymorphism follows the language a function type is written in | Extracting an alias changed which programs compiled |  | 16 |
-| D332 | The TypeScript boundary has one table, and its trust is stated | Phases and trust were spread over chapters |  | 10 |
+| D332 | The TypeScript boundary has one table, and its trust is stated | Phases and trust were spread over chapters | Amended by D384, D389 | 10 |
 | D333 | The plain-JavaScript form is an unobservable optimization | JavaScript's `finally` replaced a failure the frames kept |  | 15 |
-| D334 | A block param is a program wherever it goes | Placement depended on whether the callee was a dual |  | 13 |
+| D334 | A block param is a program wherever it goes | Placement depended on whether the callee was a dual | Superseded by D376 | 13 |
 | D335 | D309 stands; a written channel is what callers see | Two spellings were called interchangeable |  | 14 |
 | D336 | Data-type methods come from a table pinned with Effect | A parameter's name is not part of a type |  | 11, 13 |
 | D340 | Cleanup combines failures the same way on every path | A plain `finally` replaced the failure in flight |  | 3, 15, 17 |
@@ -313,7 +313,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D350 | A throw expression in a parameter default is EK1001 | It silently did nothing |  | 3 |
 | D351 | A handler has one answer type, and EK2119 is an error | A warning let a `resume` return outside its type |  | 9, 20 |
 | D352 | A function known from a declaration is TypeScript to the handler check | Declarations carry no proof of a body |  | 9, 16 |
-| D353 | Every block owns its forks, an expression body included; an escaping block-owned fiber is EK4620 | Lifetime depended on braces |  | 7, 26 |
+| D353 | Every block owns its forks, an expression body included; an escaping block-owned fiber is an error, EK4838 (D386) | Lifetime depended on braces | Amended by D386 | 7, 26 |
 | D354 | Interrupting several fibers signals all before waiting; fiber forms read their operands once | Sequential interruption and double reads |  | 7 |
 | D355 | The E guarantee is stated with its assumptions, and D256 stands beside D15 | No chapter said what E promises |  | 14, 17 |
 | D356 | A construct closes the iterators it opens on every exit | Early exits leaked iterators |  | 7, 8, 26 |
@@ -323,7 +323,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D363 | `wire` is recognized by symbol, keeps argument order, and never lets a layer provide its own input | Aliases skipped ordering; arguments ran reordered |  | 4 |
 | D364 | A `module` declaration is an ECMAScript module: live bindings, import order, case-sensitive names | An import denotes a binding, not a snapshot |  | 11, 26 |
 | D365 | Source specifiers are rewritten for the loader in every import form | Dynamic imports and CommonJS paths failed to load |  | 26, 27 |
-| D366 | A declaration file is a semantic ABI; renderers meet the compiler's meaning | Declarations stock TypeScript rejected; two plain-call ABIs |  | 27 |
+| D366 | A declaration file is a semantic ABI; renderers meet the compiler's meaning | Declarations stock TypeScript rejected; two plain-call ABIs | Amended by D384 | 27 |
 | D367 | A name in a pattern means what it resolves to | Renaming a local changed a match |  | 3, 11, 26 |
 | D368 | A pattern reads each value once and keeps every test it cannot prove inert | A getter read twice; a dropped getter call |  | 26 |
 | D369 | Module aliases and data-type methods come from a table pinned to the Effect version | A parameter's name is not part of a type |  | 11, 13 |
@@ -333,6 +333,22 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D373 | The static guarantees state what they assume | A guarantee without its assumptions claims nothing |  | 26 |
 | D374 | Implementation limits are restrictions, not rules | Lowering choices became language rules |  | 29, 30 |
 | D375 | D310-D313 are decided; the platform import is D312's final form | The review of 2026-10-27 |  | 11 |
+| D376 | A block after a call is always its last argument; a block after a dual is TypeScript's error with a note; a next-line block after a statement that ends in a name or a call is EK1022 | Placement by the callee's type broke the rule that call-site syntax decides |  | 5, 13, 28 |
+| D377 | Every literal element of an await operation is deferred by syntax; an element's value, not its type, decides whether it runs or is waited for | D196 read fibers and Deferreds from types |  | 7, 13 |
+| D378 | A call runs when its callee's declared return type, read before instantiation, is definitely an Effect: decision 5's static rule; `identity(program)` returns data | A TypeScript developer expects `identity(x)` to hand back `x`; no inference-driven timing |  | 13, 30 |
+| D379 | The return boundary's S22-3 and S5-1 are removed: returning an Effect value never runs it; `return p()` | A contract's A decided whether a returned Effect ran |  | 13 |
+| D380 | A function literal prefers the candidate that takes it as a function; opposed preferences are EK1021 | A lambda stays a lambda, as a TypeScript reader expects |  | 13 |
+| D381 | A program is a function with no required parameters | The compiler's zero-required-input rule |  | 13 |
+| D382 | A migration analyzer reports each site whose meaning changed but still type-checks, and each exported factory, as EK1023; `--fix` never guesses | No program changes meaning silently |  | 5, 13, 28 |
+| D383 | `pipe` passes its first argument as the value it is | D110's look-ahead let a type decide a representation |  | 5, 13 |
+| D384 | A declaration carries a plain function's `$plain` call signature; without one, passing the function as a plain callback is EK4301 | `[1, 2].map(double)` differed between source and declaration consumers |  | 10, 15, 27 |
+| D385 | Every VibeLang function is, to TypeScript, a function returning a cold `Effect`, except plain-annotated functions and producers; inside VibeLang a call of a function declared to return an Effect runs it, and an arrow delays | One statement of settled decision 1 |  | Intro, 2, 10, 13 |
+| D386 | An escaping block-owned fiber is EK4838, an error | One rule, one code |  | 7, 23, 28 |
+| D387 | A file's entry statement and EK3205 depend on that file alone | An unrelated importer silenced EK3205 |  | 13, 28 |
+| D388 | A value member named like a property of the key's class is EK4503 too | `Person.name` returned `"Person"` |  | 13, 28 |
+| D389 | The trusted contract is `trusted(impl, [Errors])`; the D23 tags are deprecated | One form; a per-file renderer cannot see tags |  | 2, 10, 13, 26, 27 |
+| D390 | A factory has no VibeLang form: TypeScript, a `module` declaration, or a plain function returning a function | Every candidate made a type decide when code runs |  | 5, 10 |
+| D391 | `fork` and `join` are contextual keywords: `fork(e)` is the keyword with a parenthesized operand unless `fork` resolves to a binding the program declares; the await operations take a parenthesized operand too | Parentheses must not turn a deferred operand into a running call; recognition by binding (rule H) |  | 7, 13 |
 
 #### Rules of the runtime and compiler
 
