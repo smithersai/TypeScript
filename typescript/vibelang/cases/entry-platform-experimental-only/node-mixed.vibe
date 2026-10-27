@@ -1,0 +1,9 @@
+// A main that needs Effect's FileSystem and the experimental Process gets
+// one layer, ExperimentalNodeServices.layer, which holds Effect's bundle: the
+// platform's services are built once.
+import "vibelang/platform/node"
+
+export function main() {
+  const pid = Experimental.Process.pid()
+  Console.log(`node mixed ${FileSystem.exists("package.json")} ${pid > 0}`)
+}

@@ -2,6 +2,6 @@
 // Bun for the bun import.
 import { execFileSync } from "node:child_process"
 
-for (const [host, entry] of [[process.execPath, "out/node-crypto.js"], [process.execPath, "out/node-fs.js"], ["bun", "out/bun-crypto.js"], ["bun", "out/bun-fs.js"]]) {
+for (const [host, entry] of [[process.execPath, "out/node-crypto.js"], [process.execPath, "out/node-fs.js"], [process.execPath, "out/node-mixed.js"], ["bun", "out/bun-crypto.js"], ["bun", "out/bun-fs.js"]]) {
   process.stdout.write(execFileSync(host, [entry], { encoding: "utf8" }))
 }

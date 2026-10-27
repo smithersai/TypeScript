@@ -48,11 +48,12 @@ import (
 // BunServices, and browser @effect/platform-browser's BrowserServices. A
 // browser never says which module it started, so in a page $entry runs
 // nothing and the page starts main itself; the browser's runner runs main
-// where a host does say, as Bun does. When
-// main needs a service that only the platform's experimental bundle provides
-// (D313), the entry provides that bundle too, inside Effect's, so its layer
-// may need Effect's services. A bundle provides the services its layer's
-// declared type names. A provide inside main wins for the code inside it, as
+// where a host does say, as Bun does. When main needs a service that only
+// the platform's experimental bundle provides (D313), the entry provides
+// that bundle instead, since it holds Effect's: its layer declares Effect's
+// services too. Effect's comes outside it only when main needs a service the
+// experimental bundle does not declare, or its layer needs services itself.
+// A bundle provides the services its layer's declared type names. A provide inside main wins for the code inside it, as
 // with Effect.provide. The import loads nothing: the lowering removes it. A
 // main that needs none of the bundles' services, and a file without a
 // platform import, get the statement above without the provide, and EK3205
@@ -272,8 +273,12 @@ func planEntry(c *checker.Checker, file *ast.SourceFile) *entryPlan {
 // entryBundles returns the bundles whose layers the entry provides to main,
 // the main of file, outermost first, and the services they provide; or none
 // when file names no platform or main needs none of its bundles' services.
-// They are the platform's Effect bundle, and its experimental bundle when
-// main needs a service that only that one provides.
+// A main that needs only services Effect's bundle provides gets that one. A
+// main that needs a service only the experimental bundle provides gets the
+// experimental one, which holds Effect's when its layer declares Effect's
+// services too, so the platform's services are built once; Effect's comes
+// outside it only for a service the experimental bundle does not declare, or
+// when the experimental layer needs services itself.
 func entryBundles(c *checker.Checker, file *ast.SourceFile, main *ast.Node) ([]platformBundle, *checker.Type) {
 	platform := namedPlatform(file)
 	if platform == nil || resolvedModuleFile(c, file, platform.effect.module) == nil {
@@ -283,20 +288,18 @@ func entryBundles(c *checker.Checker, file *ast.SourceFile, main *ast.Node) ([]p
 		return nil, nil
 	}
 	needed := neededServices(c, main)
-	effect := bundleServices(c, file, platform.effect)
-	experimental := bundleServices(c, file, platform.experimental)
-	var usesEffect, usesExperimental bool
+	effect, _ := bundleServices(c, file, platform.effect)
+	experimental, experimentalNeeds := bundleServices(c, file, platform.experimental)
+	var usesEffect, effectOnly, usesExperimental bool
 	for _, service := range needed {
-		switch {
-		case provides(c, effect, service):
-			usesEffect = true
-		case provides(c, experimental, service):
-			usesExperimental = true
-		}
+		byEffect, byExperimental := provides(c, effect, service), provides(c, experimental, service)
+		usesEffect = usesEffect || byEffect
+		effectOnly = effectOnly || byEffect && !byExperimental
+		usesExperimental = usesExperimental || byExperimental && !byEffect
 	}
 	var bundles []platformBundle
 	var services []*checker.Type
-	if effect != nil && (usesEffect || usesExperimental) {
+	if effect != nil && (usesEffect && !usesExperimental || usesExperimental && (effectOnly || experimentalNeeds)) {
 		bundles, services = append(bundles, platform.effect), append(services, effect)
 	}
 	if usesExperimental {
@@ -350,7 +353,7 @@ func platformNote(c *checker.Checker, file *ast.SourceFile, needed []*checker.Ty
 		return ""
 	}
 	node := &entryPlatforms[0]
-	services := bundleServices(c, file, node.effect)
+	services, _ := bundleServices(c, file, node.effect)
 	var names []string
 	for _, service := range needed {
 		if provides(c, services, service) {
@@ -376,36 +379,38 @@ func resolvedModuleFile(c *checker.Checker, file *ast.SourceFile, name string) *
 }
 
 // bundleServices returns the services that bundle's layer provides, the Out
-// of its declared Layer type, or nil when bundle does not resolve from file
-// or declares no such layer.
-func bundleServices(c *checker.Checker, file *ast.SourceFile, bundle platformBundle) *checker.Type {
+// of its declared Layer type, and whether the layer needs services itself,
+// an In other than never; or nil when bundle does not resolve from file or
+// declares no such layer.
+func bundleServices(c *checker.Checker, file *ast.SourceFile, bundle platformBundle) (*checker.Type, bool) {
 	moduleFile := resolvedModuleFile(c, file, bundle.module)
 	if moduleFile == nil || moduleFile.Symbol == nil {
-		return nil
+		return nil, false
 	}
 	namespace := c.TryGetMemberInModuleExports(bundle.namespace, moduleFile.Symbol)
 	if namespace == nil {
-		return nil
+		return nil, false
 	}
 	if namespace.Flags()&ast.SymbolFlagsAlias != 0 {
 		namespace = c.GetAliasedSymbol(namespace)
 	}
 	layer := c.GetTypeOfPropertyOfType(c.GetTypeOfSymbol(namespace), "layer")
 	if layer == nil {
-		return nil
+		return nil, false
 	}
-	outputs, _, opaque, ok := layerParts(c, layer)
+	outputs, inputs, opaque, ok := layerParts(c, layer)
 	if !ok || opaque || len(outputs) == 0 {
-		return nil
+		return nil, false
 	}
-	return c.GetUnionType(outputs)
+	return c.GetUnionType(outputs), len(inputs) > 0
 }
 
 // entryStatement makes `runtime.$entry(import.meta.main, import.meta.url,
 // main, () => NodeRuntime.runMain(main()))`, or the same with runtime.$runMain.
 // A main that compiles to plain JavaScript runs through Effect.sync, and one
 // that needs a platform's services runs as Effect.provide(main(),
-// NodeServices.layer) (D312), inside a provide of each further bundle. In a
+// NodeServices.layer) (D312), or the experimental bundle's layer, inside a
+// provide of each further bundle. In a
 // file emitted as CommonJS, both import.meta arguments are void 0.
 func (tx *lowering) entryStatement() *ast.Node {
 	f := tx.Factory()
