@@ -142,6 +142,8 @@ export function buildMarkdown(site: string, facts: Record<string, string>) {
     "",
     essentials,
     "",
+    "Before writing or reviewing a .vibe file, read the shipped VibeLang skill at `node_modules/vibelang/skills/vibelang/SKILL.md` (in this repository: `packages/compiler/skills/vibelang/SKILL.md`). It explains the forms, rules and idioms beside their Effect equivalents.",
+    "",
     `VibeLang is v0. The language will change in major, breaking ways. It is not suitable for production use. To set up VibeLang in a project, read [Set up VibeLang](${origin}/setup.md) and follow it. Each link below is a page's Markdown; remove \`.md\` for the page with navigation.`,
     ...navigation.flatMap(item => item.kind === "view" ? ["", `## ${item.label}`, ""]
       : item.kind === "page" ? [`- [${item.page.label}](${origin}/${item.page.path})${item.page.group ? `: ${item.page.group}` : ""}`] : []),
