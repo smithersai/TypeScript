@@ -14,17 +14,25 @@ import (
 //
 // A named function expression binds its name inside its own body, which
 // would capture the body's references to the function itself: fact(n - 1)
-// would call the generator, not the Effect function. When the body refers to
-// the name, the generator is a method of an object literal instead, which
-// has the name and binds nothing:
+// would call the generator, not the Effect function. When the body or a
+// parameter's default refers to the name, the generator is a method of an
+// object literal instead, which has the name and binds nothing:
 //
 //	const fact = Effect.fnUntraced({ *fact(n) { … yield* fact(n - 1) … } }.fact)
+//
+// A function expression's own name is its binding in the source. When its
+// body or parameters refer to it, the name must still be the Effect function,
+// so an Effect function expression forwards to its generator in the method
+// form, as a declaration does (selfBoundFunction, frames_lower.go):
+//
+//	const f = function fact(n) { return Effect.fnUntraced({ *fact(n) { … } }.fact).apply(this, arguments) }
 
 // generatorExpression returns the generator for original, a function the
 // lowering turns into an Effect, named name: `function* name(…) { … }`,
-// the method form when body refers to name, or an anonymous generator when
-// name is "". A function expression's own name is its binding in the source,
-// so it stays one.
+// the method form when original's body or parameters refer to name, or an
+// anonymous generator when name is "". A function expression's own name
+// stays its generator's binding; an Effect function expression that refers
+// to it binds it itself (selfBoundFunction, frames_lower.go).
 func (tx *lowering) generatorExpression(original *ast.Node, name string, parameters *ast.NodeList, body *ast.Node) *ast.Node {
 	f := tx.Factory()
 	ownName := original.Kind == ast.KindFunctionExpression && original.Name() != nil
@@ -37,7 +45,7 @@ func (tx *lowering) generatorExpression(original *ast.Node, name string, paramet
 		object := f.NewObjectLiteralExpression(f.NewNodeList([]*ast.Node{method}), false /*multiLine*/)
 		return f.NewElementAccessExpression(object, nil /*questionDotToken*/, f.NewStringLiteral(name, ast.TokenFlagsNone), ast.NodeFlagsNone)
 	}
-	if name == "" || ownName || !refersTo(original.Body(), name) {
+	if name == "" || ownName || !refersToName(original, name) {
 		var id *ast.Node
 		if name != "" {
 			id = f.NewIdentifier(name)
@@ -61,6 +69,31 @@ func refersTo(node *ast.Node, name string) bool {
 		return true
 	}
 	return node.ForEachChild(func(child *ast.Node) bool { return refersTo(child, name) })
+}
+
+// refersToName reports whether fn's body, or a default or computed key in its
+// parameters, refers to name (refersTo), as `function f(g = f)` does. A
+// parameter's own name does not: it binds in the generator too.
+func refersToName(fn *ast.Node, name string) bool {
+	for _, parameter := range fn.Parameters() {
+		if parameterRefersTo(parameter, name) {
+			return true
+		}
+	}
+	return refersTo(fn.Body(), name)
+}
+
+// parameterRefersTo reports whether node, a parameter or a part of one, has
+// an identifier named name other than a name it declares, a property name
+// after a dot, or a type.
+func parameterRefersTo(node *ast.Node, name string) bool {
+	switch {
+	case node == nil || node.Kind >= ast.KindFirstTypeNode && node.Kind <= ast.KindLastTypeNode:
+		return false
+	case ast.IsIdentifier(node):
+		return node.Text() == name && !ast.IsDeclarationName(node) && !ast.IsRightSideOfQualifiedNameOrPropertyAccess(node)
+	}
+	return node.ForEachChild(func(child *ast.Node) bool { return parameterRefersTo(child, name) })
 }
 
 // sourceName returns the name the source gives fn: its own name, the name of

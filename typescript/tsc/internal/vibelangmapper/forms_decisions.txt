@@ -1369,6 +1369,12 @@ typescript/vibelang/cases/hygiene-direct-module-names/main.vibe:12:25 lambda pla
 typescript/vibelang/cases/hygiene-direct-parameter/main.vibe:15:18 lambda effectFn annotation
 typescript/vibelang/cases/hygiene-direct-parameter/main.vibe:15:38 lambda effectFn annotation
 typescript/vibelang/cases/hygiene-direct-shadow/main.vibe:12:22 lambda plain annotation
+typescript/vibelang/cases/hygiene-named-function-expression/main.vibe:18:16 lambda effectFn annotation
+typescript/vibelang/cases/hygiene-named-function-expression/main.vibe:20:23 byname program table
+typescript/vibelang/cases/hygiene-named-function-expression/main.vibe:23:14 lambda effectFn annotation
+typescript/vibelang/cases/hygiene-named-function-expression/main.vibe:24:28 lambda plain table
+typescript/vibelang/cases/hygiene-named-function-expression/main.vibe:32:23 lambda plain table
+typescript/vibelang/cases/hygiene-named-function-expression/main.vibe:7:15 lambda factory annotation
 typescript/vibelang/cases/jump-without-target-region.fail/main.vibe:16:37 lambda program table
 typescript/vibelang/cases/jump-without-target-region.fail/main.vibe:16:46 lambda effectFn table
 typescript/vibelang/cases/keyword-operand-comments/main.vibe:123:16 lambda dual fallback

@@ -90,6 +90,10 @@ So no source binding captures generated code, and generated code captures no
 source binding. A module that exports a name spelled like a variant, such as
 `double$direct` beside a plain `double`, exports the variant as
 `double$direct$1`, and its importers compute the same name from its exports.
+An Effect function's generator carries the function's name for stack traces
+(D36) but binds none: a named function expression that refers to itself, in
+its body or a parameter default, forwards to the generator as a declaration
+does, so the name stays the function its callers call.
 
 #### Settings belong to the source package
 
