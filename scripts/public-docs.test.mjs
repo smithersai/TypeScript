@@ -11,3 +11,11 @@ test("setup instructions address the person following them", () => {
     assert.doesNotMatch(page, /(?:tell|ask) the user|the user's editor/i, name)
   }
 })
+
+test("the shipped skill demonstrates Effect 4 config and scoped file IO", () => {
+  const skill = read("packages/compiler/skills/vibelang/SKILL.md")
+  assert.doesNotMatch(skill, /that reading is never wrong/)
+  assert.match(skill, /Config\.withDefault\(Config\.String\("NAME"\), "stranger"\)\(\)/)
+  assert.match(skill, /using directory = FileSystem\.makeTempDirectoryScoped\(\)/)
+  assert.match(skill, /import "vibelang\/platform\/node"/)
+})

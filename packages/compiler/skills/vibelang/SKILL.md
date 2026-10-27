@@ -5,7 +5,7 @@ description: Write, edit or review VibeLang (.vibe files), Effect programs in Ty
 
 # VibeLang
 
-A `.vibe` file is TypeScript in which every function is an Effect. Read and write it as Effect code; that reading is never wrong. `vibelang` (a TypeScript 7 compiler) checks `.vibe` and `.ts` files together and emits JavaScript and declarations. `EK2001` is a VibeLang diagnostic. Pages named below are routes on https://vibelang.sh.
+Read `.vibe` functions as Effect programs: calls run and contracts are inferred. A function with no Effect operation, escaping failure or wider contract compiles to plain JavaScript; a plain return annotation requires that behavior. `vibelang` (a TypeScript 7 compiler) checks `.vibe` and `.ts` files together and emits JavaScript and declarations. `EK2001` is a VibeLang diagnostic. Pages named below are routes on https://vibelang.sh.
 
 ## The model
 
@@ -102,30 +102,15 @@ Declarations export like TypeScript declarations: `export data Shape { Circle { 
 - Every form beside its Effect code: `vibelang-features/115-cheat-sheet`. The rules: `spec/`.
 
 ```vibe
-error NotFound { id: string }
-
-service Users {
-  name(id: string): string!NotFound
-}
-
-const UsersLive = Layer.succeed(Users, {
-  name(id) {
-    if (id !== "42") throw new NotFound({ id })
-    return "Ada"
-  }
-})
-
-function nameOf(id: string): string!!Users {
-  return Users.name(id)
-    |> timeout(%, "1 second")
-    |> retry(%, { times: 3, schedule: Schedule.exponential("100 millis") })
-    catch (e) => match (e) { when NotFound: `no user ${e.id}`; default: "timed out"; }
-}
+import "vibelang/platform/node"
 
 export function main() {
-  provide UsersLive {
-    const [ada, missing] = await.all [nameOf("42"), nameOf("7")]
-    Console.log(ada, missing)
-  }
+  const name = Config.withDefault(Config.String("NAME"), "stranger")()
+  using directory = FileSystem.makeTempDirectoryScoped()
+  const file = Path.join(directory, "hello.txt")
+  FileSystem.writeFileString(file, `Hello, ${name}!`)
+  Console.log(FileSystem.readFileString(file))
 }
 ```
+
+`Config.String` is Effect 4's spelling. `withDefault` handles missing input, preserving validation failures. The config stays data until called; `using` removes the temporary directory and its files at block exit.
