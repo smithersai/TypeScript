@@ -149,7 +149,7 @@ vibelang/smoke.sh vibelang-infer   # one case
 
 #### Research and drafts
 
-- `docs/design/DECISIONS.md`: the decision log, with assigned decisions through D313.
+- `docs/design/DECISIONS.md`: the decision log, D1-D379, the record of why each rule is what it is (D360).
 - `docs/research/effect4-runtime.md`: Effect 4.0.5 runtime facts, with 23 scripts in `experiments/scripts/runtime-facts/`. Scripts written for this design live in `experiments/scripts/`.
 - `docs/research/continuation-prior-art.md`: OCaml 5, Kotlin, Swift, Loom, WasmFX, Koka, Effekt, Effection, js_of_ocaml, and the papers.
 - `docs/research/vibelang.md`: the earlier VibeLang project's `main` (`c60eca97`) and the unmerged checkpoint (`ebe89a2b`).
@@ -190,13 +190,62 @@ Stages as fetched on 2026-10-16 (`docs/research/tc39-syntax.md`).
 | Proposal | Stage | In VibeLang |
 | --- | --- | --- |
 | Explicit Resource Management (`using`) | 4 since 2026-05-19, for ES2027 | Adopted: `using` with Effect's guarantees (Chapter 6) |
-| Pipeline operator (Hack `\|>`) | 2 since 2021-08; topic token undecided; "somewhat stuck" (January 2026) | In `.vibe` files with the topic `%`; a topic that stands for a program passes the left side by name (Chapter 5, D154, D155; supersedes D8) |
+| Pipeline operator (Hack `\|>`) | 2 since 2021-08; topic token undecided; "somewhat stuck" (January 2026) | Adopted in `.vibe` files with the topic `%`, which is the value of the left side, evaluated once (Chapter 5, D154; supersedes D8) |
 | AsyncContext | 2 | Prior art for the snapshot rule (Chapter 22). VibeLang code keeps request-scoped values in Effect's Context |
 | Partial application (`f~(x, ?)`) | 1 | Not adopted. A function with no arguments is the program spelling (D7) |
-| Pattern matching (`match`) | 1 | Adopted: `match` and `is`, with the supported pattern subset (Chapter 3, D206-D215) |
-| Throw expressions | 2, unchanged since 2017 | Adopted: `throw` is a typed failure in statements and expressions (Chapter 3, D186) |
+| Pattern matching (`match`, `is`) | 1 | Adopted, a subset: `match` expressions with `when` arms, `is`, extractors, and custom matchers; regular expression and relational patterns are not (Chapters 3 and 11, D206-D215) |
+| Throw expressions | 2, unchanged since 2017 | Adopted: `x ?? throw new NotFound()` fails as the throw statement does (Chapter 3, D186) |
 | Extractors | 2 | Adopted in match patterns, such as `Option.Some(let value)` (Chapter 3, D207) |
 | Import defer | 3 | Not used. Deferring a module's evaluation doesn't change EK1001: its top level still can't run a program |
-| Await dictionary (`Promise.allKeyed`) | 3 | Adopted for record-shaped `await.all` and `await.allSettled` (Chapter 7, D196) |
+| Await dictionary (`Promise.allKeyed`) | 3 | Adopted as the object operand of `await.all` and `await.allSettled` (Chapter 7, D196) |
+| Await operations (`await.all`, `await.race`, …) | 1 | Adopted: `await.all`, `await.allSettled`, `await.race`, and `await.any` start programs concurrently and behave as the `Promise` methods (Chapter 7, D196) |
+| Do expressions | 1 | Adopted: `do { … }` is an expression whose value is its last statement's (D187) |
+| Block params | 1 | Adopted: a block after a call is a program argument, `withSpan("load") { … }` (D188) |
+| Module declarations | 2 | Adopted as an escape to TypeScript, with ECMAScript module semantics; module expressions and nested declarations are not supported (Chapter 11, D283, D364) |
 | Abort Controller, Concurrency control | 1 | Not adopted. Effect's interruption and `concurrency` options |
 | F#-style pipes; `Function.pipe` and `flow` | Failed Stage 2; withdrawn | Not applicable |
+
+### Glossary
+
+The terms the rules use. A term defined here means only this in a rule.
+
+| Term | Meaning |
+| --- | --- |
+| Abandonment | Ending a captured continuation without resuming it: its owner unwinds it as an interruption, running its finalizers (Chapters 20, 21) |
+| Call that runs | A call whose callee is declared to return `Effect`, or whose callee is itself an Effect value, `p()`: it runs the program on the current fiber and evaluates to its success value (Chapter 13) |
+| Cause | Effect's record of why a program did not succeed: an ordered list of reasons, each a Fail (an expected failure), a Die (a defect), or an Interrupt (Chapter 17) |
+| Cold | Of a program: building it runs none of its work, and each run starts its work afresh |
+| Context | Effect's map from service identifiers to implementations, which a running program reads its services from |
+| Contract | A function's `Effect<A, E, R>`, written as `A!E!R` or `Effect<A, E, R>`, or inferred: its success type, expected failures, and requirements (Chapter 14) |
+| Control operation | A member of a `control` declaration: a request a handler answers, which may capture the continuation (Chapter 9) |
+| Data type | A `data` declaration, or a tagged union declared with `Data.taggedEnum`: a closed set of tagged variants (Chapter 11) |
+| Defect | A failure no contract lists: a bug or an unlisted foreign exception. It is a Die reason, outside E, and `catch` does not receive it (Chapter 17) |
+| Direct variant | The plain-JavaScript form of a function that performs no Effect operation, which VibeLang callers call instead of its Effect form (Chapter 15) |
+| Evaluate | To compute an expression's value, once, in source order. The value may be a program, which evaluating does not run |
+| Expected failure | A value thrown with `throw`, or failed with by a callee: a Fail reason, in E, which `catch` receives (Chapter 3) |
+| Foreign code | Code the compiler does not check: TypeScript and JavaScript functions, a hatch's or a `module` declaration's body, and a package consumed through declarations alone |
+| Frame | A heap record of an activation on a fiber's stack, where the state of a computation that can capture or park lives (Chapter 26) |
+| Hatch | `sync`, `try`, or `callback`: a call whose first argument is TypeScript, the boundary to foreign code (Chapter 10) |
+| Identifier | A service's nominal type, which R holds: the shape's members, where the shape is an object type, plus a brand carrying the service's key (Chapter 4) |
+| Interruption | Cancellation of a fiber, an Interrupt reason; never caught by `catch` (Chapter 17) |
+| Key | A service's value: Effect's `Context.Key`, through which a program looks the service up and a layer provides it (Chapter 4) |
+| Layer | Effect's `Layer<Out, E, In>`: a recipe that builds the services `Out`, may fail with `E`, and needs `In` (Chapter 4) |
+| Live binding | An import that reads the exporting binding's current value at each use, as an ECMAScript import does (Chapter 26) |
+| Observation | What a run of a program shows the world: its exit and Cause, its effects outside the program in order and number, its bindings, its lifetimes, and its suspension points. Two programs are observationally equivalent when every observation is the same (Chapter 26) |
+| Plain function | A function that compiles to plain JavaScript: it performs no Effect operation, cannot fail with an expected failure, and needs no service (Chapter 15) |
+| Prelude | The names every `.vibe` file has in scope without an import: the runtime's exports and Effect's modules (Chapter 1) |
+| Producer | What a `function*` declares: a cold program that yields values one at a time, a `Stream` to TypeScript (Chapter 8) |
+| Program | A cold value that runs when something runs it: an `Effect`, or a function with no parameters where an `Effect` is expected (Chapter 5) |
+| Provider | What removes services from R: a layer, a non-empty list of layers, a `Context`, or `Key = value` (Chapter 4) |
+| Region | A block the compiler lowers to its own Effect frame: a `try`, `catch`, or `finally` block, a block that declares `using` or calls `fork`, a `provide` block, a mask (Chapter 26) |
+| Requirement | A service a program looks up, an identifier in its R (Chapter 4) |
+| Resolved symbol | The declaration a name refers to after scope, imports, and aliases are followed. A rule that gives a name a meaning keys on the resolved symbol, never on the name's spelling (Chapter 13) |
+| Restriction | A limit of the current implementation, marked [Restriction]; not a rule of the language |
+| Rule | A normative statement, marked [Rule] or stated in Part II: what a program means |
+| Run | To execute a program on the current fiber until it succeeds, fails, or is interrupted |
+| Scope | Effect's `Scope`: what owns finalizers and closes them in reverse order; in R it records an obligation to release (Chapter 6) |
+| Service | A dependency a program looks up by key: a `service` declaration, or a `Context.Service` from TypeScript (Chapter 4) |
+| Shape | The type of a service's implementation, `S.Shape` or `Context.Service.Shape<typeof S>` (Chapter 4) |
+| Suspension point | A point where another fiber may run or an interruption may arrive: a call that runs a program that can park, an await operation, a `join` (Chapters 13, 15) |
+| Trusted base | What the static guarantees assume: the implementation, TypeScript's types where used unchanged, foreign declarations, trust declarations, escapes, and the fiber-behavior table (Chapter 26) |
+

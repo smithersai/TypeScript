@@ -1,7 +1,7 @@
 ### 30. Risks and experiments
 
 ```text
-first, in the Go fork          G19  one checker pass: candidate forms (D56), component fixpoint (D52)
+first, in the Go fork          G19  one checker pass: call forms by declared type, component fixpoint (D52)
 the largest external risk      G1   prompt capture uses undocumented Effect fields
 the semantic gate              G16  one law suite for both runtime strategies (prompt context first)
 the checker's foundation       G8   second-class continuations and the finalizer rule
@@ -13,13 +13,13 @@ No design question here is open: each row states the rule that stands, what coul
 
 | # | Rule that stands | Risk | Experiment | What would change the rule |
 | --- | --- | --- | --- | --- |
-| G19 | The call rule is decided by types (Chapter 13) in one checker pass: a lambda's form per overload candidate (D44, D56), E and R of a recursive component by a fixpoint inside it (D52) | The hypothesis holds on the corpus and the probes (`prototype/single-pass/RESULTS.md`): one patched check reaches the prototype's lowering in 46 of 46 files with 0 disagreements; each probe disagreement is a lambda with two self-consistent lowerings, which D56 decides, or mutual recursion. Left: iteration inside a recursive component, which the harness lacks, and holding the three forms in the Go checker, where the harness duplicated each lambda's text | Build both in the Go fork (`typescript/` in this repository, D60), compile the corpus and `prototype/single-pass/probes/`, and compare every lowering decision with the single-pass harness's and every contract with the prototype's | A construct that needs a check outside its own component; its rule changes so that one pass decides it |
+| G19 | The checker decides each call from its callee's declared type (Chapter 13), and the E and R of a recursive component by a fixpoint inside it (D52), in one pass | The single-pass experiment (`prototype/single-pass/RESULTS.md`) reached the prototype's lowering in 46 of 46 files with 0 disagreements, under the earlier rule that read each overload candidate. Left: iteration inside a recursive component, which the harness lacks | Build both in the Go fork (`typescript/` in this repository, D60), compile the corpus and `prototype/single-pass/probes/`, and compare every lowering decision and every contract with the prototype's | Nothing in the language. A construct that one pass cannot decide gets a [Restriction] or asks for an annotation; it never gets another meaning (D374) |
 | G20 | The prototype covers the language's core (Chapter 27) | It does not yet emit `.d.ts` files, `$direct` metadata, source maps, or hovers; implement EK4202 or external iteration of producers; or test `this` inside Effect methods | Extend the prototype in that order, then port its decisions to the Go fork | A part whose rule cannot be implemented as written |
 | G1 | Strategy A is the runtime (Chapter 25) | An Effect release can break capture or abandonment without notice | Run the law suite against every Effect 4 patch release in CI. Prepare a supported primitive (an opaque same-fiber stack segment plus interruption state, or `Effect.prompt`) using the kernel as the reference; the [proposal](../../upstream/effect-prompt-primitive.md) is drafted, not filed (D59) | A release breaks a law with no workaround, or the maintainers reject any splice API; capture-heavy code then falls back to strategy B and loses transparency through TypeScript combinators |
 | G16 | Strategy B is the reference semantics | The two strategies disagree today (the prompt-context regression) and pass separate suites | Write the Chapter 20 laws once against a small interface with an adapter per strategy; run both. First law: the reinstalled prompt records the resume site's Context | A law the two cannot both express, meaning Chapter 20 is ambiguous |
 | G8 | Continuations are second-class; a finalizer handles its own control operations (Chapter 9) | The static checks are specified, not built | Implement both checks in a checker prototype; run them over the reference programs; count false positives | Correct handlers, such as schedulers, that need escapes `transfer` cannot express |
 | G9 | Callback types without contracts are effect-polymorphic (D12); hover shows inferred contracts | Unreadable inferred types defeat inference | Infer the reference programs' contracts with the rules of Chapters 14 and 16; check multiple callbacks, returned callbacks, aliases, and declaration round trips | A callback that needs more than one row variable to read correctly |
-| G10 | Plain JavaScript only where nothing observable changes (D10) | An optimization that changes behavior breaks settled decision 4 | Compile a corpus twice, all frames and optimized; compare results, event order, and deterministic interruption traces | Any observable difference |
+| G10 | Every optimization is observationally equivalent to the frame lowering (Chapter 26, D372) | An optimization that changes behavior breaks settled decision 4 | Compile a corpus twice, all frames and optimized, and compare the observations of Chapter 26: exits and their Causes reason by reason, effects outside the program in order and number, bindings, lifetimes, and deterministic interruption traces. The comparison gates every change to an optimization | Any observable difference |
 | G2 | The fiber-behavior table is the diagnostic; the runtime is the guarantee (P10) | An unlisted combinator that forks costs a conservative error | Extend `tests/fiber-behavior.test.ts` to every Effect export that takes a program, and generate the checker's table from its results | An export whose fiber behavior depends on a run-time value the type cannot see |
 | G3 | A continuation is consumed only on its capturing fiber (P5) | Closing an owning Scope from another fiber while the capturer is alive raises `ContinuationWrongFiber` at the closer; the segment is released only when the capturer exits (K13c) | A per-fiber pending-abandonment queue, drained when the capturing fiber next runs or exits; test producers shared across fibers | A common, correct pattern that needs cross-fiber consumption |
 | G12 | A producer is a `Stream` to TypeScript; the adapter runs it on its own fiber (D26) | Stream cancellation might not reach the producer's owner | Adapt a producer to a pull `Stream`; pull from another fiber with `Stream.merge`; cancel early; check the producer's finalizers ran once and it never ran ahead | Stream cancellation that cannot reach the producer's fiber |
@@ -30,6 +30,23 @@ No design question here is open: each row states the rule that stands, what coul
 | G14 | Abandonment unwinds as an interruption (P8) | Finalizers see a sentinel interrupt id; diagnostics cannot yet say "abandoned" | Annotate the abort cause, or add a reason, and check what `Cause.pretty` and finalizers show | |
 | G15 | Typed failures do not cross JavaScript frames in v0 (D10, D9) | An Effect helper that throws a typed error compiles to frames; a plain-annotated function never fails (D282) | Bridge typed failures as branded exceptions caught at the nearest frame; measure cost and correctness | |
 | G17 | Capture copies the segment (Chapter 25) | Capture at every level of a deep recursion copies quadratically (79 ms at depth 8,000) | Follow the [segmented-stack draft](../../upstream/effect-segmented-stack.md): prototype opaque chunked segments in a patched Effect build and rerun `bench/deep-capture.ts` | Real producers nest deep enough for the quadratic term to dominate their own work |
+
+#### Restrictions
+
+Each limit below comes from the current implementation, not from the design [Restriction] (D374). A program it rejects is not wrong, and lifting it changes no program that compiles.
+
+| Restriction | What it rejects | Why | Diagnostic |
+| --- | --- | --- | --- |
+| One checker pass (G19) | Nothing yet: a construct that one pass cannot decide would get an annotation request | The Go checker decides each component once | |
+| Bindings in `or` and `not` patterns (D210) | `when A(let x) or B(let x)` | The inline lowering of `or` has nowhere to declare a name | EK4702 |
+| `is` bindings (D211) | A binding used outside an `if` or `while` condition's `&&` chain and its branch | The lowering nests the branch inside the tests | EK4703 |
+| Pattern forms (D212) | Regular expression and relational patterns, computed keys other than names and literals | Not lowered yet | EK4704 |
+| Pattern domains (D214) | An array pattern against an iterable that is not an array; an object pattern against a primitive; `yield` in an arm of a match in expression position | The lowering tests arrays and objects directly | Run-time no-match, or TypeScript's error |
+| Combinations in nested data patterns (Chapter 11) | A match whose coverage needs more combinations than the compiler counts | The count is bounded | EK4701, with `default` as the fix |
+| Data type parameters (D307) | More than four type parameters, or a constrained one | `Data.TaggedEnum.WithGenerics` passes at most four, unconstrained | EK2126 |
+| Await and join shapes (D171, D228) | Types of nested arrays and objects of fibers | Deeper recursive types exceed TypeScript's instantiation depth | EK4603, EK4611 |
+| Module declarations (D283, D303) | A nested, exported, or nameless module declaration; `import(name)`; module expressions | One `.vibe` file is one JavaScript module | EK4408, or a syntax error |
+| Vite's root (D107) | Sources outside the root of a Vite project | Emit paths and source maps assume one root | The plugin's error |
 
 #### Closed
 

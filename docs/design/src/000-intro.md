@@ -1,8 +1,8 @@
 # VibeLang
 
-A language for writing Effect programs. Specification, 2026-10-27. Runtime: `effect@4.0.6`.
+A language for writing Effect programs. Specification, revised 2026-10-27. Runtime: `effect@4.0.6`.
 
-VibeLang is TypeScript syntax in which every function is an Effect. You call functions normally, `throw` and `catch` typed errors, and ask for services by name. The compiler infers each function's `Effect<A, E, R>` and emits the Effect code you would write by hand, so TypeScript uses it like any other Effect library.
+VibeLang is TypeScript syntax in which every function is an Effect: TypeScript sees each function as one that returns a cold `Effect`, unless it has a plain return annotation, and inside VibeLang a call to it runs that Effect where the call stands. You call functions normally, `throw` and `catch` typed errors, and ask for services by name. The compiler infers each function's `Effect<A, E, R>` and emits the Effect code you would write by hand, so TypeScript uses it like any other Effect library.
 
 ```ts effect
 const welcome = Effect.fn("welcome")(function* (id: string) {
@@ -40,7 +40,7 @@ The two functions do the same work, with two differences. `Effect.fn("welcome")`
 
 To learn VibeLang by task, not by rule, start with the [user guide](../../user/src/001-onboarding.md). The [cheat sheet](../../user/src/vibelang-features/115-cheat-sheet.md) puts every change beside the Effect code it replaces.
 
-**Status.** `docs/design/DECISIONS.md` records the assigned design decisions through D313 and their rationale. [Part V](#29-decisions) indexes selected decisions and the closed end-to-end build calls. D310-D313 remain provisional, and D25 records an open resource limitation. The Part III runtime is a working prototype: {{testCount}} tests pass in `experiments/`. The shipped compiler is the Go fork of TypeScript in `typescript/` (Chapter 27). `prototype/esc`, on TypeScript's API, is the earlier prototype. The compiler, spec, runtime, and tooling share one repository (D60).
+**Status.** This revision has no open design question: every rule is decided. A rule the compiler does not implement yet is listed as a gap in `typescript/VIBELANG.md`, and it still governs. `docs/design/DECISIONS.md` records each decision, D1-D379, with its reason and evidence; [Part V](#29-decisions) indexes them and marks the ones later decisions superseded. The Part III runtime is a working prototype: {{testCount}} tests pass in `experiments/`. The shipped compiler is the Go fork of TypeScript in `typescript/`, which infers contracts and lowers each call by its callee's declared type (Chapter 27); `prototype/esc`, on TypeScript's API, is the earlier prototype. The compiler, spec, runtime, and tooling share one repository (D60).
 
 ## Effect to VibeLang at a glance
 

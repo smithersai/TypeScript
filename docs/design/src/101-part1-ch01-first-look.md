@@ -108,7 +108,7 @@ export function main() {
 }
 ```
 
-`Effect.provide` supplies the services `welcome` needs from an application Layer (Chapter 4 builds `AppLive`). The `() =>` in `() => welcome("42")` hands Effect a program without running it (Chapter 5). The module exports a parameterless `main`, so the compiler appends a `runtime.$entry(...)` check that starts it only when the host starts this module (D135). Importing the module starts nothing. A top-level runner call suppresses this entry statement. Chapter 13 states the entry rule, including platform imports (D312).
+`Effect.provide` supplies the services `welcome` needs from an application Layer (Chapter 4 builds `AppLive`). The `() =>` in `() => welcome("42")` hands Effect a program without running it (Chapter 5). The module exports a parameterless `main`, so its JavaScript ends with an entry statement, a `runtime.$entry(…)` check: when the host starts the file, as `node main.js` does, the statement hands `main` to a runner, the only place a program starts, and importing the module starts nothing (D135). A top-level runner call replaces the entry statement. A file that also names its platform, `import "vibelang/platform/node"`, has the entry provide that platform's services to `main` (D312, Chapter 11). Chapter 13 states the entry rule.
 
 #### What the compiler produces
 
