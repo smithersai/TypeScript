@@ -2,7 +2,7 @@
 
 #### Every function is an Effect
 
-There is one kind of function. Some can fail, need services, or pause; the compiler infers which from the body and records it in the function's contract `Effect<A, E, R>`.
+Every function is an Effect: the compiler infers its contract `Effect<A, E, R>` from its body, and TypeScript sees it as a function that returns that cold `Effect`. The one exception is a function with a plain return annotation, such as `: number`, which stays a plain function (Chapter 15). Some functions can fail, need services, or pause; the contract records which.
 
 ```ts es
 function add(a: number, b: number) {
@@ -17,11 +17,11 @@ function greeting(id: string) {
 // string!UserNotFound!Users
 ```
 
-`add` performs no Effect operation and cannot fail, so it compiles to a plain JavaScript function: `add(1, 2)` costs what any JavaScript call costs (Chapter 15). `greeting` can fail and needs `Users`, so it compiles to an Effect.
+`add` performs no Effect operation and cannot fail, so VibeLang callers call a plain JavaScript copy of it: `add(1, 2)` costs what any JavaScript call costs (Chapter 15), and TypeScript still sees `(a: number, b: number) => Effect<number>`. `greeting` can fail and needs `Users`, so it compiles to an Effect function only.
 
 #### Calling runs the function
 
-A call runs the function and returns its success value. If the callee fails, the caller fails with the same error unless it catches it (Chapter 3). There is no `yield*` or `await`.
+A call works the way a TypeScript developer reads it with an implicit `await`: its arguments are evaluated, left to right, then the function runs where the call stands, and the call's value is the function's success value. If the callee fails, the caller fails with the same error unless it catches it (Chapter 3). There is no `yield*` or `await`, and nothing else changes when a call runs: not its parameter's type, not an annotation, not an overload (Chapter 13).
 
 ```ts effect
 const userName = Effect.fn("userName")(function* (id: string) {
@@ -79,13 +79,17 @@ The loop runs one `welcome` at a time, in order. Running several at once is alwa
 
 #### Tracing
 
-`Effect.fn("welcome")` gives every call a span. VibeLang functions compile to untraced frames by default, because a traced frame costs 10 to 20 times more (Chapter 24). Add a span where you want one with Effect's `withSpan`:
+`Effect.fn("welcome")` gives every call a span. VibeLang functions compile to untraced frames by default, because a traced frame costs 10 to 20 times more (Chapter 24). Add a span where you want one with Effect's `withSpan`, which takes the program to trace:
 
 ```ts es
 function welcomeTraced(id: string) {
-  return withSpan(welcome(id), "welcome")
+  return withSpan("welcome") {
+    return welcome(id)
+  }
 }
 ```
+
+The block after the call is a program (Chapter 13), so `withSpan` runs `welcome(id)` inside the span. `withSpan(() => welcome(id), "welcome")` means the same. `withSpan(welcome(id), "welcome")` would run `welcome(id)` first, outside the span, and is EK1018.
 
 #### Writing the contract yourself
 
@@ -142,7 +146,7 @@ function profileCard(id: string) {
 // { title: string; avatar: Avatar }!UserNotFound | AvatarError!Users | Storage
 ```
 
-A TypeScript function that returns an `Effect` behaves exactly like a VibeLang function: calling it runs it. One that returns anything else is foreign code; nothing says what its exceptions mean, so the compiler asks you to say it once. `formatName` is a `trusted(impl, [Errors])` value exported beside its TypeScript implementation (D249, Chapter 10). Without one, the call is an error that offers the fixes:
+A TypeScript function whose declared return type is an `Effect` behaves exactly like a VibeLang function: calling it runs it. One that returns anything else is foreign code: nothing says what its exceptions mean, so the compiler asks you to say it once, and reports every call until you do, in plain functions too. `formatName` is a `trusted(impl, [Errors])` value exported beside its TypeScript implementation, so it returns an `Effect`, and the call runs it (D249, Chapter 10). Without one, the call is an error that offers the fixes:
 
 ```text
 error EK4401: formatName is a plain TypeScript function, and nothing says what its exceptions mean.
