@@ -19,9 +19,9 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,113 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,705 |
-| The skill and the user guide (134 pages) | 243,334 |
-| The user guide alone | 238,221 |
-| The specification (33 chapters) | 165,531 |
+| The skill and the user guide (134 pages) | 243,398 |
+| The user guide alone | 238,285 |
+| The specification (33 chapters) | 165,573 |
 | The decision log, `docs/design/DECISIONS.md` | 107,223 |
 
 ## Effect TypeScript beside VibeLang
@@ -96,13 +96,13 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Creating Effects](../getting-started/005-creating-effects.md) | 3,223 |
 | [Two Types of Errors](../error-management/006-two-error-types.md) | 642 |
 | [Basic Concurrency](../concurrency/007-basic-concurrency.md) | 1,441 |
-| **Core Concepts** | **17,651** |
+| **Core Concepts** | **17,715** |
 | [Effect's Modules](../getting-started/008-importing-effect.md) | 2,576 |
-| [Running Effects](../getting-started/009-running-effects.md) | 1,704 |
+| [Running Effects](../getting-started/009-running-effects.md) | 1,768 |
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
 | [Devtools](../getting-started/012-devtools.md) | 10,380 |
-| **All 12 pages** | **29,394** |
+| **All 12 pages** | **29,458** |
 
 ### Setup
 
@@ -291,7 +291,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [15. Which functions compile to plain JavaScript](../../../design/src/215-part2-ch15-direct.md) | 2,961 |
 | [16. Callbacks and higher-order functions](../../../design/src/216-part2-ch16-callbacks.md) | 1,958 |
 | [17. Failures, defects, interruption, and cleanup](../../../design/src/217-part2-ch17-failures.md) | 5,027 |
-| **Part III. The runtime** | **25,270** |
+| **Part III. The runtime** | **25,312** |
 | [18. Why a continuation runtime](../../../design/src/318-part3-ch18-why.md) | 2,258 |
 | [19. The checkout trace, step by step](../../../design/src/319-part3-ch19-trace.md) | 1,583 |
 | [20. The machine](../../../design/src/320-part3-ch20-machine.md) | 3,677 |
@@ -300,7 +300,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [23. Boundaries and finalization](../../../design/src/323-part3-ch23-boundaries.md) | 2,028 |
 | [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 4,339 |
 | [25. Implementation strategies and costs](../../../design/src/325-part3-ch25-strategies.md) | 1,946 |
-| [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 6,026 |
+| [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 6,068 |
 | **Part IV. The compiler** | **17,591** |
 | [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 3,659 |
 | [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 13,932 |
@@ -310,6 +310,6 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Appendices** | **18,900** |
 | [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 10,397 |
 | [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,503 |
-| **All 33 pages** | **165,531** |
+| **All 33 pages** | **165,573** |
 
 <!-- token-counts: end -->

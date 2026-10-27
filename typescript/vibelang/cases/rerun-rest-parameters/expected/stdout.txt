@@ -1,0 +1,11 @@
+compact [2,2,2]
+expanded [2,2,2]
+declaration [2,2,2]
+expression [2,2,2]
+method compact [2,2,2]
+method expanded [2,2,2]
+object method [2,2,2]
+fresh arrays true
+default [2,2,2]
+destructured default [2,2,2]
+effect declaration [2,2,2]

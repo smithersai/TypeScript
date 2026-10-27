@@ -1,0 +1,4 @@
+// Program lambdas still bind optional/rest parameters when they run.
+export const defaults: Effect<number, never, never> = (n: number = 1) => n
+export const optional: Effect<number | undefined, never, never> = (n?: number) => n
+export const rest: Effect<number[], never, never> = (...values: number[]) => values

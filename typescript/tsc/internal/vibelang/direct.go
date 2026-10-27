@@ -165,12 +165,13 @@ func (tx *lowering) namedThunk(name string, value *ast.Node, role thunkRole) *as
 }
 
 // hasSimpleParameters reports whether every parameter of fn is a name
-// without a default. Only then may a direct Effect function bind its
-// parameters on the call: a default or a destructuring pattern runs code,
-// which a generator runs when the Effect runs.
+// without a default or rest token. Only then may a direct Effect function
+// bind its parameters on the call: a default or a destructuring pattern runs code,
+// which a generator runs when the Effect runs. A rest array must also be
+// allocated anew on each execution.
 func hasSimpleParameters(fn *ast.Node) bool {
 	for _, parameter := range fn.Parameters() {
-		if !ast.IsIdentifier(parameter.Name()) || parameter.Initializer() != nil {
+		if !ast.IsIdentifier(parameter.Name()) || parameter.Initializer() != nil || parameter.AsParameterDeclaration().DotDotDotToken != nil {
 			return false
 		}
 	}

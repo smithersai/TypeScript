@@ -1,0 +1,4 @@
+default [1,1,1]
+optional [null,null,null]
+rest [[],[],[]]
+fresh arrays true

@@ -56,6 +56,9 @@ func (tx *lowering) lowerMethod(node *ast.Node) *ast.Node {
 	body := ec.VisitFunctionBody(node.Body(), tx.Visitor())
 	tx.inEffect, tx.frame, tx.plain = saved, savedFrame, savedPlain
 
+	if !hasSimpleParameters(node) {
+		return tx.perRunMethod(node, parameters, body)
+	}
 	if effect := tx.directEffect(node, body, thunkIsReturn); effect != nil {
 		block := f.NewBlock(f.NewNodeList([]*ast.Node{tx.generated(f.NewReturnStatement(effect))}), true /*multiLine*/)
 		lowered := f.UpdateMethodDeclaration(method, node.Modifiers(), method.AsteriskToken, node.Name(), method.PostfixToken, method.TypeParameters, parameters, method.Type, method.FullSignature, block)
@@ -75,6 +78,42 @@ func (tx *lowering) lowerMethod(node *ast.Node) *ast.Node {
 	lowered := f.UpdateMethodDeclaration(method, node.Modifiers(), method.AsteriskToken, node.Name(), method.PostfixToken, method.TypeParameters, parameters, method.Type, method.FullSignature, block)
 	ec.SetOriginal(lowered, node)
 	return lowered
+}
+
+// perRunMethod binds source parameters inside fnUntraced on every execution,
+// as for an Effect function declaration. The forwarding method keeps its
+// receiver, all arguments, and its arity without allocating a rest array or
+// evaluating a default or destructuring pattern when called.
+func (tx *lowering) perRunMethod(node *ast.Node, parameters *ast.NodeList, body *ast.Node) *ast.Node {
+	f := tx.Factory()
+	method := node.AsMethodDeclaration()
+	generator := tx.generatedFunctions(tx.generatorFrom(node, parameters, body))
+	lowered := tx.wrapGenerator("fnUntraced", node, generator)
+	apply := f.NewPropertyAccessExpression(lowered, nil, f.NewIdentifier("apply"), ast.NodeFlagsNone)
+	call := f.NewCallExpression(apply, nil, nil, f.NewNodeList([]*ast.Node{f.NewThisExpression(), f.NewIdentifier("arguments")}), ast.NodeFlagsNone)
+	var forwarding []*ast.Node
+	for _, parameter := range node.Parameters() {
+		if ast.IsIdentifier(parameter.Name()) && parameter.Name().Text() == "this" {
+			continue
+		}
+		p := parameter.AsParameterDeclaration()
+		if p.Initializer != nil || p.DotDotDotToken != nil {
+			break
+		}
+		forwarding = append(forwarding, f.NewParameterDeclaration(nil, nil, f.NewUniqueName("arg"), nil, nil, nil))
+	}
+	var statements []*ast.Node
+	for _, statement := range node.Body().Statements() {
+		if !ast.IsPrologueDirective(statement) {
+			break
+		}
+		statements = append(statements, f.NewExpressionStatement(f.NewStringLiteralFromNode(statement.Expression())))
+	}
+	statements = append(statements, tx.generated(f.NewReturnStatement(tx.traceMethod(node, call))))
+	block := f.NewBlock(f.NewNodeList(statements), true /*multiLine*/)
+	result := f.UpdateMethodDeclaration(method, node.Modifiers(), method.AsteriskToken, node.Name(), method.PostfixToken, method.TypeParameters, f.NewNodeList(forwarding), method.Type, method.FullSignature, block)
+	tx.EmitContext().SetOriginal(result, node)
+	return result
 }
 
 // usesThis reports whether body refers to this, looking into arrow

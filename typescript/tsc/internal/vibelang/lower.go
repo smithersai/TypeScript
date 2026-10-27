@@ -596,9 +596,11 @@ func (tx *lowering) lowerFunction(node *ast.Node) *ast.Node {
 // lambda keeps its enclosing function's this.
 func (tx *lowering) lowerProgram(node *ast.Node) *ast.Node {
 	parameters, body := tx.loweredBody(node)
-	// Only an arrow: Effect.gen gives a function expression's body no this or
-	// arguments, which a thunk in its place would take from its scope.
-	if node.Kind == ast.KindArrowFunction {
+	// Only a parameterless arrow: a program lambda can have optional or rest
+	// parameters, which must still bind inside the generator on each run.
+	// Effect.gen gives a function expression's body no this or arguments,
+	// which a thunk in its place would take from its scope.
+	if node.Kind == ast.KindArrowFunction && len(node.Parameters()) == 0 {
 		// The thunk replaces the lambda, so it stands for the lambda, unless
 		// the parser wrote it (isProgramArrow).
 		role := thunkIsNode
