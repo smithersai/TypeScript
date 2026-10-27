@@ -463,3 +463,30 @@ console.log(JSON.stringify(projectImports(${JSON.stringify(options)})))
     })
   }
 }
+
+for (const change of ["absent", "deleted", "created"]) {
+  test(`a config ${change} during compilation settles with diagnostics`, async (t) => {
+    const root = fixture(t)
+    const project = join(root, "tsconfig.json")
+    const compiler = join(root, "compiler.mjs")
+    const calls = join(root, "calls")
+    if (change === "deleted") writeFileSync(project, "{}")
+    writeFileSync(compiler, `import { existsSync, readFileSync, writeFileSync, rmSync } from "node:fs"
+const project = ${JSON.stringify(project)}
+const calls = ${JSON.stringify(calls)}
+const count = existsSync(calls) ? Number(readFileSync(calls, "utf8")) + 1 : 1
+writeFileSync(calls, String(count))
+if (count === 1 && ${JSON.stringify(change)} === "deleted") rmSync(project)
+if (count === 1 && ${JSON.stringify(change)} === "created") writeFileSync(project, "{}")
+console.log("error TS5058: The specified path does not exist")
+process.exit(1)
+`)
+    const modules = projects({ root, project, compiler, cache: false, debug(line) {
+      // Bound the regression without leaving a retrying child process behind.
+      if (line.includes("3 started")) throw new Error("project retried indefinitely")
+    } })
+    const loaded = await modules.load(join(root, "main.vibe"))
+    assert.equal(loaded.errors[0].code, "TS5058")
+    assert.equal(Number(readFileSync(calls, "utf8")), change === "absent" ? 1 : 2)
+  })
+}

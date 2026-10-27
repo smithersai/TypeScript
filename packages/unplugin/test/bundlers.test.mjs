@@ -357,3 +357,16 @@ Bun.build = (options) => { unlinkSync(${JSON.stringify(asset)}); return build(op
     })
   }
 })
+
+for (const bundler of ["webpack", "rspack", "rollup", "esbuild"]) {
+  it(`${bundler} reports a missing project instead of retrying forever`, async (t) => {
+    const root = await fixture(t, `${bundler}-missing`)
+    await rm(join(root, "tsconfig.json"))
+    const result = spawnSync(process.execPath, ["--no-warnings", build, bundler], {
+      cwd: root, encoding: "utf8", timeout: 15_000
+    })
+    assert.equal(result.error, undefined, result.stderr)
+    assert.equal(result.status, 1, result.stdout + result.stderr)
+    assert.match(result.stdout + result.stderr, /TS5058/)
+  })
+}

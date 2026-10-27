@@ -326,7 +326,17 @@ export function workspaceProject(file, root, project) {
   return project
 }
 
-// Returns a file modified after time, or one that is gone.
+// Compare the config across the compile, including persistent stat failures.
+function fileState(file) {
+  try {
+    const { mtimeMs, ctimeMs, size, ino } = statSync(file)
+    return JSON.stringify([mtimeMs, ctimeMs, size, ino])
+  } catch (error) {
+    return error.code
+  }
+}
+
+// Returns a source modified after time, or one that is gone.
 function changedSince(files, time) {
   for (const file of files) {
     try {
@@ -378,6 +388,7 @@ export function projects({ root, project, compiler, cache, debug = () => {} }) {
         // File mtimes retain fractional milliseconds. An integer Date.now()
         // can precede a save that already happened in this same millisecond.
         const time = performance.timeOrigin + performance.now()
+        const configBefore = fileState(state.tsconfig)
         debug(`compile ${state.tsconfig} ${started} started`)
         state.pending = state.backend.compile(state.tsconfig)
           .then((value) => {
@@ -386,7 +397,9 @@ export function projects({ root, project, compiler, cache, debug = () => {} }) {
             debug(`compile ${state.tsconfig} ${started} finished in ${Math.round(performance.timeOrigin + performance.now() - time)}ms: ${value.outputs.size} outputs, ${value.errors.length} errors`)
             // A file saved during the compile may be missing from its output. esbuild records
             // watch files when a load returns, so it would not rebuild for that save. Compile again.
-            const changed = changedSince([state.tsconfig, ...value.inputs], time)
+            const changed = fileState(state.tsconfig) !== configBefore
+              ? { file: state.tsconfig, error: "config state changed" }
+              : changedSince(value.inputs.filter((file) => file !== state.tsconfig), time)
             if (changed) {
               revision++
               debug(`${changed.file} changed during compile ${started}: revision ${revision}; mtime=${changed.mtime ?? changed.error}, started=${time}`)
