@@ -149,7 +149,7 @@ vibelang/smoke.sh vibelang-infer   # one case
 
 #### Research and drafts
 
-- `docs/design/DECISIONS.md`: the decision log, D1-D391, the record of why each rule is what it is (D360).
+- `docs/design/DECISIONS.md`: the decision log, D1-D420, the record of why each rule is what it is (D360).
 - `docs/research/effect4-runtime.md`: Effect 4.0.5 runtime facts, with 23 scripts in `experiments/scripts/runtime-facts/`. Scripts written for this design live in `experiments/scripts/`.
 - `docs/research/continuation-prior-art.md`: OCaml 5, Kotlin, Swift, Loom, WasmFX, Koka, Effekt, Effection, js_of_ocaml, and the papers.
 - `docs/research/vibelang.md`: the earlier VibeLang project's `main` (`c60eca97`) and the unmerged checkpoint (`ebe89a2b`).
@@ -205,6 +205,216 @@ Stages as fetched on 2026-10-16 (`docs/research/tc39-syntax.md`).
 | Abort Controller, Concurrency control | 1 | Not adopted. Effect's interruption and `concurrency` options |
 | F#-style pipes; `Function.pipe` and `flow` | Failed Stage 2; withdrawn | Not applicable |
 
+### Grammar
+
+VibeLang's grammar is TypeScript's, as the pinned compiler's parser accepts it for a `.ts` file (Chapter 27: `microsoft/TypeScript` at `257e874`, TypeScript 7.1), with the changes this section states [Rule] (D419). Each change names the rule that gives it meaning; a nonterminal this section does not define is TypeScript's or ECMA-262's. A `.ts` file and a `module` declaration's body use TypeScript's grammar unchanged. A hatch's first argument is parsed by this grammar and then checked as TypeScript, so a VibeLang form inside it is an error that names it, such as EK2114 for a catch expression and EK4612 for `join`.
+
+Notation, as in ECMA-262 where it can be: a token is quoted; `X?` is optional, `X*` repeats, `X+` repeats at least once, `|` separates alternatives; `[nLT]` is ECMA-262's [no LineTerminator here]; `[lookahead ≠ t]` excludes a next token.
+
+#### Contextual words
+
+No word VibeLang adds is reserved. Each is a keyword only in the position the table gives, and an identifier everywhere else, so `const match = 1`, `error.message`, `words.join(",")`, and a local function named `fork` called as `fork(x)` parse as in TypeScript; which of the parenthesized forms is the keyword follows rule H5.
+
+| Word | A keyword where | Production |
+| --- | --- | --- |
+| `error`, `service`, `control`, `schema`, `data` | At the start of a statement, or after `export`, `declare`, or `abstract`, followed on the same line by an identifier; `schema` also by `error` | Declarations |
+| `mutable` | Before a property or index signature's name on the same line, in an interface or object type (D134) | Declarations |
+| `module` | At the start of a top-level statement, followed on the same line by an identifier and `{` (D283) | ModuleDeclaration |
+| `try` | Followed by `(` where an expression starts: a call of the hatch; followed by `{`, TypeScript's try statement (D149) | TypeScript's call |
+| `fork` | Followed on the same line by an identifier, `this`, `new`, `super`, `await`, `{`, or `(` (D166, D391) | ForkExpression |
+| `join` | Followed on the same line by an identifier, `this`, `{`, `(`, or, after white space, `[`; `join[i]` without the space is an element access (D225, D391) | JoinExpression |
+| `await` `.` `all`, `allSettled`, `race`, `any` | Always; a plain `await` parses as TypeScript's and is EK4601-EK4604 (D196, D226) | AwaitOperation |
+| `provide` | At the start of a statement, followed on the same line by a provider or `(` (D172) | ProvideStatement |
+| `uninterruptible`, `interruptible`, `restore` | At the start of a statement, followed on the same line by `{` (D180) | MaskStatement |
+| `concurrent` | After `for` on the same line (D169) | ForConcurrentStatement |
+| `handle` | After a try statement's block or another handle clause (D132) | HandleClause |
+| `catch` | After an expression; after a try block it is TypeScript's (D236) | CatchExpression |
+| `match` | Followed, with no line break, by a parenthesized expression and, on the same line, `{` and then `when`, `default`, or `}` (D206) | MatchExpression |
+| `when`, `default` | At the start of a match arm | MatchArm |
+| `is` | After an operand of a relational operator, as `instanceof` (D211) | RelationalExpression |
+| `and`, `or`, `not`, `let`, `if` | Inside a pattern | Pattern |
+| `infer` | As a channel of a function's return annotation (D57) | Contract |
+| `throw`, `do` | Where an expression is expected; at the start of a statement they are TypeScript's statements (D186, D187) | ThrowExpression, DoExpression |
+
+`%` where an expression starts is the pipe's topic; after an operand it is the remainder operator, so `n |> % % 2` is `n % 2` (D154, D156).
+
+#### Types
+
+```text
+Type :
+  FunctionType | ConstructorType | ConditionalType           TypeScript's; a FunctionType's return type may be a Contract
+ConditionalType :
+  CheckType
+  CheckType "extends" UnionType "?" Type ":" Type             only where CheckType is a UnionType, or parenthesized
+CheckType :
+  UnionType
+  Contract
+Contract :                                                    A!E!R is Effect<A, E, R> (D127, D309)
+  UnionType "!" [nLT] Slot? "!" [nLT] FinalSlot?              A!E!R, A!E!, A!!R, A!!
+  UnionType "!" [nLT] FinalSlot                               A!E: R inferred on a function with a body, else never (D335)
+Slot :
+  [lookahead ≠ "{"] UnionType
+FinalSlot :
+  [lookahead ≠ "{"] UnionType
+  [lookahead ≠ "{"] UnionType "extends" UnionType "?" Type ":" Type
+InferChannel :
+  "infer" Identifier                                          a Slot, FinalSlot, or type argument of Effect<…> in the return annotation of a function with a body (D57, D414)
+```
+
+UnionType includes intersections, postfix `[]`, indexed access, and the prefix operators `keyof` and `typeof`, so each binds inside a slot (Chapter 14's table). A `!` after a function type's return type belongs to that return type, and a conditional after the last slot belongs to that slot. A `{` after a `!` starts the function's body in a return annotation, so an object type in a slot is parenthesized.
+
+#### Declarations
+
+```text
+VibeDeclaration :
+  ErrorDeclaration | ServiceDeclaration | ControlDeclaration | SchemaDeclaration | DataDeclaration
+ErrorDeclaration :                                            D126, D278, D279, D304
+  "abstract"? "schema"? "error" [nLT] BindingIdentifier TypeParameters? ClassHeritage? ClassBody?
+ServiceDeclaration :                                          D128, D223, D281
+  "service" [nLT] BindingIdentifier ClassBody
+  "service" [nLT] BindingIdentifier ":" Type ClassBody?
+ControlDeclaration :                                          D128, D223
+  "control" [nLT] BindingIdentifier ClassBody
+SchemaDeclaration :                                           D133, D280
+  "schema" [nLT] BindingIdentifier "{" SchemaField* "}"
+  "schema" [nLT] BindingIdentifier "=" Type
+SchemaField :
+  "mutable"? PropertyName "?"? ":" Type
+DataDeclaration :                                             D307
+  "data" [nLT] BindingIdentifier TypeParameters? "{" DataVariant* "}"
+DataVariant :
+  Identifier
+  Identifier "{" DataField* "}"
+DataField :
+  PropertyName "?"? ":" Type
+ModuleDeclaration :                                           D283, D364, D403
+  "module" [nLT] BindingIdentifier "{" ModuleBody "}"         a top-level statement only (EK4408); the body is TypeScript
+FromClause :
+  "from" StringLiteral
+  "from" IdentifierReference                                  names a ModuleDeclaration of the file (EK4407)
+```
+
+A VibeDeclaration may follow `export`, and `declare` where TypeScript allows it. In an `error`, `service`, `control`, or `schema` body, and in a data declaration, fields and variants are separated by `;` or a line break; a `,` is EK1013. In an interface or object type, `mutable` before a member's name on the same line makes it writable (D134); every other member there is readonly.
+
+#### Statements
+
+```text
+TryStatement :
+  "try" Block HandleClause+ Catch? Finally?                   D132
+  "try" Block Catch Finally?                                  TypeScript's
+  "try" Block Finally
+HandleClause :
+  "handle" MemberExpression "(" FormalParameters ")" Block    MemberExpression names a control's operation
+Finally :
+  "finally" Block
+  "finally" "(" BindingIdentifier ")" Block                   D178
+ProvideStatement :                                            D130, D172, D173
+  "provide" [nLT] ProviderList [nLT] Block
+  "provide" "(" ProviderList ")" Block
+ProviderList :
+  Provider ("," Provider)*
+Provider :
+  LeftHandSideExpression "=" AssignmentExpression             one service, Key = value
+  AssignmentExpression
+MaskStatement :                                               D180
+  ("uninterruptible" | "interruptible" | "restore") [nLT] Block
+ForConcurrentStatement :                                      D169, D354
+  "for" [nLT] "concurrent" ("(" AssignmentExpression ")")? "(" ForDeclaration "of" AssignmentExpression ")" Statement
+```
+
+In a ProviderList, a `{` where a provider starts is an object literal, and a `{` after a complete provider ends the list and starts the statement's block: a provider is never followed by a block param (D188). ECMAScript's `using` declarations and `for (using …)` loops keep their grammar, with Chapter 6's meaning.
+
+#### Expressions
+
+```text
+PrimaryExpression :
+  TypeScript's | TopicReference | DoExpression | MatchExpression
+TopicReference :                                              D154, D156
+  "%"                                                         only in a pipe's body (EK1007)
+DoExpression :                                                D187, rule L5
+  "do" Block
+MatchExpression :                                             D206
+  "match" [nLT] "(" Expression ")" [nLT] "{" MatchArm* DefaultArm? "}"
+MatchArm :
+  "when" Pattern Guard? ":" AssignmentExpression ";"
+DefaultArm :
+  "default" ":" AssignmentExpression ";"
+Guard :
+  "if" "(" Expression ")"
+CallExpression :
+  TypeScript's
+  CallExpression [nLT] Block                                  f(args) { … } is f(args, () => { … }) (D188, D376)
+  MemberExpression [nLT] Block                                f { … } is f(() => { … })
+UnaryExpression :
+  TypeScript's | ForkExpression | JoinExpression | AwaitOperation | ThrowExpression
+ForkExpression :                                              D166, D391
+  "fork" [nLT] UnaryExpression
+  "fork" [nLT] Block
+JoinExpression :                                              D225, D391
+  "join" [nLT] UnaryExpression                                a "{" here starts an object literal
+AwaitOperation :                                              D196, D377, D394
+  "await" "." ("all" | "allSettled" | "race" | "any") [nLT] UnaryExpression
+ThrowExpression :                                             D186
+  "throw" UnaryExpression
+RelationalExpression :
+  TypeScript's
+  RelationalExpression "is" Pattern                           D211
+CatchExpression :                                             D236, D237
+  ShortCircuitExpression
+  CatchExpression "catch" ShortCircuitExpression              x catch fallback
+  CatchExpression "catch" ArrowParameters "=>" ConciseBody    x catch (e) => h
+ConditionalExpression :
+  CatchExpression
+  CatchExpression "?" AssignmentExpression ":" AssignmentExpression
+PipeExpression :                                              D154
+  ConditionalExpression
+  PipeExpression "|>" ConditionalExpression
+AssignmentExpression :
+  TypeScript's, with PipeExpression where TypeScript has ConditionalExpression
+```
+
+A block param is not taken after `new`, in a heritage clause, or after a provider (above). A statement that starts with `throw`, `do`, `{`, or `match` followed by a line break is TypeScript's statement, not one of these expressions. The arguments of a CallExpression, a block param included, follow rule E1.
+
+#### Patterns
+
+```text
+Pattern :                                                     D206, D207
+  PatternTerm
+  PatternTerm ("and" PatternTerm)+
+  PatternTerm ("or" PatternTerm)+                             mixing "and" and "or" at one level is EK4705
+PatternTerm :
+  "not" PatternTerm
+  "(" Pattern ")"
+  LiteralPattern                                              a string, numeric, or bigint literal, "-" NumericLiteral, true, false, null, undefined
+  ("let" | "const" | "var") BindingIdentifier
+  "[" (PatternElement ("," PatternElement)*)? ","? "]"
+  "{" (PatternProperty ("," PatternProperty)*)? ","? "}"
+  MatcherReference
+  MatcherReference "(" (Pattern ("," Pattern)*)? ")"         an extractor
+  MatcherReference "{" ("let" BindingIdentifier (";" | ",")?)* "}"   a data variant's fields (D307, EK4706)
+PatternElement :
+  Pattern
+  "..." ("let" | "const" | "var") BindingIdentifier
+PatternProperty :
+  ("let" | "const" | "var") BindingIdentifier
+  PropertyName ":" Pattern                                    a computed key other than a name or literal is EK4704
+  "..." ("let" | "const" | "var") BindingIdentifier
+MatcherReference :
+  IdentifierReference ("." IdentifierName)*                   resolved by scope (rule H4, D367)
+```
+
+Regular expression and relational patterns are EK4704 (D212). A binding inside `or` or `not` is EK4702, and an `is` that binds outside an `if` or `while` condition is EK4703 (Chapter 30's restrictions).
+
+#### Line breaks
+
+- Every `[nLT]` above is a place where a line break ends the form: a contract's slot, the operand of `fork`, `join`, and the await operations, a block param, `match`, and the block of `provide` and the masks.
+- A `{` that begins a line after a statement that ends, with no `;`, in an identifier, a member access, or a call is EK1022, a syntax error: on one line it would be a block param, and on the next JavaScript makes it a block statement (D376).
+- Otherwise automatic semicolon insertion is ECMAScript's; a match arm's `;` may be left to it (D206).
+
+#### Precedence
+
+From the tightest: member access, calls and block params; the unary operators, `fork`, `join`, the await operations, and `throw` in an expression; TypeScript's binary operators, with `is` at `instanceof`'s level; `&&`, `||`, and `??`; `catch`, left-associative; `? :`; `|>`, left-associative; assignment and arrow functions; the comma. Chapter 13 gives each form's decision, and Chapter 14 the precedence inside contracts.
+
 ### Glossary
 
 The terms the rules use. A term defined here means only this in a rule.
@@ -213,12 +423,17 @@ The terms the rules use. A term defined here means only this in a rule.
 | --- | --- |
 | Abandonment | Ending a captured continuation without resuming it: its owner unwinds it as an interruption, running its finalizers (Chapters 20, 21) |
 | Call that runs | A call whose callee's declared return type is definitely an `Effect`, or whose callee is itself an Effect value, `p()`: it runs the program on the current fiber and evaluates to its success value (Chapter 13) |
+| Closed class | A class whose arm covers its type in an exhaustive match: an `error` declaration, or an error class of the pinned `effect`, that neither declares nor inherits its own `[Symbol.hasInstance]` or `[customMatcher]`; an `error` declaration's type is nominal (Chapter 3, D407) |
+| Contextual keyword | A word that is a keyword only in the position the grammar gives, such as `fork` before its operand, and an identifier elsewhere (Grammar) |
 | Cause | Effect's record of why a program did not succeed: an ordered list of reasons, each a Fail (an expected failure), a Die (a defect), or an Interrupt (Chapter 17) |
 | Cold | Of a program: building it runs none of its work, and each run starts its work afresh |
 | Context | Effect's map from service identifiers to implementations, which a running program reads its services from |
 | Contract | A function's `Effect<A, E, R>`, written as `A!E!R` or `Effect<A, E, R>`, or inferred: its success type, expected failures, and requirements (Chapter 14) |
 | Control operation | A member of a `control` declaration: a request a handler answers, which may capture the continuation (Chapter 9) |
 | Data type | A `data` declaration, or a tagged union declared with `Data.taggedEnum`: a closed set of tagged variants (Chapter 11) |
+| Declared return type | The return type written in the declaration a call's resolved signature comes from, with every type parameter in scope there left uninstantiated (Chapter 13, D393) |
+| Definitely an Effect | Of a type: the `Effect` interface with any type arguments, written directly or through an alias; a conditional whose every branch is definitely an Effect or `never`; or a union whose every member is. Never a type parameter, `any`, `unknown`, an intersection, or a type that extends `Effect` (Chapter 13, rule R) |
+| Destination | Where a function or a value lands and is typed: the parameter of the signature a call resolves to, a declared variable, field, or return type, or a field of a contextually typed object literal (Chapter 13, rule F) |
 | Defect | A failure no contract lists: a bug or an unlisted foreign exception. It is a Die reason, outside E, and `catch` does not receive it (Chapter 17) |
 | Direct variant | The plain-JavaScript form of a function that performs no Effect operation, which VibeLang callers call instead of its Effect form (Chapter 15) |
 | Evaluate | To compute an expression's value, once, in source order. The value may be a program, which evaluating does not run |
@@ -232,12 +447,15 @@ The terms the rules use. A term defined here means only this in a rule.
 | Layer | Effect's `Layer<Out, E, In>`: a recipe that builds the services `Out`, may fail with `E`, and needs `In` (Chapter 4) |
 | Live binding | An import that reads the exporting binding's current value at each use, as an ECMAScript import does (Chapter 26) |
 | Observation | What a run of a program shows the world: its exit and Cause, its effects outside the program in order and number, its bindings, its lifetimes, and its suspension points. Two programs are observationally equivalent when every observation is the same (Chapter 26) |
+| Own form | A function's form before any destination is read: the form its return annotation names, or, without one, plain when it is eligible for the plain form and Effect otherwise (Chapter 13, rule F) |
 | Plain function | A function that compiles to plain JavaScript: it performs no Effect operation, cannot fail with an expected failure, and needs no service (Chapter 15) |
+| Plain marker | The type-only `$plain` member a declaration file gives a function that compiles to plain JavaScript, naming its plain call signature (Chapter 27, D384, D411) |
 | Prelude | The names every `.vibe` file has in scope without an import: the runtime's exports and Effect's modules (Chapter 1) |
-| Producer | What a `function*` declares: a cold program that yields values one at a time, a `Stream` to TypeScript (Chapter 8) |
+| Producer | What a `function*` call returns: a `Stream` value that carries a cold program yielding values one at a time; `for...of` runs that program on its own fiber, and any other consumer through the adapter (Chapter 8, D402) |
+| Protocol method | A method JavaScript calls by name without reading a declaration: `toString`, `toLocaleString`, `valueOf`, `toJSON`, `then`, or a method keyed by a well-known symbol or one of the pinned `effect`'s protocol symbols; checked as a plain function (Chapter 10, D397) |
 | Program | A cold value that runs when something runs it: an `Effect`, or a function with no required parameters, which becomes an `Effect` where one is expected (Chapters 5, 13) |
 | Provider | What removes services from R: a layer, a non-empty list of layers, a `Context`, or `Key = value` (Chapter 4) |
-| Region | A block the compiler lowers to its own Effect frame: a `try`, `catch`, or `finally` block, a block that declares `using` or calls `fork`, a `provide` block, a mask (Chapter 26) |
+| Region | A block the compiler lowers to its own Effect frame: a function body, a loop iteration, a `try`, `catch`, or `finally` block, a block that declares `using`, a `provide` block, a mask. A fiber belongs to the innermost region around its `fork`; braces alone make none (Chapters 7, 26, D408) |
 | Requirement | A service a program looks up, an identifier in its R (Chapter 4) |
 | Resolved symbol | The declaration a name refers to after scope, imports, and aliases are followed. A rule that gives a name a meaning keys on the resolved symbol, never on the name's spelling (Chapter 13) |
 | Restriction | A limit of the current implementation, marked [Restriction]; not a rule of the language |
