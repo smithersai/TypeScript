@@ -19,10 +19,10 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 4,982 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,582 |
-| The skill and the user guide (133 pages) | 225,681 |
-| The user guide alone | 220,699 |
+| The skill and the user guide (133 pages) | 225,916 |
+| The user guide alone | 220,934 |
 | The specification (33 chapters) | 108,221 |
-| The decision log, `docs/design/DECISIONS.md` | 69,444 |
+| The decision log, `docs/design/DECISIONS.md` | 69,662 |
 
 ## Effect TypeScript beside VibeLang
 
@@ -96,13 +96,13 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Creating Effects](../getting-started/005-creating-effects.md) | 3,044 |
 | [Two Types of Errors](../error-management/006-two-error-types.md) | 648 |
 | [Basic Concurrency](../concurrency/007-basic-concurrency.md) | 1,441 |
-| **Core Concepts** | **15,521** |
+| **Core Concepts** | **15,678** |
 | [Effect's Modules](../getting-started/008-importing-effect.md) | 2,364 |
 | [Running Effects](../getting-started/009-running-effects.md) | 1,567 |
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
-| [Devtools](../getting-started/012-devtools.md) | 8,599 |
-| **All 12 pages** | **27,080** |
+| [Devtools](../getting-started/012-devtools.md) | 8,756 |
+| **All 12 pages** | **27,237** |
 
 ### Setup
 
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **10,951** |
-| [Release notes](../setup/release-notes.md) | 10,951 |
-| **All 15 pages** | **29,288** |
+| **Upgrade** | **11,029** |
+| [Release notes](../setup/release-notes.md) | 11,029 |
+| **All 15 pages** | **29,366** |
 
 ### Guides
 

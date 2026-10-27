@@ -77,6 +77,11 @@ one, and update `vibelang`, `vibelang-runtime`, and `vibelang-vite` together.
   type, the DOM's `Cache`, `Console`, `Crypto`, `FileSystem`, `Scheduler`,
   `Transferable` and `Worker` lose their bare names; alias one in a `.ts`
   file to use it.
+- `vibelang --fix` removes the imports these make redundant and writes
+  `M.M` as `M` where the module's name means its export:
+  `FileSystem.FileSystem.readFileString(path)` becomes
+  `FileSystem.readFileString(path)` and `Option.Option<number>` becomes
+  `Option<number>`. Run it once after you update.
 
 ### Platform code
 

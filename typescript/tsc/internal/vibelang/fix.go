@@ -45,7 +45,11 @@ import (
 // the files that add it are found, then each such file's fixes are; each fix
 // that adds an error is refused, named with the first error it adds, and not
 // tried again. A round so costs a few checks of the program, not one per
-// file. After the last round, an import of effect or one of its modules that
+// file. After the last round, it writes what the prelude makes shorter
+// (fix_prelude.go): it removes the imports of modules the prelude supplies
+// (D310, D311) and writes M.M as M where a module's name names its service,
+// keeping each file's rewrites only when the program then reports no error
+// it did not before. Then an import of effect or one of its modules that
 // the fixes left unused is removed. Nothing is written until every round is
 // done, nothing at all when the command is interrupted, and a second run
 // finds nothing to fix. --fix cannot be combined with --build or --watch.
@@ -133,7 +137,8 @@ func relativeName(sys tsc.System, name tspath.RootedFilePath) string {
 type FixedFile struct {
 	Original string
 	Text     string
-	Counts   map[int32]int // fixes applied, by code
+	Counts   map[int32]int  // fixes applied, by code
+	Rewrites map[string]int // prelude rewrites applied, by kind (fix_prelude.go)
 }
 
 // A FixRefusal is a fix that would add an error.
@@ -166,6 +171,12 @@ func (r *FixResult) Report(w io.Writer, name func(tspath.RootedFilePath) string)
 		var parts []string
 		for _, code := range codes {
 			parts = append(parts, diagnosticSource+strconv.Itoa(int(code))+" ×"+strconv.Itoa(fixed.Counts[code]))
+		}
+		for _, kind := range []string{preludeImportLabel, preludeKeyLabel} {
+			if n := fixed.Rewrites[kind]; n > 0 {
+				parts = append(parts, kind+" ×"+strconv.Itoa(n))
+				count += n
+			}
 		}
 		total += count
 		fmt.Fprintf(w, "vibelang --fix: %s: %d %s (%s)\n", name(file), count, plural(count, "fix", "fixes"), strings.Join(parts, ", "))
@@ -246,6 +257,10 @@ func FixProject(ctx context.Context, fs vfs.FS, libraryPath tspath.RootedDirecto
 		}
 		program = build(texts)
 	}
+	// What the prelude makes shorter (D310, D311).
+	if done.Err() == nil {
+		rewritePrelude(g, fs, build(texts), texts, result)
+	}
 	// Remove the effect imports that the fixes left unused.
 	cleaned := map[tspath.RootedFilePath]string{}
 	for _, name := range result.Order {
@@ -262,6 +277,58 @@ func FixProject(ctx context.Context, fs vfs.FS, libraryPath tspath.RootedDirecto
 	}
 	slices.SortFunc(result.Order, tspath.RootedFilePath.Compare)
 	return result
+}
+
+// rewritePrelude applies the prelude rewrites of program's files
+// (fix_prelude.go) that add no error to g's baseline: all of them when they
+// pass together, else each file's that passes on its own. It records them in
+// result and texts.
+func rewritePrelude(g *fixGate, fs vfs.FS, program *compiler.Program, texts map[tspath.RootedFilePath]string, result *FixResult) {
+	rewrites := preludeRewriteProject(g.ctx, program)
+	if len(rewrites) == 0 {
+		return
+	}
+	candidates := map[tspath.RootedFilePath]string{}
+	var names []tspath.RootedFilePath
+	for name, r := range rewrites {
+		candidates[name] = applyEdits(program.GetSourceFile(name).Text(), r.edits)
+		names = append(names, name)
+	}
+	slices.SortFunc(names, tspath.RootedFilePath.Compare)
+	kept := map[tspath.RootedFilePath]string{}
+	if _, ok := g.passes(texts, candidates); ok {
+		kept = candidates
+	} else {
+		for _, name := range names {
+			if g.done.Err() != nil {
+				return
+			}
+			trial := maps(kept, map[tspath.RootedFilePath]string{name: candidates[name]})
+			if _, ok := g.passes(texts, trial); ok {
+				kept = trial
+			}
+		}
+	}
+	for _, name := range names {
+		text, ok := kept[name]
+		if !ok {
+			continue
+		}
+		fixed := result.Files[name]
+		if fixed == nil {
+			original, _ := fs.ReadFile(name)
+			fixed = &FixedFile{Original: original, Counts: map[int32]int{}}
+			result.Files[name] = fixed
+			result.Order = append(result.Order, name)
+		}
+		if fixed.Rewrites == nil {
+			fixed.Rewrites = map[string]int{}
+		}
+		fixed.Rewrites[preludeImportLabel] += rewrites[name].imports
+		fixed.Rewrites[preludeKeyLabel] += rewrites[name].keys
+		fixed.Text = text
+		texts[name] = text
+	}
 }
 
 // maps returns base with additions written over it.
