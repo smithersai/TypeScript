@@ -27,6 +27,11 @@ type editorTestHost struct {
 	converters *lsconv.Converters
 }
 
+func (h editorTestHost) ReadFile(path tspath.RootedFilePath) (string, bool) {
+	text, err := os.ReadFile(string(path))
+	return string(text), err == nil
+}
+
 func (h editorTestHost) Converters() *lsconv.Converters { return h.converters }
 func (h editorTestHost) GetPreferences(string) lsutil.UserPreferences {
 	return lsutil.UserPreferences{}

@@ -16,6 +16,7 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ls/lsutil"
 	"github.com/microsoft/TypeScript/tsc/internal/lsp/lsproto"
 	"github.com/microsoft/TypeScript/tsc/internal/module"
+	"github.com/microsoft/TypeScript/tsc/internal/scanner"
 	"github.com/microsoft/TypeScript/tsc/internal/spanmap"
 	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
@@ -96,7 +97,7 @@ func (l *LanguageService) GetRenameInfo(ctx context.Context, newName string, doc
 }
 
 func (l *LanguageService) symbolAndEntriesToRename(ctx context.Context, params *lsproto.RenameParams, data SymbolAndEntriesData, options symbolEntryTransformOptions) (lsproto.WorkspaceEditOrNull, error) {
-	if !nodeIsEligibleForRename(data.OriginalNode) {
+	if !nodeIsEligibleForRename(data.OriginalNode) || !validNameForRename(data.OriginalNode, params.NewName) {
 		return lsproto.WorkspaceEditOrNull{}, nil
 	}
 
@@ -119,6 +120,10 @@ func (l *LanguageService) symbolAndEntriesToRename(ctx context.Context, params *
 	useAliasesForRename := l.UserPreferences().ProvidePrefixAndSuffixTextForRename.IsTrueOrUnknown()
 
 	for _, entry := range entries {
+		// Validate every occurrence too: a string property can also have identifier uses.
+		if entry.node != nil && !validNameForRename(entry.node, params.NewName) {
+			return lsproto.WorkspaceEditOrNull{}, nil
+		}
 		uri := l.getFileNameOfEntry(entry)
 		if l.UserPreferences().AllowRenameOfImportPath != core.TSTrue && entry.node != nil && ast.IsStringLiteralLike(entry.node) && ast.TryGetImportFromModuleSpecifier(entry.node) != nil {
 			continue
@@ -204,6 +209,19 @@ func (l *LanguageService) getRenameInfoForNode(ctx context.Context, newName stri
 	}
 
 	return getRenameInfoSuccess(node, sourceFile, ch.SymbolToString(symbol), l.converters), true
+}
+
+// Identifier edits must remain a single identifier. String literals and module
+// paths have their own rename rules and may contain punctuation.
+func validNameForRename(node *ast.Node, name string) bool {
+	if ast.IsPrivateIdentifier(node) {
+		return strings.HasPrefix(name, "#") && scanner.IsIdentifierText(name[1:], core.LanguageVariantStandard) && name != "#constructor"
+	}
+	if !ast.IsIdentifier(node) {
+		return true
+	}
+	return scanner.IsIdentifierText(name, core.LanguageVariantStandard) &&
+		(ast.IsIdentifierName(node) || !ast.IsNonContextualKeyword(scanner.StringToToken(name)))
 }
 
 func nodeIsEligibleForRename(node *ast.Node) bool {
