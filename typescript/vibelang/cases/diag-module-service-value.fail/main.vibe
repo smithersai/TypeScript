@@ -1,0 +1,9 @@
+// expect: TS2339
+export function write(f: string) {
+  const fs = FileSystem
+  fs.writeFileString(f, "x")
+}
+export function host() {
+  const proc = Experimental.Process
+  return proc.hostname()
+}

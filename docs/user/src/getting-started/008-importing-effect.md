@@ -80,6 +80,8 @@ Many of Effect's modules export something of their own name: the module `Option`
 
 The module's own exports win: `Option.some`, `FileSystem.layerNoop`, and `Path.layer` are the module's, and `Option.Option<number>` still works. A service key as a value stays explicit: `Layer.succeed(FileSystem.FileSystem, implementation)`.
 
+Assigning a module stores its namespace: `const fs = FileSystem`. If you then call `fs.writeFileString(path, text)`, TS2339 explains how to read the implementation. In an Effect function, write `const fs = FileSystem()`, or call `FileSystem.writeFileString(path, text)` directly. The same rule applies to `Experimental.Process` and the other modules that name a service. The hint keeps TS2339's code and location; it does not make a namespace value into a service implementation.
+
 ```vibe
 // run: provide Path.layer, FileSystem.layerNoop({ readFileString: (path) => `read ${path}` }) { Console.log(readConfig("/srv")); Console.log(firstOr(Chunk.empty(), 7)) }
 function readConfig(dir: string) {
