@@ -1,2 +1,2 @@
-already ran
-f(1) |> retry(%,
+Use |> with % to pass
+to the intended operation, or pass the call by name to that operation.

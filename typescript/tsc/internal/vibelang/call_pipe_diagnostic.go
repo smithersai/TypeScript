@@ -42,7 +42,7 @@ func explainCallPipe(c *checker.Checker, file *ast.SourceFile, all []*ast.Diagno
 		if node != nil && node.Parent != nil {
 			if call := missingCallPipe(c, node.Parent); call != nil {
 				replacement := newDiagnosticAt(optionsFor(c, file), file, d.Loc(), EK4502, nodeText(file, call))
-				note(replacement, "Write {0} |> retry(%, policy), or pass the call by name: retry({0}, policy).", nodeText(file, call))
+				note(replacement, "Use |> with % to pass {0} to the intended operation, or pass the call by name to that operation.", nodeText(file, call))
 				all[i] = replacement
 			}
 		}
