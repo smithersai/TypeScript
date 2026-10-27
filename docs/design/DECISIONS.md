@@ -243,7 +243,7 @@ These entries record implementation decisions. The known gaps distinguish implem
 
 **D73. Calls use the written contract**. A call to a function with a complete written contract adds the contract's E and R, not what its body does. A caller must rely on the public contract rather than a narrower implementation.
 
-**D74. Methods allow plain annotations**. Methods are exempt from EK2003 for a plain annotation, because a method implementing a plain-function member is declared that way (D55).
+**D74. Methods allow plain annotations** (revised 2026-10-27). A method with a plain annotation is checked as a function is: running an Effect under the annotation is EK2003. A method implementing a plain-function member (D55) is declared that way and is checked against that member, as EK4301. The earlier exemption covered every method, so `count(): number { sleep("1 millis"); return 42 }` declared `count(): number` and returned an unrun Effect to a caller that reached it through an interface.
 
 **D75. The compiler binary identifies as VibeLang**. The binary built from `tsc/cmd/tsc` always identifies as VibeLang (`vibelang --version` prints `VibeLang 0.0.1 (TypeScript 7.1.0-dev)`); there is no `cmd/vibelang`, which keeps the upstream diff to one seam.
 

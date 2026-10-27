@@ -1,0 +1,31 @@
+// A method that runs an Effect says so in its contract, so its declaration,
+// an interface it satisfies and a TypeScript caller all see the program and
+// its requirement (D74). A method whose body stays plain keeps its plain
+// annotation and compiles to a plain method (D67). consumer/src/main.ts calls
+// them through the declaration file; run.mjs compiles and runs it. With plain
+// annotations, count and read are EK2003 (method-plain-annotation-effect.fail).
+export service Count { n: number }
+
+export interface CounterApi {
+  count(): number!!
+  read(): number!!Count
+  label(): string
+}
+
+export class Counter {
+  count(): number!! {
+    sleep("1 millis")
+    return 42
+  }
+  read(): number!!Count {
+    return Count().n
+  }
+  label(): string {
+    return "counter"
+  }
+}
+
+export function total() {
+  const counter: CounterApi = new Counter()
+  return `${counter.label()} ${counter.count() + counter.read()}`
+}

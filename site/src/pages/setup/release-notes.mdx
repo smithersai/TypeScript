@@ -38,6 +38,7 @@ The fixes keep a rewrite only when it adds no compiler error.
 | `return x ?? throw c ? a : b` | EK1010: it previously parsed as `(x ?? throw c) ? a : b`, throwing only `c`. Write `return x ?? throw (c ? a : b)`. |
 | `error Sub extends Base { path: string }` when Base's constructor takes a primitive or list | EK2118 at the declaration; before, construction usually failed later with TS2345. Write a constructor that calls `super` with the arguments Base expects. |
 | `module { export const value = 1 }` | EK4408 replaces misleading platform/call errors. Name it: `module helpers { export const value = 1 }`. |
+| A method with a plain return annotation whose body runs an Effect, such as `count(): number { sleep("1 millis"); return 42 }` | EK2003, as for a function. It previously compiled, declared `count(): number`, and returned an unrun Effect to callers that reached it through an interface or from TypeScript. Write its contract, `count(): number!!`, or remove the annotation. A method implementing a plain member such as `[Equal.symbol]` keeps EK4301. |
 | An `await` binding such as `const await = 1` | Rejected in a VibeLang module; rename the binding. It previously compiled despite the reserved word. JavaScript `await` remains available inside TypeScript escapes. |
 
 Direct platform calls such as `console.log` and `process.env.NAME` were
@@ -46,8 +47,8 @@ are newly rejected. The trailing-throw example compiled with an inferred
 return in 0.0.10 and is now EK1010; a restrictive return contract could
 already reject it with EK2001. A nameless module already failed with less
 useful diagnostics. The DOM type example, bare program statements,
-primitive-base declaration and `await` binding compiled then and are
-rejected now.
+primitive-base declaration, effectful method under a plain annotation and
+`await` binding compiled then and are rejected now.
 
 With npm:
 

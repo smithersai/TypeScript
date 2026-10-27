@@ -242,9 +242,12 @@ func (a *analyzer) checkContract(file *ast.SourceFile, fn *ast.Node) {
 		}
 		// A plain annotation keeps its type on a function that compiles to
 		// plain JavaScript (D67). On one whose body runs an Effect it is not
-		// what the function returns. A method that implements a plain-function
-		// member, such as Equal.symbol, is checked against that member (D55).
-		if fn.Kind != ast.KindMethodDeclaration && !a.canBePlain(fn) {
+		// what the function returns, and a method is no exception: its
+		// declaration file and every caller that reaches it through a type
+		// would see the annotation (D74). A method that implements a
+		// plain-function member, such as Equal.symbol, is checked against
+		// that member instead (EK4301, D55).
+		if !a.canBePlain(fn) && (fn.Kind != ast.KindMethodDeclaration || a.plainMemberOwner(fn) == "") {
 			d := report(c, annotation, EK2003, written, functionDisplayName(fn))
 			note(d, "Write {0} to check that it cannot fail and needs nothing, or {1} to name its errors and infer its dependencies.", bangText(written, "never", "never"), bangText(written, "Errors"))
 			note(d, "Or remove the annotation to infer the whole contract.")
