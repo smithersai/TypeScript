@@ -24,3 +24,11 @@ test("Bun test instructions install and enable declarations before running Effec
     for (const part of ["bun add -d @types/bun", '"types": ["bun"]', '[test]', 'preload = ["vibelang/bun"]', 'from "bun:test"', "Effect.runSync(greeting("]) assert.ok(text.includes(part), part)
   }
 })
+
+test("runtime export table covers every built JavaScript root export", async (t) => {
+  let runtime
+  try { runtime = await import("../../packages/runtime/dist/index.js") }
+  catch (error) { if (error.code === "ERR_MODULE_NOT_FOUND") return t.skip("build packages/runtime first"); throw error }
+  const table = read("packages/runtime/README.md").split("## Public exports")[1].split(/\n## /)[0]
+  for (const name of Object.keys(runtime)) assert.ok(table.includes(`\`${name}\``), `undocumented root export: ${name}`)
+})

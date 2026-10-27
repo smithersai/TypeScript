@@ -85,6 +85,48 @@ JavaScript value. Decisions are in [`docs/design/DECISIONS.md`](../../docs/desig
 
 | Export | Purpose | Decision |
 | --- | --- | --- |
+| `$assertMatch` | Require a successful pattern match | — |
+| `$asyncHatch` | Adapt an asynchronous hatch and its optional AbortSignal | — |
+| `$await` | Lower a retired await form | — |
+| `$awaitAll` | Run concurrent programs and collect successes | — |
+| `$awaitAllSettled` | Run concurrent programs and collect typed results | — |
+| `$awaitAny` | Race for the first success | — |
+| `$awaitRace` | Race for the first completion | — |
+| `$catchCause` | Recover a complete Cause while preserving control abandonment | — |
+| `$defineProperty` | Captured Object.defineProperty intrinsic | — |
+| `$eager` | Track eager-call depth and its shared limit | — |
+| `$errorSubclass` | Construct a tagged error subclass | — |
+| `$extract` | Extract pattern bindings | — |
+| `$failCause` | Fail with a complete Cause | — |
+| `$failureOf` | Find the first expected failure in a recoverable Cause | — |
+| `$finallyExit` | Run cleanup with the try block exit | — |
+| `$forConcurrent` | Run a concurrent loop | — |
+| `$freeze` | Captured Object.freeze intrinsic | — |
+| `$is` | Test a lowered pattern | — |
+| `$join` | Join a fiber or collection of fibers | — |
+| `$noFailure` | Sentinel for a Cause without a recoverable expected failure | — |
+| `$noMatch` | Throw for a value that no match arm handled | — |
+| `$patternError` | Mark an unsupported pattern during checking | — |
+| `$provideService` | Supply a service implementation | — |
+| `$rest` | Extract object rest properties for a pattern | — |
+| `$schemaErrorFamily` | Register a schema error family and its union schema | — |
+| `$schemaErrorMember` | Register a schema error subclass with its ancestor families | — |
+| `$select` | Lower a retired select operation | — |
+| `attempt` | TypeScript name for the try hatch | — |
+| `callback` | Adapt a callback API with cancellation | — |
+| `customMatcher` | Symbol used to define a custom pattern matcher | — |
+| `detach` | Fork a program independently of the current block | — |
+| `interrupt` | Interrupt the running fiber | — |
+| `interruptible` | Run a program with interruption enabled | — |
+| `restore` | Restore the enclosing uninterruptible region’s previous interruptibility | — |
+| `runCallback` | Run a program with a callback for its exit | — |
+| `runFork` | Run a program on a new fiber | — |
+| `runPromise` | Run a program as a Promise | — |
+| `runSync` | Run a synchronous program | — |
+| `sync` | Run a TypeScript hatch; exceptions become defects | — |
+| `try` | Run a TypeScript hatch; exceptions become expected failures | — |
+| `uninterruptible` | Run a program with interruption masked | — |
+| `yieldNow` | Yield to the scheduler | — |
 | `$bind` | Run an Effect result or lift an ordinary value during prototype call lowering | D24 |
 | `Bind` (type) | Keep `$bind`'s success, failure, and requirement types | D24 |
 | `$program` | Convert a zero-argument function to a lazy, rerunnable Effect | D7 |
