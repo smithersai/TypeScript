@@ -1,0 +1,17 @@
+// expect: EK2002
+// A layer cannot supply its own input with its own output, which is not built
+// yet: wire(Decorated), where Decorated provides S and needs S, still needs
+// S, as Decorated does, so a block that provides it alone needs S.
+service S { value: string }
+
+const Decorated = Layer.effect(S) {
+  return { value: S().value + "!" }
+}
+const Wrapped = wire(Decorated)
+const kept: Layer.Layer<S, never, S> = Wrapped
+
+export function broken(): string!! {
+  provide kept {
+    return S().value
+  }
+}

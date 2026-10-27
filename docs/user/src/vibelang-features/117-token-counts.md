@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,113 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,705 |
-| The skill and the user guide (134 pages) | 245,009 |
-| The user guide alone | 239,896 |
+| The skill and the user guide (134 pages) | 245,073 |
+| The user guide alone | 239,960 |
 | The specification (33 chapters) | 166,290 |
 | The decision log, `docs/design/DECISIONS.md` | 107,236 |
 
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **24,157** |
-| [Release notes](../setup/release-notes.md) | 24,157 |
-| **All 15 pages** | **43,303** |
+| **Upgrade** | **24,206** |
+| [Release notes](../setup/release-notes.md) | 24,206 |
+| **All 15 pages** | **43,352** |
 
 ### Guides
 
@@ -148,10 +148,10 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Error Channel Operations](../error-management/022-error-channel-operations.md) | 1,362 |
 | [Parallel and Sequential Errors](../error-management/023-parallel-and-sequential-errors.md) | 763 |
 | [Custom Error Classes](../error-management/024-yieldable-errors.md) | 1,088 |
-| **Requirements Management** | **6,222** |
+| **Requirements Management** | **6,237** |
 | [Managing Services](../requirements-management/025-services.md) | 1,930 |
 | [Default Services](../requirements-management/026-default-services.md) | 965 |
-| [Managing Layers](../requirements-management/027-layers.md) | 2,416 |
+| [Managing Layers](../requirements-management/027-layers.md) | 2,431 |
 | [Layer Memoization](../requirements-management/028-layer-memoization.md) | 911 |
 | **Resource Management** | **4,481** |
 | [Introduction](../resource-management/029-introduction.md) | 1,623 |
@@ -252,7 +252,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Terminal](../platform/110-terminal.md) | 1,508 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 4,125 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **140,969** |
+| **All 100 pages** | **140,984** |
 
 ### VibeLang features
 

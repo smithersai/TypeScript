@@ -2688,6 +2688,7 @@ typescript/vibelang/cases/vibelang-wire/main.vibe:58:5 lambda effectFn service
 typescript/vibelang/cases/vibelang-wire/main.vibe:73:31 lambda program table
 typescript/vibelang/cases/vibelang-wrap/main.vibe:9:21 lambda choice fallback
 typescript/vibelang/cases/web-standard-globals/explicit.vibe:2:32 lambda plain annotation
+typescript/vibelang/cases/wire-self-input.fail/main.vibe:7:35 block applied/program table
 typescript/vibelang/lsp-fixture/src/catch-expression.vibe:12:10 lambda effectFn table
 typescript/vibelang/lsp-fixture/src/catch-expression.vibe:12:29 lambda effectFn table
 typescript/vibelang/lsp-fixture/src/catch-expression.vibe:16:10 lambda effectFn table

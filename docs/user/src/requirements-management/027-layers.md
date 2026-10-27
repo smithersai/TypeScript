@@ -118,7 +118,7 @@ const AppLive = wire(ReportsLive, PrinterLive, SettingsLive)
 
 `Layer.provide(consumer, dependencies)` feeds dependency outputs into the consumer and keeps the consumer's outputs; `provideMerge` also keeps the dependency outputs. `wire` derives this ordering from the layer contracts and rejects duplicate providers (EK3202) and cycles (EK3203).
 
-Inputs no argument provides stay in the resulting layer's `In`, so a partial graph is valid. At a runner, missing providers report EK3201 with the unsatisfied inputs. A written contract that excludes a remaining requirement reports EK2002. An argument whose type doesn't name its outputs, such as `Layer.Layer<any>`, is EK3204; compose it with `Layer.provide` instead.
+Inputs no other argument provides stay in the resulting layer's `In`, so a partial graph is valid; a layer that needs the service it provides still needs it from outside. At a runner, missing providers report EK3201 with the unsatisfied inputs. A written contract that excludes a remaining requirement reports EK2002. An argument whose type doesn't name its outputs, such as `Layer.Layer<any>`, is EK3204; compose it with `Layer.provide` instead.
 
 Reuse one layer value when several paths need a shared instance: equivalent reconstructed layer values have different memoization identities.
 
