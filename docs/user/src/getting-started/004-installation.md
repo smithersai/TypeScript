@@ -197,6 +197,10 @@ bun x --no-install vibelang --noEmit
 
 Set `"declaration": true` in `compilerOptions` to emit `.d.ts` files. The starter leaves this option off. The starter's `tsconfig.json` selects `.vibe` and TypeScript files under `src/`, excludes `*.test.vibe` from the build, treats a missing entry provider (EK3205) as an error, emits Node ESM to `dist/`, enables strict checking and source maps, and prevents emit on errors. Local source imports use `.vibe`; generated JavaScript and declaration files import `.js`, so a TypeScript project that installs your package resolves each module's declarations. `vibelang` accepts TypeScript compiler flags such as `--noEmit`, `--watch`, and `-b`.
 
+### TypeScript declaration consumers
+
+A downstream project using stock `tsc` needs **TypeScript 5.7 or later** for declarations built against the pinned `effect@4.0.6`. Effect's declarations use generic typed arrays such as `Uint8Array<ArrayBuffer>`, introduced in TypeScript 5.7; TypeScript 5.6 and earlier report errors such as “Type 'Uint8Array' is not generic.” This consumer requirement is separate from VibeLang's TypeScript 7.1 checker. Upgrade the consumer's `typescript` dependency; `skipLibCheck` can hide library errors but is not compatibility support.
+
 ## Coming from Effect
 
 Install `vibelang` to compile `.vibe` and `vibelang-runtime` beside `effect@4.0.6`. Write application logic in `.vibe` and keep ordinary TypeScript integrations in `.ts`; the compiler checks both file types as one program.

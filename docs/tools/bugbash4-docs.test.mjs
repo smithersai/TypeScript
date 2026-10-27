@@ -66,3 +66,8 @@ test("framework recipes retain VibeLang checking and run Effects before renderin
   const text = read("docs/user/src/setup.md")
   for (const part of ['vibelang-unplugin/webpack', 'next build --webpack', 'vibelang --noEmit && next build --webpack', 'ignoreBuildErrors', 'entire checker', 'vite: { plugins: [vibelang()] }', 'Effect.runSync(greet("Astro"))', '<h1>{message}</h1>']) assert.ok(text.includes(part), part)
 })
+
+test("declaration consumers have an explicit stock TypeScript compatibility floor", () => {
+  const text = read("docs/user/src/getting-started/004-installation.md")
+  for (const part of ["TypeScript 5.7 or later", "effect@4.0.6", "Uint8Array<ArrayBuffer>", "consumer requirement", "skipLibCheck"]) assert.ok(text.includes(part), part)
+})

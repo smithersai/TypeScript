@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 4,954 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,330 |
-| The skill and the user guide (132 pages) | 219,638 |
-| The user guide alone | 214,684 |
+| The skill and the user guide (132 pages) | 219,770 |
+| The user guide alone | 214,816 |
 | The specification (33 chapters) | 107,673 |
 | The decision log, `docs/design/DECISIONS.md` | 66,042 |
 
@@ -89,9 +89,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Start Here** | **2,241** |
 | [Welcome](../001-onboarding.md) | 1,641 |
 | [Why VibeLang?](../getting-started/002-why-effect.md) | 600 |
-| **Learning Path** | **9,141** |
+| **Learning Path** | **9,273** |
 | [The Effect Type](../getting-started/003-the-effect-type.md) | 1,783 |
-| [Installation](../getting-started/004-installation.md) | 2,270 |
+| [Installation](../getting-started/004-installation.md) | 2,402 |
 | [Creating Effects](../getting-started/005-creating-effects.md) | 2,999 |
 | [Two Types of Errors](../error-management/006-two-error-types.md) | 648 |
 | [Basic Concurrency](../concurrency/007-basic-concurrency.md) | 1,441 |
@@ -101,7 +101,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
 | [Devtools](../getting-started/012-devtools.md) | 8,559 |
-| **All 12 pages** | **25,586** |
+| **All 12 pages** | **25,718** |
 
 ### Setup
 
