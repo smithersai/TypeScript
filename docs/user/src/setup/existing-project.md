@@ -9,6 +9,11 @@ import { parseSettings } from "./settings.ts"
 function settings(text: string) { return try((text) => parseSettings(text), text) }
 ```
 
+Give a `.vibe` wrapper a different file stem from the `.ts` module it
+wraps. For example, `settings.vibe` beside `settings.ts` both emit
+`settings.js`, causing TS5056 in the CLI, Vite and Vitest. Name the wrapper
+`load-settings.vibe` instead.
+
 Use Effect services for platform, clock and randomness APIs, such as `Console`, `Clock` and `Random`. The compiler reports unwrapped foreign calls as `EK4401`, platform calls as `EK4402`, and uncontrolled time or randomness reads as `EK4403` ([diagnostics](../getting-started/012-devtools.md#diagnostics-completions-and-refactors)).
 
 ## 1. Check package.json

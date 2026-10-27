@@ -62,3 +62,8 @@ test("public guides explain rules without internal decision identifiers", () => 
   const script = read("scripts/rename-to-vibelang.mjs")
   assert.doesNotMatch(script, /by any lane|Smithers-Ops vault/)
 })
+
+test("existing-project migration explains same-stem output collisions", () => {
+  const page = read("docs/user/src/setup/existing-project.md")
+  for (const text of ["settings.vibe", "settings.ts", "settings.js", "TS5056", "load-settings.vibe"]) assert.ok(page.includes(text), text)
+})
