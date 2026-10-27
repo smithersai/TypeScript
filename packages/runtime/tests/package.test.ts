@@ -33,7 +33,10 @@ for (const version of ["4.0.6", "4.0.5", "4.0.7", "3.99.0"]) {
       expect(bundled.success).toBe(true)
       const bundle = await bundled.outputs[0].text()
       expect(bundle).not.toContain("node:module")
-      const commands = [["node", "main.js"], [process.execPath, "main.js"], ["node", "bundle/main.js"]]
+      const commands = [
+        ["node", "main.js"], [process.execPath, "main.js"], ["node", "bundle/main.js"],
+        ["node", "--input-type=commonjs", "-e", 'const { Effect, $bind } = require("vibelang-runtime"); console.log(Effect.runSync($bind(42)))']
+      ]
       for (const command of commands) {
         const result = Bun.spawnSync(command, { cwd: dir, stdout: "pipe", stderr: "pipe" })
         const output = result.stdout.toString() + result.stderr.toString()
@@ -60,3 +63,58 @@ test("package: emitted declarations resolve and retain helper types", () => {
   expect(result.stdout.toString() + result.stderr.toString()).toBe("")
   expect(result.exitCode).toBe(0)
 }, 30_000)
+
+test("package: a missing Effect 3 export cannot hide the version mismatch", async () => {
+  const dir = fixture("3.19.0")
+  try {
+    const effect = join(dir, "node_modules/effect")
+    const metadata = JSON.parse(readFileSync(join(effect, "package.json"), "utf8"))
+    metadata.exports["."] = "./index.js"
+    writeFileSync(join(effect, "package.json"), JSON.stringify(metadata))
+    // Keep the rest of the installed graph but omit Pull, as Effect 3 does.
+    const names = Object.keys(await import("effect")).filter((name) => name !== "Pull")
+    writeFileSync(join(effect, "index.js"), "export { " + names.join(", ") + ' } from "./dist/index.js"\n')
+    for (const command of [["node", "main.js"], [process.execPath, "main.js"]]) {
+      const result = Bun.spawnSync(command, { cwd: dir, stdout: "pipe", stderr: "pipe" })
+      const output = result.stdout.toString() + result.stderr.toString()
+      expect(result.exitCode).not.toBe(0)
+      expect(output).toContain("requires effect@4.0.6; found effect@3.19.0")
+      expect(output).toContain("npm install effect@4.0.6")
+      expect(output).not.toContain("does not provide an export")
+      expect(output).not.toContain("Export named")
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}, 30_000)
+
+test("package: guarded entry preserves every ABI export and its identity", async () => {
+  const entry = await import("../dist/entry.js")
+  const abi = await import("../dist/index.js")
+  expect(Object.keys(entry)).toEqual(Object.keys(abi))
+  for (const name of Object.keys(abi) as Array<keyof typeof abi>) {
+    expect(entry[name]).toBe(abi[name])
+  }
+})
+
+test("package: the version check does not resolve an incompatible Effect graph", () => {
+  const dir = fixture("3.19.0")
+  try {
+    const effect = join(dir, "node_modules/effect")
+    rmSync(join(effect, "dist"))
+    writeFileSync(join(effect, "package.json"), JSON.stringify({
+      name: "effect", version: "3.19.0", type: "module",
+      exports: { "./package.json": "./package.json" }
+    }))
+    for (const command of [["node", "main.js"], [process.execPath, "main.js"]]) {
+      const result = Bun.spawnSync(command, { cwd: dir, stdout: "pipe", stderr: "pipe" })
+      const output = result.stdout.toString() + result.stderr.toString()
+      expect(result.exitCode).not.toBe(0)
+      expect(output).toContain("requires effect@4.0.6; found effect@3.19.0")
+      expect(output).toContain("npm install effect@4.0.6")
+      expect(output).not.toContain("ERR_PACKAGE_PATH_NOT_EXPORTED")
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
