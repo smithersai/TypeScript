@@ -128,6 +128,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Docs
 
+- Fixes could land without a changelog entry or matching docs. The contribution rules now require both in the same commit, and the docs tests check the bug-list heading and release versions.
 - Platform-global examples could fail when copied from the page. The page now includes the context needed to compile its browser-service, import and export examples.
 - Search descriptions could contain fenced source code. The site now skips code blocks when choosing a page description.
 - The site's 404 page could appear in search results. It now tells search engines not to index it.

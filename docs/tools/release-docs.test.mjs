@@ -6,6 +6,85 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { releaseDocsProblems, renderReleasePage } from "./release-docs.mjs"
 
+
+// Release headings may lead package versions only for the next unreleased section.
+function assertReleaseHistory(notes, version) {
+  const [current, previous] = notes.split(/^## /m).slice(1)
+  assert.ok(current && previous, "release notes need current and previous sections")
+  const heading = /^(\d+\.\d+\.\d+(?:-[\w.-]+)?)( \(unreleased\))?$/.exec(current.split("\n")[0])
+  assert.ok(heading, "top release must name a version, optionally marked (unreleased)")
+  const previousVersion = previous.split("\n")[0]
+  assert.match(previousVersion, /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/, "the section below must be a published version")
+  if (heading[2]) {
+    assert.equal(previousVersion, version, "an unreleased section follows the compiler's published version")
+    const next = heading[1].split(/[.-]/).slice(0, 3).map(Number)
+    const published = version.split(/[.-]/).slice(0, 3).map(Number)
+    const difference = next.map((part, i) => part - published[i]).find(part => part !== 0)
+    assert.ok(difference > 0, "the unreleased version must be newer than the published version")
+  } else {
+    assert.equal(heading[1], version, "a published top section matches the compiler version")
+  }
+  assert.ok(current.split("\n").includes("### Bugs fixed since " + previousVersion),
+    "top release must have ### Bugs fixed since " + previousVersion)
+}
+
+test("the top release names the previous published version in its bug heading", () => {
+  const root = fileURLToPath(new URL("../../", import.meta.url))
+  const version = JSON.parse(readFileSync(join(root, "packages/compiler/package.json"), "utf8")).version
+  assertReleaseHistory(readFileSync(join(root, "docs/user/src/setup/release-notes.md"), "utf8"), version)
+})
+
+test("release history accepts the published and next unreleased states", () => {
+  assertReleaseHistory("## 9.8.7\n### Bugs fixed since 9.8.6\n## 9.8.6\n", "9.8.7")
+  assertReleaseHistory("## 9.8.8 (unreleased)\n### Bugs fixed since 9.8.7\n## 9.8.7\n", "9.8.7")
+})
+
+test("release history rejects missing or stale bug headings and mismatched versions", () => {
+  for (const notes of [
+    "## 9.8.7\n## 9.8.6\n",
+    "## 9.8.7\n### Bugs fixed since 9.8.5\n## 9.8.6\n",
+    "## 9.8.8\n### Bugs fixed since 9.8.7\n## 9.8.7\n",
+    "## 9.8.8 (unreleased)\n### Bugs fixed since 9.8.6\n## 9.8.6\n",
+    "## 9.8.7 (unreleased)\n### Bugs fixed since 9.8.7\n## 9.8.7\n",
+    "## 9.8.6 (unreleased)\n### Bugs fixed since 9.8.7\n## 9.8.7\n",
+    "## 9.8.7\n### Bugs fixed since 9.8.6\n## 9.8.6 (unreleased)\n",
+    "## 9.8.7\n### Bugs fixed since 9.8.6\n"
+  ]) assert.throws(() => assertReleaseHistory(notes, "9.8.7"))
+})
+
+test("an unreleased section keeps install pins and version-derived text on the compiler version", () => {
+  const repo = mkdtempSync(join(tmpdir(), "unreleased-docs-"))
+  const put = (path, text) => {
+    const file = join(repo, path)
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, text)
+  }
+  try {
+    put("packages/compiler/package.json", JSON.stringify({ version: "9.8.7" }))
+    put("docs/user/src/setup/release-notes.md", "## 9.8.8 (unreleased)\n### Bugs fixed since 9.8.7\n## 9.8.7\n")
+    put("README.md", "VibeLang 9.8.6; vibelang@9.8.6; vibelang-runtime@9.8.6")
+    put("examples/app/package.json", JSON.stringify({ devDependencies: { vibelang: "9.8.6" } }))
+    releaseDocsProblems(repo, true)
+    const notes = readFileSync(join(repo, "docs/user/src/setup/release-notes.md"), "utf8")
+    assertReleaseHistory(notes, "9.8.7")
+    assert.match(notes, /^## 9\.8\.8 \(unreleased\)/)
+    assert.equal(readFileSync(join(repo, "README.md"), "utf8"), "VibeLang 9.8.7; vibelang@9.8.7; vibelang-runtime@9.8.7")
+    assert.equal(JSON.parse(readFileSync(join(repo, "examples/app/package.json"), "utf8")).devDependencies.vibelang, "9.8.7")
+    assert.deepEqual(releaseDocsProblems(repo), [])
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test("contribution rules require each fix's changelog and affected docs in the same commit", () => {
+  for (const path of ["../../CONTRIBUTING.md", "../../.smithers/flows/docs/project.ts"]) {
+    const text = readFileSync(new URL(path, import.meta.url), "utf8")
+    assert.match(text, /Every fix commit must add one line to the top release-notes section.s/)
+    assert.match(text, /Bugs fixed since <last published version>/)
+    assert.match(text, /update every doc page its change affects, in the same commit/)
+  }
+})
+
 test("install pins, compiler output, prose and homepage badges derive from the compiler version", () => {
   const text = "Version 0.0.2; VibeLang 0.0.3; vibelang 0.0.1; In 0.0.2; Rehearsed for 0.0.2\n" +
     "vibelang@0.0.2 vibelang-runtime@0.0.2 vibelang-vite@0.0.2 vibelang-unplugin@0.0.2\n" +
@@ -149,12 +228,12 @@ test("the 0.0.10 release owns the Effect 4.0.6 migration and upgrade instruction
   ]) assert.ok(current.includes(text), text + " belongs in " + version)
 })
 
-test("published release notes lead with the current version and its upgrade instructions", () => {
+test("the 0.0.11 release retains its upgrade instructions", () => {
   const root = fileURLToPath(new URL("../../", import.meta.url))
-  const version = JSON.parse(readFileSync(join(root, "packages/compiler/package.json"), "utf8")).version
+  const version = "0.0.11"
   const notes = readFileSync(join(root, "docs/user/src/setup/release-notes.md"), "utf8")
-  const [current] = notes.split(/^## /m).slice(1)
-  assert.equal(current.split("\n")[0], version)
+  const current = notes.split(/^## /m).slice(1).find(release => release.split("\n")[0] === version)
+  assert.ok(current, "release notes retain " + version)
   for (const heading of ["Upgrade from 0.0.10", "Bugs fixed since 0.0.10", "Known limitations"]) {
     assert.ok(current.includes("### " + heading), heading)
   }
@@ -168,7 +247,8 @@ test("published release notes lead with the current version and its upgrade inst
 
 test("the 0.0.11 bug list covers the receiver report and service-alias diagnostic", () => {
   const notes = readFileSync(new URL("../user/src/setup/release-notes.md", import.meta.url), "utf8")
-  const current = notes.split(/^## /m)[1]
+  const current = notes.split(/^## /m).slice(1).find(release => release.split("\n")[0] === "0.0.11")
+  assert.ok(current, "release notes retain 0.0.11")
   const bugs = current.split("### Bugs fixed since 0.0.10\n")[1]?.split(/^### /m)[0]
   assert.ok(bugs, "0.0.11 needs a bug list for testers")
   for (const heading of ["Compiler and diagnostics", "Runtime", "Editor and language server", "Tooling and bundlers", "Docs"]) {
