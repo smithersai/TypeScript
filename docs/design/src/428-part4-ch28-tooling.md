@@ -355,6 +355,7 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK4836 | A warning: `Effect.withSpan`, `Effect.provide`, or `Effect.provideService` in a VibeLang function (D290) | `withSpan("name") { … }`, `provide Layer { … }` (quick fix) | 4, 24 |
 | EK4837 | A warning: a class that extends `Schema.TaggedError` with an empty body, which an error declaration replaces only by dropping its Schema (D284) | `error Failed { … }` where nothing needs the Schema; turn the code off where errors are Schemas by design | 3 |
 | EK9100 | The text projector cannot decide a lambda or await element’s form (editor warning before the emit switch) | Annotate with the fork’s inferred form and channels where safe; program-form and await sites require an author’s annotation | 10 |
+| EK9101 | The text projector needs a data-method receiver annotation (editor-only suggestion; not emitted by the CLI) | Use “Annotate as the fork infers” to write the checker's receiver type on a local declaration or expression assertion | 10 |
 
 #### Linting
 
