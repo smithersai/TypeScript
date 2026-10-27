@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 // Lowering pipes (pipes.go). A pipe compiles to its body, with each topic
@@ -16,11 +17,12 @@ import (
 //	user |> greet(%, %.name)             (topic = user, greet(topic, topic.name))
 //
 // A topic passed by name becomes a program that evaluates the left side
-// (byNameProgram). A topic used once, and evaluated before anything else in
-// the body could have an effect, becomes the left side itself. Otherwise the
-// left side runs once into a variable, and each topic reads it; a function in
-// the body that reads the topic takes the variable's value when it is
-// created, so it keeps that value after the pipe runs again.
+// (byNameProgram). A topic used once, and evaluated after only values that
+// can neither run code nor change (stableValue, order.go), becomes the left
+// side itself. Otherwise the left side runs once into a variable, and each
+// topic reads it; a function in the body that reads the topic takes the
+// variable's value when it is created, so it keeps that value after the pipe
+// runs again.
 
 // pipeMode is how a pipe compiles.
 type pipeMode uint8
@@ -37,7 +39,7 @@ func (p *plan) planPipe(a *analyzer, pipe *ast.Node) {
 	switch {
 	case len(topics) != 0 && !slices.ContainsFunc(topics, func(topic *ast.Node) bool { return !a.isByName(topic) }):
 		p.pipes[pipe] = pipeByName
-	case len(topics) == 1 && topicFirst(pipe.AsBinaryExpression().Right, topics[0]):
+	case len(topics) == 1 && topicFirst(a.checker, pipe.AsBinaryExpression().Right, topics[0]):
 		p.pipes[pipe] = pipeSubstitute
 	default:
 		p.pipes[pipe] = pipeTemp
@@ -50,9 +52,10 @@ func (p *plan) planPipe(a *analyzer, pipe *ast.Node) {
 }
 
 // topicFirst reports whether evaluating node, which holds topic, always
-// evaluates topic, and evaluates nothing before it that could have an effect:
-// only names, literals, this, and property accesses of them.
-func topicFirst(node, topic *ast.Node) bool {
+// evaluates topic, and evaluates nothing before it that the left side could
+// change or that could have an effect: only stable values (order.go). A let
+// the left side assigns, or a getter, must run after it.
+func topicFirst(c *checker.Checker, node, topic *ast.Node) bool {
 	if node == topic {
 		return true
 	}
@@ -67,17 +70,30 @@ func topicFirst(node, topic *ast.Node) bool {
 		return false
 	}
 	before := true
-	node.ForEachChild(func(c *ast.Node) bool {
-		if c == child {
+	node.ForEachChild(func(operand *ast.Node) bool {
+		if operand == child {
 			return true
 		}
-		if !inert(c) {
+		if evaluatedBefore(node, operand) && !stableValue(c, operand) {
 			before = false
 			return true
 		}
 		return false
 	})
-	return before && topicFirst(child, topic)
+	return before && topicFirst(c, child, topic)
+}
+
+// evaluatedBefore reports whether operand, a child of node before the one
+// that holds the topic, is evaluated: not a punctuation or operator token, a
+// type, or the name a property access reads.
+func evaluatedBefore(node, operand *ast.Node) bool {
+	switch {
+	case ast.IsTypeNode(operand), ast.IsTokenKind(operand.Kind) && !ast.IsExpression(operand):
+		return false
+	case ast.IsPropertyAccessExpression(node) && operand == node.Name():
+		return false
+	}
+	return true
 }
 
 // evaluatedSometimes reports whether node evaluates child only on some
@@ -95,20 +111,6 @@ func evaluatedSometimes(node, child *ast.Node) bool {
 		}
 	case node.Flags&ast.NodeFlagsOptionalChain != 0:
 		return child != node.Expression()
-	}
-	return false
-}
-
-// inert reports whether evaluating node can have no effect: a name, a
-// literal, this, a type, a token, or a property access of an inert node.
-func inert(node *ast.Node) bool {
-	switch {
-	case ast.IsTokenKind(node.Kind) || ast.IsTypeNode(node):
-		return true
-	case node.Kind == ast.KindIdentifier || ast.IsLiteralKind(node.Kind):
-		return true
-	case node.Kind == ast.KindPropertyAccessExpression || node.Kind == ast.KindParenthesizedExpression:
-		return inert(node.Expression())
 	}
 	return false
 }

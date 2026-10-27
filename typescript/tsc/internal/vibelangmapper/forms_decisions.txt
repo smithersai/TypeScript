@@ -1682,6 +1682,9 @@ typescript/vibelang/cases/order-by-name-choice-success/main.vibe:20:11 byname pr
 typescript/vibelang/cases/order-by-name-choice-success/main.vibe:21:11 lambda program table
 typescript/vibelang/cases/order-by-name-choice-success/main.vibe:24:11 byname program table
 typescript/vibelang/cases/order-by-name-choice-success/main.vibe:25:11 lambda program table
+typescript/vibelang/cases/order-pipe-topic-first/main.vibe:11:14 lambda plain annotation
+typescript/vibelang/cases/order-pipe-topic-first/main.vibe:23:12 lambda plain annotation
+typescript/vibelang/cases/order-pipe-topic-first/main.vibe:25:10 lambda plain annotation
 typescript/vibelang/cases/overload-program-ranking.fail/main.vibe:6:27 byname program table
 typescript/vibelang/cases/overload-program-ranking/main.vibe:101:17 byname program annotation
 typescript/vibelang/cases/overload-program-ranking/main.vibe:101:36 byname program annotation
