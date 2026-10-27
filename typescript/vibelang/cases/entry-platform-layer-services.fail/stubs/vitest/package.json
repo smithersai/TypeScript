@@ -1,1 +1,6 @@
-{ "name": "@effect/vitest", "type": "module", "types": "./index.d.ts" }
+{
+  "name": "@effect/vitest",
+  "version": "4.0.6",
+  "type": "module",
+  "types": "./index.d.ts"
+}
