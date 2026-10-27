@@ -31,3 +31,12 @@ test("the current release discloses resource and static platform limits", () => 
   }
   assert.match(read("docs/user/src/platform/platform-globals.md"), /## Limits of static checks/)
 })
+
+test("platform installation follows the canonical exact-version setup", () => {
+  const page = read("docs/user/src/platform/105-introduction.md")
+  const installs = page.split("## Installing runtime-specific packages")[1]?.split(/^## /m)[0] ?? ""
+  assert.ok(installs.includes("../setup/existing-project.md#2-install-the-packages"))
+  assert.ok(installs.includes('"@effect/platform-node-shared": "4.0.6"'))
+  for (const platform of ["node", "bun", "browser"]) assert.ok(installs.includes(`@effect/platform-${platform}@4.0.6`))
+  assert.doesNotMatch(installs, /(?:npm install|bun add|deno add).*@effect\/platform-(?:node|bun|browser)(?!@)[\s\n]/)
+})

@@ -60,23 +60,22 @@ Where Effect has no service yet, as for `os.hostname()`, `process.pid`, an execu
 
 ## Installing runtime-specific packages
 
-```sh
-npm install effect@4.0.6 @effect/platform-node
-npm install vibelang-runtime
-npm install --save-dev vibelang
-```
+Follow [Install the packages](/setup/existing-project#2-install-the-packages)
+for the exact npm and Bun commands, including the
+`"@effect/platform-node-shared": "4.0.6"` override. Keep `effect` and every
+`@effect/platform-*` package at exactly 4.0.6; use npm's `--save-exact` or
+Bun's `--exact` when adding them.
 
-The `effect` package holds the interfaces. Install `@effect/platform-node` for Node.js or Deno, `@effect/platform-bun` for Bun, or `@effect/platform-browser` for browsers, in a release compatible with the project's Effect version.
+The `effect` package holds the interfaces. Use `@effect/platform-node@4.0.6`
+for Node.js or Deno, `@effect/platform-bun@4.0.6` for Bun, or
+`@effect/platform-browser@4.0.6` for browsers. Deno uses the same exact
+versions through `npm:` package specifiers.
 
-```sh
-# Deno
-deno add npm:effect@4.0.6 npm:@effect/platform-node
-
-# Bun
-bun add effect@4.0.6 @effect/platform-bun
-```
-
-`vibelang` ships the `vibelang` binary. `npx vibelang` checks and compiles the project's `.vibe` and `.ts` sources, then you launch the generated JavaScript; `npx vibelang --noEmit` only checks. Bun and Deno projects also need `vibelang-runtime` and the compiler. Never pass `.vibe` files to a TypeScript runner.
+`vibelang` ships the `vibelang` binary. `npx vibelang` checks and compiles
+the project's `.vibe` and `.ts` sources, then you launch the generated
+JavaScript; `npx vibelang --noEmit` only checks. Bun and Deno projects also
+need `vibelang-runtime` and the compiler. Never pass `.vibe` files to a
+TypeScript runner.
 
 ## Writing platform-independent programs
 
