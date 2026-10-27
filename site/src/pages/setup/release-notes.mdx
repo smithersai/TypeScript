@@ -33,6 +33,8 @@ The fixes keep a rewrite only when it adds no compiler error.
 | `console.log("hello")`, or holding `const logger = console` | The call was already EK4402; holding the value is newly rejected. Use `Console.log("hello")`; the map lists the Effect service for each platform global. Node/web I/O globals are out of scope outside TypeScript escapes. |
 | A value import such as `import { join } from "node:path"` | EK4402, even before a call. Use `Path.join`; for an uncovered API, import it in a named `module` block or a `.ts` file and call through a hatch. A type-only import remains allowed. |
 | An entry that manually provides `NodeServices.layer` around `FileSystem.FileSystem.readFileString(path)` | It can start with `import "vibelang/platform/node"` and call `FileSystem.readFileString(path)`; the entry provides the required platform bundle. This spelling is provisional. Existing explicit providers keep working; no import is required for a main with no platform needs. |
+| Early 0.0.11 experimental layer imports named `NodeServices`, `NodeCrypto` or `BrowserLocks` | Exports from `vibelang-runtime/experimental/platform-*` now start with `Experimental`: import `ExperimentalNodeServices`, `ExperimentalNodeCrypto` or `ExperimentalBrowserLocks`. Rename the other experimental layers the same way. Imports from Effect's `@effect/platform-*` packages keep their names. |
+| Both `import "vibelang/platform/node"` and `import "vibelang/platform/bun"` in one file | EK3206 rejects conflicting imports. Keep one platform import per file; use a separate entry file for each host. Repeating the same platform is allowed. |
 | A platform API in a hatch because Effect has no equivalent | Prefer the new `Experimental.FileSystem`, `Experimental.Crypto`, `Experimental.Process` or `Experimental.Locks` where covered. Their layers and platform limits are listed below; an uncovered API stays in TypeScript. |
 | `interrupt` alone as a statement | EK4801: it previously ran nothing. Write `interrupt()` (the quick fix), likewise `yieldNow()` and other zero-argument program references. |
 | `return x ?? throw c ? a : b` | EK1010: it previously parsed as `(x ?? throw c) ? a : b`, throwing only `c`. Write `return x ?? throw (c ? a : b)`. |
@@ -85,6 +87,22 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 - A non-tail `resume` could receive a value outside its type and crash after only EK2119 warned. EK2119 is now an error; write a success type covering the handler's answers.
 - Providers now remove only services supplied on every path. Invalid providers report EK3207; unions, optional tuple elements and array spreads keep requirements they cannot guarantee, and service defaults are checked against their shape and member contracts.
+- Experimental FileSystem and Crypto requirements could be mistaken for Effect's services and fail with a missing service at runtime. Their keys now have distinct identities, and the entry selects their experimental layer.
+- A local method named runSync could suppress main, while an aliased runner could go unrecognized. Runner detection now follows the resolved function.
+- A browser entry could import Node's runner and fail to load in a browser. It now uses BrowserRuntime and imports no Node modules; the page starts main explicitly.
+- Conflicting platform imports silently chose one platform. EK3206 now rejects a second, different platform import; keep one per file.
+- An entry using standard and experimental services could build the platform twice. It now provides one shared platform layer.
+- EK3205 could name a missing platform service without its provider. It now names the layer that supplies each service.
+- Class and object methods with plain return annotations could hide an unrun Effect. They now report EK2003, with the contract repair in [Upgrade from 0.0.10](#upgrade-from-0010).
+- Reading Path.sep produced an unexplained missing-property error. EK4503 now points to Path().sep on the service implementation.
+- Errors on shared prelude and global names could leave their meaning unclear. Notes now identify the selected module or global and explain how to reach the other.
+- A misspelled name could suggest a platform global that EK4402 bans. Suggestions now omit banned globals outside TypeScript escapes, and missing Process or Locks names point to Experimental.
+- Subclasses of fieldless error families could reject their own constructor fields. They now accept those fields for abstract bases and bases with a widened tag.
+- Passing a running call to prelude pipe could give only a TypeScript type mismatch. EK4502 now explains that the call already ran and shows how to pass a program.
+- Returning a block-owned fork could silently hand the caller an interrupted fiber. EK4838 now warns and suggests a caller-owned scope or explicit detachment.
+- Using provide in an expression could produce unrelated parser errors. The diagnostic now explains that provide is a statement.
+- Wide failure, service and match lists could overwhelm diagnostic messages. Each list now shows at most ten members and counts the rest.
+- An unsupported Effect installation could be reported as missing. EK1011 now names the resolved version and the required installation.
 - Explicitly empty service keys could be missed. A `service Empty {}` key is now recognized.
 - Imports from paths containing spaces, `#`, `?` or percent signs could fail at runtime. Generated imports now escape those characters.
 - Deeply nested arrow functions could take a long time to check. Effect return inference now shares the guarded type lookup.
@@ -105,10 +123,15 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Runtime
 
+- Experimental platform layers had the same names as Effect's layers and were easy to confuse. Their exports now start with Experimental; see the import repair in [Upgrade from 0.0.10](#upgrade-from-0010).
+- An unhandled typed error from main could print only its tag and omit useful fields. Failure reports now include the error's fields while preserving redaction.
+- Loading the native runtime with an incompatible Effect could fail during module linking before the version check. It now reports the supported Effect version first.
+- Traced calls could lose their logical caller while forwarding to another function. Tracing now captures that caller before forwarding, including named function expressions and methods.
 - Calling a plain VibeLang function from TypeScript with `call`, `apply`, `bind` or as a method could lose `this` and throw a `TypeError`. The generated Effect wrapper now forwards the receiver (reported by Vladimir Kalnitsky).
 
 #### Editor and language server
 
+- Hover text could run the inferred contract into the behavior paragraph. A blank separator now keeps them readable.
 - Completion after `FileSystem.` or `Experimental.Process.` could omit service members. It now includes the shorthand members.
 - Canceling a request during contextual type lookup could leave the editor waiting. That lookup now checks for cancellation.
 - Rename could insert an invalid identifier and break the file. The server now rejects invalid replacement names.
@@ -119,6 +142,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Tooling and bundlers
 
+- A running call followed by .pipe(Effect.catchTag(...)) had no catch quick fix. The compiler now offers a VibeLang catch rewrite for a single catch operator.
 - `--fix` could leave an unnecessary `Effect.succeed` in a rewritten catch arm. It now simplifies that handler.
 - A missing `tsconfig.json` could leave the compiler or bundler retrying forever. It now stops with TS5058.
 - The runtime loader could claim an included dependency source was excluded by the project. It now explains that no loader output is available and the dependency needs compiled JavaScript or its own project.
@@ -160,6 +184,18 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - The repository home page showed benchmark results without measurements. It now gives commands to reproduce the benchmarks.
 - The agent essentials used an undeclared layer binding. The example now declares the layer before providing it.
 - Stacked fixes could leave the published docs and compiler form tables out of date. Both are now regenerated from the complete release stack.
+- The language skill claimed Node and Bun entries supplied Locks. It now requires an explicit Locks layer and explains its platform limits.
+- The diagnostic guide omitted registered codes and their repairs. It now lists them and checks coverage against the compiler registry.
+- The diagnostic guide omitted the adjustable editor warning EK9100. It now identifies its default severity and editor-only behavior.
+- The platform guide lacked a complete HTTP request that read the response body. It now checks a JSON request with FetchHttpClient.layer.
+- A copied module-block Node import could fail because the starter disables Node declarations. The guide now installs @types/node and enables those types explicitly.
+- The process exit guidance did not explain numeric main returns. It now states that normal return exits 0, failure exits 1 and interruption exits 130.
+- The contributor compiler-case command could run without runtime dependencies. It now installs them before the case suite.
+- Bun starter instructions could imply the generated app ran on Bun. They now distinguish the package manager from the Node runtime and link to Bun runtime setup.
+- A platform import in a shared module could appear to supply services. The guide now explains that non-entry imports are removed and the entry must supply the platform.
+- The Bun stack guide discussed only source-loader locations. It now also explains unmapped emitted-JavaScript stacks and the Node source-map command.
+- The Vitest recipe could exclude test sources through the app project. It now selects a separate test project and includes a Node test-runner recipe.
+- The React and Vite guides incorrectly required import rewriting for vite build. They now explain the plugin enables it automatically and distinguish direct CLI emission.
 
 
 ### Known bugs
