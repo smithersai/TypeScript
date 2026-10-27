@@ -638,3 +638,60 @@ func TestGeneratedNameForOther(t *testing.T) {
 
 	assert.Equal(t, "_a", text1)
 }
+
+// Effect lowering allocates the same helper bases in every function. Count
+// uniqueness checks, rather than time, so restarting the suffix search at 1
+// cannot turn a module with N functions into quadratic printer work.
+func TestUniqueNameLinearChecks(t *testing.T) {
+	checks := func(n int) int {
+		ec := printer.NewEmitContext()
+		count := 0
+		g := &printer.NameGenerator{
+			Context: ec,
+			IsFileLevelUniqueNameInCurrentFile: func(name string, private bool) bool {
+				count++
+				return name != "arg_1" // A user binding must still be avoided.
+			},
+		}
+		seen := make(map[string]bool)
+		for range n {
+			g.PushScope(false)
+			name := g.GenerateName(ec.Factory.NewUniqueName("arg"))
+			if name == "arg_1" || seen[name] {
+				t.Fatalf("colliding helper name %q", name)
+			}
+			seen[name] = true
+			g.PopScope(false)
+		}
+		return count
+	}
+	n, twice := checks(100), checks(200)
+	t.Logf("uniqueness checks: N=%d, 2N=%d", n, twice)
+	if twice > 2*n+2 || twice > 402 {
+		t.Fatalf("helper name checks must grow linearly: N=%d, 2N=%d", n, twice)
+	}
+}
+
+func TestUniqueNameSuffixLifetimes(t *testing.T) {
+	t.Parallel()
+	ec := printer.NewEmitContext()
+	g := &printer.NameGenerator{Context: ec, IsFileLevelUniqueNameInCurrentFile: func(string, bool) bool { return true }}
+	for _, flags := range []printer.GeneratedIdentifierFlags{
+		printer.GeneratedIdentifierFlagsReservedInNestedScopes,
+		printer.GeneratedIdentifierFlagsFileLevel,
+	} {
+		for range 2 {
+			g.PushScope(false)
+			name := ec.Factory.NewUniqueNameEx("helper", printer.AutoGenerateOptions{Flags: flags})
+			// FileLevel uses its own check and scoped reservations disappear.
+			// Neither may inherit the unscoped suffix sequence.
+			assert.Equal(t, "helper_1", g.GenerateName(name))
+			g.PopScope(false)
+		}
+	}
+	for range 2 {
+		g.PushScope(false)
+		assert.Equal(t, "#helper_1", g.GenerateName(ec.Factory.NewUniquePrivateName("#helper")))
+		g.PopScope(false)
+	}
+}
