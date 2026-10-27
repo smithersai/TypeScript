@@ -53,6 +53,30 @@ Call a service through its module's name, as in `Crypto.randomUUIDv4()`; `ChildP
 
 Where Effect has no service yet, as for `os.hostname()`, `process.pid`, an execute-permission check, HMAC and signatures, or `navigator.locks`, EK4402 names the experimental service VibeLang adds, such as `Experimental.Process.pid()` ([Experimental platform APIs](../vibelang-features/118-experimental-platform-apis.md)), whose layers come from `vibelang-runtime/experimental/platform-node`, `-bun`, or `-browser`. There, `ExperimentalNodeServices.layer` is `@effect/platform-node`'s bundle plus the experimental `FileSystem`, `Crypto`, and `Process`, so it replaces Effect's in `main`. Where nothing covers the call yet, as for `os.uptime()`, EK4402 says to escape to TypeScript: a `module` block or a `.ts` file that imports the API, or a hatch around a web global, as in `sync(() => document.title)`. [Platform globals](platform-globals.md) answers every Node.js and web global.
 
+## Making an HTTP client request
+
+Provide `FetchHttpClient.layer` to make requests through Effect 4's `HttpClient`.
+The platform import supplies the host services, but does not supply this client.
+All three module names below are in scope without imports.
+
+```vibe
+function requestJson(url: string) {
+  provide FetchHttpClient.layer {
+    const response = HttpClient.get(url)
+    return response.json()
+  }
+}
+
+export function main() {
+  Console.log(requestJson("https://jsonplaceholder.typicode.com/todos/1"))
+}
+```
+
+`HttpClient.get` waits for the response; `response.json()` reads and parses its
+body. Both calls can fail, and the function infers those failures. The JSON is
+data, not a validated application type: decode it with a Schema before relying
+on its fields.
+
 ## Installing runtime-specific packages
 
 Follow [Install the packages](../setup/existing-project.md#2-install-the-packages)
