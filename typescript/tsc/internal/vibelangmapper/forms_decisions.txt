@@ -1696,6 +1696,9 @@ typescript/vibelang/cases/order-trusted-call-reference/main.vibe:44:34 lambda pl
 typescript/vibelang/cases/order-trusted-call-reference/main.vibe:50:13 lambda plain annotation
 typescript/vibelang/cases/order-try-hatch-mapper/main.vibe:11:12 lambda plain fallback
 typescript/vibelang/cases/order-try-hatch-mapper/main.vibe:17:21 lambda plain table
+typescript/vibelang/cases/order-using-disposer-once/main.vibe:23:16 lambda choice fallback
+typescript/vibelang/cases/order-using-disposer-once/main.vibe:8:17 lambda plain protocol
+typescript/vibelang/cases/order-using-disposer-once/main.vibe:9:25 lambda choice fallback
 typescript/vibelang/cases/order-wire-arguments/main.vibe:16:26 block applied/program table
 typescript/vibelang/cases/overload-program-ranking.fail/main.vibe:6:27 byname program table
 typescript/vibelang/cases/overload-program-ranking/main.vibe:101:17 byname program annotation

@@ -1,0 +1,32 @@
+// expect-result: {"replaced":["original"],"getter":["lookup:1","dispose:1"]}
+// using reads its value's dispose method once, when it acquires the value,
+// and calls that method at block exit, as JavaScript's using does: replacing
+// the method or a getter that returns another one changes nothing.
+function replaced() {
+  const seen: string[] = []
+  {
+    using r = { [Symbol.dispose]() { seen.push("original") } }
+    r[Symbol.dispose] = () => { seen.push("replacement") }
+  }
+  return seen
+}
+
+function getter() {
+  const seen: string[] = []
+  let reads = 0
+  {
+    using r = {
+      get [Symbol.dispose]() {
+        reads++
+        seen.push("lookup:" + reads)
+        const saved = reads
+        return () => { seen.push("dispose:" + saved) }
+      }
+    }
+  }
+  return seen
+}
+
+export function main() {
+  return { replaced: replaced(), getter: getter() }
+}

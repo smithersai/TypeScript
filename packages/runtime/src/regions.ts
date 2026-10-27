@@ -69,15 +69,18 @@ export const $using = <A, E, R>(scope: Scope.Scope, acquire: Effect.Effect<A, E,
 /**
  * The block's release of a `using` value, or undefined when it has none:
  * `[Symbol.dispose]()`, else, when the acquisition registered no release,
- * `[Symbol.asyncDispose]()` awaited. A throw or a rejection is a defect.
+ * `[Symbol.asyncDispose]()` awaited. A throw or a rejection is a defect. As
+ * JavaScript's `using` does, it reads the method once, when the value is
+ * acquired, and calls that method with the value as `this` at block exit.
  */
 const disposal = (value: unknown, releasesItself: boolean): Effect.Effect<void> | undefined => {
   if (value === null || (typeof value !== "object" && typeof value !== "function")) return undefined
   const resource = value as Partial<Disposable & AsyncDisposable>
-  if (typeof resource[Symbol.dispose] === "function") return Effect.sync(() => resource[Symbol.dispose]!())
-  if (!releasesItself && typeof resource[Symbol.asyncDispose] === "function") {
-    return Effect.promise(() => resource[Symbol.asyncDispose]!())
-  }
+  const dispose = resource[Symbol.dispose]
+  if (typeof dispose === "function") return Effect.sync(() => void Reflect.apply(dispose, resource, []))
+  if (releasesItself) return undefined
+  const asyncDispose = resource[Symbol.asyncDispose]
+  if (typeof asyncDispose === "function") return Effect.promise(() => Reflect.apply(asyncDispose, resource, []))
   return undefined
 }
 
