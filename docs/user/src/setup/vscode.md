@@ -4,6 +4,8 @@ The `vibelang` package ships the editor extension `vibelang.vibelang` as `node_m
 
 ## 1. Install the extension
 
+On macOS, open the editor’s Command Palette and run **Shell Command: Install 'code' command in PATH** for VS Code or **Shell Command: Install 'cursor' command in PATH** for Cursor. Open a new terminal so the shell can find the command before continuing.
+
 From the project directory, after installing dependencies, run the command for the user's editor:
 
 ```sh

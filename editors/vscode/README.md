@@ -14,6 +14,8 @@ The extension `vibelang.vibelang` registers the VibeLang language for `.vibe` fi
 
 ## Install
 
+On macOS, open the editor’s Command Palette and run **Shell Command: Install 'code' command in PATH** for VS Code or **Shell Command: Install 'cursor' command in PATH** for Cursor. Open a new terminal so the shell can find the command before continuing.
+
 From a project with `vibelang` installed, such as one made with `bun create vibelang`:
 
 ```sh
