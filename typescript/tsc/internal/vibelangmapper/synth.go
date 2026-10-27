@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/parser"
 	"github.com/microsoft/TypeScript/tsc/internal/scanner"
 )
 
@@ -145,7 +146,7 @@ func (w *printer) node(n *ast.Node, e env) {
 		w.node(n.AsElementAccessExpression().ArgumentExpression, e)
 		w.write("]")
 	case ast.KindCallExpression:
-		if w.invokedBlock(n, e) || w.isFunction(n) {
+		if w.invokedBlock(n, e) || w.isFunction(n) || w.builtinTest(n, e) {
 			return
 		}
 		w.node(n.Expression(), e)
@@ -371,6 +372,37 @@ func (w *printer) list(nodes []*ast.Node, separator string, e env) {
 		}
 		w.node(n, e)
 	}
+}
+
+// builtinTest prints n when it is a pattern's $is call whose matcher names a
+// built-in matcher (parser.BuiltinMatchers), as the test the compiler writes
+// for it: typeof subject === "string", or Option.isNone(subject). The
+// compiler writes that test only when the matcher resolves to the built-in
+// (match_builtins.go in package vibelang); the projection has no checker, so
+// it goes by the name as written.
+func (w *printer) builtinTest(n *ast.Node, e env) bool {
+	callee := n.Expression()
+	if !ast.IsIdentifier(callee) || callee.Text() != "$is" || callee.Flags&ast.NodeFlagsReparsed == 0 || len(n.Arguments()) != 2 {
+		return false
+	}
+	builtin, ok := parser.BuiltinMatcherNamed(n.Arguments()[0])
+	if !ok {
+		return false
+	}
+	if builtin.TypeOf != "" {
+		w.write("typeof ")
+		w.node(n.Arguments()[1], e)
+		w.write(" === \"" + builtin.TypeOf + "\"")
+		return true
+	}
+	module := builtin.Module
+	if preludeNames[module] && !builtinGlobals[module] {
+		module = w.p.names.prelude(module)
+	}
+	w.write(module + "." + builtin.Guard + "(")
+	w.node(n.Arguments()[1], e)
+	w.write(")")
+	return true
 }
 
 // identifier returns the text of a synthesized identifier: a runtime helper

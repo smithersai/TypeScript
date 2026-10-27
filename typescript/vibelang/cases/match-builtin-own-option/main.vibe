@@ -1,0 +1,24 @@
+// Option.None is effect's built-in matcher only when Option names effect's
+// module (D213). A data type named Option has its own variants, so
+// when Option.None and is Option.None test its None.
+data Option {
+  Some { value: number }
+  None
+}
+
+function ownOption(x: Option) {
+  return match (x) {
+    when Option.Some { let value }: value;
+    when Option.None: -1;
+  }
+}
+
+function isNone(x: Option) {
+  if (x is Option.None) return "none"
+  return "some"
+}
+
+// expect-result: [5,-1,"none","some"]
+export function main() {
+  return [ownOption(Option.Some({ value: 5 })), ownOption(Option.None()), isNone(Option.None()), isNone(Option.Some({ value: 1 }))]
+}

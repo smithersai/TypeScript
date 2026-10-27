@@ -1,0 +1,51 @@
+// A built-in matcher is the one its name resolves to (D213): String is
+// typeof "string" only when it names the global String. A parameter named
+// String is a variable pattern, as any other name is. Unshadowed built-ins
+// still narrow, so a match over string | number and one over an Exit are
+// exhaustive without a default. match-builtin-own-option covers a data type
+// named Option.
+function shadowedString(x: unknown, String: number) {
+  return match (x) {
+    when String: true;
+    default: false;
+  }
+}
+
+function variable(x: unknown, pattern: number) {
+  return match (x) {
+    when pattern: true;
+    default: false;
+  }
+}
+
+function primitive(x: string | number) {
+  return match (x) {
+    when String(let text): `string ${text.length}`;
+    when Number: "number";
+  }
+}
+
+function settled(n: number) {
+  const outcome = exit(() => {
+    if (n < 0) throw "negative"
+    return n
+  })
+  return match (outcome) {
+    when Exit.Success(let value): value;
+    when Exit.Failure: -1;
+  }
+}
+
+// expect-result: [true,false,true,false,"string 3","number",2,-1]
+export function main() {
+  return [
+    shadowedString(42, 42),
+    shadowedString("x", 42),
+    variable(42, 42),
+    variable("x", 42),
+    primitive("abc"),
+    primitive(7),
+    settled(2),
+    settled(-1)
+  ]
+}

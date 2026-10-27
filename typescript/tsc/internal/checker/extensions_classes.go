@@ -1,6 +1,9 @@
 package checker
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/diagnostics"
+)
 
 // ClassBaseHook can choose the bases of class, a class's declared type. It
 // returns the base constructor type, whose properties the class's static
@@ -27,6 +30,13 @@ func (c *Checker) classBasesFromHooks(class *Type) (constructorType *Type, insta
 		}
 	}
 	return nil, nil
+}
+
+// CheckTypeAssignableTo reports TypeScript's assignability error at
+// errorNode, headed by headMessage when it is not nil, when source is not
+// assignable to target, and returns whether it is.
+func (c *Checker) CheckTypeAssignableTo(source *Type, target *Type, errorNode *ast.Node, headMessage *diagnostics.Message) bool {
+	return c.checkTypeAssignableTo(source, target, errorNode, headMessage)
 }
 
 // Program returns the program that c checks.

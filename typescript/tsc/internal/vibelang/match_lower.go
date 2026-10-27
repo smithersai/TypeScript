@@ -100,7 +100,8 @@ func (p *exhaustivePlan) planExhaustiveMatch(c *checker.Checker, node *ast.Node)
 // statements, or a declaration between them, calls $is or $extract. What the
 // arm runs once it matches doesn't count, nor does the subject's const. A
 // data variant's $is tests a tag, which the type proves as it proves a
-// literal (D307, data.go).
+// literal (D307, data.go), and a built-in matcher's is typeof or a guard
+// (match_builtins.go).
 func testsByMatcher(c *checker.Checker, statement *ast.Node) bool {
 	if statement.Kind != ast.KindBlock {
 		return false
@@ -121,7 +122,7 @@ func testsByMatcher(c *checker.Checker, statement *ast.Node) bool {
 func callsMatcher(c *checker.Checker, node *ast.Node) bool {
 	if ast.IsCallExpression(node) {
 		callee := node.Expression()
-		if callee.Kind == ast.KindIdentifier && callee.Flags&ast.NodeFlagsReparsed != 0 && (callee.Text() == "$is" || callee.Text() == "$extract") && dataVariantTest(c, node) == "" {
+		if callee.Kind == ast.KindIdentifier && callee.Flags&ast.NodeFlagsReparsed != 0 && (callee.Text() == "$is" || callee.Text() == "$extract") && dataVariantTest(c, node) == "" && !isBuiltinPatternTest(c, node) {
 			return true
 		}
 	}
@@ -130,9 +131,11 @@ func callsMatcher(c *checker.Checker, node *ast.Node) bool {
 
 // erasableTest reports whether leaving out test, a last arm's test that D209
 // proves, leaves out no code: it reads names, literals, and properties that
-// are no accessors, and calls only the guards the parser writes (Array.isArray,
-// Option.isSome and the like) and a data variant's test of a data type that a
-// stable name holds (D307). Reading a matcher through a getter runs code.
+// are no accessors, and calls only the guards the parser writes (Array.isArray
+// and the like), a built-in matcher's test (typeof or Option.isSome, which
+// the lowering writes for $is(String, subject) or $is(Option.Some, subject))
+// and a data variant's test of a data type that a stable name holds (D307).
+// Reading a matcher through a getter runs code.
 func erasableTest(c *checker.Checker, node *ast.Node) bool {
 	switch node.Kind {
 	case ast.KindIdentifier, ast.KindThisKeyword, ast.KindTrueKeyword, ast.KindFalseKeyword, ast.KindNullKeyword,
@@ -159,6 +162,13 @@ func erasableTest(c *checker.Checker, node *ast.Node) bool {
 		arguments := node.Arguments()
 		if dataVariantTest(c, node) != "" {
 			return stableValue(c, arguments[0].Expression()) && erasableTest(c, arguments[1])
+		}
+		if isBuiltinPatternTest(c, node) {
+			matcher := arguments[0] // the lowering reads only Option of Option.Some (match_builtins.go)
+			if ast.IsPropertyAccessExpression(matcher) {
+				matcher = matcher.Expression()
+			}
+			return erasableTest(c, matcher) && erasableTest(c, arguments[1])
 		}
 		callee := node.Expression()
 		if !ast.IsPropertyAccessExpression(callee) || callee.Expression().Flags&ast.NodeFlagsReparsed == 0 || !ast.IsIdentifier(callee.Expression()) {

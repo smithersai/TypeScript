@@ -13,9 +13,11 @@ import (
 // Pattern matching (D206-D225) adopts the match expression and the is
 // operator of the TC39 pattern matching proposal (stage 1). The parser writes
 // them as TypeScript that the checker already narrows: typeof, in, ===,
-// Array.isArray, and the guards Option.isSome, Exit.isFailure, Result.isSuccess,
-// and the runtime's $is, with each binding a const. A match reads its subject
-// once, into a const that its tests read (subjectPath):
+// Array.isArray, and the runtime's $is, with each binding a const. A
+// built-in matcher, String or Option.Some, is a $is call too, which the
+// checker narrows and the lowering writes as typeof or the module's guard
+// when the matcher resolves to the built-in (BuiltinMatchers). A match reads
+// its subject once, into a const that its tests read (subjectPath):
 //
 //	match (e) {                              (() => {
 //	  when NotFound and { let id }:            const $match1 = e
@@ -736,27 +738,42 @@ func (p *Parser) propertyKeyTest(path matchPath, clause objectClause, at core.Te
 	return p.mBinary(left, ast.KindInKeyword, path(), at)
 }
 
-// knownMatcher is a dotted name the compiler matches with an Effect guard:
-// test is the guard's module and name, and values the properties the
-// extractor yields.
-type knownMatcher struct {
-	module, guard string
-	values        []string
-	typeofName    string // for the classes of primitives: the typeof result
+// BuiltinMatcher is a matcher that a pattern names without a declaration of
+// the program: the class of a primitive, which typeof tests, or a variant of
+// effect's Option, Exit or Result, which its module's guard tests. The
+// parser writes every variable pattern as $is(matcher, subject), and the
+// checker decides by the symbol the matcher resolves to whether it is the
+// built-in one (match_builtins.go in package vibelang): a parameter named
+// String is a variable pattern, and Option.None of a data type named Option
+// is that type's variant.
+type BuiltinMatcher struct {
+	Module, Guard string   // effect's module and the guard that tests the variant
+	Values        []string // the properties an extractor pattern yields
+	TypeOf        string   // for the class of a primitive: the typeof result
 }
 
-var knownMatchers = map[string]knownMatcher{
-	"Option.Some":    {module: "Option", guard: "isSome", values: []string{"value"}},
-	"Option.None":    {module: "Option", guard: "isNone"},
-	"Exit.Success":   {module: "Exit", guard: "isSuccess", values: []string{"value"}},
-	"Exit.Failure":   {module: "Exit", guard: "isFailure", values: []string{"cause"}},
-	"Result.Success": {module: "Result", guard: "isSuccess", values: []string{"success"}},
-	"Result.Failure": {module: "Result", guard: "isFailure", values: []string{"failure"}},
-	"String":         {typeofName: "string"},
-	"Number":         {typeofName: "number"},
-	"Boolean":        {typeofName: "boolean"},
-	"BigInt":         {typeofName: "bigint"},
-	"Symbol":         {typeofName: "symbol"},
+// BuiltinMatchers are the built-in matchers by the name a pattern writes:
+// Option.Some, String.
+var BuiltinMatchers = map[string]BuiltinMatcher{
+	"Option.Some":    {Module: "Option", Guard: "isSome", Values: []string{"value"}},
+	"Option.None":    {Module: "Option", Guard: "isNone"},
+	"Exit.Success":   {Module: "Exit", Guard: "isSuccess", Values: []string{"value"}},
+	"Exit.Failure":   {Module: "Exit", Guard: "isFailure", Values: []string{"cause"}},
+	"Result.Success": {Module: "Result", Guard: "isSuccess", Values: []string{"success"}},
+	"Result.Failure": {Module: "Result", Guard: "isFailure", Values: []string{"failure"}},
+	"String":         {TypeOf: "string"},
+	"Number":         {TypeOf: "number"},
+	"Boolean":        {TypeOf: "boolean"},
+	"BigInt":         {TypeOf: "bigint"},
+	"Symbol":         {TypeOf: "symbol"},
+}
+
+// BuiltinMatcherNamed returns the built-in matcher that expr, a pattern's
+// matcher, names as written, String or Option.Some, or false. Whether expr
+// resolves to it is the checker's to say.
+func BuiltinMatcherNamed(expr *ast.Node) (BuiltinMatcher, bool) {
+	builtin, ok := BuiltinMatchers[dottedName(expr)]
+	return builtin, ok
 }
 
 // dottedName returns the text of expr when it is a name or a name.name, or "".
@@ -770,16 +787,6 @@ func dottedName(expr *ast.Node) string {
 		}
 	}
 	return ""
-}
-
-// knownTest writes the test of a known matcher against path.
-func (p *Parser) knownTest(known knownMatcher, path matchPath, at core.TextRange) *ast.Node {
-	if known.typeofName != "" {
-		typeOf := p.vibelangSpanning(p.factory.NewTypeOfExpression(path()), at)
-		return p.mBinary(typeOf, ast.KindEqualsEqualsEqualsToken, p.mString(known.typeofName, at), at)
-	}
-	guard := p.mProperty(p.mIdent(known.module, at), known.guard, at)
-	return p.mCall(guard, []*ast.Node{path()}, at)
 }
 
 // matcherTest writes $is(matcher, subject) for pat, a variable or variant
@@ -810,8 +817,6 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 	case patternValue:
 		if pat.expr.Kind == ast.KindIdentifier && pat.expr.Text() == "undefined" {
 			test(p.mBinary(path(), ast.KindEqualsEqualsEqualsToken, pat.expr, at))
-		} else if known, ok := knownMatchers[dottedName(pat.expr)]; ok {
-			test(p.knownTest(known, path, at))
 		} else {
 			test(p.matcherTest(pat, path))
 		}
@@ -870,10 +875,12 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 			p.compilePattern(pat.rest, p.enterSubject(restPath, pat.rest, steps, ctx), steps, ctx)
 		}
 	case patternExtractor:
-		if known, ok := knownMatchers[dottedName(pat.expr)]; ok {
-			test(p.knownTest(known, path, at))
-			values := known.values
-			if known.typeofName != "" {
+		if known, ok := BuiltinMatcherNamed(pat.expr); ok {
+			// The test is the variable pattern's; the values are the
+			// built-in extractor's, the subject or the variant's property.
+			test(p.matcherTest(pat, path))
+			values := known.Values
+			if known.TypeOf != "" {
 				values = []string{""}
 			}
 			if len(pat.items) > len(values) || (!pat.hasRest && len(pat.items) != len(values)) {
@@ -1008,7 +1015,7 @@ func subjectReads(pat *pattern) int {
 		}
 	case patternExtractor:
 		n = 1 // the known test, or $extract's call
-		if _, ok := knownMatchers[dottedName(pat.expr)]; ok {
+		if _, ok := BuiltinMatcherNamed(pat.expr); ok {
 			for _, item := range pat.items {
 				n += part(item)
 			}

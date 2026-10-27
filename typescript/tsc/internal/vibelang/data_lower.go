@@ -21,10 +21,14 @@ import (
 type dataPlan struct {
 	variantTests map[*ast.Node]string // $is calls whose matcher is a data variant, to the variant's tag
 	keepsIs      bool                 // some other $is call stays, so the file imports $is
+
+	// builtinTests holds the $is calls whose matcher resolves to a built-in
+	// matcher, and the test each becomes (match_builtins.go).
+	builtinTests map[*ast.Node]builtinTest
 }
 
 func newDataPlan() dataPlan {
-	return dataPlan{variantTests: map[*ast.Node]string{}}
+	return dataPlan{variantTests: map[*ast.Node]string{}, builtinTests: map[*ast.Node]builtinTest{}}
 }
 
 // planVariantTest records node when it is a variant pattern's $is call.
@@ -34,6 +38,8 @@ func (p *dataPlan) planVariantTest(c *checker.Checker, node *ast.Node) {
 	}
 	if tag := dataVariantTest(c, node); tag != "" {
 		p.variantTests[node] = tag
+	} else if builtin, ok := builtinMatcherOf(c, node.Arguments()[0]); ok {
+		p.builtinTests[node] = builtinTest{typeOf: builtin.TypeOf, guard: builtin.Guard}
 	} else {
 		p.keepsIs = true
 	}
@@ -42,7 +48,7 @@ func (p *dataPlan) planVariantTest(c *checker.Checker, node *ast.Node) {
 // withoutUnusedIs removes $is from names, a file's prelude uses, when every
 // $is call of the file is a variant pattern's.
 func (p *dataPlan) withoutUnusedIs(names []string) []string {
-	if p.keepsIs || len(p.variantTests) == 0 {
+	if p.keepsIs || len(p.variantTests)+len(p.builtinTests) == 0 {
 		return names
 	}
 	return slices.DeleteFunc(names, func(name string) bool { return name == "$is" })

@@ -225,6 +225,8 @@ func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 		return tx.visitHatchCall(node)
 	case node.Kind == ast.KindCallExpression && tx.plan.variantTests[node] != "":
 		return tx.visitVariantTest(node, tx.plan.variantTests[node]) // a data variant's pattern (data_lower.go)
+	case node.Kind == ast.KindCallExpression && tx.plan.builtinTests[node] != (builtinTest{}):
+		return tx.visitBuiltinTest(node, tx.plan.builtinTests[node]) // String, Option.None (match_builtins.go)
 	case node.Kind == ast.KindCallExpression && tx.plan.methods[node].module != "":
 		return tx.visitModuleMethodCall(node)
 	// A provide block may also own using resources or forked fibers. Keep

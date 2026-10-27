@@ -80,7 +80,7 @@ An object pattern checks only the properties it names, and `...let rest` collect
 
 ## Option, Exit, Result, and primitives
 
-These matchers compile to the module's own test, so the bindings have exact types:
+These matchers compile to the module's own test, so the bindings have exact types. A name means what it resolves to: a binding or data type that you name `String` or `Option` is matched as itself, not as the built-in.
 
 | Matcher | Test | Extracts |
 | --- | --- | --- |

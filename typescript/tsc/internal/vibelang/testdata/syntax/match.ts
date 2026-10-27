@@ -6,7 +6,7 @@ function f(value: unknown) { {
         }
     }
     {
-        if (typeof $match2 === "string") {
+        if ($is(String, $match2)) {
             let text = $match2;
             return text;
         }
