@@ -216,7 +216,7 @@ func errorFieldsText(file *ast.SourceFile, literal *ast.Node) string {
 		for _, modifier := range member.ModifierNodes() {
 			if modifier.Kind == ast.KindReadonlyKeyword && modifier.Flags&ast.NodeFlagsReparsed == 0 {
 				from := nodeStart(file, modifier)
-				removals = append(removals, sourceEdit{from, scanner.SkipTrivia(text, modifier.End()), ""})
+				removals = append(removals, sourceEdit{from, scanner.SkipTriviaEx(text, modifier.End(), &scanner.SkipTriviaOptions{StopAtComments: true}), ""})
 			}
 		}
 	}

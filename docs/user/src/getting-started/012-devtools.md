@@ -172,6 +172,8 @@ Error-declaration fixes preserve the complete generic parameter list, including 
 
 Normalization continues until no accepted fix remains, even when nested edits overlap for more than sixteen rounds. If a rewrite repeats a source state, the command reports non-convergence and writes no files.
 
+Fixes retain field comments and comments before unwrapped succeed/fail arguments. If a proposed rewrite cannot retain its comments, neither the editor nor --fix applies it.
+
 ## Effect language service rules
 
 The table accounts for the 108 diagnostics and editor features in `@effect/language-service` 0.87.5. Many rules address forms VibeLang replaces: there is no `Effect.gen` to misuse, a call already runs, and `catch` catches failures. Existing EK diagnostics cover others. The remaining checks are EK4801-EK4825, with mechanical quick fixes, alongside refactors, hovers, and completions. The table also marks features not implemented.

@@ -124,6 +124,11 @@ func directFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node)
 	}
 	argument := call.Arguments()[0]
 	argumentText := expressionText(file, argument)
+	if argument.Pos() >= 0 && argument.Pos() <= nodeStart(file, argument) && strings.TrimSpace(file.Text()[argument.Pos():nodeStart(file, argument)]) != "" {
+		// Parentheses retain leading line comments without introducing an
+		// automatic-semicolon boundary after return or throw.
+		argumentText = "(" + file.Text()[argument.Pos():argument.End()] + ")"
+	}
 	position := directPositionOf(call)
 	start, end := nodeStart(file, call), call.End()
 	var text string

@@ -169,7 +169,7 @@ func serviceBodyText(c *checker.Checker, file *ast.SourceFile, literal *ast.Node
 			}
 			for _, modifier := range member.ModifierNodes() {
 				if modifier.Kind == ast.KindReadonlyKeyword && modifier.Flags&ast.NodeFlagsReparsed == 0 {
-					edits = append(edits, sourceEdit{nodeStart(file, modifier), scanner.SkipTrivia(text, modifier.End()), ""})
+					edits = append(edits, sourceEdit{nodeStart(file, modifier), scanner.SkipTriviaEx(text, modifier.End(), &scanner.SkipTriviaOptions{StopAtComments: true}), ""})
 				}
 			}
 		case ast.IsMethodSignatureDeclaration(member):

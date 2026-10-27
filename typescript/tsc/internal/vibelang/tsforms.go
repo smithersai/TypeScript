@@ -2,6 +2,7 @@ package vibelang
 
 import (
 	"context"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -124,6 +125,7 @@ func checkTypeScriptForms(c *checker.Checker, file *ast.SourceFile) {
 					}
 				}
 			}
+			rewrite = preserveRewriteComments(file, rewrite)
 			m := rule.message
 			if rewrite != nil && rewrite.message != nil {
 				m = rewrite.message
@@ -182,7 +184,7 @@ var typeScriptFormFix = &ls.CodeFixProvider{
 		// Import cleanup reads runtime alias references collected by the
 		// complete file check, including for editor requests with supplied diagnostics.
 		c.GetDiagnostics(ctx, fix.SourceFile)
-		rewrite := rule.plan(c, fix.SourceFile, at)
+		rewrite := preserveRewriteComments(fix.SourceFile, rule.plan(c, fix.SourceFile, at))
 		if !rewrite.fixable() {
 			return nil, nil
 		}
@@ -213,6 +215,26 @@ func withImportRemovals(c *checker.Checker, file *ast.SourceFile, r *formRewrite
 	}
 	r.edits = append(r.edits, cleanup...)
 	return r
+}
+
+// The conservative check also treats comment-looking text in literals as
+// comments. It may refuse an ambiguous edit, but never discards documentation.
+var rewriteComments = regexp.MustCompile(`(?s)/\*.*?\*/|//[^\r\n]*`)
+
+func editsPreserveComments(text string, edits []sourceEdit) bool {
+	for _, edit := range edits {
+		if !slices.Equal(rewriteComments.FindAllString(text[edit.start:edit.end], -1), rewriteComments.FindAllString(edit.text, -1)) {
+			return false
+		}
+	}
+	return true
+}
+
+func preserveRewriteComments(file *ast.SourceFile, rewrite *formRewrite) *formRewrite {
+	if rewrite.fixable() && !editsPreserveComments(file.Text(), rewrite.edits) {
+		return &formRewrite{message: rewrite.message, why: "No quick fix: this rewrite cannot preserve its comments."}
+	}
+	return rewrite
 }
 
 // An importBinding is one local name an import declaration binds.

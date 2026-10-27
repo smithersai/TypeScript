@@ -353,6 +353,9 @@ func rewritePrelude(g *fixGate, fs vfs.FS, program *compiler.Program, texts map[
 	candidates := map[tspath.RootedFilePath]string{}
 	var names []tspath.RootedFilePath
 	for name, r := range rewrites {
+		if !editsPreserveComments(program.GetSourceFile(name).Text(), r.edits) {
+			continue
+		}
 		candidates[name] = applyEdits(program.GetSourceFile(name).Text(), r.edits)
 		names = append(names, name)
 	}
@@ -750,7 +753,7 @@ func withoutUnusedEffectImports(name tspath.RootedFilePath, original, text strin
 		return "", false
 	}
 	edits := unusedImportEdits(after, nil, gone)
-	if len(edits) == 0 {
+	if len(edits) == 0 || !editsPreserveComments(text, edits) {
 		return "", false
 	}
 	return applyEdits(text, edits), true
