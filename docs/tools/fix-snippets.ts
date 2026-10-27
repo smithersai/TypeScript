@@ -101,7 +101,7 @@ export function replaceBlocks(markdown: string, blocks: Block[], sources: Map<nu
   return markdown
 }
 
-async function checkProject(dir: string, blocks: Block[], compiler: string): Promise<Result[]> {
+async function checkProject(dir: string, blocks: Block[], compiler: string): Promise<(Result & { migration?: boolean })[]> {
   const { filenames, offsets } = writeProject(dir, blocks, { omitFragments: true })
   const checked = blocks.some(block => !block.fragment)
     ? await command([compiler, "--noEmit", "--pretty", "false", "-p", join(dir, "tsconfig.json")], dir, 60000)
@@ -111,8 +111,19 @@ async function checkProject(dir: string, blocks: Block[], compiler: string): Pro
   if (diagnostics.some(d => !d.file || !offsets.has(relative(dir, resolve(dir, d.file)).replaceAll("\\", "/"))) || checked.exitCode !== 0 && !diagnostics.length) {
     throw new Error(`compiler failed (${checked.exitCode}): ${checked.stdout}${checked.stderr}`)
   }
-  return blocks.map(block => classify(block, diagnostics.filter(d => d.file &&
-    relative(dir, resolve(dir, d.file)).replaceAll("\\", "/") === filenames.get(block.number)).map(({ diagnostic }) => diagnostic)))
+  // Only the recorder's own migration note permits a successful block to
+  // lose diagnostics. Other errors and explicitly expected diagnostics stay
+  // part of the transaction's contract.
+  const migrationFiles = new Set<string>()
+  let diagnosticFile: string | undefined
+  for (const line of (checked.stdout + "\n" + checked.stderr).split(/\r?\n/)) {
+    const match = /^(.*)\(\d+,\d+\): error (?:TS|EK)\d+:/.exec(line)
+    if (match) diagnosticFile = relative(dir, resolve(dir, match[1])).replaceAll("\\", "/")
+    else if (diagnosticFile && line.includes("Through VibeLang 0.0.10, pipe's first argument")) migrationFiles.add(diagnosticFile)
+  }
+  return blocks.map(block => ({ ...classify(block, diagnostics.filter(d => d.file &&
+    relative(dir, resolve(dir, d.file)).replaceAll("\\", "/") === filenames.get(block.number)).map(({ diagnostic }) => diagnostic)),
+    migration: migrationFiles.has(filenames.get(block.number)!) }))
 }
 
 export async function verifyOutputs(dir: string, blocks: Result[], compiler: string, timeout: number) {
@@ -125,6 +136,7 @@ export async function verifyOutputs(dir: string, blocks: Result[], compiler: str
 }
 
 export async function fixPage(markdown: string, dir: string, compiler: string, timeout = 10000, allFixes = false) {
+  mkdirSync(dir, { recursive: true })
   const blocks = extract(markdown)
   if (!blocks.some(block => block.language === "vibe" && !block.fragment)) return { markdown, changed: 0, blocks: blocks.length }
   const before = await checkProject(join(dir, "before"), blocks, compiler)
@@ -142,6 +154,7 @@ export async function fixPage(markdown: string, dir: string, compiler: string, t
   }
   const fixed = await command([compiler, "--fix", ...(allFixes ? [] : ["--fix-migration-only"]), "--noEmit", "--pretty", "false", "-p", join(dir, "fix/tsconfig.json")], join(dir, "fix"), 120000)
   if (fixed.timedOut) throw new Error("--fix timed out")
+  if (/EK1023 not fixed:/.test(fixed.stdout + fixed.stderr)) throw new Error(`migration refused: ${fixed.stdout}${fixed.stderr}`)
   if (fixed.exitCode !== 0 && !parseDiagnostics(fixed.stdout + "\n" + fixed.stderr).length) {
     throw new Error(`--fix failed (${fixed.exitCode}): ${fixed.stdout}${fixed.stderr}`)
   }
@@ -164,12 +177,17 @@ export async function fixPage(markdown: string, dir: string, compiler: string, t
   const after = await checkProject(join(dir, "after"), extract(rewritten), compiler)
   for (let i = 0; i < before.length; i++) {
     const codes = (result: Result) => result.diagnostics.map(d => `${d.code}: ${d.message}`).sort().join("\n")
-    if (after[i].status !== before[i].status || codes(after[i]) !== codes(before[i])) {
+    const migrated = sources.has(before[i].number) && before[i].migration &&
+      !before[i].expected.length && after[i].status === "ok"
+    if (!migrated && (after[i].status !== before[i].status || codes(after[i]) !== codes(before[i]))) {
       throw new Error(`block ${before[i].number}: expected diagnostics changed`)
     }
   }
   // A changed dependency can affect an unchanged block on the page too.
-  await verifyOutputs(join(dir, "run-before"), before, compiler, timeout)
+  // A legacy block rejected by the new checker cannot run before its fix.
+  // Its marked stdout remains mandatory after the migration, including
+  // unchanged blocks that depend on it.
+  if (!before.some(block => block.migration)) await verifyOutputs(join(dir, "run-before"), before, compiler, timeout)
   await verifyOutputs(join(dir, "run-after"), after, compiler, timeout)
   return { markdown: rewritten, changed: sources.size, blocks: blocks.length }
 }

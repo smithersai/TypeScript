@@ -104,7 +104,12 @@ function fallbackNever() {
 function curried() {
   const started = Deferred.make<void>()
   const x = () => take(started)
-  return pipe(x, Effect.race(Effect.forever(tick(started))))
+  return do {
+    const $pipe0 = x
+    const $pipe1: number!! = () => $pipe0()
+    const $pipe2: never!! = () => (Effect.forever(tick(started)))
+    Effect.race($pipe1, $pipe2)
+  }
 }
 
 // expect-result: {"socket":7,"host":7,"local":7,"raceNever":7,"raceFail":{"error":"failed","runs":2},"raceFirstFail":"failed","zipFail":{"error":"failed","zipped":1},"zipNever":"failed","fallbackFail":{"error":"failed","runs":2},"fallbackNever":9,"curried":7,"preferred":7,"applicable":"value"}

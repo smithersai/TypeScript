@@ -1,0 +1,21 @@
+// expect-result: {"value":2,"events":["retry","timeout","run","run"]}
+error Again
+const events: string[] = []
+let attempts = 0
+function policy() { events.push("retry"); return { times: 1 } }
+function duration() { events.push("timeout"); return "1 second" as const }
+function work() {
+  events.push("run")
+  attempts++
+  if (attempts === 1) throw new Again()
+  return attempts
+}
+export function main() {
+  const value = do {
+    const $pipe0: number!Again! = () => work()
+    const $pipe1 = policy()
+    const $pipe2 = duration()
+    Effect.timeout(() => Effect.retry($pipe0, $pipe1), $pipe2)
+  }
+  return { value, events }
+}

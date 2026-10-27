@@ -61,3 +61,16 @@ test("refuses a type-correct fix whose expected stdout changes", async () => {
     expect(readFileSync(join(dir, "fix/block-1.vibe"), "utf8")).toContain('Console.log("after")')
   } finally { rmSync(temp, { recursive: true, force: true }) }
 }, 60000)
+
+test("migrates pipe look-ahead and checks its marked output, idempotently", async () => {
+  const temp = mkdtempSync(join(tmpdir(), "fix-snippets-pipe-"))
+  try {
+    linkModules(temp)
+    const markdown = '```vibe\n// run: Console.log(value())\nfunction value() { return pipe(() => 5, Effect.map(n => n + 1)) }\n// Output: 6\n```\n'
+    const result = await fixPage(markdown, join(temp, "first"), defaultCompiler())
+    expect(result.changed).toBe(1)
+    expect(result.markdown).not.toContain("pipe(")
+    expect((await fixPage(result.markdown, join(temp, "second"), defaultCompiler())).changed).toBe(0)
+    await expect(fixPage(markdown.replace("Output: 6", "Output: 7"), join(temp, "wrong"), defaultCompiler())).rejects.toThrow("expected output changed")
+  } finally { rmSync(temp, { recursive: true, force: true }) }
+}, 60000)

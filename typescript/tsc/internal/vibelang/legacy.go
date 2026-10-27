@@ -139,11 +139,8 @@ func LegacySites(c *checker.Checker, file *ast.SourceFile) []LegacySite {
 					}
 					add(n, LegacyDualBlock, "block-program", repr, own, true)
 				}
-				if args := n.Arguments(); len(args) > 0 && a.isPipeProgram(n, []pathStep{{argument: 0}}) {
-					first := ast.SkipParentheses(args[0])
-					if isLambda(first) && a.finalForm(first) == formProgram || a.finalConversion(first) == convertProgram || a.finalConversion(first) == convertSyncProgram {
-						add(first, LegacyPipeLookAhead, "function-body", "Effect", own, true)
-					}
+				if site := a.legacyPipeSite(file, n); site != nil {
+					sites = append(sites, *site)
 				}
 				if awaitOperationNames[fiberHelper(n)] != "" {
 					legacyAwaitElements(a, n, func(element *ast.Node) {
@@ -278,4 +275,41 @@ func legacyAwaitElements(a *analyzer, call *ast.Node, cb func(*ast.Node)) {
 			}
 		}
 	}
+}
+
+// legacyPipeSites is the pipe part of the recorder, for normal diagnostics
+// and migration rounds. The full census above intentionally forces unrelated
+// old decisions on a separate checked program; doing that from a diagnostics
+// hook would re-enter their type analysis.
+func legacyPipeSites(c *checker.Checker, file *ast.SourceFile) []LegacySite {
+	if !isVibeLangFile(file) {
+		return nil
+	}
+	a := analyzerFor(c)
+	var sites []LegacySite
+	var visit func(*ast.Node) bool
+	visit = func(n *ast.Node) bool {
+		if inHatch(n) || n.Kind == ast.KindModuleDeclaration {
+			return false
+		}
+		if ast.IsCallExpression(n) {
+			if site := a.legacyPipeSite(file, n); site != nil {
+				sites = append(sites, *site)
+			}
+		}
+		n.ForEachChild(visit)
+		return false
+	}
+	file.AsNode().ForEachChild(visit)
+	return sites
+}
+
+func (a *analyzer) legacyPipeSite(file *ast.SourceFile, call *ast.Node) *LegacySite {
+	first := a.legacyPipeFirst(call)
+	if first == nil {
+		return nil
+	}
+	return &LegacySite{Kind: LegacyPipeLookAhead, Node: first,
+		Span:     core.NewTextRange(scanner.SkipTrivia(file.Text(), first.Pos()), first.End()),
+		Boundary: "function-body", Representation: "Effect", Signature: a.checker.GetResolvedSignature(call), Selected: true}
 }

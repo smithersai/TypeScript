@@ -39,6 +39,7 @@ func TestCategory(t *testing.T) {
 		{"EK2004 can be an error", EK2004, with(map[string]string{"EK2004": "error"}), diagnostics.CategoryError, true},
 		{"EK4403 can be a warning", EK4403, with(map[string]string{"EK4403": "warning"}), diagnostics.CategoryWarning, true},
 		{"EK4403 can be off", EK4403, with(map[string]string{"EK4403": "off"}), 0, false},
+		{"EK1023 cannot be disabled", EK1023, with(map[string]string{"EK1023": "off"}), diagnostics.CategoryError, true},
 		{"EK1010 cannot be disabled", EK1010, with(map[string]string{"EK1010": "off"}), diagnostics.CategoryError, true},
 		{"other codes stay errors", EK2001, with(map[string]string{"EK2001": "off"}), diagnostics.CategoryError, true},
 		{"EK3207 cannot be disabled", EK3207, with(map[string]string{"EK3207": "off"}), diagnostics.CategoryError, true},
@@ -81,6 +82,14 @@ func TestRegistryMatchesSpec(t *testing.T) {
 	// D376 lists EK1022 below the registry table until the spec lane updates it.
 	if !slices.Contains(want, int32(1022)) && strings.Contains(string(spec), "**EK1022**") {
 		want = append(want, 1022)
+	}
+	// D382 defines EK1023 in Chapter 28's revision bullets. The spec lane
+	// owns its table row; require the definition while that row is pending.
+	if !slices.Contains(want, EK1023.Code) {
+		if !strings.Contains(string(spec), "- **EK1023**:") {
+			t.Fatal("EK1023 has no Chapter 28 definition")
+		}
+		want = append(want, EK1023.Code)
 	}
 	var got []int32
 	for code := range registry {

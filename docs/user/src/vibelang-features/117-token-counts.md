@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,113 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,705 |
-| The skill and the user guide (134 pages) | 241,395 |
-| The user guide alone | 236,282 |
+| The skill and the user guide (134 pages) | 241,599 |
+| The user guide alone | 236,486 |
 | The specification (33 chapters) | 157,859 |
 | The decision log, `docs/design/DECISIONS.md` | 100,495 |
 
@@ -96,13 +96,13 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Creating Effects](../getting-started/005-creating-effects.md) | 3,223 |
 | [Two Types of Errors](../error-management/006-two-error-types.md) | 642 |
 | [Basic Concurrency](../concurrency/007-basic-concurrency.md) | 1,441 |
-| **Core Concepts** | **17,406** |
+| **Core Concepts** | **17,509** |
 | [Effect's Modules](../getting-started/008-importing-effect.md) | 2,533 |
 | [Running Effects](../getting-started/009-running-effects.md) | 1,704 |
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
-| [Devtools](../getting-started/012-devtools.md) | 10,178 |
-| **All 12 pages** | **29,149** |
+| [Devtools](../getting-started/012-devtools.md) | 10,281 |
+| **All 12 pages** | **29,252** |
 
 ### Setup
 
@@ -156,18 +156,18 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Resource Management** | **4,481** |
 | [Introduction](../resource-management/029-introduction.md) | 1,623 |
 | [Scope](../resource-management/030-scope.md) | 2,858 |
-| **Observability** | **6,462** |
+| **Observability** | **6,490** |
 | [Logging](../observability/031-logging.md) | 1,935 |
-| [Metrics](../observability/032-metrics.md) | 1,321 |
+| [Metrics](../observability/032-metrics.md) | 1,349 |
 | [Tracing](../observability/033-tracing.md) | 2,473 |
 | [Tracking Fibers](../observability/034-tracking-fibers.md) | 733 |
 | [Configuration](../035-configuration.md) | 2,689 |
 | [Runtime](../036-runtime.md) | 1,410 |
-| **Scheduling** | **4,908** |
+| **Scheduling** | **4,932** |
 | [Using schedules](../scheduling/037-using-schedules.md) | 914 |
 | [Choosing and combining schedules](../scheduling/038-choosing-and-combining-schedules.md) | 1,581 |
 | [Scheduling work with cron](../scheduling/039-cron.md) | 1,198 |
-| [Schedule cookbook](../scheduling/040-cookbook.md) | 1,215 |
+| [Schedule cookbook](../scheduling/040-cookbook.md) | 1,239 |
 | **State Management** | **2,343** |
 | [Ref](../state-management/041-ref.md) | 893 |
 | [SynchronizedRef](../state-management/042-synchronizedref.md) | 711 |
@@ -176,13 +176,13 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Caching** | **1,839** |
 | [Caching Effects](../caching/045-caching-effects.md) | 859 |
 | [Cache](../caching/046-cache.md) | 980 |
-| **Concurrency** | **6,879** |
+| **Concurrency** | **6,928** |
 | [Fibers](../concurrency/047-fibers.md) | 2,289 |
 | [Deferred](../concurrency/048-deferred.md) | 886 |
 | [Queue](../concurrency/049-queue.md) | 1,266 |
 | [PubSub](../concurrency/050-pubsub.md) | 1,132 |
-| [Semaphore](../concurrency/051-semaphore.md) | 707 |
-| [Latch](../concurrency/052-latch.md) | 599 |
+| [Semaphore](../concurrency/051-semaphore.md) | 735 |
+| [Latch](../concurrency/052-latch.md) | 620 |
 | **Stream** | **10,154** |
 | [Introduction](../stream/053-introduction.md) | 1,076 |
 | [Creating Streams](../stream/054-creating.md) | 2,386 |
@@ -252,7 +252,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Terminal](../platform/110-terminal.md) | 1,508 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 4,107 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **140,961** |
+| **All 100 pages** | **141,062** |
 
 ### VibeLang features
 

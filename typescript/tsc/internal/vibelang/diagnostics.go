@@ -92,6 +92,8 @@ var (
 	EK1012 = message(1012, warningCategory, "{0} runs here and never succeeds, so {1} never holds a value.")
 	// EK1022: a next-line block could be mistaken for the previous statement's block param (D376).
 	EK1022 = message(1022, errorCategory, parser.VibeLangNextLineBlockMessage)
+	// EK1023: a legacy decision would silently change meaning (D382). Not adjustable.
+	EK1023 = message(1023, errorCategory, "pipe passes its first argument as the value it is; through VibeLang 0.0.10 this site passed a program by look-ahead.")
 	// EK2001: an expected failure escapes the written contract. {0} is the failure, {1} the function, {2} what the contract allows.
 	EK2001 = message(2001, errorCategory, "{0} can escape {1}, but {2}.")
 	// EK2002: a requirement escapes the written contract. {0} is the function, {1} the requirement, {2} the contract's R.
@@ -201,7 +203,7 @@ var registry = map[int32]*Message{}
 
 func init() {
 	for _, m := range []*Message{
-		EK1001, EK1002, EK1003, EK1004, EK1005, EK1006, EK1007, EK1008, EK1009, EK1010, EK1011, EK1012, EK1022,
+		EK1001, EK1002, EK1003, EK1004, EK1005, EK1006, EK1007, EK1008, EK1009, EK1010, EK1011, EK1012, EK1022, EK1023,
 		EK2001, EK2002, EK2003, EK2004, EK2005, EK2006, EK2101, EK2102, EK2103, EK2104, EK2105, EK2106, EK2107, EK2108, EK2109, EK2112, EK2113, EK2115, EK2116, EK2117, EK2118,
 		EK3001, EK3002, EK3003, EK3004, EK3005, EK3006, EK3101, EK3201, EK3202, EK3203, EK3204, EK3205, EK3206, EK3207,
 		EK4201, EK4202, EK4301, EK4401, EK4402, EK4403, EK4404, EK4405, EK4406, EK4407, EK4408, EK4409, EK4501,

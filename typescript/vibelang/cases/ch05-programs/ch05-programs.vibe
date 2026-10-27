@@ -87,12 +87,12 @@ function combinators(id: string) {
 // Pipe
 
 function piped(id: string) {
-  const user = pipe(
-    () => fetchUser(id),
-    Effect.retry({ times: 3 }),
-    Effect.timeout("2 seconds"),
-    Effect.withSpan("load-user")
-  )
+  const user = do {
+    const $pipe0: User!FetchError! = () => fetchUser(id)
+    const $pipe1 = { times: 3 }
+    const $pipe2 = Effect.withSpan("load-user")
+    $pipe2(() => Effect.timeout(() => Effect.retry($pipe0, $pipe1), "2 seconds"))
+  }
   // user: User;  E gains TimeoutError from Effect.timeout
   return user.name
 }

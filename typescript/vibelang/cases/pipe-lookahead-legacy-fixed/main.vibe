@@ -1,0 +1,15 @@
+// expect-result: "program"
+// This accepted 0.0.10 source used the first stage's Effect signature.
+function inspect(value: number!!): string
+function inspect(value: unknown): string
+function inspect(value: unknown): string {
+  return Effect.isEffect(value) ? "program" : "function"
+}
+
+export function main() {
+  return do {
+    const $pipe0: (number)!! = () => 5
+    const $pipe1 = inspect
+    $pipe1($pipe0)
+  }
+}

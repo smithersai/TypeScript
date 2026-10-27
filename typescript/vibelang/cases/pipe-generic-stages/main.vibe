@@ -1,6 +1,6 @@
 // pipe is effect's pipe on plain data (D8): generic stages such as Match's
-// and Layer's infer from the value before them. With a program first, a
-// generic error operator sees the program's failure type.
+// and Layer's infer from the value before them. Explicit program stages
+// preserve the failure type for generic error operators.
 import { Context, Match } from "effect"
 
 class Missing extends TaggedError("Missing")<{ readonly name: string }> {}
@@ -38,11 +38,10 @@ function requireSetting(name: string) {
 }
 
 function startup() {
-  return pipe(
-    () => requireSetting("region"),
-    Effect.mapError((error) => `needs ${error.name}`),
-    Effect.catch((message) => Effect.succeed(message))
-  )
+  return do {
+    const $pipe0: void!Missing! = () => requireSetting("region")
+    Effect.catch(() => Effect.mapError($pipe0, (error) => `needs ${error.name}`), (message) => Effect.succeed(message))
+  }
 }
 
 function title() {

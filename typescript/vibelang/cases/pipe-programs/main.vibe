@@ -1,6 +1,5 @@
-// pipe takes the program first (design D8): when its first argument is a
-// function with no parameters and the first stage takes an Effect, that
-// function is the program. On plain data, pipe is effect's ordinary pipe.
+// Programs use explicit nested stages (D383). pipe passes its first
+// argument as a value and remains useful for ordinary data pipelines.
 import { Array as Arr, Schedule } from "effect"
 
 let attempts = 0
@@ -12,18 +11,23 @@ function flaky() {
 }
 
 function piped() {
-  return pipe(
-    () => flaky(),
-    Effect.retry({ times: 3 }),
-    Effect.timeout("1 second"),
-    Effect.withSpan("flaky")
-  )
+  return do {
+    const $pipe0: string!Error! = () => flaky()
+    const $pipe1 = { times: 3 }
+    const $pipe2 = Effect.withSpan("flaky")
+    $pipe2(() => Effect.timeout(() => Effect.retry($pipe0, $pipe1), "1 second"))
+  }
 }
 
 // A stored program works the same way.
 function stored() {
   const job = () => flaky()
-  return pipe(job, Effect.retry(Schedule.recurs(1)))
+  return do {
+    const $pipe3 = job
+    const $pipe4: string!Error! = () => $pipe3()
+    const $pipe5 = Schedule.recurs(1)
+    Effect.retry($pipe4, $pipe5)
+  }
 }
 
 // Plain data flows through plain stages.

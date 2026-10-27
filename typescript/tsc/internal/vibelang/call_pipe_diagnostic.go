@@ -43,7 +43,7 @@ func explainCallPipe(c *checker.Checker, file *ast.SourceFile, all []*ast.Diagno
 			for at := node; at != nil && !isFunctionBoundary(at); at = at.Parent {
 				if first := preludePipeRunningCall(c, at); first != nil {
 					replacement := newDiagnosticAt(optionsFor(c, file), file, d.Loc(), EK4502.With("{0} already ran and returned its success value before pipe received it."), nodeText(file, first))
-					note(replacement, "Start with a program: pipe(() => {0}, …), or use |> with %.", nodeText(file, first))
+					note(replacement, "Pass () => {0} directly to the intended operation, or use |> with %.", nodeText(file, first))
 					all[i] = replacement
 					break
 				}

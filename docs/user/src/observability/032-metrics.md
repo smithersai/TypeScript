@@ -39,7 +39,11 @@ const completions = Metric.withConstantInput(
 )
 
 function instrumentedValue() {
-  return pipe(() => "processed", Effect.trackSuccesses(completions))
+  return do {
+    const $pipe0: (string)!! = () => "processed"
+    const $pipe1 = completions
+    Effect.trackSuccesses($pipe0, $pipe1)
+  }
 }
 ```
 

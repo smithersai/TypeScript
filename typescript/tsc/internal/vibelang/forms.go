@@ -157,11 +157,7 @@ func (a *analyzer) formHere(fn *ast.Node) form {
 // expectationAt reads what signature, the candidate call is checked against,
 // expects of fn at path among call's arguments.
 func (a *analyzer) expectationAt(call *ast.Node, signature *checker.Signature, path []pathStep, fn *ast.Node) expectation {
-	e := a.classify(a.expectedAt(call, signature, path, fn))
-	if requiredParameterCount(fn) == 0 && a.isPipeProgram(call, path) {
-		e.program = true
-	}
-	return e
+	return a.classify(a.expectedAt(call, signature, path, fn))
 }
 
 // annotatedReturnInference makes inference from the contract of a lambda that

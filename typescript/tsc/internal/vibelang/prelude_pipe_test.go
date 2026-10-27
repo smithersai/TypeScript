@@ -13,7 +13,7 @@ func TestPreludePipeCallGuidance(t *testing.T) {
 		if d.Code() == 4502 {
 			found = true
 			text := diagnosticWithNotes(d)
-			if !strings.Contains(text, "pipe(() => num(1)") || !strings.Contains(text, "|>") {
+			if !strings.Contains(text, "Pass () => num(1) directly") || !strings.Contains(text, "|>") || strings.Contains(text, "pipe(() =>") {
 				t.Errorf("missing guidance: %s", text)
 			}
 		}

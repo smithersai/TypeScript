@@ -231,12 +231,6 @@ func FixProject(ctx context.Context, fs vfs.FS, libraryPath tspath.RootedDirecto
 
 func FixProjectWithOptions(ctx context.Context, fs vfs.FS, libraryPath tspath.RootedDirectoryPath, config *tsoptions.ParsedCommandLine, options FixOptions) *FixResult {
 	result := &FixResult{Files: map[tspath.RootedFilePath]*FixedFile{}}
-	// S0 only records legacy decisions. Later slices insert recorder-driven
-	// migration rounds here, shared by ordinary and migration-only --fix.
-	// Existing style/prelude fixes are outside the docs migration transaction.
-	if options.MigrationOnly {
-		return result
-	}
 	// A checker that sees its context canceled panics when it is asked
 	// again, so the checks run to their end and ctx is tested between them.
 	done := ctx
@@ -256,7 +250,14 @@ func FixProjectWithOptions(ctx context.Context, fs vfs.FS, libraryPath tspath.Ro
 		}
 		var proposals []proposal
 		for _, file := range fixableFiles(program) {
-			if p := fileFixes(ctx, program, file, g.refused); len(p.fixes) > 0 {
+			p := pipeMigrationFixes(ctx, program, file, g.refused, func(refusal FixRefusal, key string) {
+				g.refused[key] = true
+				result.Refused = append(result.Refused, refusal)
+			})
+			if len(p.fixes) == 0 && !options.MigrationOnly {
+				p = fileFixes(ctx, program, file, g.refused)
+			}
+			if len(p.fixes) > 0 {
 				proposals = append(proposals, p)
 			}
 		}
@@ -289,6 +290,10 @@ func FixProjectWithOptions(ctx context.Context, fs vfs.FS, libraryPath tspath.Ro
 			texts[name] = fixed.Text
 		}
 		program = build(texts)
+	}
+	if options.MigrationOnly {
+		slices.SortFunc(result.Order, tspath.RootedFilePath.Compare)
+		return result
 	}
 	// What the prelude makes shorter (D310, D311).
 	if done.Err() == nil {

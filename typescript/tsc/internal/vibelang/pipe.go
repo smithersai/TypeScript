@@ -5,7 +5,8 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
-// The built-in pipe takes the program first (design D8):
+// Legacy D110 analysis only. D383 makes pipe an ordinary value call.
+// Through 0.0.10, the built-in pipe took the program first (design D8):
 //
 //	const user = pipe(
 //	  () => fetchUser(id),
@@ -18,7 +19,7 @@ import (
 // parameters and its first stage takes an Effect, the first argument is a
 // program. Applied to plain data, pipe is effect's ordinary pipe.
 
-// isPipeProgram reports whether the argument at path is pipe's first
+// legacyPipeProgram reports whether the argument at path is pipe's first
 // argument, and pipe's first stage takes an Effect. Callers ask only about an
 // argument that can be a program, a function with no required parameters.
 //
@@ -26,11 +27,11 @@ import (
 // stage receives yet, and a generic stage such as Match.when(…) or
 // Effect.catchTag(…) checked without it would keep a resolution that lost
 // its inferences. The look-ahead reads the stage's callee instead.
-func (a *analyzer) isPipeProgram(call *ast.Node, path []pathStep) bool {
+func (a *analyzer) legacyPipeProgram(call *ast.Node, path []pathStep) bool {
 	if len(path) != 1 || path[0].argument != 0 || len(call.Arguments()) < 2 || !a.isEffectPipe(call) {
 		return false
 	}
-	for _, stage := range a.stageSignatures(call.Arguments()[1]) {
+	for _, stage := range a.legacyStageSignatures(call.Arguments()[1]) {
 		if parameters := stage.Parameters(); len(parameters) > 0 && a.isExpectedEffect(a.checker.GetTypeOfSymbol(parameters[0])) {
 			return true
 		}
@@ -38,11 +39,11 @@ func (a *analyzer) isPipeProgram(call *ast.Node, path []pathStep) bool {
 	return false
 }
 
-// stageSignatures returns the signatures of the function that stage, a pipe
+// legacyStageSignatures returns the signatures of the function that stage, a pipe
 // argument, evaluates to: for a call such as Effect.retry(policy), the
 // functions its callee's signatures of that arity return; for a function
 // value such as Effect.orDie, its own signatures.
-func (a *analyzer) stageSignatures(stage *ast.Node) []*checker.Signature {
+func (a *analyzer) legacyStageSignatures(stage *ast.Node) []*checker.Signature {
 	c := a.checker
 	stage = ast.SkipParentheses(stage)
 	switch {
@@ -82,4 +83,18 @@ func (a *analyzer) isEffectPipe(call *ast.Node) bool {
 		}
 	}
 	return false
+}
+
+// legacyPipeFirst keeps D110's detector independent of the new final form.
+// A literal used to take the program form; a stored Effect function used to
+// convert to its program. Neither decision now affects checking or lowering.
+func (a *analyzer) legacyPipeFirst(call *ast.Node) *ast.Node {
+	if !a.legacyPipeProgram(call, []pathStep{{argument: 0}}) {
+		return nil
+	}
+	first := ast.SkipParentheses(call.Arguments()[0])
+	if isLambda(first) && requiredParameterCount(first) == 0 && !a.hasPlainContract(first) && !a.isFactory(first) || a.programOf(a.checker.GetTypeAtLocation(first)) != nil {
+		return first
+	}
+	return nil
 }

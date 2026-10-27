@@ -116,6 +116,14 @@ func checkTypeScriptForms(c *checker.Checker, file *ast.SourceFile) {
 			continue
 		}
 		rule.find(c, file, func(at *ast.Node, rewrite *formRewrite, args ...any) {
+			if m.Code == 4834 || m.Code == 4835 {
+				a := analyzerFor(c)
+				for parent := at.Parent; parent != nil; parent = parent.Parent {
+					if ast.IsCallExpression(parent) && a.legacyPipeFirst(parent) != nil {
+						return
+					}
+				}
+			}
 			m := rule.message
 			if rewrite != nil && rewrite.message != nil {
 				m = rewrite.message
