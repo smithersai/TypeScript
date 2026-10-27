@@ -14,7 +14,7 @@ cd my-app
 bun run start
 ```
 
-The native `vibelang` compiler compiles `.vibe` sources to JavaScript. Version 0.0.10 installs from npm.
+The native `vibelang` compiler compiles `.vibe` sources to JavaScript. Version 0.0.11 installs from npm.
 
 > **For agents.** To set up VibeLang with a coding agent, give it this prompt:
 >
@@ -28,14 +28,14 @@ The native `vibelang` compiler compiles `.vibe` sources to JavaScript. Version 0
 
 Install Node 26 or later. If you use Bun, use Bun 1.4 or later. Bun is optional. The compiler is a native binary: `vibelang` lists one package per platform as an optional dependency, and your package manager installs only the one that matches your machine:
 
-| Platform | Package | Rehearsed for 0.0.10 |
+| Platform | Package | Rehearsed for 0.0.11 |
 | --- | --- | --- |
 | macOS on Apple silicon | `vibelang-darwin-arm64` | No |
 | macOS on Intel | `vibelang-darwin-x64` | No |
 | Linux on x64 | `vibelang-linux-x64` | Yes |
 | Linux on arm64 | `vibelang-linux-arm64` | No |
 
-Version 0.0.10 publishes four native packages for macOS and Linux on arm64 and x64. Native Windows binaries are not available yet. Use WSL and follow the Linux instructions. The release rehearsal creates, starts and tests a starter with npm and Bun on Linux x64. The macOS and Linux arm64 binaries are cross-built but have not been rehearsed for this release.
+Version 0.0.11 publishes four native packages for macOS and Linux on arm64 and x64. Native Windows binaries are not available yet. Use WSL and follow the Linux instructions. The release rehearsal creates, starts and tests a starter with npm and Bun on Linux x64. The macOS and Linux arm64 binaries are cross-built but have not been rehearsed for this release.
 
 Keep optional dependencies enabled: if an install skips them, as `npm install --omit=optional` does, `vibelang` cannot find its binary and exits with an error.
 
@@ -74,8 +74,8 @@ Before installing, add this transitive pin to `package.json` (npm and Bun both h
 This keeps the platform package from selecting a newer patch with a different Effect peer requirement.
 
 ```sh
-bun add --exact vibelang-runtime@0.0.10 effect@4.0.6 @effect/platform-node@4.0.6
-bun add -d --exact vibelang@0.0.10 vibelang-vite@0.0.10 vitest@5.0.5 @effect/vitest@4.0.6
+bun add --exact vibelang-runtime@0.0.11 effect@4.0.6 @effect/platform-node@4.0.6
+bun add -d --exact vibelang@0.0.11 vibelang-vite@0.0.11 vitest@5.0.5 @effect/vitest@4.0.6
 ```
 
 With npm, run `npm install --save-exact` for the first line and `npm install --save-dev --save-exact` for the second.

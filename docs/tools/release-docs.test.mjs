@@ -132,9 +132,9 @@ test("compatibility boxes and package install pins follow the runtime manifest",
   assert.equal(renderReleasePage("packages/compiler/README.md", "effect@4.0.5", "9.8.7", "4.9.1"), "effect@4.9.1")
 })
 
-test("the current release owns the pinned Effect migration and upgrade instructions", () => {
+test("the 0.0.10 release owns the Effect 4.0.6 migration and upgrade instructions", () => {
   const root = fileURLToPath(new URL("../../", import.meta.url))
-  const version = JSON.parse(readFileSync(join(root, "packages/compiler/package.json"), "utf8")).version
+  const version = "0.0.10"
   const effect = JSON.parse(readFileSync(join(root, "packages/runtime/package.json"), "utf8")).peerDependencies.effect
   const notes = readFileSync(join(root, "docs/user/src/setup/release-notes.md"), "utf8")
   const releases = notes.split(/^## /m).slice(1)
@@ -147,4 +147,21 @@ test("the current release owns the pinned Effect migration and upgrade instructi
     "npm install --save-exact", "bun add --exact",
     "@effect/platform-node-shared", "npm test", "bun run test"
   ]) assert.ok(current.includes(text), text + " belongs in " + version)
+})
+
+test("published release notes lead with the current version and its upgrade instructions", () => {
+  const root = fileURLToPath(new URL("../../", import.meta.url))
+  const version = JSON.parse(readFileSync(join(root, "packages/compiler/package.json"), "utf8")).version
+  const notes = readFileSync(join(root, "docs/user/src/setup/release-notes.md"), "utf8")
+  const [current] = notes.split(/^## /m).slice(1)
+  assert.equal(current.split("\n")[0], version)
+  for (const heading of ["Upgrade from 0.0.10", "Correctness", "Performance", "Diagnostics", "Tooling", "Docs"]) {
+    assert.ok(current.includes("### " + heading), heading)
+  }
+  for (const text of ["EK4801", "EK1010", "EK2118", "EK4408", "EK4402", "await",
+    "provisional", "platform-globals.md", "vibelang/platform/node", "--fix",
+    "npm install --save-exact", "bun add --exact", "vibelang-runtime@" + version,
+    "Experimental.FileSystem", "Experimental.Crypto", "Experimental.Process", "Experimental.Locks"]) {
+    assert.ok(current.includes(text), text)
+  }
 })
