@@ -27,6 +27,7 @@ export default Alchemy.Stack(
     const site = yield* Cloudflare.Website.StaticSite('Website', {
       command: 'npm run build',
       cwd: docsDir,
+      // Vocs emits 404.html at this root; Cloudflare serves it with status 404.
       outdir: 'dist/public',
       dev: {
         command: 'npm run dev',

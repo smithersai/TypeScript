@@ -41,13 +41,24 @@ export default defineConfig({
   description:
     'Write Effect programs in TypeScript syntax, with typed errors and services the compiler checks.',
   ogImageUrl: 'https://vibelang.sh/social-card.png',
-  head: {
+  // Vocs renders its /404 route to the published dist/public/404.html.
+  head: (path) => ({
+    ...(path === '/404' ? {
+      title: 'Page not found | VibeLang',
+      canonical: false,
+    } : {}),
     meta: {
+      ...(path === '/404' ? {
+        robots: 'noindex',
+        description:
+          'The page you requested was not found. Return to the VibeLang documentation or specification.',
+        ogUrl: false,
+      } : {}),
       ogImageWidth: '1200',
       ogImageHeight: '630',
       ogImageAlt: 'VibeLang — Effect, as a language',
     },
-  },
+  }),
   iconUrl: '/icon.svg',
   logoUrl: {
     light: '/logo-light.svg',
