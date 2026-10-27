@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 4,988 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,612 |
-| The skill and the user guide (134 pages) | 229,614 |
-| The user guide alone | 224,626 |
+| The skill and the user guide (134 pages) | 229,590 |
+| The user guide alone | 224,602 |
 | The specification (33 chapters) | 108,411 |
 | The decision log, `docs/design/DECISIONS.md` | 69,738 |
 
@@ -110,26 +110,26 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | --- | ---: |
 | [Set up VibeLang](../setup.md) | 1,826 |
 | [Known limitations](../setup/known-limitations.md) | 476 |
-| **Start a project** | **1,586** |
+| **Start a project** | **1,582** |
 | [New project](../setup/new-project.md) | 482 |
-| [Existing project](../setup/existing-project.md) | 1,104 |
-| **Build and test** | **3,417** |
-| [vibelang CLI](../setup/vibelang-cli.md) | 2,252 |
-| [Vite and Vitest](../setup/vite.md) | 1,165 |
+| [Existing project](../setup/existing-project.md) | 1,100 |
+| **Build and test** | **3,415** |
+| [vibelang CLI](../setup/vibelang-cli.md) | 2,249 |
+| [Vite and Vitest](../setup/vite.md) | 1,166 |
 | **Format and lint** | **1,409** |
 | [Format with dprint](../setup/formatting.md) | 1,409 |
-| **Frameworks** | **6,996** |
-| [React](../setup/react.md) | 1,931 |
-| [Vue](../setup/vue.md) | 2,687 |
-| [Svelte](../setup/svelte.md) | 2,378 |
-| **Editors** | **2,683** |
-| [VS Code and Cursor](../setup/vscode.md) | 926 |
+| **Frameworks** | **6,990** |
+| [React](../setup/react.md) | 1,929 |
+| [Vue](../setup/vue.md) | 2,685 |
+| [Svelte](../setup/svelte.md) | 2,376 |
+| **Editors** | **2,671** |
+| [VS Code and Cursor](../setup/vscode.md) | 914 |
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
 | **Upgrade** | **13,471** |
 | [Release notes](../setup/release-notes.md) | 13,471 |
-| **All 15 pages** | **31,864** |
+| **All 15 pages** | **31,840** |
 
 ### Guides
 

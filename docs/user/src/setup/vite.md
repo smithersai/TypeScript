@@ -99,7 +99,7 @@ In `package.json`, replace `tsc` in the build script with `vibelang` so it check
 }
 ```
 
-Run `npm run build`, or `bun run build`; then run `npm run test`, or `bun run test`. The build exits with status 0, and its last line starts with `✓ built in`. Tell the user which files you added.
+Run `npm run build`, or `bun run build`; then run `npm run test`, or `bun run test`. The build exits with status 0, and its last line starts with `✓ built in`. Review the files you added before committing them.
 
 ## Next
 

@@ -225,7 +225,7 @@ Use `vibelang -b` instead: it builds the same project references and checks `.vi
 }
 ```
 
-Run `npm run check` or `bun run check`; it exits with status 0. Then run `npm run build` or `bun run build`; it exits with status 0, and its last line starts with `✓ built in`. Tell the user which files you added and changed, and that `svelte-check` no longer runs in the `check` script.
+Run `npm run check` or `bun run check`; it exits with status 0. Then run `npm run build` or `bun run build`; it exits with status 0, and its last line starts with `✓ built in`. Review the files you added and changed. Your `check` script now uses VibeLang instead of `svelte-check`.
 
 ## Next
 

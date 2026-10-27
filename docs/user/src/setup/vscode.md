@@ -6,7 +6,7 @@ The `vibelang` package ships the editor extension `vibelang.vibelang` as `node_m
 
 On macOS, open the editor’s Command Palette and run **Shell Command: Install 'code' command in PATH** for VS Code or **Shell Command: Install 'cursor' command in PATH** for Cursor. Open a new terminal so the shell can find the command before continuing.
 
-From the project directory, after installing dependencies, run the command for the user's editor:
+From the project directory, after installing dependencies, run the command for your editor:
 
 ```sh
 code --install-extension node_modules/vibelang/editor/vibelang.vsix
@@ -25,11 +25,11 @@ For Cursor, run `cursor --list-extensions | grep vibelang`. The output is:
 vibelang.vibelang
 ```
 
-## 3. Tell the user what to do in the editor
+## 3. Open your project in the editor
 
-Tell the user to open the project directory and trust the workspace: the extension runs the workspace's `node_modules/.bin/vibelang`, so it does not run in an untrusted workspace. When it cannot find `vibelang`, the status item next to the language mode reads "vibelang not found".
+Open the project directory and trust the workspace: the extension runs the workspace's `node_modules/.bin/vibelang`, so it does not run in an untrusted workspace. When it cannot find `vibelang`, the status item next to the language mode reads "vibelang not found".
 
-VS Code's built-in TypeScript cannot resolve `.vibe` files, so if a `.ts` file imports a `.vibe` module, tell the user to run **VibeLang: Serve TypeScript Files in This Workspace** from the command palette. In Cursor, the command turns the built-in TypeScript features off for the workspace; in VS Code, it shows the extension to disable, "TypeScript and JavaScript Language Features".
+VS Code's built-in TypeScript cannot resolve `.vibe` files, so if a `.ts` file imports a `.vibe` module, run **VibeLang: Serve TypeScript Files in This Workspace** from the command palette. In Cursor, the command turns the built-in TypeScript features off for the workspace; in VS Code, it shows the extension to disable, "TypeScript and JavaScript Language Features".
 
 After updating `vibelang`, reinstall the extension from `node_modules`.
 
