@@ -64,7 +64,7 @@ function promised(value: number): number!! {
 
 This is `EK2001`: handle `Rejected` inside the function or widen its contract. Related checks: unmet services (`EK2002`), running a program at module top level without an explicit Effect type on a `const` (`EK1001`), and passing a suspending callback to synchronous JavaScript (`EK4301`).
 
-Inside functions, plain foreign calls need a boundary hatch such as `try` or `sync`, or a trusted declaration (`EK4401`). Effect's own packages and packages matching the `vibelang` setting `trustedPackages` are trusted: plain calls are synchronous, their exceptions are defects, and Effect-returning calls run. Running a platform API is rejected with an Effect module suggestion (`EK4402`); importing or passing its binding as a value is allowed, and uncontrolled time or randomness reads have their own diagnostic (`EK4403`). A runner inside code a fiber runs is `EK1005`, and a try block that runs Effects with E = `never` gets `EK2004` (defects pass through), a warning by default.
+Inside functions, plain foreign calls need a boundary hatch such as `try` or `sync`, or a trusted declaration (`EK4401`). Effect's own packages and packages matching the `vibelang` setting `trustedPackages` are trusted: plain calls are synchronous, their exceptions are defects, and Effect-returning calls run. A Node.js or web I/O global, run or held as a value, and a Node.js module imported as a value are rejected with the Effect service that replaces them (`EK4402`), and uncontrolled time or randomness reads have their own diagnostic (`EK4403`). A runner inside code a fiber runs is `EK1005`, and a try block that runs Effects with E = `never` gets `EK2004` (defects pass through), a warning by default.
 
 EK1010 refuses an unparenthesized throw expression that is, or ends, the left operand of a binary operator (except comma), a conditional's condition, or the operand of `as` or `satisfies`: `x ?? throw c ? a : b` throws only `c`. Write `throw (…)` to throw the whole expression; `value ?? throw e` and throw statements keep their meaning.
 
@@ -195,7 +195,7 @@ function discard(program: Effect.Effect<number>) {
 | Effect-native | `globalTimersInEffect` | Covered: EK4402 | `setTimeout(f, 10)` |
 | Effect-native | `instanceOfSchema` | EK4817, off by default, with a quick fix | `value instanceof Person`; the fix writes `Schema.is(Person)(value)` |
 | Effect-native | `newPromise` | EK4812, warning | `new Promise((resolve) => …)`; use `callback((resume) => …)` |
-| Effect-native | `nodeBuiltinImport` | Covered: EK4402 where the code runs the import; importing is allowed | `readFile(path)` from `node:fs/promises` |
+| Effect-native | `nodeBuiltinImport` | Covered: EK4402 at a value import of a Node.js module | `readFile(path)` from `node:fs/promises` |
 | Effect-native | `preferSchemaOverJson` | EK4818, off by default | `JSON.parse(text)` |
 | Effect-native | `processEnv` | Covered: EK4402 | `process.env.PORT`; use `Config` |
 | Effect-native | `processEnvInEffect` | Covered: EK4402 | `process.env.PORT` |
