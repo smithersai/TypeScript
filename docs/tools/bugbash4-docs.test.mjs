@@ -61,3 +61,8 @@ test("scaffolder options include both aliases for help and version", () => {
 test("essentials declares its example layer binding", () => {
   assert.match(read("docs/user/llms-essentials.md"), /`const UsersLive = Layer\.succeed/)
 })
+
+test("framework recipes retain VibeLang checking and run Effects before rendering", () => {
+  const text = read("docs/user/src/setup.md")
+  for (const part of ['vibelang-unplugin/webpack', 'next build --webpack', 'vibelang --noEmit && next build --webpack', 'ignoreBuildErrors', 'entire checker', 'vite: { plugins: [vibelang()] }', 'Effect.runSync(greet("Astro"))', '<h1>{message}</h1>']) assert.ok(text.includes(part), part)
+})

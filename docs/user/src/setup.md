@@ -24,7 +24,8 @@ Read the project's root directory and record:
 | Build | `vite` or `vitest` in `package.json`, or a `vite.config.*` or `vitest.config.*` file | Vite |
 | | `webpack`, `rollup`, `esbuild`, or `@rspack/core` in `package.json`, or `bun build` in a script | Another bundler: `vibelang-unplugin` |
 | | None of these | The `vibelang` CLI |
-| Framework | `react`, `vue`, or `svelte` in `package.json`, with a Vite build | React, Vue, or Svelte. With `@sveltejs/kit` or `nuxt`, tell the user these pages don't cover it |
+| Framework | `next` or `astro` in `package.json` | Follow Next.js or Astro below |
+| | `react`, `vue`, or `svelte` in `package.json`, with a Vite build | React, Vue, or Svelte. With `@sveltejs/kit` or `nuxt`, tell the user these pages don't cover it |
 | Editor | A `.vscode/` or `.cursor/` directory | VS Code or Cursor |
 | | A `.zed/` directory | Zed |
 | | None of these | Ask the user |
@@ -40,6 +41,7 @@ Follow each matching page, in this order: project, build or framework, editor.
 | Build with the `vibelang` CLI, as with `tsc` | [Build with the vibelang CLI](setup/vibelang-cli.md) |
 | Vite or Vitest, without React, Vue, or Svelte | [Vite and Vitest](setup/vite.md) |
 | React, Vue, or Svelte with Vite | [React](setup/react.md), [Vue](setup/vue.md), or [Svelte](setup/svelte.md), instead of the Vite page |
+| Next.js with webpack, or Astro | [Framework setup](#framework-setup) below |
 | Format with dprint, or a `dprint.json` in the project | [Format with dprint](setup/formatting.md) |
 | VS Code or Cursor | [VS Code and Cursor](setup/vscode.md) |
 | Neovim | [Neovim](setup/neovim.md) |
@@ -58,3 +60,63 @@ npx vibelang --noEmit
 ```
 
 The first prints `VibeLang 0.0.10 (TypeScript 7.1.0-dev)`; the second prints nothing and exits with status 0. Then run the project's `build` and `test` scripts; each must exit with status 0. Report the pages you followed and each command's output to the user.
+
+## Framework setup
+
+First follow [Add VibeLang to an existing project](setup/existing-project.md). Keep a `tsconfig.json` that includes the `.vibe` modules and `.ts` / `.tsx` importers. The bundler compiles with this project; a missing config is an error. Run `npx vibelang --noEmit` separately to check the whole program.
+
+### Next.js with webpack
+
+Install `vibelang-unplugin@0.0.10` as a dev dependency. Next's Turbopack does not run webpack plugins: use `next dev --webpack` and `next build --webpack` with this integration. In `next.config.mjs`:
+
+```js
+import vibelang from "vibelang-unplugin/webpack"
+
+export default {
+  typescript: { ignoreBuildErrors: true },
+  webpack(config) {
+    config.plugins.push(vibelang())
+    return config
+  }
+}
+```
+
+Next's separate stock TypeScript checker cannot resolve `.vibe` imports. `ignoreBuildErrors` bypasses that entire checker, including ordinary TypeScript errors; it does not add `.vibe` support to stock TypeScript. Preserve checking with a required build script:
+
+```json
+{
+  "scripts": {
+    "dev": "next dev --webpack",
+    "check": "vibelang --noEmit",
+    "build": "vibelang --noEmit && next build --webpack"
+  }
+}
+```
+
+Run `npm run check` during development too. The plugin checks the projects it loads; the separate command also catches errors in modules the bundle does not reach. Keep Next's generated type includes in tsconfig. This recipe covers webpack builds; it does not integrate VibeLang into Turbopack.
+
+In a TypeScript component, import the `.vibe` source and run the returned Effect before rendering its value. Use `Effect.runPromise` in an async server component for asynchronous work, with its required layers provided. Avoid passing the Effect object to React.
+
+### Astro with Vite
+
+Install `vibelang-vite@0.0.10` as a dev dependency. In `astro.config.mjs`, put the plugin under `vite.plugins`:
+
+```js
+import { defineConfig } from "astro/config"
+import vibelang from "vibelang-vite"
+
+export default defineConfig({ vite: { plugins: [vibelang()] } })
+```
+
+Use `"include": ["src"]` or add `"src/**/*.vibe"` to an existing include list. Astro's `.astro` frontmatter runs as TypeScript: run an Effect before rendering it. For a `src/lib/greeter.vibe` exporting an Effect-returning `greet(name)`:
+
+```astro
+---
+import { Effect } from "effect"
+import { greet } from "../lib/greeter.vibe"
+const message = Effect.runSync(greet("Astro"))
+---
+<h1>{message}</h1>
+```
+
+Use `await Effect.runPromise(...)` for asynchronous Effects, providing required layers and handling failures first. Rendering the Effect itself can recurse through its iterator. Run `npx vibelang --noEmit` and `npx astro build`; Astro's own checker is separate and does not gain `.vibe` support from this Vite plugin.
