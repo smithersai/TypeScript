@@ -1,0 +1,39 @@
+// expect: EK2003
+// A generator method is a JavaScript generator, whose body is plain code
+// (Chapter 8): a call that runs an Effect there is EK2003, where the method
+// yielded the program unrun. Data, plain calls, a program the method yields
+// as a function, and a call yield* delegates to are fine.
+function work(n: number): number!! {
+  sleep("1 millis")
+  return n
+}
+
+function double(n: number) {
+  return n * 2
+}
+
+const literal = {
+  *items() {
+    yield work(3)
+  },
+}
+
+class Bag {
+  *[Symbol.iterator]() {
+    yield double(4)
+    yield () => work(4)
+    yield work(5)
+  }
+
+  static *all() {
+    yield work(6)
+  }
+
+  *delegated() {
+    yield* [double(7)]
+  }
+}
+
+export function count() {
+  return [...literal.items(), ...new Bag(), ...Bag.all(), ...new Bag().delegated()].length
+}

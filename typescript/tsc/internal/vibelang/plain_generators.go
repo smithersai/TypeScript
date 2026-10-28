@@ -55,12 +55,45 @@ func inPlainGeneratorBody(node *ast.Node) bool {
 	return false
 }
 
+// plainGeneratorCall is EK2003's text for a call that runs an Effect in a
+// JavaScript generator. {0} is the call, {1} the generator.
+var plainGeneratorCall = EK2003.With("{0} runs an Effect, but {1} is a JavaScript generator, whose body is plain code and cannot run one.")
+
+// isGeneratorMethod reports whether fn is a generator method of a class or an
+// object literal in a .vibe file, *name() { … }, which is a JavaScript
+// generator, as in TypeScript, and which no annotation is required to type
+// (Chapter 8).
+func isGeneratorMethod(fn *ast.Node) bool {
+	return fn.Kind == ast.KindMethodDeclaration && fn.Body() != nil && ast.GetFunctionFlags(fn)&ast.FunctionFlagsGenerator != 0 &&
+		isVibeLangFile(ast.GetSourceFileOfNode(fn)) && !inHatch(fn)
+}
+
 // checkPlainGenerators reports EK2003 at the annotation of each plain
-// generator whose body can fail (D296).
+// generator whose body can fail (D296), and at each call that runs an Effect
+// in the body of a generator method, which is plain code (Chapter 8): the
+// call returned its program unrun, and the method yielded it. A call that
+// yield* delegates to is the generator's protocol, as in a coroutine that
+// yields programs, and a plain generator's annotation says what it yields.
 func checkPlainGenerators(c *checker.Checker, file *ast.SourceFile) {
 	a := analyzerFor(c)
 	var visit func(node *ast.Node) bool
 	visit = func(node *ast.Node) bool {
+		if isTypeScriptModule(node) || isHatchArgument(node) {
+			return false
+		}
+		if isGeneratorMethod(node) {
+			name := functionDisplayName(node)
+			if n := node.Name(); n != nil && ast.IsComputedPropertyName(n) {
+				name = nodeText(file, n) // [Symbol.iterator]
+			}
+			a.forEachRunningCallInBody(node, func(call *ast.Node) bool {
+				if !isDelegatedOperand(call) && a.performs(call) {
+					d := report(c, call, plainGeneratorCall, nodeText(file, call), name)
+					note(d, "Run it before the generator and pass its value in, or yield a program, () => {0}.", nodeText(file, call))
+				}
+				return false
+			})
+		}
 		if isPlainGenerator(node) {
 			// Its calls are TypeScript's and run nothing, so only its throws can fail it.
 			var thrown []*checker.Type
@@ -74,4 +107,11 @@ func checkPlainGenerators(c *checker.Checker, file *ast.SourceFile) {
 		return node.ForEachChild(visit)
 	}
 	file.AsNode().ForEachChild(visit)
+}
+
+// isDelegatedOperand reports whether call is the operand of yield*, which
+// delegates to the iterator the call returns.
+func isDelegatedOperand(call *ast.Node) bool {
+	parent := ast.WalkUpParenthesizedExpressions(call.Parent)
+	return parent != nil && parent.Kind == ast.KindYieldExpression && parent.AsYieldExpression().AsteriskToken != nil
 }
