@@ -716,6 +716,8 @@ function label(id: string) {
 // Output: short
 ```
 
+A `do` expression uses `const` or `let`, never `var` (`EK1019`; quick fix: `let`). Its `break` and `continue` stay inside that expression (`EK1019`); `return` is `TS1108`.
+
 **Blocks after calls** ([block params](https://github.com/samuelgoto/proposal-block-params)). The block is the call's program; it needs `return` for a value. The block starts on the call's line: a `{` that starts a line after a statement ending in a name, a member access or a call is EK1022. Join the lines to pass the block, or end the statement with `;` to start a block statement.
 
 ```ts effect

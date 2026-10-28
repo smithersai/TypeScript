@@ -1313,7 +1313,7 @@ Both apply everywhere in a `.vibe` file, inside boundaries (D23) and at the top 
 
 ## Throw and do expressions
 
-`parser/vibelang_blocks.go` parses a throw expression (D186) as `(() => { throw operand })()` and a do expression (D187) as `(() => { ...; return last })()`, rewriting the block's last statement into the return of its completion value and reporting TS1109 or TS1108 where the proposal forbids an ending or a return. Nothing after the parser knows the forms exist: the immediately invoked arrow is a VibeLang function, so its call runs where it stands, short-circuits under `??` and `?:`, and is taken by name where a parameter expects a program. `isStartOfLeftHandSideExpression` admits `do {` and `throw` so both start list elements.
+`parser/vibelang_blocks.go` parses a throw expression (D186) as `(() => { throw operand })()` and a do expression (D187) as `(() => { ...; return last })()`, rewriting the block's last statement into the return of its completion value and reporting TS1109 or TS1108 where the proposal forbids an ending or a return. The checker recognizes a `do` arrow by its source keyword and reports EK1019 at `var` declarations and jumps that escape it. Nested source functions keep their own scope; loops and labels inside the expression remain valid jump targets. The editor offers `var` → `let`. For other purposes, the immediately invoked arrow is a VibeLang function, so its call runs where it stands, short-circuits under `??` and `?:`, and is taken by name where a parameter expects a program. `isStartOfLeftHandSideExpression` admits `do {` and `throw` so both start list elements.
 
 ## Block params
 

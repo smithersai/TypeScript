@@ -1,0 +1,1 @@
+var cannot leave or hoist out of a do expression. Use let instead of var, and keep break and continue inside the do expression.

@@ -31,7 +31,7 @@ function describe(failure: Failure) {
 
 Each arm, `when pattern: expression;`, is tried in order; the first match gives the value. A `default: expression;` arm matches anything and must come last. The value is read once, before the first arm, as `switch` reads its discriminant, so a getter such as `user.role` runs once. `match` is an expression: it can follow `return`, initialize a `const`, or be an argument.
 
-An arm is one expression. Use `do { }` for several statements; its value is its last statement's:
+An arm is one expression. Use `do { }` for several statements; its value is its last statement's. Inside `do`, declare variables with `const` or `let`: `var` is `EK1019`, with a quick fix to `let`. A `break` or `continue` must target a loop or label inside the same `do` expression (`EK1019` otherwise); `return` is `TS1108`. These rules also apply in nested blocks; a nested function keeps its own declarations and control flow. For example:
 
 ```vibe
 function retryDelay(failure: Failure) {

@@ -1,0 +1,18 @@
+// expect-result: [42,3,4,5]
+export function main() {
+  const n = do {
+    function own() { var local = 42; return local }
+    own()
+  }
+  const arrow = do { const f = () => { var local = 3; return local }; f() }
+  const loop = do {
+    local: for (let i = 0; i < 2; i++) {
+      if (i === 0) continue local
+      break local
+    }
+    switch (1) { case 1: break }
+    4
+  }
+  const nested = do { const n = do { let local = 5; local }; n }
+  return [n, arrow, loop, nested]
+}
