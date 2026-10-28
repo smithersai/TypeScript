@@ -8,7 +8,7 @@ title: "29. Decisions"
 
 ```text
 settled before this document      1-7        the original design decisions
-decisions                         D1-D489    every decision since; a number without a row is unassigned
+decisions                         D1-D497    every decision since; a number without a row is unassigned
 rules of the runtime and compiler P1-P22     adopted by D29, revised by verified counterexamples
 ```
 
@@ -435,7 +435,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D481 | `using` is the Effect program a TypeScript developer would write: `Effect.acquireRelease` of the initializer, interruptible for a scoped acquisition and masked otherwise, with no mask or interruptibility record of VibeLang's own; D401's ownership record stays | A release inside an initializer lost its mask; an escaping acquisition left earlier resources unregistered | Amended by D490 | 6, 13, 17, 20, 21, 24, 26, 27, 30, Appendices |
 | D482 | Overloads resolve as TypeScript resolves them: a literal is typed by the first candidate TypeScript checks it against, and no candidates are compared; EK1021 only where lifting or conversion is needed and its candidates disagree; reordering a library's overloads is a stated rough edge | The cross-candidate checks rejected `Effect.tap` and still missed named functions and generic calls at return positions | Amended by D494 | 2, 5, 13, 27, 28, 30 |
 | D483 | A function's plain form is part of its type, `Plain<F, C>`, wherever it is held, and every holder has its form; declarations write that type, at any depth | One function was plain or Effect by its holder; a returned object's method had no plain form in declarations | Amended by D493 | 10, 13, 15, 26, 27, 28, 30, Appendices |
-| D484 | A field of an object literal at a protocol key accepts only the plain form and holds the plain function; TypeScript receives it plain | An object literal's `toString` was both plain and cold, so `String(label)` threw a `TypeError` |  | 10, 13, 14, 27, 30, Appendices |
+| D484 | A field of an object literal at a protocol key accepts only the plain form and holds the plain function; TypeScript receives it plain | An object literal's `toString` was both plain and cold, so `String(label)` threw a `TypeError` | Amended by D497 | 10, 13, 14, 27, 30, Appendices |
 | D485 | D430's check and a function value's form read a member by its declaration, with its container's type parameters uninstantiated | `Box<Effect<number>>` failed D430 against `{ get(): unknown }` and passed against `Box<unknown>` | Amended by D492 | 13, 14, 30 |
 | D486 | Rule R reads every type parameter but the callee's own as TypeScript shows it for the call; an instantiation expression binds the callee's own as an explicit type argument does | Inside `class Box<T>`, `other.get()` returned data; `identity<X>` held through a `const` ran | Amended by D491 | 13, 30, Appendices |
 | D487 | A handler's answer type gains `undefined` only for a completion that can reach the end normally or by a jump; a `throw` adds nothing | A block that only throws widened H |  | 9, 30 |
@@ -448,6 +448,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D494 | A function argument is typed as TypeScript types it, from the overload it picks and, through inference, the call's contextual type; the rough edge covers both; D488's reading of a result-context type parameter as not an Effect is withdrawn | An annotation on the receiving binding changed a callback's form through `keep<T>`'s inferred parameter type, against the principle's wording |  | 2, 13, 27, 30 |
 | D495 | An inferred plain form is part of a package's public type; `$plainOf` reaches it through a bound or wrapping function, and fails with a defect where there is none; a union of plain members is a plain call | A patch release that added a log line left dependents' `$plainOf` undefined; `bind` and `once` kept `Plain` with no `[$direct]` |  | 13, 15, 26, 27, 30 |
 | D496 | Statements that lagged D480 to D482 | Tables and registry rows called every plain-function call plain; a nested cold form was said to observe alike; EK4802's returned-function exemption was ambiguous |  | Intro, 10, 12, 13, 15, 27, 28, 29, 30, Appendices |
+| D497 | A computed string-literal protocol key is a protocol key; assigning an Effect-form function to a `Plain<F, C>` holder is EK4301, not TS2741; the nested-pattern combination bound is 64 combinations, 8 levels deep | `["toString"]` was unstated; TS2741 named `[$direct]`; "a fixed bound" was unstated |  | 10, 11, 13, 28, 30 |
 
 #### Rules of the runtime and compiler
 

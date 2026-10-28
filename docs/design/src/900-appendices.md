@@ -149,7 +149,7 @@ vibelang/smoke.sh vibelang-infer   # one case
 
 #### Research and drafts
 
-- `docs/design/DECISIONS.md`: the decision log, D1-D489, the record of why each rule is what it is (D360).
+- `docs/design/DECISIONS.md`: the decision log, D1-D497, the record of why each rule is what it is (D360).
 - `docs/research/effect4-runtime.md`: Effect 4.0.5 runtime facts, with 23 scripts in `experiments/scripts/runtime-facts/`. Scripts written for this design live in `experiments/scripts/`.
 - `docs/research/continuation-prior-art.md`: OCaml 5, Kotlin, Swift, Loom, WasmFX, Koka, Effekt, Effection, js_of_ocaml, and the papers.
 - `docs/research/vibelang.md`: the earlier VibeLang project's `main` (`c60eca97`) and the unmerged checkpoint (`ebe89a2b`).
