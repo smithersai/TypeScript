@@ -10,7 +10,7 @@ An eligible function with a plain return annotation keeps its plain type (D67, C
 
 - **A** is its return type, inferred and widened as TypeScript infers one: `return "ok"` gives `string`.
 - **E** is every error it `throw`s, plus every error its callees can fail with, plus the expected failures named by the trusted contracts it calls, minus what its `catch` blocks handle.
-- **R** is every service and control operation it uses, plus its callees' requirements, minus what it provides or handles itself, plus `Scope` if a resource it acquires without `using` outlives it (Chapter 6).
+- **R** is every service and control operation it uses, plus its callees' requirements, minus what it provides or handles itself, plus `Scope` if a resource it acquires without `using` outlives it (Chapter 6). A `using` supplies the `Scope` its initializer requires, so that `Scope` is not in R: where the initializer's R holds a type parameter, R holds `Exclude<R, Scope>` (D490).
 
 ```ts [VibeLang]
 function quoteCart(cartId: string) {

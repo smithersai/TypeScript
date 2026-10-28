@@ -342,6 +342,7 @@ When each part of a program is evaluated:
 | A service read in a layer's body | When the layer is built (Chapter 4) | Once per build |
 | A hatch's function, or its single expression | When the hatch runs, after its mapper and inputs | Once per run of the hatch |
 | A pipe's left side | Before its body | Once per evaluation of the pipe |
+| `using x = e`'s initializer | Where the declaration stands, with the interruptibility in force there; the release is registered as it gives its value, with nothing between (Chapter 6, D490) | Once per evaluation of the declaration |
 | `using`'s disposal method | When the resource is registered, and called with the resource as `this`, as ECMAScript's explicit resource management does | Once |
 | A module's top level, plain calls included | When the module is first imported | Once |
 | A class field initializer, a constructor, an accessor, a static block | As JavaScript runs them, as plain code (D282) | As JavaScript does |
@@ -517,7 +518,7 @@ A type rejects programs. In these places, and no others, a type also decides wha
 | A function's plain return annotation (D67, D385) | Whether TypeScript callers receive a plain function or a function that returns a cold `Effect` | What a VibeLang caller observes |
 | A method on an Effect data type (D152, D336) | Which module function `x.name(args)` calls, from the receiver's type, as an extension method | Evaluation order: the receiver first, then the arguments |
 | An await operation's operand that is not a literal (Chapter 7, D394) | That each element is a program to run on its own fiber, from the operand's element type; any other element type is rejected | How often the operand is read: once per run of the operation |
-| `using` (Chapter 6, D401, D481) | Which Effect program `using x = e` is, from whether `e`'s requirements include `Scope`: `Effect.acquireRelease(e, release, { interruptible: true })` for a scoped acquisition, as `yield* e` runs it, and otherwise `Effect.acquireRelease(e, release)`, whose acquire is masked, as `Effect.acquireDisposable(e)` masks it | Who releases the value, and how many times: the acquisition's run-time record and the value decide that, and the answer is once |
+| `using` (Chapter 6, D401, D490) | Whether `using x = e` may bind a value it cannot dispose: where `e`'s requirements include `Scope` it may, and adds no release, since the acquisitions in `e` own what they made; any other such value, which only a cast can produce, is a `TypeError` | Who releases a value it can dispose, and how many times: the acquisition's run-time record and the value decide that, and the answer is once; and when interruption reaches `e`, which is where it would reach `yield* e`, one program for every initializer (D490) |
 | `wire` (Chapter 4, D363) | The order in which its layers are built, from their Layer types | The order in which its arguments are evaluated: source order |
 
 Every other rule reads syntax, resolved symbols, or run-time values. A program that a type would make mean something else is rejected instead. Optimizations are not on this list: rule E11 makes each one unobservable, so a type that lets the compiler choose a faster form decides nothing a program can see.

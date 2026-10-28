@@ -98,7 +98,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | --- | --- | --- |
 | `Effect.scoped` | Changed | A block that declares `using` |
 | `acquireRelease`, `acquireUseRelease` | Changed | `using lock = Effect.acquireRelease(() => acquire(), (l) => release(l))` |
-| Interruptible acquisition | Unchanged | `acquireRelease(…, { interruptible: true })`; a `using` of a scoped acquisition keeps the choice, as `yield*` does, and a `using` of another initializer masks it, as `acquireDisposable` does (D25, D481) |
+| Interruptible acquisition | Unchanged | `acquireRelease(…, { interruptible: true })`; `using` adds no mask, so it keeps the acquisition's choice, as `yield*` does (D25, D490) |
 | A resource the caller owns | Changed | Acquire without `using`; `Scope` stays in R (D14) |
 | `ensuring`, `onExit`, `onError`, `addFinalizer` | Changed | `finally`; `Effect.onExit(() => f(), (exit) => …)` when the exit matters |
 | `Scope.make`, `close`, `provide` | Unchanged | The same calls |

@@ -72,7 +72,7 @@ Frame                                                        Effect 4 frame
                       abandons its still-suspended transfers
 ```
 
-Every frame kind down to `Catch` already exists in Effect 4 [Effect]; `Catch` is Effect's `catchCause` frame with the handler the runtime's `catchExpected` gives it. `using` adds no frame kind and no state: it is Effect's `acquireRelease` (Chapter 6, D481), whose acquire runs under a `Mask` frame, restored to the interruptibility around it for a scoped acquisition, and whose release becomes a `Final` in the Scope in the step that pops that `Mask`. The kernel adds the last five kinds and four operations: capture, resume, abandon, and transfer [Kernel].
+Every frame kind down to `Catch` already exists in Effect 4 [Effect]; `Catch` is Effect's `catchCause` frame with the handler the runtime's `catchExpected` gives it. `using` adds no frame kind and no state: it is Effect's `acquireRelease` with `{ interruptible: true }` (Chapter 6, D490), whose acquire runs under a `Mask` frame restored to the interruptibility around it, and whose release becomes a `Final` in the Scope in the step that pops that `Mask`. The kernel adds the last five kinds and four operations: capture, resume, abandon, and transfer [Kernel].
 
 #### Transitions
 
