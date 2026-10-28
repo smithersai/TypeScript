@@ -1,6 +1,5 @@
 import { Cause, Context, Effect, Exit } from "effect"
 import * as K from "./kernel/kernel.js"
-import { UsingRestore } from "./resources.js"
 
 // The primitives of a .vibe file that have their own syntax (D176-D180):
 // `catch (cause: Cause)` (retired by D217; it still compiles), `throw cause`, `finally (exit)`, and the
@@ -70,13 +69,10 @@ const CurrentRestore = Context.Reference<Restore | undefined>("vibelang/CurrentR
 /**
  * `uninterruptible { ... }` or `uninterruptible(program)` (D180):
  * Effect.uninterruptibleMask. A `restore` inside it brings back the
- * interruptibility the fiber had when the region began. Inside a `using`
- * initializer, it also masks the acquire step of an acquisition with
- * `{ interruptible: true }`, as it does outside one (D401).
+ * interruptibility the fiber had when the region began.
  */
 export const uninterruptible = <A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
-  Effect.uninterruptibleMask((restore) =>
-    Effect.provideService(Effect.provideService(program, CurrentRestore, restore), UsingRestore, undefined))
+  Effect.uninterruptibleMask((restore) => Effect.provideService(program, CurrentRestore, restore))
 
 /**
  * `restore { ... }` or `restore(program)` (D180): runs program with the

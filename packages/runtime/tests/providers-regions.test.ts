@@ -91,12 +91,11 @@ test("a region closes children before earlier using resources", async () => {
 })
 
 for (const masked of [true, false]) {
-  // $using holds interruption off around the initializer (D425). Masked: the
-  // interruption waits for the acquisition, which recorded the Disposable's
-  // release, so that release alone runs (D401). Interruptible: the
-  // runtime's acquireRelease runs its acquire step with the interruptibility
-  // the code around the using had (D401), so the interruption reaches the
-  // wait, and nothing is acquired.
+  // $using of a scoped acquisition is Effect.acquireRelease with
+  // { interruptible: true } (D481), so the acquisition's own policy decides.
+  // Masked: the interruption waits for the acquisition, which recorded the
+  // Disposable's release, so that release alone runs (D401). Interruptible:
+  // the interruption reaches the wait, and nothing is acquired.
   test(`using ${masked ? "masked" : "interruptible"} acquisition handles cancellation without leaking`, async () => {
     const events: string[] = []
     await Effect.runPromise(Effect.gen(function*() {
@@ -136,7 +135,7 @@ test("using adopts a release only from an acquisition's record", async () => {
     yield* $using(scope, Effect.acquireRelease(Effect.succeed(handle("effect's")), released("effect's")))
     yield* $using(scope, Effect.andThen(Scope.Scope, Effect.succeed(handle("scope only"))))
     const outside = yield* Effect.scoped(acquireRelease(Effect.succeed(handle("elsewhere")), released("elsewhere")))
-    yield* $using(scope, Effect.succeed(outside), { hold: true, requiresScope: false })
+    yield* $using(scope, Effect.succeed(outside), { requiresScope: false })
   })))
   expect(events).toEqual([
     "release elsewhere",
@@ -163,8 +162,8 @@ test("using reads a value's disposal method once, Symbol.asyncDispose first", as
   }
   const replaced: Disposable = { [Symbol.dispose]() { events.push("original") } }
   await Effect.runPromise($region(scope => Effect.gen(function*() {
-    yield* $using(scope, Effect.succeed(both), { hold: true, requiresScope: false })
-    yield* $using(scope, Effect.succeed(replaced), { hold: true, requiresScope: false })
+    yield* $using(scope, Effect.succeed(both), { requiresScope: false })
+    yield* $using(scope, Effect.succeed(replaced), { requiresScope: false })
     replaced[Symbol.dispose] = () => { events.push("replacement") }
   })))
   expect(events).toEqual(["original", "async dispose both"])
@@ -174,17 +173,19 @@ test("using reads a value's disposal method once, Symbol.asyncDispose first", as
 // TypeError, a defect, unless the initializer requires Scope or the value is
 // null or undefined.
 test("a using value with no disposal method is a TypeError unless the initializer requires Scope", () => {
-  const exit = Effect.runSyncExit($region(scope => $using(scope, Effect.succeed({ name: "plain" }), { hold: true, requiresScope: false })))
+  const exit = Effect.runSyncExit($region(scope => $using(scope, Effect.succeed({ name: "plain" }), { requiresScope: false })))
   expect(Exit.isFailure(exit) && exit.cause.reasons.find(Cause.isDieReason)?.defect).toBeInstanceOf(TypeError)
   for (const value of [null, undefined]) {
-    expect(Effect.runSync($region(scope => $using(scope, Effect.succeed(value), { hold: true, requiresScope: false })))).toBe(value)
+    expect(Effect.runSync($region(scope => $using(scope, Effect.succeed(value), { requiresScope: false })))).toBe(value)
   }
-  expect(Effect.runSync($region(scope => $using(scope, Effect.succeed({ name: "scoped" }), { hold: true, requiresScope: true })))).toEqual({ name: "scoped" })
+  expect(Effect.runSync($region(scope => $using(scope, Effect.succeed({ name: "scoped" }), { requiresScope: true })))).toEqual({ name: "scoped" })
 })
 
-// D425: an interruption that arrives while a held initializer runs, in its
-// own mask or in a wait, lands after the value's release is registered, and
-// the value is disposed (scopes-using-pending-interrupt).
+// D481: an initializer that does not require Scope runs masked, as
+// Effect.acquireDisposable's acquire does, so an interruption that arrives
+// while it runs, in its own mask or in a wait, lands after the value's
+// release is registered, and the value is disposed
+// (scopes-using-pending-interrupt).
 for (const ending of ["in its own mask", "in a wait"]) {
   test(`using registers the disposal of an initializer interrupted ${ending} before the interruption lands`, async () => {
     const events: string[] = []
@@ -198,7 +199,7 @@ for (const ending of ["in its own mask", "in a wait"]) {
         return { [Symbol.dispose]() { events.push("disposed") } }
       })
       const initializer = ending === "in its own mask" ? Effect.uninterruptible(open) : open
-      const child = yield* Effect.forkChild($region(scope => Effect.andThen($using(scope, initializer, { hold: true }), Effect.sync(() => { events.push("body") }))))
+      const child = yield* Effect.forkChild($region(scope => Effect.andThen($using(scope, initializer, { requiresScope: false }), Effect.sync(() => { events.push("body") }))))
       yield* Deferred.await(entered)
       child.interruptUnsafe(98765)
       expect(child.pollUnsafe()).toBeUndefined()
@@ -210,27 +211,28 @@ for (const ending of ["in its own mask", "in a wait"]) {
   })
 }
 
-// hold: false, for a value that can only be a primitive: the initializer's
-// own policy decides, so the interruption reaches its wait (D25).
-test("using with hold: false leaves an initializer's wait interruptible", async () => {
+// D481: a scoped acquisition runs with the interruptibility in force where
+// the using stands, as yield* would run it, so the interruption reaches a
+// wait in it.
+test("using of an initializer that requires Scope leaves its wait interruptible", async () => {
   const events: string[] = []
   await Effect.runPromise(Effect.gen(function*() {
     const entered = yield* Deferred.make<void>()
     const initializer = Effect.andThen(Deferred.succeed(entered, undefined), Effect.andThen(Effect.never, Effect.sync(() => events.push("acquired"))))
-    const child = yield* Effect.forkChild($region(scope => $using(scope, initializer, { hold: false })))
+    const child = yield* Effect.forkChild($region(scope => $using(scope, initializer, { requiresScope: true })))
     yield* Deferred.await(entered)
     yield* Fiber.interrupt(child)
   }))
   expect(events).toEqual([])
 })
 
-// The hold ends when the owner is settled: the block's body stays interruptible.
+// The mask ends when the release is registered: the block's body stays interruptible.
 test("using leaves the block's body interruptible", async () => {
   const events: string[] = []
   await Effect.runPromise(Effect.gen(function*() {
     const entered = yield* Deferred.make<void>()
     const child = yield* Effect.forkChild($region(scope => Effect.gen(function*() {
-      yield* $using(scope, Effect.sync(() => ({ [Symbol.dispose]() { events.push("disposed") } })), { hold: true })
+      yield* $using(scope, Effect.sync(() => ({ [Symbol.dispose]() { events.push("disposed") } })), { requiresScope: false })
       yield* Deferred.succeed(entered, undefined)
       return yield* Effect.never
     })))
@@ -240,11 +242,17 @@ test("using leaves the block's body interruptible", async () => {
   expect(events).toEqual(["disposed"])
 })
 
-// D401: a mask written inside the initializer masks an interruptible acquire
-// step there, as it does outside using; a nested using's acquisition keeps
-// the interruptibility of the code around the outer using.
-for (const inner of ["uninterruptible", "nested using"]) {
-  test(`an interruptible acquisition inside ${inner} in a using initializer is ${inner === "uninterruptible" ? "masked" : "cancelled"} as outside using`, async () => {
+// D481: using adds no mask of its own and records no interruptibility. Inside
+// an initializer that does not require Scope, an interruptible acquisition is
+// masked, a nested using's included, as Effect masks it inside
+// acquireDisposable; inside a scoped initializer it is cancelled at its wait,
+// unless a mask written there covers it.
+for (const [outer, inner, expected] of [
+  ["masked", "a nested using", ["acquired", "released"]],
+  ["scoped", "a nested using", []],
+  ["scoped", "uninterruptible", ["acquired", "released"]]
+] as const) {
+  test(`an interruptible acquisition in ${inner} inside a ${outer} using initializer follows Effect`, async () => {
     const events: string[] = []
     await Effect.runPromise(Effect.gen(function*() {
       const entered = yield* Deferred.make<void>()
@@ -257,14 +265,14 @@ for (const inner of ["uninterruptible", "nested using"]) {
       }), () => Effect.sync(() => { events.push("released") }), { interruptible: true })
       const initializer = inner === "uninterruptible"
         ? uninterruptible(acquire)
-        : $region(scope => $using(scope, acquire, { hold: true }))
-      const child = yield* Effect.forkChild($region(scope => $using(scope, initializer, { hold: true })))
+        : $region(scope => $using(scope, acquire, { requiresScope: true }))
+      const child = yield* Effect.forkChild($region(scope => $using(scope, initializer, { requiresScope: outer === "scoped" })))
       yield* Deferred.await(entered)
       child.interruptUnsafe(98765)
       yield* Deferred.succeed(gate, undefined)
       yield* Fiber.await(child)
     }))
-    expect(events).toEqual(inner === "uninterruptible" ? ["acquired", "released"] : [])
+    expect(events).toEqual([...expected])
   })
 }
 

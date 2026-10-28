@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit, Scope } from "effect"
 import * as K from "./kernel/kernel.js"
 import { $direct } from "./fastcalls.js"
-import { holdingInterruption, isRecorded } from "./resources.js"
+import { isRecorded } from "./resources.js"
 
 export const $normal = { kind: "normal" } as const
 
@@ -43,49 +43,56 @@ export const $region = <A, E, R>(body: (scope: Scope.Scope) => Effect.Effect<A, 
   Effect.scopedWith(body)
 
 /**
- * `using x = e` (D342, D401): `e` runs with the block's Scope, so every
- * release an acquisition in `e` registers there runs once when the block
- * exits. When `e` gives its value, exactly one owner releases it. If an
- * acquisition recorded that it registered the value's release in the block's
- * Scope, the acquisition owns it and `using` adds nothing. Otherwise a value
- * with a disposal method gets one disposal, which reads the method once, now:
- * `[Symbol.asyncDispose]` if the value has one, else `[Symbol.dispose]`
- * (D343). Otherwise nothing more happens for `null`, `undefined`, or an
- * initializer that requires Scope, and any other value is a `TypeError`
- * defect, as ECMAScript's `using` makes it.
+ * `using x = e` (D342, D401, D481) is the Effect program a TypeScript
+ * developer would write, `Effect.acquireRelease(e, release, options)` with
+ * the block's Scope, and adds no mask or interruptibility of its own. Where
+ * `e`'s requirements include Scope (`requiresScope`, which the compiler
+ * passes), `e` is a scoped acquisition, which Effect code runs with `yield*`:
+ * the acquisition is `{ interruptible: true }`, so `e` runs with the
+ * interruptibility in force where the `using` stands, and each acquisition in
+ * it keeps its own policy. Otherwise `e` gives a disposable, which Effect
+ * code binds with `Effect.acquireDisposable(e)`: the acquire step is masked,
+ * an interruptible acquisition inside it included, and an interruption that
+ * arrives meanwhile lands once the release is registered
+ * (scopes-using-pending-interrupt). The content mapper, which reads no types,
+ * passes no options, which is the scoped form.
  *
- * Unless `hold` is false, interruption is held off from the start of `e`
- * until the owner is settled, so an interruption that arrives while `e` runs
- * lands after the release is registered (D425,
- * scopes-using-pending-interrupt). An acquisition with `{ interruptible:
- * true }` in `e` still runs its acquire step with the interruptibility the
- * code around the `using` had (D401, resources.ts). The compiler passes
- * `hold: false` when the value's type admits only primitives, `null`, and
- * `undefined`, and `requiresScope` when `e`'s requirements include Scope.
- * The content mapper, which reads no types, passes no options.
+ * `release` is the value's one disposal (releaseOf), chosen once, when the
+ * acquire ends and before Effect registers it in the uninterruptible step
+ * that ends the acquisition, so no interruption separates the value from it.
  */
 export const $using = <A, E, R>(
   scope: Scope.Scope,
   acquire: Effect.Effect<A, E, R>,
-  options?: { readonly hold?: boolean; readonly requiresScope?: boolean }
+  options?: { readonly requiresScope?: boolean }
 ): Effect.Effect<A, E, Exclude<R, Scope.Scope>> => {
   const requiresScope = options?.requiresScope ?? true
-  const take = () => Effect.tap(Scope.provide(acquire, scope), (value: unknown) => adopt(scope, value, requiresScope))
-  return options?.hold === false ? Effect.suspend(take) : holdingInterruption(take)
+  const owned = Effect.map(acquire, (value) => ({ value, release: releaseOf(scope, value, requiresScope) }))
+  const acquisition = Effect.acquireRelease(owned, (held) => held.release, requiresScope ? { interruptible: true } : undefined)
+  return Effect.map(Scope.provide(acquisition, scope), (held) => held.value)
 }
 
-/** Settles who releases `value`, the value of a `using` initializer, in `scope` (D401). */
-const adopt = (scope: Scope.Scope, value: unknown, requiresScope: boolean): Effect.Effect<void> => {
+/**
+ * The one release of `value`, the value of a `using` initializer, in `scope`
+ * (D401): nothing when an acquisition recorded that it registered the
+ * value's release there, nothing for `null` or `undefined`, and otherwise
+ * the disposal method, read once, now: `[Symbol.asyncDispose]` if the value
+ * has one, else `[Symbol.dispose]` (D343), called with the value as `this`,
+ * waiting for a promise it returns. A value with no disposal method is
+ * released by what its acquisition registered when the initializer requires
+ * Scope, and is otherwise a `TypeError`, as ECMAScript's `using` makes it.
+ */
+const releaseOf = (scope: Scope.Scope, value: unknown, requiresScope: boolean): Effect.Effect<void> => {
   if (value === null || value === undefined || isRecorded(scope, value)) return Effect.void
   const dispose = disposalMethod(value)
   if (dispose !== undefined) {
-    return Scope.addFinalizer(scope, Effect.suspend(() => {
+    return Effect.suspend(() => {
       const result: unknown = Reflect.apply(dispose, value, [])
       return isPromiseLike(result) ? Effect.promise(() => result) : Effect.void
-    }))
+    })
   }
   if (requiresScope) return Effect.void
-  return Effect.die(new TypeError("The value of a using declaration must be Disposable, AsyncDisposable, null, or undefined"))
+  throw new TypeError("The value of a using declaration must be Disposable, AsyncDisposable, null, or undefined")
 }
 
 /**

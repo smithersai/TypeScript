@@ -1,17 +1,18 @@
-// No interruption separates a using value from its release (D401, D425).
-// When the initializer can pause and its value may be an object, using holds
-// interruption off from the initializer's start until the value's owner is
-// settled, so an interruption that arrives meanwhile lands after the release
-// is registered, and the value is released: an initializer that ends in its
-// own mask ("ending"), one that waits ("waiting"), and one whose value is
-// typed object, which needs Scope in its contract to bind a value that may
-// not be Disposable ("widened", Chapter 6's lease). An acquisition with
-// { interruptible: true } keeps that policy for its acquire step inside the
-// hold, here through a wrapper: the interruption reaches its wait, and
-// nothing is acquired ("interruptible").
-// expect-result: {"ending":["acquired","disposed"],"waiting":["acquired","disposed"],"widened":["acquired","disposed"],"interruptible":[]}
+// using is Effect's acquireRelease of its initializer, with Effect's own
+// interruptibility (D481). An initializer that does not require Scope runs
+// masked, as Effect.acquireDisposable's acquire does, so an interruption that
+// arrives while it runs lands once the value's release is registered, and the
+// value is released: one that ends in its own mask ("ending"), one that waits
+// ("waiting"), and one whose helper acquires an interruptible lock with a
+// using of its own, which stays masked too ("nested"). An initializer that
+// requires Scope is a scoped acquisition, which runs with the
+// interruptibility in force where the using stands, as yield* runs it, so
+// the interruption reaches its wait and nothing is acquired: a pause in it
+// ("scoped") and an acquireRelease with { interruptible: true } behind a
+// wrapper ("interruptible").
+// expect-result: {"ending":["acquired","disposed"],"waiting":["acquired","disposed"],"nested":["locked","acquired","unlocked","disposed"],"scoped":[],"interruptible":[]}
 export function main() {
-  return { ending: endingInMask(), waiting: waiting(), widened: widened(), interruptible: interruptible() }
+  return { ending: endingInMask(), waiting: waiting(), nested: nested(), scoped: scoped(), interruptible: interruptible() }
 }
 
 function endingInMask() {
@@ -62,7 +63,47 @@ function waiting() {
   return events
 }
 
-function widened() {
+function nested() {
+  const events: string[] = []
+  const entered = Deferred.make<void>()
+  const gate = Deferred.make<void>()
+
+  function lock() {
+    return Effect.acquireRelease(
+      () => {
+        Deferred.succeed(entered, undefined)
+        Deferred.await(gate)
+        events.push("locked")
+        return { held: true }
+      },
+      () => {
+        events.push("unlocked")
+      },
+      { interruptible: true }
+    )
+  }
+
+  // Its using supplies the lock's Scope, so open requires no Scope.
+  function open() {
+    using held = lock()
+    events.push("acquired")
+    return { [Symbol.dispose](): void { events.push("disposed") } }
+  }
+
+  function work() {
+    using resource = open()
+    events.push("body")
+  }
+
+  const child = Effect.forkChild(work())
+  Deferred.await(entered)
+  child.interruptUnsafe(98765)
+  Deferred.succeed(gate, undefined)
+  Fiber.await(child)
+  return events
+}
+
+function scoped() {
   const events: string[] = []
   const entered = Deferred.make<void>()
   const gate = Deferred.make<void>()

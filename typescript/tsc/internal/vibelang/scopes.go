@@ -46,11 +46,13 @@ import (
 // value's release (Effect.acquireRelease and Effect.acquireDisposable, as the
 // runtime gives them), and otherwise using, which disposes a value with a
 // disposal method once. TypeScript checks that the value is a Disposable,
-// null, or undefined unless the initializer requires Scope (TS2850). Where
-// the value may be an object, using holds interruption off around the
-// initializer until the owner is settled (D425), and an acquisition with
-// { interruptible: true } keeps that policy for its acquire step (D25). for
-// (using x of values) takes each
+// null, or undefined unless the initializer requires Scope (TS2850). using
+// is Effect.acquireRelease of its initializer and adds no mask of its own
+// (D481): a scoped acquisition, one whose requirements include Scope, runs
+// with the interruptibility in force where the using stands, each
+// acquisition in it keeping its own policy (D25), and any other initializer
+// runs masked, as Effect.acquireDisposable runs it. for (using x of values)
+// takes each
 // value with using in a Scope region around that iteration's body, so the
 // value is released when the iteration ends, by any path; over an iterator,
 // a producer, or a Stream, $forOf runs those iterations and closes what it

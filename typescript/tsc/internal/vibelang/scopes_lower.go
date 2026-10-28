@@ -13,14 +13,13 @@ type scopePlan struct {
 	usings      map[*ast.Node]bool      // using statements in those blocks
 	forks       map[*ast.Node]*ast.Node // fork calls, mapped to the region that owns the fiber (ownerRegion)
 	usingLoops  map[*ast.Node]bool      // for (using x of values) statements, and for (using x = v; ...) statements under their labels
-	usingHolds  map[*ast.Node]bool      // using declarations whose value may be an object, around whose initializer using holds interruption off (D425)
 	usingScoped map[*ast.Node]bool      // using declarations whose initializer requires Scope, whose value using may bind without disposing it (D401)
 	recording   map[*ast.Node]string    // references to Effect's acquireRelease or acquireDisposable, which denote the runtime's (D401)
 	renamed     map[string]bool         // local names that an import gives acquireRelease or acquireDisposable, or nil before the file's imports are read
 }
 
 func newScopePlan() scopePlan {
-	return scopePlan{scopeBlocks: map[*ast.Node]bool{}, scopeBodies: map[*ast.Node]bool{}, scopeLoops: map[*ast.Node]bool{}, usings: map[*ast.Node]bool{}, forks: map[*ast.Node]*ast.Node{}, usingLoops: map[*ast.Node]bool{}, usingHolds: map[*ast.Node]bool{}, usingScoped: map[*ast.Node]bool{}, recording: map[*ast.Node]string{}}
+	return scopePlan{scopeBlocks: map[*ast.Node]bool{}, scopeBodies: map[*ast.Node]bool{}, scopeLoops: map[*ast.Node]bool{}, usings: map[*ast.Node]bool{}, forks: map[*ast.Node]*ast.Node{}, usingLoops: map[*ast.Node]bool{}, usingScoped: map[*ast.Node]bool{}, recording: map[*ast.Node]string{}}
 }
 
 // planScopes records the Scope regions of fn, a function the lowering turns
@@ -131,60 +130,29 @@ func (tx *lowering) visitAcquisitionReference(node *ast.Node) *ast.Node {
 }
 
 // planUsingDeclarations records, for each declaration of list, a using
-// declaration list, whether its value may be an object (D425) and whether
-// its initializer requires Scope (D401).
+// declaration list, whether its initializer requires Scope (D401, D481).
 func (p *scopePlan) planUsingDeclarations(a *analyzer, list *ast.Node) {
 	for _, declaration := range list.AsVariableDeclarationList().Declarations.Nodes {
-		if valueMayBeObject(a.checker.GetTypeAtLocation(declaration.Name())) {
-			p.usingHolds[declaration] = true
-		}
 		if initializer := declaration.Initializer(); initializer != nil && a.requiresScope(ast.SkipParentheses(initializer)) {
 			p.usingScoped[declaration] = true
 		}
 	}
 }
 
-// valueMayBeObject reports whether a value of type t may be an object, which
-// may carry a disposal method: true unless t admits only null, undefined,
-// void, never, and primitive types (D425). object, unknown, any, a type
-// parameter, and an object type that declares no disposal method may all be
-// an object at run time.
-func valueMayBeObject(t *checker.Type) bool {
-	if t == nil {
-		return true
-	}
-	members := []*checker.Type{t}
-	if t.Flags()&checker.TypeFlagsUnion != 0 {
-		members = t.Types()
-	}
-	const primitive = checker.TypeFlagsNullable | checker.TypeFlagsVoid | checker.TypeFlagsNever | checker.TypeFlagsStringLike |
-		checker.TypeFlagsNumberLike | checker.TypeFlagsBigIntLike | checker.TypeFlagsBooleanLike | checker.TypeFlagsESSymbolLike
-	for _, member := range members {
-		if member.Flags()&primitive == 0 {
-			return true
-		}
-	}
-	return false
-}
-
 // usingCall returns the runtime's $using of initializer, the initializer of
-// declaration, with the region's scope. Unless the value can only be a
-// primitive, null, or undefined, $using holds interruption off from the
-// start of the initializer until the value's owner is settled (D425). When
-// the initializer requires Scope, a value that $using cannot dispose is
-// bound as it is (D401).
+// declaration, with the region's scope: Effect.acquireRelease of the
+// initializer, and its one release (D481). When the initializer requires
+// Scope, it is a scoped acquisition, which runs with the interruptibility in
+// force where the using stands, and a value that $using cannot dispose is
+// bound as it is (D401); otherwise its acquire step is masked, as
+// Effect.acquireDisposable's is.
 func (tx *lowering) usingCall(scope *ast.Node, declaration *ast.Node, initializer *ast.Node) *ast.Node {
 	f := tx.Factory()
-	hold := f.NewKeywordExpression(ast.KindFalseKeyword)
-	if tx.plan.usingHolds[declaration] {
-		hold = f.NewKeywordExpression(ast.KindTrueKeyword)
-	}
 	requiresScope := f.NewKeywordExpression(ast.KindFalseKeyword)
 	if tx.plan.usingScoped[declaration] {
 		requiresScope = f.NewKeywordExpression(ast.KindTrueKeyword)
 	}
 	options := f.NewObjectLiteralExpression(f.NewNodeList([]*ast.Node{
-		f.NewPropertyAssignment(nil /*modifiers*/, f.NewIdentifier("hold"), nil /*postfixToken*/, nil /*typeNode*/, hold),
 		f.NewPropertyAssignment(nil /*modifiers*/, f.NewIdentifier("requiresScope"), nil /*postfixToken*/, nil /*typeNode*/, requiresScope),
 	}), false /*multiLine*/)
 	return tx.runtimeCall("$using", scope, initializer, options)
