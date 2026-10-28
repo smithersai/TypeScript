@@ -40,7 +40,7 @@ func (p *projector) brandPureExports() {
 		name := statement.Name().Text()
 		// Default declarations cannot merge with namespaces in TypeScript.
 		// D268's named export lists and aliases keep the public binding here.
-		if !exported[name] || !pure[name] || ast.HasSyntacticModifier(statement, ast.ModifierFlagsDefault) {
+		if !exported[name] || !pure[name] || p.forms.(*Resolver).isEffectTypeNode(statement.Type(), 0) || ast.HasSyntacticModifier(statement, ast.ModifierFlagsDefault) {
 			continue
 		}
 		prefix := ""

@@ -130,7 +130,7 @@ func TestD268CrossFileTypes(t *testing.T) {
 		"prelude.d.ts": string(prelude),
 	}
 	sources := map[string]string{
-		"math.ts":   `function double(n: number): number!! { return n * 2 }; export { double, double as twice }; export function noisy(n: number) { Effect.log(n); return n }`,
+		"math.ts":   `function double(n: number) { return n * 2 }; export { double, double as twice }; export function noisy(n: number) { Effect.log(n); return n }`,
 		"barrel.ts": `export { twice as renamed } from "./math.js"; import { double as imported } from "./math.js"; export { imported as forwarded }`,
 		"main.ts":   `import { renamed, forwarded } from "./barrel.js"; import { noisy } from "./math.js"; export function result() { return [...[1, 2].map(renamed), ...[1, 2].map(forwarded)] }; export function negative() { return [1, 2].map(noisy) }`,
 	}
