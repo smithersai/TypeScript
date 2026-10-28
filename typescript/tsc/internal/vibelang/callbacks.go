@@ -49,13 +49,22 @@ func (a *analyzer) noteReturnTypeFix(d *ast.Diagnostic, helper *ast.Node) {
 // program: as a value it has its type's form (D511).
 var effectTypedValue = EK4301.With("{0} returns an Effect, so as a value it is an Effect function, but {1} calls it synchronously.")
 
+// mayReturnEffectValue is EK4301's text for a function value whose return
+// type is a union with an Effect member (D512).
+var mayReturnEffectValue = EK4301.With("{0} may return an Effect, but {1} calls it synchronously and would drop the program.")
+
 // rejectedValueMessage chooses EK4301's text for node, a function value that
 // conversion rejected where only a plain function fits.
 func (a *analyzer) rejectedValueMessage(node *ast.Node) *Message {
 	if fn := esFunctionOf(a.checker, node); fn != nil && (a.isEffect(fn) || a.isFactory(fn) || a.isSplittable(fn)) {
 		return effectFunctionCallback
 	}
-	return effectTypedValue
+	for _, signature := range a.checker.GetSignaturesOfType(a.checker.GetTypeAtLocation(node), checker.SignatureKindCall) {
+		if isEffectType(a.checker, a.checker.GetReturnTypeOfSignature(signature)) {
+			return effectTypedValue
+		}
+	}
+	return mayReturnEffectValue
 }
 
 // mixedFormCallee is EK4301's text for a call of a union of functions some of

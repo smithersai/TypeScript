@@ -215,8 +215,8 @@ func (a *analyzer) convert(node *ast.Node, t *checker.Type, position valuePositi
 		switch {
 		case fn == nil:
 			// A function value known only by its type has the form its type
-			// gives (D492, D511): one that returns an Effect is an Effect
-			// function's value.
+			// gives (D492, D511): one that returns an Effect, or may (D512),
+			// is an Effect function's value.
 			if mayReturnEffect(a.checker, t) {
 				return convertRejected, t
 			}
@@ -281,8 +281,9 @@ func (a *analyzer) convert(node *ast.Node, t *checker.Type, position valuePositi
 }
 
 // mayReturnEffect reports whether t, a function value's type, has a call
-// signature whose return type is definitely an Effect: a value of the Effect
-// form, which no plain function type accepts (D430, D511).
+// signature whose return type is definitely an Effect or a union with such a
+// member: a value of the Effect form, or one that may return a program, which
+// no plain function type accepts (D430, D511, D512).
 func mayReturnEffect(c *checker.Checker, t *checker.Type) bool {
 	if t == nil || isPlaceholderNever(t) {
 		return false
@@ -291,6 +292,13 @@ func mayReturnEffect(c *checker.Checker, t *checker.Type) bool {
 		returned := c.GetReturnTypeOfSignature(signature)
 		if isEffectType(c, returned) {
 			return true
+		}
+		if returned.Flags()&checker.TypeFlagsUnion != 0 {
+			for _, member := range returned.Types() {
+				if isEffectType(c, member) {
+					return true // it may return a program (D512)
+				}
+			}
 		}
 	}
 	return false

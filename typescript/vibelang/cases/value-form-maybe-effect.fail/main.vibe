@@ -1,0 +1,25 @@
+// expect: EK4301
+// A function whose return type may be an Effect, a union with an Effect
+// member, does not satisfy a plain function type (D512): its caller would
+// drop the program it returns.
+import { each } from "./helpers.ts"
+
+function tick(n: number) {
+  Console.log(n)
+}
+
+// Accepted: the binding declares that it holds either form.
+const both: (n: number) => number | Effect<void> = tick
+
+export function mapped() {
+  return [1, 2].map(both)
+}
+
+export function passed() {
+  each([1, 2], both)
+}
+
+// Accepted: the destination takes either form too.
+export function kept(): (n: number) => number | Effect<void> {
+  return both
+}
