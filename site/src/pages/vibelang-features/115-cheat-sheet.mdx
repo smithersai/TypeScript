@@ -313,11 +313,11 @@ interface Cart { readonly id: string; items: Array<string> }
 
 ```vibe [VibeLang]
 function greetUser(id: string) {
-  return withSpan("greetUser") {
+  return withSpan(() => {
     const user = getUser(id)
     Console.log(`Hello, ${user.name}`)
     return user.name
-  }
+  }, "greetUser")
 }
 // Output: Hello, Ada
 // Output: Ada
@@ -832,10 +832,10 @@ const label = (id: string) =>
 
 ```vibe [VibeLang]
 function loaded() {
-  return withSpan("load") {
+  return withSpan(() => {
     const user = getUser("1")
     return user.name
-  }
+  }, "load")
 }
 
 // Output: Ada

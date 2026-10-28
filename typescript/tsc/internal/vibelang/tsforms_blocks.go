@@ -7,26 +7,32 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
-// EK4836 (D290): combinators that wrap a program, which VibeLang writes as a
-// block around the statements:
+// EK4836 (D290): combinators that wrap a program, which VibeLang writes with
+// the program as an arrow or a block around the statements:
 //
-//	return Effect.withSpan(load(id), "load")          return withSpan("load") { return load(id) }
+//	return Effect.withSpan(load(id), "load")          return withSpan(() => load(id), "load")
 //	return Effect.provide(main(), AppLive)            provide AppLive { return main() }
 //	return Effect.provideService(roll(), Random, r)   provide Random = r { return roll() }
 //
-// Effect.withSpan(self, name) becomes the block param call withSpan(name)
-// { return self } (D188, D151) wherever it stands in a VibeLang function body;
-// the block's return gives the program's value, so the span covers the same
-// program. Effect.provide(self, layers) and Effect.provideService(self, key,
-// value) become a provide block (D130, D172, D173) where a block can stand:
-// as a return, whose return inside the block returns from the function, and
-// as an expression statement. A layer array becomes the block's comma list.
-// The program runs inside the block as the call ran it: a call runs where it
-// stands, and an Effect value is called. Refused: options arguments, the
-// data-last forms inside pipe, a provide or provideService anywhere a block
-// cannot stand, a key that is not a name or a dotted name, a file where a
-// local withSpan shadows the prelude's, and anything outside a VibeLang
-// function body.
+// Effect.withSpan(self, name) becomes the prelude's withSpan(() => self, name)
+// (D151, D376) wherever it stands in a VibeLang function body: a block is its
+// call's last argument, and withSpan takes its program first, so the program
+// is an arrow there. Effect.provide(self, layers) and
+// Effect.provideService(self, key, value) become a provide block (D130, D172,
+// D173) where a block can stand: as a return, whose return inside the block
+// returns from the function, and as an expression statement. A layer array
+// becomes the block's comma list. The program runs inside the arrow or the
+// block as the call ran it: a call runs where it stands, and an Effect value
+// is called. Refused: options arguments, the data-last forms inside pipe, a
+// provide or provideService anywhere a block cannot stand, a key that is not
+// a name or a dotted name, a file where a local withSpan shadows the
+// prelude's, and anything outside a VibeLang function body. The prelude's
+// own withSpan, and an Effect.withSpan whose program is already a function
+// literal, are the VibeLang form already.
+
+// withSpanArrowForm is EK4836's text for Effect.withSpan, which has no
+// block form: its program becomes an arrow.
+var withSpanArrowForm = EK4836.With("{0} wraps a program in a call; write the program as an arrow: {1}.")
 
 func init() {
 	tsFormRules[EK4836.Code] = &tsFormRule{
@@ -52,7 +58,11 @@ func blockFormOf(c *checker.Checker, call *ast.Node) string {
 	}
 	_, name := effectMember(c, call.Expression())
 	switch {
-	case name == "withSpan" && len(call.Arguments()) == 2, name == "provide" && len(call.Arguments()) == 2, name == "provideService" && len(call.Arguments()) == 3:
+	case name == "withSpan" && len(call.Arguments()) == 2:
+		if ast.IsPropertyAccessExpression(call.Expression()) && !isLambda(ast.SkipParentheses(call.Arguments()[0])) {
+			return name
+		}
+	case name == "provide" && len(call.Arguments()) == 2, name == "provideService" && len(call.Arguments()) == 3:
 		return name
 	}
 	return ""
@@ -65,7 +75,7 @@ func findBlockForms(c *checker.Checker, file *ast.SourceFile, report func(at *as
 	visit = func(node *ast.Node) bool {
 		if name := blockFormOf(c, node); name != "" {
 			if rewrite := blockFormRewrite(c, file, node); rewrite != nil {
-				form := "withSpan(name) { … }"
+				form := "withSpan(() => …, name)"
 				switch name {
 				case "provide":
 					form = "provide Layer { … }"
@@ -87,10 +97,10 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 		return nil
 	}
 	arguments := call.Arguments()
-	// A block runs its program; it does not evaluate the call's first
-	// argument before the others as the call did. So only an invocation
-	// already passed by name, a function literal, or a read of a binding
-	// the other arguments cannot change may move into the block. Any other
+	// A block, or withSpan's arrow, runs its program; it does not evaluate
+	// the call's first argument before the others as the call did. So only
+	// an invocation already passed by name, a function literal, or a read of
+	// a binding the other arguments cannot change may move into it. Any other
 	// program expression, a getter or a factory call for example, is
 	// evaluated eagerly, in source order, and stays in its call: the
 	// warning then offers no fix.
@@ -112,14 +122,10 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 			return nil
 		}
 		if eager {
-			return &formRewrite{why: eagerProgramNote}
+			return &formRewrite{why: eagerArrowNote, message: withSpanArrowForm}
 		}
-		head := "withSpan(" + expressionText(file, arguments[1]) + ")"
-		if ast.IsExpressionStatement(call.Parent) {
-			result = head + blockText(program, indent, false)
-		} else {
-			result = head + blockText(program, indent, true)
-		}
+		result = "withSpan(() => " + program + ", " + expressionText(file, arguments[1]) + ")"
+		return withImportRemovals(c, file, &formRewrite{edits: []sourceEdit{{start, end, result}}, description: shortText(result, "withSpan with an arrow"), message: withSpanArrowForm})
 	case "provide", "provideService":
 		statement := call.Parent
 		returns := ast.IsReturnStatement(statement)
@@ -164,6 +170,10 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 // eagerProgramNote explains why an eagerly evaluated program expression keeps
 // its call.
 const eagerProgramNote = "No quick fix: a block would evaluate its program expression after the other arguments; bind it to a const first."
+
+// eagerArrowNote is eagerProgramNote for withSpan, whose program becomes an
+// arrow that evaluates the expression each time the program runs.
+const eagerArrowNote = "No quick fix: an arrow would evaluate its program expression when the program runs, after the other arguments; bind it to a const first."
 
 // stableBindingRead reports whether node reads a binding whose value no
 // other argument of its call can change: an import, a const, or a parameter

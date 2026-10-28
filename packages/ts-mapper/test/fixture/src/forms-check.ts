@@ -13,7 +13,7 @@ export const effectFunction: Equals<ReturnType<typeof each>, Effect.Effect<Array
 export const program: Equals<ReturnType<typeof retried>, Effect.Effect<string, NotFound, never>> = true
 // By name: timeout receives the call as a program and adds its TimeoutError.
 export const byName: Equals<ReturnType<typeof timed>, Effect.Effect<string, NotFound | Cause.TimeoutError, never>> = true
-// A block param: the block is the program withSpan wraps.
+// A dual's data-first form: the arrow is the program withSpan wraps.
 export const block: Equals<ReturnType<typeof spanned>, Effect.Effect<string, NotFound, never>> = true
 
 // The dual: one value that is both the program and a function returning it.

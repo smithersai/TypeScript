@@ -101,6 +101,9 @@ export function replaceBlocks(markdown: string, blocks: Block[], sources: Map<nu
   return markdown
 }
 
+// Every recorder note (pipe look-ahead, a dual's block) starts this way.
+const migrationNote = /^\s+Through VibeLang 0\.0\.10, /
+
 async function checkProject(dir: string, blocks: Block[], compiler: string): Promise<(Result & { migration?: boolean })[]> {
   const { filenames, offsets } = writeProject(dir, blocks, { omitFragments: true })
   const checked = blocks.some(block => !block.fragment)
@@ -119,7 +122,7 @@ async function checkProject(dir: string, blocks: Block[], compiler: string): Pro
   for (const line of (checked.stdout + "\n" + checked.stderr).split(/\r?\n/)) {
     const match = /^(.*)\(\d+,\d+\): error (?:TS|EK)\d+:/.exec(line)
     if (match) diagnosticFile = relative(dir, resolve(dir, match[1])).replaceAll("\\", "/")
-    else if (diagnosticFile && line.includes("Through VibeLang 0.0.10, pipe's first argument")) migrationFiles.add(diagnosticFile)
+    else if (diagnosticFile && migrationNote.test(line)) migrationFiles.add(diagnosticFile)
   }
   return blocks.map(block => ({ ...classify(block, diagnostics.filter(d => d.file &&
     relative(dir, resolve(dir, d.file)).replaceAll("\\", "/") === filenames.get(block.number)).map(({ diagnostic }) => diagnostic)),

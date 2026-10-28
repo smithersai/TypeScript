@@ -3,26 +3,27 @@ function getName(): string!! {
   return "Ada"
 }
 
-// A data-last Effect function takes the block as its program.
+// An Effect dual takes its program first, or returns a function that takes
+// it, so its program is an arrow: a block is the call's last argument (D376).
 function spanned() {
-  return withSpan("load") {
+  return withSpan(() => {
     const name = getName()
     return name.toUpperCase()
-  }
+  }, "load")
 }
 
 function timed() {
-  return timeout("1 second") {
+  return timeout(() => {
     sleep("1 millis")
     return "in time"
-  }
+  }, "1 second")
 }
 
 function guarded() {
   const semaphore = Semaphore.make(1)
-  return semaphore.withPermits(1) {
+  return semaphore.withPermits(1)(() => {
     return "guarded"
-  }
+  })
 }
 
 // A function that takes the program as its last argument gets the block there.

@@ -362,7 +362,7 @@ var (
 // (D44; the call's own type arguments when it writes them), or fn's
 // contextual type. Any value is then a success value, and a returned Effect
 // value or program literal returns as data where Effect code runs it:
-// `Sink.forEach((n) => announce)` and `withSpan("refresh") { return refresh }`
+// `Sink.forEach((n) => announce)` and `withSpan(() => { return refresh }, "refresh")`
 // succeed with the program. It returns nil otherwise.
 func (a *analyzer) successNamesNoValue(fn *ast.Node) *checker.Type {
 	var expected []*checker.Type
@@ -375,15 +375,7 @@ func (a *analyzer) successNamesNoValue(fn *ast.Node) *checker.Type {
 			return nil
 		}
 		if len(call.TypeArguments()) == 0 {
-			if isBlockParamCall(call) {
-				// A block param's signature moves the program (blockparams.go),
-				// so its own generic target, not the declaration, has its order.
-				for signature.Target() != nil {
-					signature = signature.Target()
-				}
-			} else {
-				signature = a.declaredSignature(signature)
-			}
+			signature = a.declaredSignature(signature)
 		}
 		if t := a.checker.GetTypeAtPosition(signature, path[0].argument); t != nil {
 			expected = []*checker.Type{t}

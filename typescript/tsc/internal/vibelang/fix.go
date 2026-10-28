@@ -253,10 +253,12 @@ func FixProjectWithOptions(ctx context.Context, fs vfs.FS, libraryPath tspath.Ro
 		}
 		var proposals []proposal
 		for _, file := range fixableFiles(program) {
-			p := pipeMigrationFixes(ctx, program, file, g.refused, func(refusal FixRefusal, key string) {
+			refuse := func(refusal FixRefusal, key string) {
 				g.refused[key] = true
 				result.Refused = append(result.Refused, refusal)
-			})
+			}
+			p := pipeMigrationFixes(ctx, program, file, g.refused, refuse)
+			p = p.withFixes(dualBlockMigrationFixes(ctx, program, file, g.refused, refuse))
 			if len(p.fixes) == 0 && !options.MigrationOnly {
 				p = fileFixes(ctx, program, file, g.refused)
 			}

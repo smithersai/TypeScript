@@ -15,12 +15,12 @@ error Busy { attempt: number }
 
 function loadWithRetries() {
   let attempts = 0
-  return retry({ times: 3 }) {
+  return retry(() => {
     attempts += 1
     Console.log(`Attempt ${attempts}`)
     if (attempts < 3) throw new Busy({ attempt: attempts })
     return "Snapshot ready"
-  }
+  }, { times: 3 })
 }
 ```
 

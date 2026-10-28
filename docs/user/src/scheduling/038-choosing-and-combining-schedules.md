@@ -35,10 +35,10 @@ These declarations build reusable values and run no work. Choose a rule by requi
 ```vibe
 // run: provide TestClock.layer() { const worker = fork runChecks(); TestClock.adjust("18 seconds"); join worker }
 function runChecks() {
-  repeat(Schedule.spaced("6 seconds").upTo({ times: 2 })) {
+  repeat(() => {
     Console.log("checking", Clock.currentTimeMillis())
     sleep("2 seconds")
-  }
+  }, Schedule.spaced("6 seconds").upTo({ times: 2 }))
 }
 // Output: checking 0
 // Output: checking 8000

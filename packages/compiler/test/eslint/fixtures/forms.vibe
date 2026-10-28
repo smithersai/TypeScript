@@ -284,11 +284,11 @@ export function inferred(id: string): string!infer E {
  * @since 0.0.2
  */
 export function greetUser(id: string) {
-  return withSpan("greetUser") {
+  return withSpan(() => {
     const user = getUser(id)
     Console.log(`Hello, ${user.name}`)
     return user.name
-  }
+  }, "greetUser")
 }
 
 /**

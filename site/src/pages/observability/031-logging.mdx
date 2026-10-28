@@ -26,14 +26,14 @@ function reportProgress() {
 
 ```vibe
 function diagnostics() {
-  Effect.provideService(References.MinimumLogLevel, "Debug") {
+  Effect.provideService(() => {
     Effect.logTrace("entered parser")
     logDebug("parsed header")
     logInfo("input accepted")
     logWarning("using fallback settings")
     logError("destination unavailable")
     Effect.logFatal("application cannot start")
-  }
+  }, References.MinimumLogLevel, "Debug")
 }
 ```
 
@@ -47,10 +47,10 @@ The default threshold, Info, filters Debug and Trace. Providing Debug enables De
 
 ```vibe
 function annotatedExport() {
-  Effect.annotateLogs({ operation: "weekly-export", format: "csv" }) {
+  Effect.annotateLogs(() => {
     logInfo("preparing")
     Effect.annotateLogs(() => logInfo("writing"), "stage", "write")
-  }
+  }, { operation: "weekly-export", format: "csv" })
   logInfo("outside annotated operation")
 }
 
@@ -74,11 +74,11 @@ function scopedAnnotations() {
 
 ```vibe
 function timedExport() {
-  Effect.withLogSpan("write-output") {
+  Effect.withLogSpan(() => {
     logInfo("opening output")
     sleep("30 millis")
     logInfo("output written")
-  }
+  }, "write-output")
 }
 ```
 

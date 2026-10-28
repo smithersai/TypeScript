@@ -151,36 +151,35 @@ export function f() { return Effect.sync(() => Date.now()) }`)
 	}
 }
 
-func TestBlockPlacementWithSpan(t *testing.T) {
-	// D188: withSpan's data-first form takes the block as its first
-	// argument; the block is a program.
+func TestBlockIsTheLastArgument(t *testing.T) {
+	// D376: a block is its call's last argument, whatever the callee.
+	// withSpan's data-last form takes its options there, never the program.
 	r := resolve(t, `export function f() {
   return withSpan("load") {
     return 1
   }
 }`)
 	d := r.block(t, `withSpan("load")`)
-	if d.Placement != BlockPrepended || d.Form != FormProgram || d.Callee.Canonical != "effect/Effect#withSpan" {
-		t.Errorf("withSpan block = %+v, want prepended program", d)
+	if !d.Block || d.Form == FormProgram || d.Callee.Canonical != "effect/Effect#withSpan" {
+		t.Errorf("withSpan block = %+v, want its last argument, which is not the program", d)
 	}
-	// Layer.effect(Key) { … }: the data-last form is applied to the block.
+	// Layer.effect(Key) { … }: the data-first form takes the program last.
 	r = resolve(t, `service Users { find(id: string): string!! }
 export const UsersLive = Layer.effect(Users) {
   return { find(id) { return id } }
 }`)
-	if d := r.block(t, "Layer.effect(Users)"); d.Placement != BlockApplied || d.Form != FormProgram {
-		t.Errorf("Layer.effect block = %+v, want applied program", d)
+	if d := r.block(t, "Layer.effect(Users)"); d.Form != FormProgram || d.Provenance != FromTable {
+		t.Errorf("Layer.effect block = %+v, want a program from the table", d)
 	}
-	// A block after the pipe topic: % fills the data slot, so the block is
-	// the data-first form's last argument.
+	// A block after the pipe topic is the data-first form's last argument.
 	r = resolve(t, `import { Effect } from "effect"
 export function f() {
   return Effect.succeed({}) |> Effect.bind(%, "value") {
     return 1
   }
 }`)
-	if d := r.block(t, `Effect.bind(%, "value")`); d.Placement != BlockAppended || d.Form != FormEffectFn {
-		t.Errorf("bind block after the topic = %+v, want appended Effect function", d)
+	if d := r.block(t, `Effect.bind(%, "value")`); d.Form != FormEffectFn {
+		t.Errorf("bind block after the topic = %+v, want an Effect function", d)
 	}
 }
 
@@ -533,15 +532,16 @@ export function f() {
 		t.Errorf("lambda over the topic = %+v, want plain", d)
 	}
 	// A method of a class this file declares, through new.
-	if d := r.block(t, `runner.run("job")`); d.Form != FormEffectFn || d.Placement != BlockAppended || d.Provenance != FromAnnotation {
-		t.Errorf("runner.run block = %+v, want an appended Effect function", d)
+	if d := r.block(t, `runner.run("job")`); d.Form != FormEffectFn || d.Provenance != FromAnnotation {
+		t.Errorf("runner.run block = %+v, want an Effect function", d)
 	}
 }
 
-func TestBlockPlacementOnAValue(t *testing.T) {
-	// semaphore has no key, but the only withPermits that takes one
-	// argument is Semaphore's own, which returns a function of the program:
-	// the block is applied, as a program.
+func TestBlockOnAValueIsItsLastArgument(t *testing.T) {
+	// semaphore has no key, and the only withPermits that takes one
+	// argument is Semaphore's own, which returns a function of the program.
+	// The block is the call's last argument (D376), which no receiver's
+	// withPermits takes, so the table gives it no class.
 	r := resolve(t, `export function f() {
   const semaphore = Semaphore.make(1)
   return semaphore.withPermits(1) {
@@ -549,8 +549,8 @@ func TestBlockPlacementOnAValue(t *testing.T) {
   }
 }`)
 	d := r.block(t, "semaphore.withPermits(1)")
-	if d.Placement != BlockApplied || d.Form != FormProgram || d.Provenance != FromTable {
-		t.Errorf("semaphore.withPermits block = %+v, want applied program from the method table", d)
+	if d.Class != 0 || d.Provenance != FromFallback {
+		t.Errorf("semaphore.withPermits block = %+v, want no class from the method table", d)
 	}
 }
 

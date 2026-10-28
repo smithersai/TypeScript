@@ -71,7 +71,7 @@ func TestDecisionSnapshotFileRoundTrip(t *testing.T) {
 func TestDecisionSnapshotGolden(t *testing.T) {
 	root := t.TempDir()
 	const source = `const result = Effect.map(Effect.succeed(1), (n) => n + 1)
-function f() { return Effect.retry({ times: 2 }) { read() } }
+function f() { return Effect.forkChild { read() } }
 function g(xs: Items) { xs.forEach((x) => { log(x); read(x) }) }
 `
 	writeFixture(t, root, "examples/main.vibe", source)

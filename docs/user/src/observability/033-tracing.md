@@ -9,10 +9,10 @@ Tracing records an operation's duration and its relation to other operations. Vi
 import { ConfigProvider, Tracer } from "effect"
 
 function requestTrace() {
-  return withSpan("report-request") {
+  return withSpan(() => {
     sleep("10 millis")
     return "response"
-  }
+  }, "report-request")
 }
 ```
 
@@ -28,10 +28,10 @@ A span describes one operation: name, identifiers, timestamps, status, and attri
 ```vibe
 // run: const spans: Tracer.NativeSpan[] = []; const tracer = Tracer.make({ span(options) { const span = new Tracer.NativeSpan(options); spans.push(span); return span } }); Console.log(Effect.withTracer(() => renderReport("csv"), tracer)); Console.log(spans[0].name, spans[0].attributes.get("report.format"), spans[0].status._tag)
 function renderReport(format: string) {
-  return withSpan("render-report", { attributes: { "report.format": format } }) {
+  return withSpan(() => {
     sleep("20 millis")
     return `report.${format}`
-  }
+  }, "render-report", { attributes: { "report.format": format } })
 }
 // string!!
 ```
@@ -82,10 +82,10 @@ error RenderFailed {
 }
 
 function failingRender() {
-  const exit = Effect.exit(withSpan("render-report") {
+  const exit = Effect.exit(withSpan(() => {
     Effect.annotateCurrentSpan("report.format", "unknown")
     throw new RenderFailed({ format: "unknown" })
-  })
+  }, "render-report"))
   if (exit.isFailure()) logError("render failed", exit.cause)
   return exit
 }
@@ -103,11 +103,11 @@ An exported failure carries error status and failure details; attributes identif
 ```vibe
 // run: const spans: Tracer.NativeSpan[] = []; const tracer = Tracer.make({ span(options) { const span = new Tracer.NativeSpan(options); spans.push(span); return span } }); const original = Effect.service(Console.Console); Effect.withTracer(() => Effect.provideService(() => tracedLogs(), Console.Console, { ...original, log: () => {} }), tracer); Console.log(JSON.stringify(spans[0].events.map(([name]) => name)), spans[0].status._tag)
 function tracedLogs() {
-  Effect.provide(() => withSpan("generate-artifact") {
+  Effect.provide(() => withSpan(() => {
     logInfo("input validated")
     sleep("10 millis")
     logInfo("artifact written")
-  }, Logger.layer([
+  }, "generate-artifact"), Logger.layer([
     Logger.defaultLogger,
     Logger.tracerLogger
   ]))
@@ -125,18 +125,18 @@ The tracer logger records logs inside an active span as timestamped events, a ti
 ```vibe
 // run: const spans: Tracer.NativeSpan[] = []; const tracer = Tracer.make({ span(options) { const span = new Tracer.NativeSpan(options); spans.push(span); return span } }); Console.log(JSON.stringify(Effect.withTracer(() => generate(), tracer))); Console.log(JSON.stringify(spans.map((span) => [span.name, span.parent.map((parent) => parent.spanId === spans[0].spanId).getOrElse(() => false), span.traceId === spans[0].traceId, span.status._tag])))
 function loadTemplate() {
-  return withSpan("load-template") {
+  return withSpan(() => {
     sleep("10 millis")
     return "weekly-template"
-  }
+  }, "load-template")
 }
 
 function generate() {
-  return withSpan("generate-report") {
+  return withSpan(() => {
     const template = loadTemplate()
     const output = renderReport("csv")
     return { template, output }
-  }
+  }, "generate-report")
 }
 ```
 

@@ -23,14 +23,14 @@ function reportProgress() {
 ```vibe
 // run: const records: unknown[] = []; const capture = Logger.make(({ logLevel, message }) => { records.push([logLevel, message]) }); provide Logger.layer([capture]) { diagnostics() }; Console.log(JSON.stringify(records))
 function diagnostics() {
-  Effect.provideService(References.MinimumLogLevel, "Debug") {
+  Effect.provideService(() => {
     Effect.logTrace("entered parser")
     logDebug("parsed header")
     logInfo("input accepted")
     logWarning("using fallback settings")
     logError("destination unavailable")
     Effect.logFatal("application cannot start")
-  }
+  }, References.MinimumLogLevel, "Debug")
 }
 ```
 
@@ -45,10 +45,10 @@ The default threshold, Info, filters Debug and Trace. Providing Debug enables De
 ```vibe
 // run: const records: unknown[] = []; const capture = Logger.make(({ message, fiber }) => { records.push([message, fiber.getRef(References.CurrentLogAnnotations)]) }); provide Logger.layer([capture]) { annotatedExport(); scopedAnnotations() }; Console.log(JSON.stringify(records))
 function annotatedExport() {
-  Effect.annotateLogs({ operation: "weekly-export", format: "csv" }) {
+  Effect.annotateLogs(() => {
     logInfo("preparing")
     Effect.annotateLogs(() => logInfo("writing"), "stage", "write")
-  }
+  }, { operation: "weekly-export", format: "csv" })
   logInfo("outside annotated operation")
 }
 
@@ -73,11 +73,11 @@ function scopedAnnotations() {
 ```vibe
 // run: const records: unknown[] = []; const capture = Logger.make(({ message, fiber, date }) => { records.push([message, fiber.getRef(References.CurrentLogSpans).map(([label, start]) => [label, date.getTime() - start])]) }); provide TestClock.layer() { TestClock.setTime(0); provide Logger.layer([capture]) { const worker = fork(() => timedExport()); TestClock.adjust("30 millis"); join worker } }; Console.log(JSON.stringify(records))
 function timedExport() {
-  Effect.withLogSpan("write-output") {
+  Effect.withLogSpan(() => {
     logInfo("opening output")
     sleep("30 millis")
     logInfo("output written")
-  }
+  }, "write-output")
 }
 ```
 

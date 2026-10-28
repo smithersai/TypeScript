@@ -272,7 +272,7 @@ func (p *projector) programValue(argument *ast.Node, d Decision, e env) bool {
 }
 
 // blockArgument returns call's block param, the arrow the parser writes for
-// `f(args) { block }` (D188), or nil.
+// `f(args) { block }` (D188, D376), or nil.
 func blockArgument(call *ast.Node) *ast.Node {
 	arguments := call.Arguments()
 	if len(arguments) == 0 {
@@ -289,11 +289,9 @@ func blockArgument(call *ast.Node) *ast.Node {
 	return last
 }
 
-// blockCall lowers call, `f(args) { block }`, with its block where the
-// resolver places it (D188): appended, `f(args, block)`, or applied to the
-// call, `f(args)(block)`, which is also where a data-first dual's block
-// goes, since `f(block, args)` and `f(args)(block)` are one call of a dual.
-// The block takes the form the resolver decides, a program when it moves.
+// blockCall lowers call, `f(args) { block }`, with its block as the call's
+// last argument, `f(args, block)` (D376). The block takes the form the
+// resolver decides.
 func (p *projector) blockCall(call *ast.Node, block *ast.Node, e env) {
 	d := p.forms.Block(call)
 	p.choice(d, block)
@@ -323,12 +321,10 @@ func (p *projector) blockCall(call *ast.Node, block *ast.Node, e env) {
 	switch {
 	case paren < 0:
 		open = "("
-	case d.Placement == BlockAppended && len(written) > 0:
+	case len(written) > 0:
 		open = ", "
-	case d.Placement == BlockAppended:
-		open = ""
 	default:
-		open = ")("
+		open = ""
 	}
 	from := brace
 	if paren >= 0 {

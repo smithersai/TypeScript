@@ -37,7 +37,7 @@ export const inline = Effect.fn("Reader.inline")((n: number) => { yieldNow(); re
 			continue
 		}
 		count++
-		if !strings.Contains(diagnosticWithNotes(d), "withSpan(name)") || strings.Contains(diagnosticWithNotes(d), "synchronously") || strings.Contains(diagnosticWithNotes(d), "forEach") {
+		if !strings.Contains(diagnosticWithNotes(d), "withSpan(() => { ... }, name)") || strings.Contains(diagnosticWithNotes(d), "synchronously") || strings.Contains(diagnosticWithNotes(d), "forEach") {
 			t.Errorf("misleading traced callback diagnostic: %s", diagnosticWithNotes(d))
 		}
 	}

@@ -90,12 +90,12 @@ export const validate = (depth: number): Effect.Effect<void, Rejected, never> =>
 }
 
 // S11-1 (agent/triggers Scheduler, processTrigger): the recursive call sits in
-// a block-param body.
+// the body of withSpan's program.
 export const processTrigger = (n: number): number!! =>
-  withSpan("processTrigger") {
+  withSpan(() => {
     if (n > 0) return processTrigger(n - 1) + 1
     return 0
-  }
+  }, "processTrigger")
 
 const tree: Tree = { name: "a", children: [{ name: "b", children: [] }, { name: "c", children: [{ name: "d", children: [] }] }] }
 

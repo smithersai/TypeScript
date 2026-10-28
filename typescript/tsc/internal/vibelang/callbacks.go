@@ -281,6 +281,6 @@ func reportTracedCallback(c *checker.Checker, file *ast.SourceFile, call, callba
 		return false
 	}
 	d := report(c, callback, EK4301.With("{0} cannot be passed directly to {1} in this form. Effect.fn expects a body returning an Effect or a JavaScript generator."), nodeText(file, callback), calleeName(c, file, call))
-	note(d, "Write an ordinary VibeLang function or arrow with withSpan(name) { ... } as its body, using the same span name passed to Effect.fn. Calls inside the block run normally and the span is preserved.")
+	note(d, "Write an ordinary VibeLang function or arrow that returns withSpan(() => { ... }, name), using the same span name passed to Effect.fn. Calls inside the arrow run normally and the span is preserved.")
 	return true
 }

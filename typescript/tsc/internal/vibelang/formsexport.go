@@ -16,8 +16,9 @@ import (
 // forms holds P when an Effect value fits, E when a function that returns an
 // Effect fits, and F when a plain function fits, in that order; "" means the
 // type says nothing about form. isEffect reports, for t itself with no steps,
-// whether t is effect's own Effect type: the test D188's block placement
-// applies to a dual's first parameter (takesEffectFirst).
+// whether t is effect's own Effect type: the test a dual's first parameter
+// meets (takesEffectFirst), which the migration recorder of D188's block
+// placement reads (dual_block_migration.go).
 //
 // cmd/vibelang-forms calls it to generate the forms table that VibeLang's
 // text-only projector reads (internal/vibelangmapper/forms.go).

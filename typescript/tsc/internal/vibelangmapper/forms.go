@@ -2,8 +2,8 @@ package vibelangmapper
 
 // The forms table (language change L1, research/typedirected.md section 6).
 // The projector reads no types, so it cannot ask the checker which form a
-// lambda takes (D56), whether an argument is passed by name (D147), where a
-// block goes (D188), or what a value converts to (D7, D49). It asks this
+// lambda takes (D56), whether an argument is passed by name (D147), or what
+// a value converts to (D7, D49). It asks this
 // table instead. cmd/vibelang-forms generates it from the declarations of the
 // packages VibeLang pins (effect@4.0.6, the @effect/* packages the corpus uses,
 // and vibelang-runtime) with the fork's own classifier, the code that makes
@@ -162,10 +162,10 @@ type Signature struct {
 	// carry no form.
 	Params []Param
 	// DataFirst reports whether the first parameter is an Effect: the
-	// data-first form of an Effect dual, which takes a block first (D188).
+	// data-first form of an Effect dual.
 	DataFirst bool
 	// DataLast reports whether the result is a function whose first
-	// parameter is an Effect: the data-last form, which a block is applied to.
+	// parameter is an Effect: the data-last form of an Effect dual.
 	DataLast bool
 	// Self reports whether the first parameter is named self (or ends in
 	// OrOptions): effect's data-first form, which D152 offers as a method of
@@ -229,7 +229,7 @@ func (f Forms) Agreed() bool { return !slices.Contains(f.Agree, false) }
 // in any change that moves a decision, so a table change says whether its
 // inputs or its rules moved; scripts/check-forms-table.sh checks the
 // decisions themselves.
-const RulesVersion = 7
+const RulesVersion = 8
 
 // Header is the table's first line: what generated it, from what.
 type Header struct {

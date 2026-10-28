@@ -34,10 +34,9 @@ type plan struct {
 	producerPlan
 	exhaustivePlan
 	dataPlan
-	hatches     map[*ast.Node]hatchForm      // sync and try hatches, lowered to Effect's functions (hatches.go)
-	failureTags map[*ast.Node][]string       // the tags of each typed catch clause's test (catches.go)
-	methods     map[*ast.Node]methodCall     // method calls on Effect data types (datamethods.go)
-	blockForms  map[*ast.Node]blockParamForm // block param calls that move their block (blockparams.go)
+	hatches     map[*ast.Node]hatchForm  // sync and try hatches, lowered to Effect's functions (hatches.go)
+	failureTags map[*ast.Node][]string   // the tags of each typed catch clause's test (catches.go)
+	methods     map[*ast.Node]methodCall // method calls on Effect data types (datamethods.go)
 
 	pipes         map[*ast.Node]pipeMode    // how each pipe compiles (pipes_lower.go)
 	topicClosures map[*ast.Node][]*ast.Node // functions that read the topic of these pipes
@@ -63,7 +62,6 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 	p.hatches = map[*ast.Node]hatchForm{}
 	p.failureTags = map[*ast.Node][]string{}
 	p.methods = map[*ast.Node]methodCall{}
-	p.blockForms = map[*ast.Node]blockParamForm{}
 	p.pipes = map[*ast.Node]pipeMode{}
 	p.topicClosures = map[*ast.Node][]*ast.Node{}
 	p.producerPlan = newProducerPlan()
@@ -146,9 +144,6 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 			}
 			if isPipe(node) {
 				p.planPipe(a, node)
-			}
-			if form := blockParamFormOf(c, node); form != blockAppended {
-				p.blockForms[node] = form
 			}
 			p.planPlain(a, node)
 			p.planJoins(a, node) // D340 (joined.go)

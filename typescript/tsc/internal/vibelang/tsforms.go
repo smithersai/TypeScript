@@ -25,7 +25,7 @@ import (
 //	EK4833  Effect.Effect<A, E, R>                            A!E!R
 //	EK4834  Effect.succeed(x), Effect.fail(e) where they run  x, throw e
 //	EK4835  Effect.catchTag, catchTags, catch                 x catch (e) => match (e) { … }
-//	EK4836  Effect.withSpan, provide, provideService          withSpan("n") { … }, provide L { … }
+//	EK4836  Effect.withSpan, provide, provideService          withSpan(() => p, "n"), provide L { … }
 //	EK4837  class X extends Schema.TaggedError<X>()("X", { … })  error X { … }, without its Schema; no fix
 //
 // The rules are lint (D241): adjustable in the vibelang setting diagnostics,

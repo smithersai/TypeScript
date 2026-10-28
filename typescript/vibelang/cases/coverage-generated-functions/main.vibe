@@ -71,10 +71,10 @@ export function block(n: number): number!Oops! {
 }
 
 export function traced(n: number): number!Oops! {
-  return withSpan("traced") {
+  return withSpan(() => {
     const v = step(n)
     return v
-  }
+  }, "traced")
 }
 
 export function unused(n: number): number!Bad! {

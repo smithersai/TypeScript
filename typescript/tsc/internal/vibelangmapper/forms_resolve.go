@@ -39,9 +39,9 @@ package vibelangmapper
 //     A parameterless lambda takes the program or Effect function form its
 //     class names, and the dual form (both at once) where its class accepts
 //     both, or no class is known and its body calls anything.
-//  4. Blocks (Resolver.Block). D188's order: a data-first dual takes the
-//     block first, a data-last dual is applied to it, and any other callee
-//     takes it appended. A moved block is a program.
+//  4. Blocks (Resolver.Block). A block is its call's last argument
+//     (D376), whatever the callee: its class is the one the call's
+//     signature has at that argument, as for any lambda.
 //  5. By name (Resolver.Argument). An argument whose text calls something
 //     outside the functions nested in it, at a position whose class accepts
 //     a program, is passed by name (D147). Elsewhere a call runs.
@@ -56,7 +56,7 @@ package vibelangmapper
 //     self-first functions D152 makes methods of its module's data type. A
 //     receiver scope cannot name gives no class, so a pausing callback
 //     there needs a choice (rule 8). A block after a method of a named
-//     receiver goes where the method puts it, as D188 orders.
+//     receiver takes the class that method has at its last argument.
 //  7. Service context. A lambda or method that is a member of an object
 //     literal providing a service (Layer.succeed(K, {…}), K.of({…}), the
 //     object a Layer.effect program returns, Context.make, Context.add,
@@ -143,22 +143,6 @@ func (p Provenance) String() string {
 	return [...]string{"fallback", "table", "annotation", "service", "protocol", "hatch"}[p]
 }
 
-// Placement is where a block param call passes its block (D188).
-type Placement uint8
-
-const (
-	// BlockAppended passes it last: the callee's own signature, f(args, block).
-	BlockAppended Placement = iota
-	// BlockPrepended passes it first: a data-first dual, f(block, args).
-	BlockPrepended
-	// BlockApplied applies the call to it: a data-last dual, f(args)(block).
-	BlockApplied
-)
-
-func (p Placement) String() string {
-	return [...]string{"appended", "prepended", "applied"}[p]
-}
-
 // PathStep is one step below a call argument: an array element or an
 // object property.
 type PathStep struct {
@@ -218,9 +202,9 @@ type Decision struct {
 	Form Form
 	// ByName reports whether an argument expression is passed by name.
 	ByName bool
-	// Block reports whether Node is a block param; Placement is where it goes.
+	// Block reports whether Node is a block param, always its call's last
+	// argument (D376).
 	Block      bool
-	Placement  Placement
 	Provenance Provenance
 	// Ambiguous reports that candidates the arguments did not rule out
 	// disagree at the path; the first, ranked by required arguments, won.
@@ -706,8 +690,8 @@ func (r *Resolver) freePosition(fn *ast.Node) string {
 	return ""
 }
 
-// Block decides where call's block param goes and its form. call's last
-// argument is the block.
+// Block decides the form of call's block param, its last argument, which
+// the call's signature takes there (D376).
 func (r *Resolver) Block(call *ast.Node) Decision {
 	args := call.Arguments()
 	block := args[len(args)-1]
@@ -716,32 +700,20 @@ func (r *Resolver) Block(call *ast.Node) Decision {
 	sigs, prov := r.signaturesOf(d.Callee)
 	if len(sigs) == 0 {
 		if name, ok := formsMethodName(call, d.Callee); ok {
-			if placement, cls, note, ok := r.methodBlock(name, call, n); ok {
-				d.Placement, d.Class, d.Provenance, d.Note = placement, cls, FromTable, note
+			if cls, note, ok := r.methodBlock(name, call, n); ok {
+				d.Class, d.Provenance, d.Note = cls, FromTable, note
 				d.Form = formsFormFor(d.Class, 0, formsBodyFacts(block))
 				return d
 			}
 		}
 	}
-	d.Placement = formsPlacement(sigs, n)
-	if d.Placement == BlockPrepended && formsIsTopic(ast.SkipParentheses(args[0])) {
-		// f(%, args) { block }: the topic already fills the data-first
-		// dual's Effect slot, so the block goes where the rest of the
-		// signature takes it, as the fork's overload resolution decides.
-		d.Placement = formsPlacementAfterData(sigs, n)
-	}
-	switch d.Placement {
-	case BlockPrepended, BlockApplied:
-		d.Class, d.Provenance, d.Note = ClassProgram, prov, "D188 "+d.Placement.String()
-	default:
-		s, fit, ambiguous := formsShapeFit(formsCandidates(sigs, len(args)), args)
-		switch {
-		case fit == fitLoose && ambiguous(n, nil):
-			d.Ambiguous, d.Note = true, "no overload fits the written arguments, and the overloads disagree here"
-		case fit != fitNoCandidate:
-			d.Class, d.Ambiguous = s.Param(n).Top, ambiguous(n, nil)
-			d.Provenance = prov
-		}
+	s, fit, ambiguous := formsShapeFit(formsCandidates(sigs, len(args)), args)
+	switch {
+	case fit == fitLoose && ambiguous(n, nil):
+		d.Ambiguous, d.Note = true, "no overload fits the written arguments, and the overloads disagree here"
+	case fit != fitNoCandidate:
+		d.Class, d.Ambiguous = s.Param(n).Top, ambiguous(n, nil)
+		d.Provenance = prov
 	}
 	if d.Class == 0 {
 		d.Provenance = FromFallback
@@ -782,8 +754,7 @@ func (r *Resolver) Argument(expr *ast.Node) Decision {
 	return d
 }
 
-// classAt reads the class at argument arg and steps of call, where the
-// block of a block param call moves its other arguments.
+// classAt reads the class at argument arg and steps of call.
 func (r *Resolver) classAt(call *ast.Node, callee Callee, arg int, steps []PathStep) (Class, Provenance, bool, string) {
 	sigs, prov := r.signaturesOf(callee)
 	if len(sigs) == 0 {
@@ -796,29 +767,6 @@ func (r *Resolver) classAt(call *ast.Node, callee Callee, arg int, steps []PathS
 	}
 	args := call.Arguments()
 	argc := len(args)
-	if formsIsBlockCall(r.text, call) && arg < argc-1 {
-		n := argc - 1
-		placement := formsPlacement(sigs, n)
-		if placement == BlockPrepended && formsIsTopic(ast.SkipParentheses(args[0])) {
-			placement = formsPlacementAfterData(sigs, n)
-		}
-		switch placement {
-		case BlockPrepended:
-			// The data-first signature takes the block first: argument i is
-			// its parameter i + 1.
-			for _, s := range sigs {
-				if s.DataFirst && s.Accepts(n+1) {
-					return s.Param(arg + 1).At(steps), prov, false, "data-first, block moved"
-				}
-			}
-		case BlockApplied:
-			for _, s := range sigs {
-				if s.DataLast && s.Accepts(n) {
-					return s.Param(arg).At(steps), prov, false, "data-last, block applied"
-				}
-			}
-		}
-	}
 	s, fit, ambiguous := formsShapeFit(formsCandidates(sigs, argc), args)
 	switch {
 	case fit == fitNoCandidate:
@@ -1089,52 +1037,45 @@ func formsInFunction(node *ast.Node) bool {
 	return false
 }
 
-// methodBlock places the block of a method call whose receiver is unknown,
-// x.name(args) { block }, where every receiver whose method takes the
-// arguments agrees: semaphore.withPermits(1) { … } is applied, because
+// methodBlock gives the class at the block of a method call whose receiver
+// is unknown, x.name(args) { block }, where every receiver whose method
+// takes the arguments and the block agrees. The block is the call's last
+// argument (D376), so semaphore.withPermits(1) { … } fits no receiver:
 // Semaphore's own withPermits(permits) returns a function of the program.
-func (r *Resolver) methodBlock(name string, call *ast.Node, n int) (Placement, Class, string, bool) {
+func (r *Resolver) methodBlock(name string, call *ast.Node, n int) (Class, string, bool) {
 	if r.table == nil {
-		return 0, 0, "", false
+		return 0, "", false
 	}
 	args := call.Arguments()
-	var placement Placement
 	var cls Class
 	seen := 0
 	receivers, module := r.receiversOf(call, name)
 	if module == "" {
-		return 0, 0, "", false
+		return 0, "", false
 	}
 	for _, m := range receivers {
 		sigs := m.sigs
 		if m.self {
 			sigs = formsDropSelf(sigs)
 		}
-		if len(formsCandidates(sigs, n)) == 0 && len(formsCandidates(sigs, n+1)) == 0 {
+		s, fit, _ := formsShapeFit(formsCandidates(sigs, len(args)), args)
+		if fit != fitOK {
 			continue // this receiver's method takes other arguments
 		}
-		p := formsPlacement(sigs, n)
-		c := ClassProgram
-		if p == BlockAppended {
-			s, fit, _ := formsShapeFit(formsCandidates(sigs, len(args)), args)
-			if fit != fitOK {
-				continue
-			}
-			c = s.Param(n).Top
-		}
+		c := s.Param(n).Top
 		if c == 0 {
 			continue // no form fits a block there: this method takes no block
 		}
-		if seen > 0 && (p != placement || c != cls) {
-			return 0, 0, "", false // receivers disagree
+		if seen > 0 && c != cls {
+			return 0, "", false // receivers disagree
 		}
-		placement, cls = p, c
+		cls = c
 		seen++
 	}
 	if seen == 0 {
-		return 0, 0, "", false
+		return 0, "", false
 	}
-	return placement, cls, "method " + name + " on " + strconv.Itoa(seen) + " receivers, D188 " + placement.String(), true
+	return cls, "method " + name + " on " + strconv.Itoa(seen) + " receivers", true
 }
 
 // formsDropSelf returns D152 methods: sigs without their self parameter.
@@ -1262,39 +1203,6 @@ func formsArgumentsFit(s Signature, args []*ast.Node, strict bool) bool {
 		}
 	}
 	return true
-}
-
-// formsPlacement applies D188's order for a block after n arguments.
-func formsPlacement(sigs []Signature, n int) Placement {
-	for _, s := range sigs {
-		if n > 0 && s.DataFirst && s.Accepts(n+1) {
-			return BlockPrepended
-		}
-	}
-	for _, s := range sigs {
-		if s.DataLast && s.Accepts(n) {
-			return BlockApplied
-		}
-	}
-	return BlockAppended
-}
-
-// formsPlacementAfterData places a block after n arguments whose first
-// is the pipe topic: the call is a data-first dual's own form with its data
-// written, so a data-first signature that takes the block last appends it.
-// Otherwise D188's order without the data-first form applies.
-func formsPlacementAfterData(sigs []Signature, n int) Placement {
-	for _, s := range sigs {
-		if s.DataFirst && s.Accepts(n+1) {
-			return BlockAppended
-		}
-	}
-	for _, s := range sigs {
-		if s.DataLast && s.Accepts(n) {
-			return BlockApplied
-		}
-	}
-	return BlockAppended
 }
 
 // formsBody is what the text of a function's own body shows.

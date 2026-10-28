@@ -36,12 +36,12 @@ function readHeader() {
 // Returns ["header"] and closes the reader.
 
 function readWithDeadline() {
-  return timeout("100 millis") {
+  return timeout(() => {
     lines.runForEach((line) => {
       sleep("1 second")
       Console.log(line)
     })
-  }
+  }, "100 millis")
 }
 // Output: reader opened
 // Output: reader closed

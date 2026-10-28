@@ -1,0 +1,37 @@
+// expect: TS2345 TS2554 TS2769 EK1023
+// This accepted 0.0.10 source wrote a block where an Effect dual takes its
+// program (D188). A block is its call's last argument (D376), so each call
+// keeps TypeScript's error with a note that gives the arrow spelling, and the
+// call whose appended form still type-checks is EK1023 (D382).
+// dual-block-legacy-fixed is what vibelang --fix writes.
+function work() {
+  sleep("1 millis")
+  return "done"
+}
+
+function spanned() {
+  return withSpan("load") {
+    return work()
+  }
+}
+
+function timed() {
+  return timeout("1 second") {
+    return work()
+  }
+}
+
+function guarded() {
+  const semaphore = Semaphore.makeUnsafe(1)
+  return semaphore.withPermits(1) {
+    return work()
+  }
+}
+
+function options() {
+  return withSpan("options") { return { attributes: { checked: true } } }
+}
+
+export function main() {
+  return [spanned(), timed(), guarded(), options()]
+}

@@ -22,9 +22,9 @@ export function timed() {
   return Effect.timeout(find("x"), "1 second")
 }
 
-// A block param on a dual: the block is the program.
+// A dual's data-first form: the arrow is the program withSpan wraps.
 export function spanned() {
-  return Effect.withSpan("load") {
+  return Effect.withSpan(() => {
     return find("y")
-  }
+  }, "load")
 }

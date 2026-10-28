@@ -42,12 +42,12 @@ export function swallow(): Code {
 export function ignored(id: string) {
   const outcome = exit(undocumented([id]))
   if (outcome is Exit.Failure(let cause)) return 0 // no-unused-vars
-  return withSpan("ignored") {
+  return withSpan(() => {
     var old = 1 // no-var
     // eslint-disable-next-line no-console
     console.log(old)
     return old
-  }
+  }, "ignored")
 }
 
 /**

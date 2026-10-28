@@ -14,10 +14,10 @@ export const held = (n: number): unknown!! => {
   return program
 }
 
-// A block param under a type parameter, inferred from the held program.
+// A program literal under a type parameter, inferred from the held program.
 interface Api { refresh: () => void!! }
 export const make = (refresh: void!!): Api => ({
-  refresh: () => withSpan("Api.refresh") { return refresh }
+  refresh: () => withSpan(() => { return refresh }, "Api.refresh")
 })
 
 // A callback whose call writes an unknown success.

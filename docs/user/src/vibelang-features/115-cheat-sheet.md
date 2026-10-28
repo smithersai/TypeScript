@@ -275,11 +275,11 @@ const greetUser = Effect.fn("greetUser")(function* (id: string) {
 ```vibe es
 // run: Console.log(Effect.provide(() => greetUser("1"), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))])))
 function greetUser(id: string) {
-  return withSpan("greetUser") {
+  return withSpan(() => {
     const user = getUser(id)
     Console.log(`Hello, ${user.name}`)
     return user.name
-  }
+  }, "greetUser")
 }
 // Output: Hello, Ada
 // Output: Ada
@@ -740,10 +740,10 @@ it.live("finds a user", () =>
 ```vibe es
 // run: Console.log(loaded())
 function loaded() {
-  return withSpan("load") {
+  return withSpan(() => {
     const user = getUser("1")
     return user.name
-  }
+  }, "load")
 }
 
 // Output: Ada

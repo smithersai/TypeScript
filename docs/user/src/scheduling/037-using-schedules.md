@@ -26,14 +26,14 @@ function heartbeat() {
 // run: Console.log(JSON.stringify(waitForBuild()))
 function waitForBuild() {
   let checks = 0
-  const status = repeat({
+  const status = repeat(() => {
+    checks++
+    return checks >= 4 ? "ready" : "building"
+  }, {
     schedule: Schedule.spaced("200 millis"),
     until: (status) => status === "ready",
     times: 7
-  }) {
-    checks++
-    return checks >= 4 ? "ready" : "building"
-  }
+  })
   return { status, checks }
 }
 // { status: string; checks: number }!!
@@ -67,11 +67,11 @@ error Busy
 
 function reserveSlot() {
   let attempts = 0
-  return retry(Schedule.recurs(3)) {
+  return retry(() => {
     attempts++
     if (attempts < 3) throw new Busy()
     return "reserved"
-  }
+  }, Schedule.recurs(3))
 }
 // string!Busy!
 // Output: reserved
@@ -90,13 +90,13 @@ service Sensor {
 }
 
 function sampleContinuously() {
-  repeat(Schedule.spaced("5 seconds")) {
+  repeat(() => {
     try {
       Console.log("sample", Sensor.read())
     } catch (error) {
       Console.log("sample unavailable", error._tag)
     }
-  }
+  }, Schedule.spaced("5 seconds"))
 }
 // Output: sample unavailable SensorOffline
 // Output: sample 22

@@ -74,3 +74,15 @@ test("migrates pipe look-ahead and checks its marked output, idempotently", asyn
     await expect(fixPage(markdown.replace("Output: 6", "Output: 7"), join(temp, "wrong"), defaultCompiler())).rejects.toThrow("expected output changed")
   } finally { rmSync(temp, { recursive: true, force: true }) }
 }, 60000)
+
+test("moves a block after an Effect dual to its program parameter, idempotently", async () => {
+  const temp = mkdtempSync(join(tmpdir(), "fix-snippets-dual-"))
+  try {
+    linkModules(temp)
+    const markdown = '```vibe\n// run: Console.log(traced())\nfunction traced() {\n  return withSpan("load") {\n    return "done"\n  }\n}\n// Output: done\n```\n'
+    const result = await fixPage(markdown, join(temp, "first"), defaultCompiler())
+    expect(result.changed).toBe(1)
+    expect(result.markdown).toContain('return withSpan(() => {\n    return "done"\n  }, "load")')
+    expect((await fixPage(result.markdown, join(temp, "second"), defaultCompiler())).changed).toBe(0)
+  } finally { rmSync(temp, { recursive: true, force: true }) }
+}, 60000)

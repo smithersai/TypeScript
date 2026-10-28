@@ -693,9 +693,6 @@ var inferredFormFix = &ls.CodeFixProvider{
 		var changes []*lsproto.TextEdit
 		if isFormChoiceBlock(fn) {
 			call := fn.Parent
-			if blockParamFormOf(c, call) != blockAppended {
-				return nil, nil
-			}
 			start := nodeStart(fix.SourceFile, call)
 			brace := nodeStart(fix.SourceFile, fn.Body())
 			head := strings.TrimRight(fix.SourceFile.Text()[start:brace], " \t\r\n")

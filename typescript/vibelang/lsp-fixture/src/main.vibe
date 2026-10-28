@@ -49,9 +49,9 @@ export function shout() {
   }
 }
 
-// A block param (D188).
+// withSpan's program, written first (D376).
 export function spanned() {
-  return withSpan("load") {
+  return withSpan(() => {
     return greeting()
-  }
+  }, "load")
 }

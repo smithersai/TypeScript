@@ -31,7 +31,7 @@ var decisionRoots = []string{"typescript/vibelang", "examples", "templates"}
 
 // decisionLines returns the snapshot's lines, sorted: one per decision,
 // "path:line:col kind result provenance", where kind is lambda, block, or
-// byname, and result is the form (a block's placement/form), or choice
+// byname, and result is the form (a block's appended/form), or choice
 // when the user must write the form.
 func decisionLines(repo string, table *vibelangmapper.Table) ([]string, error) {
 	var files []string
@@ -89,7 +89,9 @@ func decisionLines(repo string, table *vibelangmapper.Table) ([]string, error) {
 				d := r.Lambda(n)
 				kind, result := "lambda", d.Form.String()
 				if d.Block {
-					kind, result = "block", d.Placement.String()+"/"+d.Form.String()
+					// A block is always its call's last argument (D376); the
+					// snapshot keeps the placement D188 used to vary.
+					kind, result = "block", "appended/"+d.Form.String()
 				}
 				if d.Choice != nil {
 					result = "choice"

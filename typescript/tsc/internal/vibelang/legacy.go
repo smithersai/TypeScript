@@ -132,9 +132,11 @@ func LegacySites(c *checker.Checker, file *ast.SourceFile) []LegacySite {
 				add(n, kind, "eager-call-held-result", "Effect", own, true)
 			}
 			if ast.IsCallExpression(n) {
-				if placement := blockParamFormOf(c, n); placement != blockAppended {
+				// D188's placement, from the declared signatures alone, and the
+				// spelling that --fix writes for it (dual_block_migration.go).
+				if placement := legacyDualBlock(c, n); placement != dualBlockNone {
 					repr := "prepended"
-					if placement == blockApplied {
+					if placement == dualBlockApplied {
 						repr = "applied"
 					}
 					add(n, LegacyDualBlock, "block-program", repr, own, true)

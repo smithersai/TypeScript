@@ -139,3 +139,38 @@ typescript/vibelang/cases/contextual-named-programs/main.vibe:18:19 lambda: plai
 typescript/vibelang/cases/contextual-named-programs/main.vibe:22:19 lambda: plain annotation -> plain fallback # S1-5 revert: same plain form, no enclosing-contract provenance
 typescript/vibelang/cases/factory-visitor/main.vibe:7:28 lambda: plain annotation -> dual fallback # S1-5 revert: the inner thunk returns work()'s program; dual is the pre-S1-5 resolution
 typescript/vibelang/cases/failures-mixed-causes/main.vibe:119:22 lambda: plain hatch -> plain table # D306 parity fixture moved source coordinates: this coordinate now identifies the outer sync callback; both the old and new decisions remain plain.
+
+# rules 8 (D376): a block is always its call's last argument. Layer.effect(S) { … } and the old layer X: S { … } spelling resolve against Layer.effect(S, effect), whose last parameter takes the program, the same form D188 reached by applying the data-last Layer.effect(S).
+examples/http-api/src/main.vibe:12:46 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+examples/users/src/main.vibe:20:46 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+examples/vue-vite/src/todos.vibe:12:46 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/decl-layer-blocks.fail/main.vibe:9:46 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/decl-layer-blocks/main.vibe:27:46 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/decl-layer-blocks/main.vibe:43:39 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/decl-layer-blocks/main.vibe:60:43 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/decl-layer-order.fail/main.vibe:8:35 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/decl-layer/main.vibe:26:46 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/decl-layer/main.vibe:40:39 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/decl-old-declarations/main.vibe:21:28 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/decl-provide/main.vibe:19:43 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/layer-effect-member-contract.fail/main.vibe:16:45 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/layer-effect-member-contract.fail/main.vibe:22:50 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/layer-effect-member-contract.fail/main.vibe:24:47 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/layer-effect-member-contract.fail/main.vibe:34:45 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/layer-effect-member-contract.fail/main.vibe:42:44 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/layer-effect-member-contract.fail/main.vibe:46:46 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/layer-effect-member-contract/main.vibe:12:43 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/layer-effect-member-contract/main.vibe:17:43 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/layer-effect-member-contract/main.vibe:21:43 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/lsrules.fail/main.vibe:20:39 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/lsp-fixture/src/declarations.vibe:16:52 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/lsp-fixture/src/forms.vibe:21:46 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/lsp-fixture/src/lsrules-editor.vibe:16:45 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/lsp-fixture/src/lsrules.vibe:16:45 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/lsp-fixture/src/old-declarations.vibe:7:30 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/d362-provide-paths/main.vibe:36:35 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/order-wire-arguments/main.vibe:16:26 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/order-wire-spread-arguments/main.vibe:18:26 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/wire-resolved-callee/main.vibe:13:28 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/wire-self-input.fail/main.vibe:7:35 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/wire-spread-unlisted.fail/main.vibe:9:28 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
