@@ -1,0 +1,39 @@
+# Migrate Effect TypeScript to idiomatic VibeLang
+
+You migrate an existing Effect TypeScript codebase to VibeLang one batch of files at a time. The result must be correct and idiomatic: it uses every VibeLang form that applies, wraps Effect only where no form exists, and keeps the package's public API and tests. Correct but TypeScript-shaped VibeLang is not done.
+
+## The call rule
+
+A call runs where it stands; only a function literal defers it. Write `retry(() => fetchUser(id), policy)`, `timeout(() => slow(), "1 second")` and `fork fetchReport()`. A block after a call, `fork`, the elements of `await.all [...]` and its siblings, the left side of `catch`, and the block of `provide`, `uninterruptible` and `for concurrent` also build programs. Where the skill, the cheat sheet or an example below passes a call by name (`retry(fetchUser(id), policy)`, `p |> retry(%, s)`), write the `() =>` form instead: the specification on main retires by-name passing (Chapter 13, "What a call means", D320, D381, D395), and the `() =>` form means the same under both rules. For edge cases read the specification on main: https://github.com/smithersai/vibelang/tree/main/docs/design/src, chapter 13 for calls and chapter 28 for every EK code.
+
+## Use the forms
+
+- Use VibeLang's form wherever the Effect code has one: `error`, `service`, `schema`, `data`, `match` and `is`, direct calls instead of `Effect.gen` and `yield*`, contracts `A!E!R` instead of `Effect.Effect<A, E, R>`, `throw` and `catch` instead of `Effect.fail` and the catch combinators, `try`/`finally` instead of `ensuring`, `|>` for a pipeline of values, `await.all`, `await.race`, `await.any` and `await.allSettled` for concurrency, `for concurrent(n)` instead of `forEach` with a concurrency option, `fork` and `join` for fibers, `using` for resources, `provide` blocks, and block params such as `withSpan("name") { ... }`.
+- Write no Effect TypeScript in a `.vibe` file: no `Effect.gen`, `function*` with `yield*`, `pipe(...)` chains of `Effect.map` and `Effect.flatMap`, `Effect.succeed` or `Effect.fail` where the value runs, `Data.TaggedError` or `Context.Service` classes, or `Effect.Effect<...>` types. A warning EK48xx marks each one that `vibelang --fix` did not rewrite.
+- Wrap Effect mindfully. Call an Effect module where VibeLang has no form for the job (`Schema.decodeUnknown`, `Stream.*`, `Schedule.*`, `Layer.*`, `Option.*`, `Array.*`), and never where one exists. Prefer methods on Effect data types: `option.map(f).getOrElse(() => 0)`, `stream.filter(p).take(3)`.
+- Effect's modules are in scope without an import. Remove imports of them, except for a module whose name a JavaScript global takes (`Array`, `String`, `Request`, `Headers`) or that two subpaths share (`Model`, `Prompt`): import that one under another name, `import { Array as Arr } from "effect"`.
+- A function with no Effect operation stays plain: it compiles to plain JavaScript and its callers cannot tell. Do not give a pure helper a contract it does not need.
+
+## Platform access goes through services
+
+- Reach the platform only through injected Effect services (`FileSystem`, `Path`, `HttpClient`, `Clock`, `Random`, `Crypto`, `Console`, `Terminal`, `KeyValueStore`, `ChildProcessSpawner`, `Stdio`, `Config`), Effect's own modules, or VibeLang's `Experimental.Process`, `Experimental.FileSystem`, `Experimental.Crypto` and `Experimental.Locks`. The replacement table below names each global's replacement; EK4402 names it too.
+- Never wrap a platform global or a Node.js module in a `sync` or `try` hatch, or in a `module` block, when a service, an Effect module or an Experimental API covers it. Thread the service through the code, and provide its layer where the program starts; a test provides a test layer.
+- Read time and randomness through `Clock` and `Random`, never `Date.now()`, `new Date()` or `Math.random()` (EK4403).
+
+## TypeScript at the edges
+
+- A hatch (`sync`, `try`, `callback`) or a `module` block is for a real Promise or callback library, or a TypeScript-only construct, and nothing else. Comment its body as plain TypeScript, as the docs do: `// try's first argument is plain TypeScript, not VibeLang.`
+- A file whose code is mostly a Promise or callback library, DOM code, or a JavaScript generator protocol stays `.ts`. So does a file with no Effect code.
+- Calling a plain function of a `.ts` file or a package from code a fiber runs needs a hatch, `trusted(...)`, or the package in `"vibelang": { "trustedPackages": [...] }` (EK4401). Trust a package whose functions throw only programmer errors; wrap the rest.
+
+## Keep the contract
+
+- Keep every export, with its name and type: the package's emitted declarations must stay identical. Annotate an export's return type when inference would change its declared type, and keep a class a class when callers construct it or test `instanceof`.
+- Keep every test and its meaning. A test written with `it.effect` may become `.vibe`; a Promise-style test stays `.ts`.
+- Keep behavior: the same errors in the same channel, the same order of effects, the same laziness. A `const` that held a lazy `Effect` value stays lazy: write `() =>` or keep the Effect value.
+
+## Record what the migration teaches
+
+- A rewrite you make by hand that a mechanical rule could make is a codemod gap: record it with its pattern, before and after, so `vibelang --fix` can learn it.
+- A VibeLang bug or missing feature is an issue: record it with the smallest source that shows it. Never work around it with a cast, `any`, a hatch or a `module` block; leave the file `.ts`.
+- A lesson about idiomatic VibeLang that this context did not teach is an idiom entry; it becomes a line of this file.
