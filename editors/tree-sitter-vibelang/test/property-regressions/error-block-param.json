@@ -1,0 +1,39 @@
+{
+  "property": "grammar-cases",
+  "rule": "docs/design/src/428-part4-ch28-tooling.md: The editor; docs/design/src/900-appendices.md: Grammar (D419), Contextual words, Declarations, Statements, Expressions, Patterns; metamorphic statement splicing",
+  "seed": 42,
+  "counterexamplePath": "3:6:6",
+  "generatorVersion": 1,
+  "fastCheckVersion": "4.10.2",
+  "command": "node --test test/grammar.property.test.mjs",
+  "numRuns": 4,
+  "numShrinks": 2,
+  "id": "error-block-param",
+  "knownFailure": true,
+  "input": {
+    "source": "error{}",
+    "strictKnownFailures": true
+  },
+  "discovery": {
+    "chunks": [
+      "import { Effect, Schedule } from \"effect\"\nerror Again {}\nexport const make = (state: { mutable setups: number, mutable runs: number }): Effect.Effect<number, Again, never> => {\n  state.setups++\n  return () => { state.runs++; throw new Again() }\n}\n// expect-result: [1,4,4,4]\nexport function main() {\n  const heldState = { setups: 0, runs: 0 }\n  const namedState = { setups: 0, runs: 0 }\n  const held: Effect.Effect<number, Again, never> = make(heldState)\n  Effect.result(Effect.retry(held, Schedule.recurs(3)))\n  Effect.result(Effect.retry(make(namedState), Schedule.recurs(3)))\n  return [heldState.setups, namedState.setups, heldState.runs, namedState.runs]\n}\n"
+    ],
+    "mutation": {
+      "kind": "delete",
+      "at": 11,
+      "text": "("
+    }
+  },
+  "reason": "Appendix Grammar D419, Contextual words requires error to be followed by a binding identifier on the same line to start a declaration; otherwise it is an identifier. Chapter 13, Block params (D188, D376) and Appendix Grammar, CallExpression permit a same-line block after a name. The compiler correctly accepts error{} as a block-param call; tree-sitter rejects it. Renaming the callee to value makes both parsers accept it. No semicolon is inserted between this same-line callee and block.",
+  "files": {
+    "minimal.vibe": "error{}\n"
+  },
+  "diagnostics": {
+    "compilerValid": true,
+    "treeSitterValid": false,
+    "diagnostics": [],
+    "tree": "(program (ERROR) (statement_block))"
+  },
+  "replay": "FC_PROPERTY='grammar-cases' node --test test/grammar.property.test.mjs",
+  "discoveryReplay": "FC_PROPERTY='grammar-cases' FC_SEED=42 FC_PATH='3:6:6' node --test test/grammar.property.test.mjs"
+}

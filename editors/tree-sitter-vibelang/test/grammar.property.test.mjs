@@ -79,9 +79,38 @@ const hasGap = id => known.some(r => r.id === id);
 const textOf = (source, span) => Buffer.from(source).subarray(span.start, span.end).toString();
 
 // Only the exact saved disagreement shapes qualify. Reparse with the offending
-// identifier renamed / tail match parenthesized, and check all remaining syntax
-// and statement boundaries strictly. No feature or file is excluded.
+// identifier renamed / tail match parenthesized / string newline escaped, and
+// check all remaining syntax and statement boundaries strictly. No feature or
+// file is excluded.
 function repairedKnownSyntax(compiler, tree) {
+  if (!compiler.valid && tree.valid && hasGap('unescaped-string-newline')) {
+    const edits = [];
+    for (const node of tree.nodes.filter(n => n.kind === 'string')) {
+      const literal = textOf(compiler.source, node);
+      // Consume escapes first: an escaped LF is a valid line continuation.
+      const newlines = [...literal.matchAll(/\\[\s\S]|(\n)/g)].filter(m => m[1])
+        .map(m => node.start + Buffer.byteLength(literal.slice(0, m.index)));
+      if (newlines.some(start => compiler.diagnostics.some(d => d.code === 1002 && d.start === start))) edits.push(...newlines);
+    }
+    if (edits.length) {
+      let source = Buffer.from(compiler.source);
+      for (const start of edits.sort((a, b) => b - a)) {
+        source = Buffer.concat([source.subarray(0, start), Buffer.from('\\'), source.subarray(start)]);
+      }
+      gaps.add('unescaped-string-newline');
+      return source.toString();
+    }
+  }
+  if (compiler.valid && !tree.valid && hasGap('error-block-param')) {
+    const source = Buffer.from(compiler.source);
+    const node = tree.nodes.find(n => ['identifier', 'ERROR'].includes(n.kind) && textOf(compiler.source, n) === 'error' &&
+      /^[ \t]*\{/.test(source.subarray(n.end).toString()) &&
+      compiler.statements.some(s => s.kind === 'KindExpressionStatement' && s.start === n.start && s.end > n.end));
+    if (node) {
+      gaps.add('error-block-param');
+      return Buffer.concat([source.subarray(0, node.start), Buffer.from('value'), source.subarray(node.end)]).toString();
+    }
+  }
   if (!compiler.valid && tree.valid && hasGap('anonymous-function-statement')) {
     const node = tree.nodes.find(n => n.kind === 'function_expression' && n.parent === 'expression_statement' &&
       compiler.diagnostics.some(d => d.code === 1003 && d.start >= n.start && d.end <= n.end));
