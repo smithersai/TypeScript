@@ -2,7 +2,7 @@
 
 Each chapter shows a task in today's Effect and in VibeLang. VibeLang uses Effect's own modules unchanged; you stop writing generators, `yield*`, and most combinators.
 
-Snippet conventions: a snippet without an enclosing function sits inside one, because a module's top level cannot run a program (Chapter 13). Names such as `User`, `guest`, and `MailerTest` are declared nearby; helpers such as `toUser` are VibeLang functions. Imports of Effect modules outside the prelude (`Schedule`, `Stream`, `Fiber`, and so on) are omitted.
+Snippet conventions: a snippet without an enclosing function sits inside one, because a module's top level cannot run a program (Chapter 13). Names such as `User`, `guest`, and `MailerTest` are declared nearby; helpers such as `toUser`, `isAdmin`, `isActive`, `toRow`, and `isError` are plain VibeLang functions, declared with their return types, `function toUser(row: Row): User`, so they fit a plain callback and a TypeScript caller receives their values (D500, D518). Imports of Effect modules outside the prelude (`Schedule`, `Stream`, `Fiber`, and so on) are omitted.
 
 ### 1. A first look
 

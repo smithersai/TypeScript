@@ -142,14 +142,14 @@ vibelang/smoke.sh vibelang-infer   # one case
 | Case | What it shows |
 | --- | --- |
 | `vibelang-wrap` | Functions lower to `Effect.fnUntraced` generators, and JavaScript runs them |
-| `vibelang-lower` | Calls run by type: pure helpers stay plain, Effect-returning calls run, operands run left to right, and a `Config` stays data |
+| `vibelang-lower` | Calls run by type: plain-annotated helpers stay plain, Effect-returning calls run, operands run left to right, and a `Config` stays data |
 | `vibelang-infer` | Unannotated functions get `Effect<A, E, R>`: a typed failure flows from `lookup` into `main`, and the `.d.ts` declares it |
 
 `typescript/VIBELANG.md` records the base, the 11 commits, the upstream lines it changes, and the differential check against the prototype.
 
 #### Research and drafts
 
-- `docs/design/DECISIONS.md`: the decision log, D1-D497, the record of why each rule is what it is (D360).
+- `docs/design/DECISIONS.md`: the decision log, D1-D520, the record of why each rule is what it is (D360).
 - `docs/research/effect4-runtime.md`: Effect 4.0.5 runtime facts, with 23 scripts in `experiments/scripts/runtime-facts/`. Scripts written for this design live in `experiments/scripts/`.
 - `docs/research/continuation-prior-art.md`: OCaml 5, Kotlin, Swift, Loom, WasmFX, Koka, Effekt, Effection, js_of_ocaml, and the papers.
 - `docs/research/vibelang.md`: the earlier VibeLang project's `main` (`c60eca97`) and the unmerged checkpoint (`ebe89a2b`).
@@ -264,7 +264,7 @@ ReturnTypeAnnotation :                                        D500
   ":" "infer" "_"                                             a plain function whose return type TypeScript infers from its body
 ```
 
-UnionType includes intersections, postfix `[]`, indexed access, and the prefix operators `keyof` and `typeof`, so each binds inside a slot (Chapter 14's table). A function declaration, function expression, arrow function, method, or accessor's return annotation is a ReturnTypeAnnotation; with none, a function is an Effect function, unless rule F gives a function literal its destination's form (Chapter 13, D500). `infer` followed by any name but `_` there is TypeScript's TS1338. A `!` after a function type's return type belongs to that return type, and a conditional after the last slot belongs to that slot. A `{` after a `!` starts the function's body in a return annotation, so an object type in a slot is parenthesized.
+UnionType includes intersections, postfix `[]`, indexed access, and the prefix operators `keyof` and `typeof`, so each binds inside a slot (Chapter 14's table). A function declaration, function expression, arrow function, method, or accessor's return annotation is a ReturnTypeAnnotation; with none, a function or method is an Effect function, unless rule F gives a function literal its destination's form, and an accessor, which runs as plain JavaScript, is not a function in this sense (Chapter 13, D282, D500). `infer` followed by any name but `_` there is TypeScript's TS1338. A `!` after a function type's return type belongs to that return type, and a conditional after the last slot belongs to that slot. A `{` after a `!` starts the function's body in a return annotation, so an object type in a slot is parenthesized.
 
 #### Declarations
 
@@ -398,7 +398,7 @@ PatternTerm :
   MatcherReference
   MatcherReference "(" (Pattern ("," Pattern)*)? ")"         an extractor
   MatcherReference "{" ("let" BindingIdentifier (";" | ",")?)* "}"   a data variant's fields (D307, EK4706)
-  "if" "(" Expression ")"                                     a guard: matches when Expression is truthy, read with the bindings of the terms before it (D207, D502)
+  "if" "(" Expression ")"                                     a guard: matches when Expression is truthy; it reads only the bindings of terms tested before it, in Chapter 26's pattern order, and a reference to one a later term binds is EK4704; an arm whose pattern contains a guard removes nothing for exhaustiveness (D207, D502, D520)
 PatternElement :
   Pattern
   "..." ("let" | "const" | "var") BindingIdentifier
@@ -430,7 +430,6 @@ The terms the rules use. A term defined here means only this in a rule.
 | --- | --- |
 | Abandonment | Ending a captured continuation without resuming it: its owner unwinds it as an interruption, running its finalizers (Chapters 20, 21) |
 | Call that runs | A call whose callee's declared return type is definitely an `Effect`, or whose callee is itself an Effect value, `p()`: it runs the program on the current fiber and evaluates to its success value (Chapter 13). A call of a plain function is a plain call, which plain code may make (D445), unless its return type is definitely an Effect: then it is one, and runs the program the function returns (D480) |
-| Closed class | A class whose arm covers its type in an exhaustive match: one whose instance type extends the pinned `effect`'s `YieldableError`, an `error` declaration's and a `Data.TaggedError` class's included, that neither declares nor inherits its own `[Symbol.hasInstance]` or `[customMatcher]`. Its arm counts only where its package resolves to one installed copy, and a same-shaped class of another declaration fails its test as a defect (Chapter 3, D407, D427, D501) |
 | Contextual keyword | A word that is a keyword only in the position the grammar gives, such as `fork` before its operand, and an identifier elsewhere (Grammar) |
 | Cause | Effect's record of why a program did not succeed: an ordered list of reasons, each a Fail (an expected failure), a Die (a defect), or an Interrupt (Chapter 17) |
 | Cold | Of a program: building it runs none of its work, and each run starts its work afresh |
@@ -438,7 +437,7 @@ The terms the rules use. A term defined here means only this in a rule.
 | Contract | A function's `Effect<A, E, R>`, written as `A!E!R` or `Effect<A, E, R>`, or inferred: its success type, expected failures, and requirements (Chapter 14) |
 | Control operation | A member of a `control` declaration: a request a handler answers, which may capture the continuation (Chapter 9) |
 | Data type | A `data` declaration, or a tagged union declared with `Data.taggedEnum`: a closed set of tagged variants (Chapter 11) |
-| Declared return type | The return type written in the declaration a call's resolved signature comes from, or the one TypeScript infers for that declaration where none is written; for a `.vibe` function, its contract. A type parameter that the signature of the callee's type, as TypeScript writes that type, itself declares is left uninstantiated, however it is bound, and every other is read as TypeScript instantiates it for the call, whatever construct declares it, so one TypeScript shows uninstantiated, as inside its own generic declaration, is a type parameter; an instantiation expression's value declares no type parameter it bound (Chapter 13, D438, D449, D458, D486, D491) |
+| Declared return type | The return type written in the declaration a call's resolved signature comes from, or the one TypeScript infers for that declaration where none is written; for a `.vibe` Effect function, its contract, and for a plain function, its return annotation or, under `infer _`, the type TypeScript infers. A type parameter that the signature of the callee's type, as TypeScript writes that type, itself declares is left uninstantiated, however it is bound, and every other is read as TypeScript instantiates it for the call, whatever construct declares it, so one TypeScript shows uninstantiated, as inside its own generic declaration, is a type parameter; an instantiation expression's value declares no type parameter it bound (Chapter 13, D438, D449, D458, D486, D491) |
 | Definitely an Effect | Of a type: the `Effect` interface with any type arguments, written directly or through an alias; a conditional whose every branch is definitely an Effect or `never`; or a union whose every member is. Never a type parameter, `any`, `unknown`, an intersection, or a type that extends `Effect` (Chapter 13, rule R) |
 | Destination | Where a function or a value lands and is typed: the parameter of the signature a call resolves to, a declared variable, field, or return type, a field of a contextually typed object literal, or an element of a contextually typed array literal; its declared type gives a function literal there its form (Chapter 13, rule F, D500) |
 | Defect | A failure no contract lists: a bug or an unlisted foreign exception. It is a Die reason, outside E, and `catch` does not receive it (Chapter 17) |
@@ -446,8 +445,8 @@ The terms the rules use. A term defined here means only this in a rule.
 | Effect function | A function whose form is Effect: one with no return annotation or an Effect contract, or a function literal its destination makes one. TypeScript sees it returning a cold `Effect`, and a VibeLang call of it runs that program (Chapter 13, rule F, D500) |
 | Evaluate | To compute an expression's value, once, in source order. The value may be a program, which evaluating does not run |
 | Expected failure | A value thrown with `throw`, or failed with by a callee: a Fail reason, in E, which `catch` receives (Chapter 3) |
-| Foreign code | Code the compiler does not check: TypeScript and JavaScript functions, a hatch's or a `module` declaration's body, and a package consumed through declarations alone, except the plain functions of a module its manifest lists (Chapter 27, D500) |
-| Form | Of a function: plain or Effect. It is written: a return annotation that is not definitely an Effect, or `infer _`, makes a function plain; a function literal at a destination takes the form the destination's declared type gives it; every other function is an Effect function. A body never decides it, and a function value has the form its type gives (Chapter 13, rule F, D500) |
+| Foreign code | Code the compiler does not check: TypeScript and JavaScript functions, a hatch's or a `module` declaration's body, and a package consumed through declarations alone, except the plain functions its manifest lists as compiled from VibeLang (Chapter 27, D500, D516) |
+| Form | Of a function: plain or Effect. It is written: a return annotation that is not definitely an Effect, or `infer _`, makes a function plain; a function literal at a destination takes the form the destination's declared type gives it; every other function is an Effect function. A body never decides it. A function value has the form its type gives, so a plain declaration whose return type is definitely an Effect, `pick(p: number!!): infer _`, is an Effect-form value (Chapter 13, rule F, D500, D511) |
 | Frame | A heap record of an activation on a fiber's stack, where the state of a computation that can capture or park lives (Chapter 26) |
 | Hatch | `sync`, `try`, or `callback`: a call whose first argument is TypeScript, the boundary to foreign code (Chapter 10) |
 | Identifier | A service's nominal type, which R holds: the instance type of Effect's `Context.Service` class, which carries the service's key as a literal type (Chapter 4, D501) |
@@ -474,5 +473,6 @@ The terms the rules use. A term defined here means only this in a rule.
 | Service | A dependency a program looks up by key: a `service` declaration, or a `Context.Service` from TypeScript (Chapter 4) |
 | Shape | The type of a service's implementation, `S.Shape`, which declaration files write as Effect does, `Context.Service.Shape<typeof S>` (Chapter 4, D501) |
 | Suspension point | A point where another fiber may run or an interruption may arrive: a call that runs a program that can park, an await operation, a `join` (Chapters 13, 15) |
+| Tagged class | A class whose instance type declares `_tag` as a string literal or a union of them, an `error` declaration's, a `Data.TaggedError` class's, and `effect`'s tagged errors' included. Its arm tests the tag, as `catchTag` does, and removes from a match's subject every case its tag set covers (Chapter 3, D515) |
 | Trusted base | What the static guarantees assume: the implementation, TypeScript's types where used unchanged, foreign declarations, trust declarations, escapes, and the fiber-behavior table (Chapter 26) |
 

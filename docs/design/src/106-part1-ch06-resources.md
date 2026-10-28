@@ -70,7 +70,7 @@ function hold() {
 
 **`using` is the Effect program a TypeScript developer would write** [Rule] (D481, D490). VibeLang adds no mask and no interruptibility of its own, and no type chooses the program: `using x = e` runs `e` as `yield* e` would, where the declaration stands, and registers the value's release the moment `e` gives it, as ECMAScript's `using` registers its value when the declaration completes.
 
-- *Trigger.* A `using` declaration whose initializer can pause. One that cannot pause gives its value and registers its release in one step.
+- *Trigger.* Every `using` declaration. Where its initializer cannot pause, the acquire and the registration are one step, and rule E11 lets the compiler emit them as one (D518).
 - *The program.* Effect code runs `Effect.acquireRelease(e, release, { interruptible: true })` in the block's Scope, whatever `e`'s type. Its `restore` gives `e` the interruptibility in force where the `using` stands, so cancellation reaches a pause in `e` exactly where it would reach the same pause in a statement before the `using`: interruptible code lets it, and an `uninterruptible { }` block or a release holds it off. Rule D builds no program here: `e` is evaluated where the declaration stands, under rule E (Chapter 13), and the declaration adds only the registration. Each acquisition inside `e` keeps its own policy: Effect's default `acquireRelease` and `acquireDisposable` mask their acquire, and `{ interruptible: true }` does not.
 - *The release.* `release` is rule 2's one disposal. `Effect.acquireRelease` registers it in the uninterruptible step that ends the acquire (`internal/effect.ts:4183-4198`), so no interruption separates `e`'s value from its release.
 - *Static check.* Rule 4's.
