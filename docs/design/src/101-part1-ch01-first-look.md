@@ -129,4 +129,4 @@ export declare const welcome: (id: string) =>
   Effect.Effect<string, UserNotFound | MailError, Users | Mailer>
 ```
 
-TypeScript that imports `welcome` sees an ordinary function returning an `Effect`. Each service compiles to an identifier type, a shape interface for its members, and a `Context.Key` class (Chapter 4), so TypeScript can provide `Users` with an ordinary Layer, and VibeLang can use services written in TypeScript.
+TypeScript that imports `welcome` sees an ordinary function returning an `Effect`. Each service compiles to the `Context.Service` class Effect TypeScript writes (Chapter 4, D501), so TypeScript can provide `Users` with an ordinary Layer, and VibeLang can use services written in TypeScript.

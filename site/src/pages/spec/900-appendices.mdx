@@ -435,7 +435,7 @@ The terms the rules use. A term defined here means only this in a rule.
 | --- | --- |
 | Abandonment | Ending a captured continuation without resuming it: its owner unwinds it as an interruption, running its finalizers (Chapters 20, 21) |
 | Call that runs | A call whose callee's declared return type is definitely an `Effect`, or whose callee is itself an Effect value, `p()`: it runs the program on the current fiber and evaluates to its success value (Chapter 13). A call of a plain function is a plain call, which plain code may make (D445), unless its return type is definitely an Effect: then it is one, and runs the program the function returns (D480) |
-| Closed class | A class whose arm covers its type in an exhaustive match: an `error` declaration, which a declaration file marks with `$error`, or an error class of the pinned `effect`, one extending its `YieldableError`, that neither declares nor inherits its own `[Symbol.hasInstance]` or `[customMatcher]`; an `error` declaration's type is nominal. Its arm counts only where its package resolves to one installed copy (Chapter 3, D407, D427) |
+| Closed class | A class whose arm covers its type in an exhaustive match: one whose instance type extends the pinned `effect`'s `YieldableError`, an `error` declaration's and a `Data.TaggedError` class's included, that neither declares nor inherits its own `[Symbol.hasInstance]` or `[customMatcher]`. Its arm counts only where its package resolves to one installed copy, and a same-shaped class of another declaration fails its test as a defect (Chapter 3, D407, D427, D501) |
 | Contextual keyword | A word that is a keyword only in the position the grammar gives, such as `fork` before its operand, and an identifier elsewhere (Grammar) |
 | Cause | Effect's record of why a program did not succeed: an ordered list of reasons, each a Fail (an expected failure), a Die (a defect), or an Interrupt (Chapter 17) |
 | Cold | Of a program: building it runs none of its work, and each run starts its work afresh |
@@ -455,7 +455,7 @@ The terms the rules use. A term defined here means only this in a rule.
 | Form | Of a function: plain or Effect. It is written: a return annotation that is not definitely an Effect, or `infer _`, makes a function plain; a function literal at a destination takes the form the destination's declared type gives it; every other function is an Effect function. A body never decides it, and a function value has the form its type gives (Chapter 13, rule F, D500) |
 | Frame | A heap record of an activation on a fiber's stack, where the state of a computation that can capture or park lives (Chapter 26) |
 | Hatch | `sync`, `try`, or `callback`: a call whose first argument is TypeScript, the boundary to foreign code (Chapter 10) |
-| Identifier | A service's nominal type, which R holds: the shape's members, where the shape is an object type, plus a brand carrying the service's key (Chapter 4) |
+| Identifier | A service's nominal type, which R holds: the instance type of Effect's `Context.Service` class, which carries the service's key as a literal type (Chapter 4, D501) |
 | Interruption | Cancellation of a fiber, an Interrupt reason; never caught by `catch` (Chapter 17) |
 | Key | A service's value: Effect's `Context.Key`, through which a program looks the service up and a layer provides it (Chapter 4) |
 | Layer | Effect's `Layer<Out, E, In>`: a recipe that builds the services `Out`, may fail with `E`, and needs `In` (Chapter 4) |
@@ -477,6 +477,6 @@ The terms the rules use. A term defined here means only this in a rule.
 | Run | To execute a program on the current fiber until it succeeds, fails, or is interrupted |
 | Scope | Effect's `Scope`: what owns finalizers and closes them in reverse order; in R it records an obligation to release (Chapter 6) |
 | Service | A dependency a program looks up by key: a `service` declaration, or a `Context.Service` from TypeScript (Chapter 4) |
-| Shape | The type of a service's implementation, `S.Shape` or `Context.Service.Shape<typeof S>` (Chapter 4) |
+| Shape | The type of a service's implementation, `S.Shape`, which declaration files write as Effect does, `Context.Service.Shape<typeof S>` (Chapter 4, D501) |
 | Suspension point | A point where another fiber may run or an interruption may arrive: a call that runs a program that can park, an await operation, a `join` (Chapters 13, 15) |
 | Trusted base | What the static guarantees assume: the implementation, TypeScript's types where used unchanged, foreign declarations, trust declarations, escapes, and the fiber-behavior table (Chapter 26) |

@@ -25,8 +25,8 @@ service Users {
 `service Users { ... }` declares a service that does the job of the class on the left. Its members have no bodies (D128, D223). It is short for `abstract class Users { ... }` in which every member without a body is abstract and every value member is also readonly; static members, such as a layer, stay as written (D128). The older spelling `service class Users { ... }` still compiles, with warning EK2120. An abstract class whose instance members are all abstract is a service however it is written. The compiler checks each rule:
 
 - **What makes a class a service.** In a `.vibe` file, a class is a service when it is `abstract`, has no `extends` clause and no type parameters, and every instance member is abstract: methods with full contracts, and `abstract readonly` values. Static members are allowed and stay on the class. An abstract class with a concrete instance member is an ordinary class.
-- **Identity.** Effect identifies a service by its key string, and two services with the same string silently share a slot. The compiler derives the key from the package, module path, and class name (`@acme/app/src/users#Users`) and rejects a duplicate anywhere in the program (EK3001). Two installed copies of one package version are one declaration to TypeScript (D427) and carry one key, so they are one service, as Effect's key string makes them at run time.
-- **Each service is its own type.** TypeScript compares types by shape, so two services with the same members would be one type: providing one would type-check as providing the other, and the program would die at run time with `Service not found`. As a type, a service's name is nominal: nothing but that service satisfies it (below, D361).
+- **Identity.** Effect identifies a service by its key string, and two services with the same string silently share a slot. The compiler derives the key from the package, module path, and class name (`@acme/app/src/users#Users`), unless the body writes one, `static readonly key = "app/Users"`, as a migrated service does to keep its key, and rejects a duplicate anywhere in the program (EK3001, D501). Two installed copies of one package version are one declaration to TypeScript (D427) and carry one key, so they are one service, as Effect's key string makes them at run time.
+- **Each service is its own type.** TypeScript compares types by shape, so two services with the same members would be one type: providing one would type-check as providing the other, and the program would die at run time with `Service not found`. As a type, a service's name is Effect's identifier, whose key makes it nominal: nothing but that service satisfies it (below, D501).
 - **Contracts are written out.** A service has no body to infer from, so each method states its contract, `A!E!R` or `Effect<A, E, R>` (EK2101, Chapter 14).
 - **A service is a key, not a base class.** `extends Users` (EK3002), `new Users()` (EK3003), `instanceof Users` (EK3004), and a generic service class (EK3005) are errors. Implement a service with an object literal or a class that `implements Users`, which checks the class against the service's shape.
 
@@ -36,31 +36,27 @@ error EK3002: A class cannot extend a service.
   Implement it instead:  class UsersInMemory implements Users { … }
 ```
 
-The class compiles to:
+The declaration compiles to the class Effect TypeScript writes, and its declaration file is that class's (D501):
 
 ```ts [Generated TypeScript]
-export interface Users extends Users.Shape, ServiceBrand<"@acme/app/src/users#Users"> {}
-export class Users extends serviceKey<Users, Users.Shape>("@acme/app/src/users#Users") {}
-export namespace Users {
-  export interface Shape {
-    find(id: string): Effect.Effect<User, UserNotFound>
-    rename(id: string, name: string): Effect.Effect<void, UserNotFound>
-  }
-}
+export class Users extends Context.Service<Users, {
+  find(id: string): Effect.Effect<User, UserNotFound>
+  rename(id: string, name: string): Effect.Effect<void, UserNotFound>
+}>()("@acme/app/src/users#Users") {}
 ```
 
 #### What a service's name means
 
-A service has two types, as every Effect `Context.Key<Identifier, Shape>` has. The rules [Rule]:
+A service has two types, as every Effect `Context.Key<Identifier, Shape>` has. The rules [Rule] (D501):
 
-- **The identifier.** As a type, `Users` is the service's identifier: the shape's members plus a required brand whose type is the service's key. Only identifiers appear in R, in a layer's outputs, and in what a provider removes from R. That is a statement about assignability, not a separate check: a structural type in R is no service's identifier, so no provider removes it, and TypeScript's assignability error reports it where R must be discharged, at an entry or a caller's contract; no EK code reports it (D466). A type is assignable to `Users` only if it carries `Users`'s brand, so neither a structural type with the same members nor another service can stand for `Users`. The brand is phantom: no object has it at run time, and no program can name its property, which the runtime declares as a type only.
-- **The shape.** `Users.Shape`, which Effect also spells `Context.Service.Shape<typeof Users>`, is the members alone, the type of an implementation. `Layer.succeed(Users, impl)`, `Layer.effect(Users) { … }`, `Effect.provideService(p, Users, impl)`, `provide Users = impl`, and a service default check their implementation against it, and `implements Users` in a `.vibe` file checks the class against it.
-- **The key.** As a value, `Users` is a `Context.Key<Users, Users.Shape>`, so `Layer.succeed`, `Effect.provideService`, and `yield* Users` work as with a `Context.Service` class. `Users()` returns the implementation in effect, typed as the identifier, so it can be passed to a parameter typed `db: Users` and its members called. A plain object written in a test has the shape, not the identifier: type that parameter `Users.Shape` to accept one.
+- **The identifier.** As a type, `Users` is the service's identifier: the instance type of Effect's class, which carries the service's key as a literal type, `key: "@acme/app/src/users#Users"`, beside Effect's own `ServiceTypeId`. Only identifiers appear in R, in a layer's outputs, and in what a provider removes from R. That is a statement about assignability, not a separate check: a structural type in R is no service's identifier, so no provider removes it, and TypeScript's assignability error reports it where R must be discharged, at an entry or a caller's contract; no EK code reports it. A type is assignable to `Users` only if it carries `Users`'s key, so neither a structural type with the same members nor another service can stand for `Users`.
+- **The shape.** `Users.Shape`, which Effect spells `Context.Service.Shape<typeof Users>` and declaration files write so, is the members alone, the type of an implementation; a `.vibe` file reads `S.Shape` that way for every service key `S`, a TypeScript one included. `Layer.succeed(Users, impl)`, `Layer.effect(Users) { … }`, `Effect.provideService(p, Users, impl)`, `provide Users = impl`, and a service default check their implementation against it, and `implements Users` in a `.vibe` file checks the class against it and is emitted `implements Context.Service.Shape<typeof Users>`.
+- **The key.** As a value, `Users` is Effect's class, a `Context.Key<Users, Users.Shape>`, so `Layer.succeed`, `Effect.provideService`, and `yield* Users` work as with any `Context.Service` class. `Users()` returns the implementation in effect, typed as the shape, as `yield* Users` gives it; a parameter that takes one is typed `Users.Shape`, and one typed `Users` takes the identifier, as in Effect TypeScript.
 - **Same service, same key.** Two requirements are the same service exactly when their identifiers carry the same key. EK3001 makes a key name one declaration, so a requirement is discharged only by a provider of that declaration's key.
 
-`service Name: Type` follows the same rules with `Type` as the shape. Where the shape is an object type, the identifier has its members; where it is not, such as `string` or a function type, which an interface cannot extend, the identifier is the brand alone, and `Name()` returns the shape.
+`service Name: Type` follows the same rules with `Type` as the shape, `Context.Service<Name, Type>()(key)`, and `Name()` returns the shape.
 
-The brand was optional before (D45). An optional property does not stop a structural type from being assigned to it, so `Effect<number, never, { get(): number!! }>` could be relabeled as a requirement of either of two services with that method, and providing the wrong one type-checked and died with `Service not found` (D361). Effect's own class form can't be the output: it makes the class's instance type the identifier, so `implements Users` would fail with TS2720 (`prototype/esc/scratch/probe2.ts`).
+Effect's class form is the output because it already makes R nominal: the key's literal type is part of the identifier, so `Effect<number, never, { get(): number!! }>` cannot be relabeled as a requirement of either of two services with that method (D361, D501). Earlier versions wrote an interface of the shape's members plus a VibeLang brand, so that a parameter typed `db: Users` took an implementation; that changed every migrated service's declaration, and D501 replaced it.
 
 The syntax takes nothing from TypeScript: calling an abstract member through its class (`Users.find(id)`) is error TS2339 today, and calling a class without `new` (`Users()`) is TS2348, so VibeLang gives both a meaning. Fully abstract classes are also rare: Smithers has none in 4,461 files, and opencode has five in 3,235, whose only fully abstract one extends another class.
 
@@ -80,7 +76,7 @@ service Search: SearchApi {
 }
 ```
 
-`service Name: Type` declares a service whose implementation has any type: an interface declared elsewhere, a primitive, or a function type (D281). It does the job of the class on the left, with the key derived as above (D93). The body is optional and holds only static members, such as a layer; an instance member there is EK2103, because the shape already states what an implementation has. Reading is unchanged: `Prefix()` returns the implementation and `Search.find(q)` calls a member of the shape (D41, D90). For a service whose shape is a function type, `service Format: (n: number) => string`, `Format()` returns the function and `Format()(3)` calls it; `Format(3)` is EK3007, since the key's call takes no arguments (D415). The type `Search` is the service's identifier and `SearchApi` its shape, by the rules above. A generic service is EK3005, and a static member named like a member of the shape is EK3006. The parser reads the declaration as an abstract class whose synthesized extends clause carries the shape; the checker gives it the static side `Context.Service<Search, SearchApi>`, and the declaration file writes `ServiceKey<Search, SearchApi>`, or `ReferenceKey<Shape>` for a static default (D40), as its base.
+`service Name: Type` declares a service whose implementation has any type: an interface declared elsewhere, a primitive, or a function type (D281). It does the job of the class on the left, with the key derived as above (D93). The body is optional and holds only static members, such as a layer; an instance member there is EK2103, because the shape already states what an implementation has. Reading is unchanged: `Prefix()` returns the implementation and `Search.find(q)` calls a member of the shape (D41, D90). For a service whose shape is a function type, `service Format: (n: number) => string`, `Format()` returns the function and `Format()(3)` calls it; `Format(3)` is EK3007, since the key's call takes no arguments (D415). The type `Search` is the service's identifier and `SearchApi` its shape, by the rules above. A generic service is EK3005, and a static member named like a member of the shape is EK3006. The declaration is the class on the left, `class Search extends Context.Service<Search, SearchApi>()(key) {}`, and its declaration file is that class's; a service with a static default is Effect's `Context.Reference<Shape>(key, { defaultValue })` instead (D40, D501).
 
 #### Using a service
 
@@ -229,7 +225,7 @@ function checkoutPage(cartId: string) {
 // FeatureFlags is not in R: it always has a value
 ```
 
-A service with `static readonly default` compiles to Effect's `Context.Reference`. Code using it never needs a provider; `Effect.provideService(() => …, FeatureFlags, { newCheckout: true })` overrides it for a region. Effect's own `Context.Reference("app/Flag", { defaultValue: () => false })` also works unchanged: the call's declared return type is a key, not `Effect`, so the call returns the key without running it (Chapter 13).
+A service with `static readonly default` compiles to Effect's `Context.Reference`, `const FeatureFlags = Context.Reference<FeatureFlags.Shape>(key, { defaultValue: () => … })`, and its declaration file writes that constant (D501). Code using it never needs a provider; `Effect.provideService(() => …, FeatureFlags, { newCheckout: true })` overrides it for a region. Effect's own `Context.Reference("app/Flag", { defaultValue: () => false })` also works unchanged: the call's declared return type is a key, not `Effect`, so the call returns the key without running it (Chapter 13).
 
 The default is an implementation like any other [Rule]. Its initializer is checked against the service's shape as `Layer.succeed`'s argument is: a value whose type does not fit the shape is TS2322, and a member whose failures or call-time requirements exceed its contract is EK2001 or EK3101. The service leaves R only because the default supplies it, so a default that does not fit leaves the program rejected, never running with a value of the wrong type (D362).
 

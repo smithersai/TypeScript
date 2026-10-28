@@ -60,8 +60,8 @@ The parser extends TypeScript's grammar with VibeLang's contracts, declarations,
 implicit imports from `vibelang-runtime`, `effect`'s other root exports as
 implicit imports from `effect`, and the modules of its subpath packages as
 implicit imports of their packages, such as `effect/http`, unless a local
-declaration or import shadows them (D4, D48, D146, D310). Class hooks give fully abstract service classes an Effect
-Context key's static side, their identifier type, and their abstract members' shape (D1, D361).
+declaration or import shadows them (D4, D48, D146, D310). Class hooks give a `service` declaration the class
+Effect TypeScript writes, `Context.Service<X, Shape>()(key)`, its identifier and its shape (D1, D501).
 
 Lowering runs before TypeScript's type erasure, queries the checker while
 holding the checker lock, and rewrites the TypeScript AST directly. The
@@ -244,19 +244,20 @@ against it may rely on [Rule] (D366).
    `User!NotFound!` is `Effect.Effect<User, NotFound>`), and so are
    dependencies that a return annotation leaves for the body to supply
    when they come to `never`; a slot the source fills stays.
-5. **Every nesting level.** A `service`, `control`, `error`, `schema`, or
-   `data` declaration emits the same declarations inside a `namespace` as at
-   a file's top level. An `error` declaration's class declares `#private;`,
-   which makes it nominal to stock TypeScript too (D407), and a namespace
-   merged with it declares the type-only marker that makes it a closed
-   `error` declaration to a declaration consumer, with `ErrorBrand` a type
-   import of `vibelang-runtime`:
-   `export declare namespace NotFound { type $error = ErrorBrand<"@acme/app/src/users#NotFound"> }`.
-   A namespace is not inherited, so each `error` declaration, a subclass
-   included, writes its own, and a TypeScript subclass has none; a brand on
-   the class itself would be inherited, and an instance member would mark
-   TypeScript subclasses too and make two families' brands conflict (TS2320)
-   (D465).
+5. **What Effect TypeScript declares.** A `service`, `schema`, or `error`
+   declaration's declaration file is the one TypeScript emits for the Effect
+   TypeScript the declaration stands for (D501): `service X` writes
+   `declare class X extends Context.Service<X, Shape>()("<key>") {}` in
+   TypeScript's emitted form, with its key; a service with a default writes
+   `declare const X: Context.Reference<Shape>`; `schema P` writes the
+   schema constant and `type P = typeof P.Type`; and `error E` writes what
+   `class E extends Data.TaggedError("E")<{ … }> {}` emits, with no member,
+   marker, or namespace of VibeLang's. A declaration consumer reads a
+   service's identity from Effect's key type and an error class's
+   closedness from its base, `YieldableError`, and its declared membership
+   tests (Chapter 3). Each declaration emits the same declarations inside a
+   `namespace` as at a file's top level. A `control` declaration, which no
+   Effect TypeScript declares, keeps the runtime's control key.
 6. **Hygienic.** A name that declaration emit adds, such as a key's base
    constant or a prelude import's alias (D123), is fresh against every name
    the file declares or imports (Chapter 13, rule H6).
@@ -273,39 +274,31 @@ returned object, a `let` that holds a plain function, a `: infer _` export,
 a callback parameter written with its channels, and exported compositions
 and extracted methods (D421, D458, D484, D500).
 
-Services emit as runtime key classes with the identifier and shape that
-Chapter 4 defines (D361), so ordinary TypeScript can provide the service and
-implement its shape:
+Services emit as Effect's own class, as Effect TypeScript declares them
+(D501), so ordinary TypeScript provides a service and implements its shape
+exactly as it does a `Context.Service` written in TypeScript:
 
 ```ts dts
-import { Effect } from "effect"
-import type { ServiceBrand } from "vibelang-runtime"
-export interface Users extends Users.Shape, ServiceBrand<"@acme/app/src/users#Users"> {}
-declare const Users_base: import("vibelang-runtime").ServiceKey<Users, Users.Shape>
-export declare abstract class Users extends Users_base {}
-export declare namespace Users {
-  interface Shape {
-    find(id: string): Effect.Effect<User, UserNotFound>
-  }
-}
+import { Context, Effect } from "effect"
+declare const Users_base: Context.ServiceClass<Users, "@acme/app/src/users#Users", {
+    find(id: string): Effect.Effect<User, UserNotFound>;
+}>
+export declare class Users extends Users_base {}
 ```
 
-A default service's key is `ReferenceKey<Users.Shape>` in place of
-`ServiceKey<Users, Users.Shape>` (D466). A service inside a namespace is written
-the same way inside the namespace's body, without `declare`; the body then
-exports its members explicitly and ends with `export {}`, which keeps the base
-constant out of the namespace's exports. Declaration transforms add imports
-for prelude names, joining an import of the same module that the file keeps,
-name an effect module that an inferred type comes from
-through the name the source reaches it by, as Effect TypeScript that imports
-the module does (`Option.Option<string>`, not
-`import("effect/Option").Option<string>`; the Effect module always),
-write each callback parameter's type as the source writes it, and write source
-specifiers as `.js` (Chapter 26). TypeScript consumers need only the `.js`,
-`.d.ts`, `effect`, and runtime packages. A TypeScript class implements the
-service's shape, `implements Users.Shape`; `implements Users` asks for the
-brand, which no implementation has. A `.vibe` class written `implements Users`
-is emitted `implements Users.Shape` (D466).
+A service with a default is `export declare const FeatureFlags:
+Context.Reference<{ readonly newCheckout: boolean }>` (D501).
+Declaration transforms add imports for prelude names, joining an import of
+the same module that the file keeps, name an effect module that an
+inferred type comes from through the name the source reaches it by, as
+Effect TypeScript that imports the module does (`Option.Option<string>`,
+not `import("effect/Option").Option<string>`; the Effect module always),
+write each callback parameter's type as the source writes it, and write
+source specifiers as `.js` (Chapter 26). TypeScript consumers need only the
+`.js`, `.d.ts`, `effect`, and runtime packages. A TypeScript class
+implements the service's shape, `implements Context.Service.Shape<typeof
+Users>`, and a `.vibe` class written `implements Users` is emitted so
+(D501).
 
 Trusted TypeScript contracts use `trusted(impl, [Errors])` (D249, Chapter 10).
 The older D23 declaration tags still affect the native compiler and draw

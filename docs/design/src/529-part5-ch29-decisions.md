@@ -4,7 +4,7 @@
 
 ```text
 settled before this document      1-7        the original design decisions
-decisions                         D1-D500    every decision since; a number without a row is unassigned
+decisions                         D1-D501    every decision since; a number without a row is unassigned
 rules of the runtime and compiler P1-P22     adopted by D29, revised by verified counterexamples
 ```
 
@@ -114,7 +114,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D90 | The member-call rule (D41) is structural: any Context key whose service type declares the member, including `.vibe` services, TypeScript `Context.Service` classes, and Effect's `FileSystem` and `Path` | Context keys and VibeLang services share call behavior |  | 4, 13 |
 | D91 | A control-operation call lowers like a service call, `yield* (yield* Approval).approve(x)`, as the prototype did (amending the original Chapter 13 lowering); `handle` provides an implementation that performs the kernel operations | Preserves the prototype implementation pending F7 |  | 9, 13 |
 | D92 | A `.vibe` method becomes an Effect when its body runs or looks up an Effect, or its expected type returns one; it stays a method whose body is `return Effect.gen({ self: this }, function* () { … })` | Generators must retain the method receiver | Amended by D327, D332, D397 | 15, 27 |
-| D93 | Service keys use package, module, and name; defaults require `static readonly`; EK2101 requires an Effect type (all three channels until D308); wire emits consumers first | Stable service identity and bounded provider analysis | Amended by D361, D363 | 4, 14 |
+| D93 | Service keys use package, module, and name; defaults require `static readonly`; EK2101 requires an Effect type (all three channels until D308); wire emits consumers first | Stable service identity and bounded provider analysis | Amended by D361, D363, D501 | 4, 14 |
 | D94 | Effect acquisitions receive the block Scope; other initializers need Disposable, null, or undefined; Disposable results also run Symbol.dispose | Effect acquisitions and ordinary Disposables have different ownership | Superseded by D342, D343 | 6 |
 | D95 | In an Effect function, `for (using x of values)` owns a Scope region per iteration and closes its source on early exit; `for (using x = v; test; step)` owns one region around the whole loop, with its head acquired once | Cleanup belongs to the iteration that owns it |  | 6, 7 |
 | D96 | A `fork` belongs to the innermost block around it; `() => fork(p)`, an arrow function with an expression body, is `Effect.forkScoped` and keeps `Scope` in R | An expression body has no owning block | Superseded by D353 | 7 |
@@ -143,12 +143,12 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D125 | The language is Effeck: binary `effeck`, files `.effeck`, codes `EK`, unscoped npm packages `effeck`, `effeck-runtime`, `effeck-vite` | The `@effectscript` npm scope belongs to another language | Superseded by D255 | 28 |
 | D126 | `error NotFound { id: string }` declares a tagged error class with readonly fields | Fewer tokens for the most common declaration | Amended by D278, D279, D304 | 3 |
 | D127 | (Superseded by D308, restored by D309.) Effect types are written `Result!Error!Dependencies`; an empty slot is never, and left-out dependencies are inferred on a function with a body | Fewer tokens than `Effect<A, E, R>` in every contract | Superseded by D308; restored by D309 | 14 |
-| D128 | (Amended by D220, reverted by D223.) `service` and `control` declare abstract classes whose bodiless members are abstract; an implemented member is EK2103 | Fewer tokens than `abstract class` and `abstract` on every member | Amended by D223, D278, D281 | 4, 9 |
+| D128 | (Amended by D220, reverted by D223.) `service` and `control` declare abstract classes whose bodiless members are abstract; an implemented member is EK2103 | Fewer tokens than `abstract class` and `abstract` on every member | Amended by D223, D278, D281, D501 | 4, 9 |
 | D129 | (Superseded by D221.) `layer UsersLive: Users { setup; find(id) { ... } }` is `Layer.effect` (or `Layer.succeed` without setup); setup after members is EK2104 | Fewer tokens than `Layer.effect(S, () => { return { ... } })` | Superseded by D221 | 4 |
 | D130 | `with` provides a layer to a block, renamed `provide` by D172 | One region keeps `return`, `break`, and `continue`; the block takes what `Effect.provide` takes | Amended by D172, D173, D362 | 4 |
 | D131 | A typed catch clause names the failures it handles | Catching by tag in the clause | Superseded by D216 | 3 |
 | D132 | `try { } handle Op(x) { }` clauses handle a control's operations | Bodies and clauses stay code of the enclosing function |  | 9 |
-| D133 | `schema` declares a struct schema and its decoded type | One declaration, so the schema and its type cannot drift |  | 11 |
+| D133 | `schema` declares a struct schema and its decoded type | One declaration, so the schema and its type cannot drift | Amended by D501 | 11 |
 | D134 | Members are readonly unless written `mutable` | Immutable data is the common case; the docs wrote `readonly` 186 times |  | 10 |
 | D135 | An exported parameterless `main` runs when the host starts its module; a top-level runner, resolved by symbol, suppresses the entry | `node dist/main.js` runs the program, and importing the module runs nothing | Amended by D312, D387 | 1, 13 |
 | D146 | Every export of `effect`'s root is in scope; JavaScript's own globals win, host globals do not | Imports from `effect` were 5.9% of the docs' tokens |  | 1, 27 |
@@ -253,11 +253,11 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D278 | `error`, `service`, and `control` declarations are classes with full class semantics | Error classes with constructors and members | Amended by D345, D407 | 3, 4, 9 |
 | D279 | `schema error` declares an error that serializes | Most real errors are `Schema.TaggedError` classes |  | 3 |
 | D280 | `schema Name = <type>` declares a schema of any mapped type | Literal unions written beside their types |  | 11 |
-| D281 | `service Name: Type` declares a service of any shape, `Context.Service<Name, Type>`; its body holds only static members (EK2103) | Smithers: 103 services with the interface beside them, 8 of shape `string` | Amended by D361, D415 | 4 |
+| D281 | `service Name: Type` declares a service of any shape, `Context.Service<Name, Type>`; its body holds only static members (EK2103) | Smithers: 103 services with the interface beside them, 8 of shape `string` | Amended by D361, D415, D501 | 4 |
 | D282 | `throw` always fails and `catch` receives typed failures only, outside hatches; a plain function never fails and needs nothing, so a throw that can escape it, or a constructor, an accessor or a static block, is EK2003 (supersedes D263) | A plain contract excludes expected failures | Amended by D328, D329, D399, D455 | 3, 15 |
 | D283 | A `module` declaration escapes to TypeScript | Code that must keep JavaScript's meaning, after D282 | Amended by D364 | 11 |
 | D284 | A class that an `error` declaration writes draws EK4830, a Schema error class EK4837 | TypeScript-style forms with a VibeLang form are warnings with fixes |  | 3, 28 |
-| D285 | A `Context.Service` class draws EK4831 | The same |  | 4, 28 |
+| D285 | A `Context.Service` class draws EK4831 | The same | Amended by D501 | 4, 28 |
 | D286 | A constant that holds a `Schema.Struct` draws EK4832 | The same | Amended by D474 | 11, 28 |
 | D287 | An `Effect.Effect<A, E, R>` type draws EK4833 | The same |  | 2, 28 |
 | D288 | A running `Effect.succeed` or `Effect.fail` draws EK4834 | The same |  | 2, 28 |
@@ -318,7 +318,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D355 | The E guarantee is stated with its assumptions, and D256 stands beside D15 | No chapter said what E promises |  | 14, 17 |
 | D356 | A construct closes the iterators it opens on every exit | Early exits leaked iterators | Amended by D404 | 7, 8, 26 |
 | D360 | The specification is the one normative text; the decision log records why | Contradictory amendments and an incomplete index |  | Intro, 29 |
-| D361 | A service's identifier is nominal: a required brand; implementations have the shape | An optional brand let a structural type relabel a requirement | Amended by D466 | 4, 27 |
+| D361 | A service's identifier is nominal: a required brand; implementations have the shape | An optional brand let a structural type relabel a requirement | Superseded by D501 | 4, 27 |
 | D362 | A provider removes only the services it provides on every path; EK3207 for anything else | Unions, empty arrays, invalid values, and unchecked defaults compiled and died |  | 4 |
 | D363 | `wire` is recognized by symbol, keeps argument order, and never lets a layer provide its own input | Aliases skipped ordering; arguments ran reordered |  | 4 |
 | D364 | A `module` declaration is an ECMAScript module: live bindings, import order, case-sensitive names | An import denotes a binding, not a snapshot | Amended by D403 | 11, 26 |
@@ -364,7 +364,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D404 | JavaScript's own `for...of` is emitted only where its iterator close keeps both failures | `IteratorClose` drops a second failure | Amended by D424 | 8, 13, 17, 26 |
 | D405 | Every arm's test runs, the last arm's included | A literal-typed field may be a getter |  | 3, 11, 26 |
 | D406 | `throw` has one meaning; `Effect.failCause` rethrows a cause; EK2140 | Widening a Cause to `unknown` changed recovery |  | 3, 5, 13, 17, 28 |
-| D407 | `error` declarations are nominal; a class arm counts toward exhaustiveness only for a closed class | Same-shaped classes and custom `Symbol.hasInstance` defeated coverage | Amended by D427, D428, D465 | 3, 14, 26, 27, 28 |
+| D407 | `error` declarations are nominal; a class arm counts toward exhaustiveness only for a closed class | Same-shaped classes and custom `Symbol.hasInstance` defeated coverage | Amended by D427, D428, D465, D501 | 3, 14, 26, 27, 28 |
 | D408 | A fiber belongs to a region the source names, never to braces | Braces the formatter may add changed a fiber's lifetime | Amended by D464 | 7, 12, 13, 17, 20, 26, 28 |
 | D409 | A fiber stays with its owner by a flow rule the compiler checks; EK4838 | "Outlives the block" had no criterion | Amended by D455, D464, D469 | 7, 28 |
 | D410 | A handler's left-out returns and its continuation's uses are read from syntax; EK2128 | "Computed from" and "`k` stays" were unchecked | Amended by D440 | 9, 28, 30 |
@@ -422,8 +422,8 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D462 | A parenthesized await operation's literal operand is deferred; `join`'s operand is evaluated, never deferred | The grammar note evaluated `await.all([a(), b()])`'s elements; rule H called `join`'s operand deferred |  | 13, 30, Appendices |
 | D463 | EK4802 covers an Effect-form callback that returns a program where an Effect-returning callback is expected | Adding a log line to `(v) => cached` silently stopped `cached` from running | Amended by D480, D500 | 13, 28, 30 |
 | D464 | `do` blocks and `match` arms own no fibers; `await f` of an owned fiber is EK4609 alone; a capture inside a `fork` operand is EK4838 | The ownership and escape rules left these edges unstated |  | 7, 28, 30 |
-| D465 | An `error` declaration's declaration carries `#private` and a merged-namespace `$error` marker; `effect`'s error classes are those extending `YieldableError` | A declaration consumer could not tell a closed `error` from an open class |  | 3, 14, 26, 27, 30, Appendices |
-| D466 | A service's emitted declaration imports `ServiceBrand` and uses `ServiceKey` or `ReferenceKey`; "only identifiers in R" is assignability | The emitted shape and the R rule's diagnostic were unstated |  | 4, 27, 30 |
+| D465 | An `error` declaration's declaration carries `#private` and a merged-namespace `$error` marker; `effect`'s error classes are those extending `YieldableError` | A declaration consumer could not tell a closed `error` from an open class | Superseded by D501 | 3, 14, 26, 27, 30, Appendices |
+| D466 | A service's emitted declaration imports `ServiceBrand` and uses `ServiceKey` or `ReferenceKey`; "only identifiers in R" is assignability | The emitted shape and the R rule's diagnostic were unstated | Superseded by D501 | 4, 27, 30 |
 | D467 | A handler's answer type adds `undefined` only for a completion other than by returning | "Ends another way" was loose | Amended by D487 | 9 |
 | D468 | Statements that contradicted rules or facts | Chapters 2, 5, 6, 10, 13, 15, 27, 28, 30 and the appendices kept text the rules had replaced |  | 2, 5, 6, 10, 13, 15, 27, 28, 30, Intro, Appendices |
 | D469 | A fiber may sit in a literal its region holds only to join it | D409's "a collection" rejected `Fiber.joinAll(fibers)` |  | 7, 28 |
@@ -453,6 +453,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D497 | A computed string-literal protocol key is a protocol key; assigning an Effect-form function to a `Plain<F, C>` holder is EK4301, not TS2741; the nested-pattern combination bound is 64 combinations, 8 levels deep | `["toString"]` was unstated; TS2741 named `[$direct]`; "a fixed bound" was unstated | Amended by D500 | 10, 11, 13, 28, 30 |
 | D498 | An exported `const` or `let` named `main` that holds a function is `EK4843`, fixed into `export function main()` | Such a `main` ran nothing |  | 13, 28 |
 | D500 | Written forms (**controversial**): a function without a return annotation is an Effect function, and a return annotation that is not an Effect, or `: infer _`, makes it plain; a function literal takes its destination's form; a callback type means what TypeScript means; declarations write the form, and a manifest carries trust | Inferred forms let overload order, a holder, a stored array, or a dependency's log line drop or change work, and gave one value two forms; Effect 4 marks forms in its own types |  | Intro, 2, 5, 10, 13, 14, 15, 16, 23, 26, 27, 28, 29, 30, Appendices |
+| D501 | A `service`, `schema`, or `error` declaration declares what idiomatic Effect TypeScript declares: `Context.Service<X, Shape>()(key)`, `Schema.Struct` with `type P = typeof P.Type`, a `Data.TaggedError` class; identity rests on Effect's key type and run-time class | Migrated libraries' declarations changed where a service or schema was rewritten |  | 1, 3, 4, 11, 14, 24, 26, 27, 28, 29, 30, Appendices |
 
 #### Rules of the runtime and compiler
 

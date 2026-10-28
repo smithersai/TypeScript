@@ -366,7 +366,7 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK4824 | Off by default: a `pipe` with no functions | Remove the pipe (quick fix) | 5 |
 | EK4825 | Off by default: a pipe of a pipe, `x.pipe(f).pipe(g)` | Pass every function to one pipe (quick fix) | 5 |
 | EK4830 | A warning: a class that extends `Data.TaggedError`, `TaggedError`, `Data.Error`, or `Schema.TaggedError` with an empty body (D284) | `error NotFound { id: string }` (quick fix when the tag is the name and the base is a TaggedError) | 3 |
-| EK4831 | A warning: a `Context.Service<Self, Shape>()(key)` class whose shape is an object type (D285) | `service Users { … }` (quick fix when the shape is written in place) | 4 |
+| EK4831 | A warning: a `Context.Service<Self, Shape>()(key)` class whose shape is an object type (D285) | `service Users { … }` (quick fix when the shape is written in place), which keeps a key other than the derived one as `static readonly key = "…"`, so the declaration file is unchanged (D501) | 4 |
 | EK4832 | A warning: a `const` that holds a `Schema.Struct` a `schema` declaration writes (D286) | `schema User { … }` (quick fix) | 11 |
 | EK4833 | A warning: `Effect.Effect<A, E, R>`, which the `!` form writes in fewer tokens; the prelude's `Effect<A, E, R>` draws nothing (D287, D308, D309) | `A!E!R` (quick fix) | 2 |
 | EK4834 | A warning: `Effect.succeed(x)` or `Effect.fail(e)` where the call runs (D288) | `x`, or `throw e` (quick fix) | 2, 3 |

@@ -94,7 +94,7 @@ const Todo = Schema.Struct({
   title: Schema.String,
   completed: Schema.Boolean
 })
-interface Todo extends Schema.Schema.Type<typeof Todo> {}
+type Todo = typeof Todo.Type
 ```
 
 ```ts [VibeLang]
@@ -106,7 +106,7 @@ schema Todo {
 }
 ```
 
-A `schema` declaration declares both: the constant `Todo`, a `Schema.Struct`, and the interface `Todo`, its decoded type (D133). Each field has a type, and the compiler writes its schema: a primitive, a literal or a union, an array, a tuple, a record, an object type, or the name of another schema, standing for that schema's decoded type. `name?: T` is `Schema.optional`, which accepts an absent key or `undefined`. A field that needs another schema, such as `Schema.DateTimeUtc` or a checked string, names a schema constant: `const Created = Schema.DateTimeUtc`, then `created: Created`. A field type with no schema form is EK2109. The interface comes from the struct, so the two cannot drift apart. `schema Name = <type>` declares the schema of any type the same mapping writes, a literal union for one, with `Name` as both the constant and its type (D280): `schema Code = "root_missing" | "read_failed"`.
+A `schema` declaration declares both: the constant `Todo`, a `Schema.Struct`, and the type `Todo`, `typeof Todo.Type`, its decoded type, as the Effect TypeScript on the left declares them (D133, D501). Each field has a type, and the compiler writes its schema: a primitive, a literal or a union, an array, a tuple, a record, an object type, or the name of another schema, standing for that schema's decoded type. `name?: T` is `Schema.optional`, which accepts an absent key or `undefined`. A field that needs another schema, such as `Schema.DateTimeUtc` or a checked string, names a schema constant: `const Created = Schema.DateTimeUtc`, then `created: Created`. A field type with no schema form is EK2109. The type comes from the struct, so the two cannot drift apart. `schema Name = <type>` declares the schema of any type the same mapping writes, a literal union for one, with `Name` as both the constant and its type (D280): `schema Code = "root_missing" | "read_failed"`.
 
 #### Data types
 
