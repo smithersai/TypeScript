@@ -26,6 +26,8 @@ test("a .ts importer keeps .js specifiers, and a .ts specifier of a renamed modu
   assert.equal(rewriteSpecifier("src/a.ts", "./b.js", "src/b.vibe"), "./b.js")
   assert.equal(rewriteSpecifier("src/a.ts", "./b.ts", "src/b.vibe"), "./b.vibe")
   assert.equal(rewriteSpecifier("src/a.ts", "./c.js", "src/c.ts"), "./c.js")
+  // After revert returns b to .ts, the codemod's .vibe specifier names it again.
+  assert.equal(rewriteSpecifier("src/a.ts", "./b.vibe", "src/b.ts"), "./b.ts")
 })
 
 test("renameBatch and rewriteImports update a small package", () => {

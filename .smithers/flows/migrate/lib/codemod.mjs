@@ -70,7 +70,8 @@ export function renameBatch(root, files) {
  * The specifier that names target from a file, by VibeLang's rules: a .vibe
  * file imports a local module by its source name (./user.vibe, ./util.ts); a
  * .ts file may keep a .js specifier, which resolves to the .vibe source, and
- * a .ts specifier of a renamed module becomes .vibe.
+ * a .ts specifier of a renamed module becomes .vibe. A .vibe specifier of a
+ * module that revert returned to .ts names its .ts source again.
  */
 export function rewriteSpecifier(importer, specifier, target) {
   const targetExt = posix.extname(target)
@@ -85,6 +86,7 @@ export function rewriteSpecifier(importer, specifier, target) {
     return specifier + targetExt
   }
   if (targetExt === ".vibe" && [".ts", ".mts"].includes(ext)) return specifier.slice(0, -ext.length) + ".vibe"
+  if (ext === ".vibe" && targetExt !== ".vibe") return specifier.slice(0, -ext.length) + targetExt
   return specifier
 }
 
