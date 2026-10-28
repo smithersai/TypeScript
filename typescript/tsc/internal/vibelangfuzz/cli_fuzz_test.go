@@ -151,6 +151,7 @@ var cliFlags = sync.OnceValue(func() []cliFlag {
 		{"", []string{"main.vibe", "main.ts", "missing.vibe", "tsconfig.json"}, "Chapter 27: files named on the command line"},
 		{"--fix", cliBareOnly, "Chapter 28, Diagnostics (D291)"},
 		{"--fix-migration-only", cliBareOnly, "D382; internal/vibelang/fix.go"},
+		{"--loader-root", []string{".", "sub", "missing"}, "Chapter 28, Building and testing; internal/vibelang/loaderroot.go"},
 		{"--lsp", cliBareOnly, "Chapter 28, The editor (D32)"},
 		{"--stdio", cliBareOnly, "Chapter 28, The editor (D32)"},
 		{"--clientProcessId", []string{pid, "0", "x"}, "cmd/tsc/lsp.go"},
