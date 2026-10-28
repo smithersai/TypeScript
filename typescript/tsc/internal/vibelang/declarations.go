@@ -567,6 +567,7 @@ type moduleServiceTypes struct {
 }
 
 func (tx *moduleServiceTypes) visit(node *ast.Node) *ast.Node {
+	node = tx.Visitor().VisitEachChild(node)
 	if ast.IsTypeReferenceNode(node) {
 		name := node.AsTypeReferenceNode().TypeName
 		last := name
@@ -579,7 +580,7 @@ func (tx *moduleServiceTypes) visit(node *ast.Node) *ast.Node {
 			return f.UpdateTypeReferenceNode(reference, f.NewQualifiedName(name, f.NewIdentifier(last.Text())), reference.TypeArguments)
 		}
 	}
-	return tx.Visitor().VisitEachChild(node)
+	return node
 }
 
 // readonlyArguments drops the readonly modifiers that the parser gives the

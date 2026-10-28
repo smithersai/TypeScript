@@ -288,3 +288,6 @@ Inside an Effect function, `throw` adds an expected failure to the function's er
 Contracts remain `Effect<A, E, R>`, or `A!E!R` for short, and most functions infer them. In the shorthand, `A!E` checks the success and error channels and infers dependencies from the body; an empty slot is `never`. In `Effect<A, E, R>`, a type argument left out is `never`, as in TypeScript; write `infer E` or `infer R` to infer one.
 
 For the feature with no direct Effect equivalent, see [Control operations and handlers](/vibelang-features/111-control-operations-and-handlers).
+
+Module type aliases also work inside other type arguments: `Layer<HttpClient>`
+declares as `Layer.Layer<HttpClient.HttpClient>` for TypeScript consumers.

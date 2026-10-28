@@ -1,0 +1,6 @@
+// Qualifying the outer module alias must also qualify nested module aliases.
+export const layer: Layer<HttpClient> = Layer.provide(
+  FetchHttpClient.layer,
+  Layer.succeed(HttpClient.TracerPropagationEnabled, false),
+)
+export type Nested = Layer<Effect<Option<string>, never, Scope>>
