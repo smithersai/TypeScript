@@ -1,0 +1,24 @@
+{
+  "property": "scaffold-builds-checkout-npm-00-new",
+  "rule": "docs/user/src/setup/new-project.md: 1. Create the project, 3. Run the tests; docs/design/src/428-part4-ch28-tooling.md: Building and testing",
+  "knownFailure": true,
+  "input": {
+    "source": "checkout",
+    "manager": "npm",
+    "noInstall": false,
+    "noGit": false,
+    "state": "new",
+    "name": "#"
+  },
+  "seed": 1204223796,
+  "counterexamplePath": "0:1:0:0:2",
+  "generatorVersion": 1,
+  "fastCheckVersion": "4.10.2",
+  "numShrinks": 4,
+  "discovery": { "property": "scaffold-builds", "input": ["app#", "app"] },
+  "command": "FC_PROPERTY=scaffold-builds-checkout-npm-00-new node --test test/create.property.test.mjs",
+  "replay": "FC_PROPERTY=scaffold-builds-checkout-npm-00-new node --test test/create.property.test.mjs",
+  "errorPattern": "Cannot find module '/src/greeting[.]test[.]vibe'",
+  "error": "Vitest exits 1 before collecting tests: Cannot find module '/src/greeting.test.vibe'. Vite warns that the project root contains #. The CLI accepts the directory and --noEmit succeeds.",
+  "note": "Discovery shrank app#; the saved input removes the remaining app prefix. Replay this input before discovery; the seed/path describe the original generator. A successful test run is XPASS."
+}

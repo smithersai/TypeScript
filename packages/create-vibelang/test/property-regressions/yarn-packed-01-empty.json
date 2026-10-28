@@ -1,0 +1,7 @@
+{ "property": "scaffold-builds-packed-yarn-01-empty", "knownFailure": true, "matrixCase": true,
+  "rule": "docs/user/src/setup/new-project.md: 1. Create the project, 3. Run the tests; docs/design/src/428-part4-ch28-tooling.md: Building and testing",
+  "input": {"source":"packed","manager":"yarn","noInstall":false,"noGit":true,"state":"empty","name":"a"},
+  "seed": 42, "counterexamplePath": "0", "generatorVersion": 1, "fastCheckVersion": "4.10.2", "numShrinks": 0,
+  "errorPattern": "Cannot find package 'vite'", "error": "Yarn Classic 1.22.22 installs no peer dependencies. The starter does not declare vite, so Vitest fails with ERR_MODULE_NOT_FOUND before collecting tests.",
+  "command": "FC_SCAFFOLD_ALL=1 FC_PROPERTY=scaffold-builds-packed-yarn-01-empty node --test test/create.property.test.mjs", "note": "Seed 42/path 0; directory reduced manually to one character. Each finite option case executes and success is XPASS."
+}
