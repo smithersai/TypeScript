@@ -44,7 +44,7 @@ func TestFiberFlows(t *testing.T) {
 		{"joined in an array", "export function fib() { const a = fork one(); const b = fork one(); return join [a, b] }", ""},
 		{"joined in an object", "export function fib() { const a = fork one(); return join { a } }", ""},
 		{"joined through a held array", "export function fib() { const a = fork one(); const all = [a]; return join all }", ""},
-		{"joined through a held object's getter", "export function fib() { const a = fork one(); const tasks = { get a() { return a } }; return join tasks }", ""},
+		{"held object's getter", "export function fib() { const a = fork one(); const tasks = { get a() { return a } }; return join tasks }", "captured by a function"},
 		{"held array also read otherwise", "export function fib() { const a = fork one(); const all = [a]; const n = all.length; return join all }", "stored in an array"},
 		{"held object returned", "export function fib() { const a = fork one(); const box = { a }; return box }", "stored in an object"},
 		{"held object's method", "export function fib() { const a = fork one(); const tasks = { read() { return a } }; return join tasks }", "captured by a function"},

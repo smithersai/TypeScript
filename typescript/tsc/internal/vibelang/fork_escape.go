@@ -19,8 +19,8 @@ import (
 //   - a const or let declared in the region, and reads of it there;
 //   - the operand of join, and an element of an array or object literal
 //     written as that operand or held in a const or let of the region whose
-//     every read is such an operand, and a get accessor of that literal,
-//     which join reads in the region (D225);
+//     every read is such an operand (D225). A getter of such a literal is
+//     still a function literal, so a fiber it returns is captured;
 //   - an argument of the prelude's interrupt, or of a function of effect's
 //     Fiber module whose result type holds no Fiber, and the methods those
 //     functions give a fiber (D152), such as pending.interrupt();
@@ -162,9 +162,6 @@ func (f *fiberFlow) use(value *ast.Node) *fiberEscape {
 			return nil
 		}
 		if isFunctionBoundary(n) && n != value && !isRegionTransparent(n) {
-			if f.isStayingAccessor(n) {
-				continue // join reads the accessor in the region (order-join-reads-once)
-			}
 			if isProgramArrow(n) && n.Body() != nil && ast.IsBlock(n.Body()) {
 				return &fiberEscape{at: value, how: "captured by a block param", captured: true}
 			}
@@ -262,9 +259,6 @@ func (f *fiberFlow) flow(value *ast.Node) *fiberEscape {
 				n = transparentValue(fn) // a do block's or a match expression's value
 				continue
 			}
-			if fn := enclosingFunction(parent); fn != nil && f.isStayingAccessor(fn) {
-				return nil // the accessor's value is a property of a literal that only join reads
-			}
 			return &fiberEscape{at: n, how: "returned from that " + f.noun()}
 		case parent.Kind == ast.KindArrowFunction && parent.Body() == n && isRegionTransparent(parent):
 			n = transparentValue(parent) // a catch expression's side
@@ -337,13 +331,6 @@ func (f *fiberFlow) joinsOperand(n *ast.Node) bool {
 	}
 	call := n.Parent
 	return call != nil && ast.IsCallExpression(call) && call.Expression() != n && (fiberHelper(call) == "$join" || f.isFiberFunction(call))
-}
-
-// isStayingAccessor reports whether fn is a get accessor of an object literal
-// that stays in the region (literalStays): join reads it there, once, so a
-// fiber it refers to or returns stays in the region too (D225).
-func (f *fiberFlow) isStayingAccessor(fn *ast.Node) bool {
-	return ast.IsGetAccessorDeclaration(fn) && fn.Parent != nil && ast.IsObjectLiteralExpression(fn.Parent) && f.literalStays(fn.Parent)
 }
 
 // elsewhere is the escape of a value used in any way the rule does not list.

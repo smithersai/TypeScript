@@ -17,10 +17,10 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 
 | Load | Tokens |
 | --- | ---: |
-| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,350 |
-| The skill and the [cheat sheet](115-cheat-sheet.md) | 15,095 |
-| The skill and the user guide (134 pages) | 249,770 |
-| The user guide alone | 244,420 |
+| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,477 |
+| The skill and the [cheat sheet](115-cheat-sheet.md) | 15,225 |
+| The skill and the user guide (134 pages) | 250,246 |
+| The user guide alone | 244,769 |
 | The specification (33 chapters) | 191,263 |
 | The decision log, `docs/design/DECISIONS.md` | 127,626 |
 
@@ -96,13 +96,13 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Creating Effects](../getting-started/005-creating-effects.md) | 3,349 |
 | [Two Types of Errors](../error-management/006-two-error-types.md) | 642 |
 | [Basic Concurrency](../concurrency/007-basic-concurrency.md) | 1,481 |
-| **Core Concepts** | **18,012** |
+| **Core Concepts** | **18,001** |
 | [Effect's Modules](../getting-started/008-importing-effect.md) | 2,576 |
 | [Running Effects](../getting-started/009-running-effects.md) | 1,808 |
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
-| [Devtools](../getting-started/012-devtools.md) | 10,637 |
-| **All 12 pages** | **29,933** |
+| [Devtools](../getting-started/012-devtools.md) | 10,626 |
+| **All 12 pages** | **29,922** |
 
 ### Setup
 
@@ -153,9 +153,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Default Services](../requirements-management/026-default-services.md) | 966 |
 | [Managing Layers](../requirements-management/027-layers.md) | 2,482 |
 | [Layer Memoization](../requirements-management/028-layer-memoization.md) | 911 |
-| **Resource Management** | **4,481** |
+| **Resource Management** | **4,529** |
 | [Introduction](../resource-management/029-introduction.md) | 1,623 |
-| [Scope](../resource-management/030-scope.md) | 2,858 |
+| [Scope](../resource-management/030-scope.md) | 2,906 |
 | **Observability** | **6,469** |
 | [Logging](../observability/031-logging.md) | 1,935 |
 | [Metrics](../observability/032-metrics.md) | 1,316 |
@@ -176,8 +176,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Caching** | **1,839** |
 | [Caching Effects](../caching/045-caching-effects.md) | 859 |
 | [Cache](../caching/046-cache.md) | 980 |
-| **Concurrency** | **6,872** |
-| [Fibers](../concurrency/047-fibers.md) | 2,289 |
+| **Concurrency** | **7,175** |
+| [Fibers](../concurrency/047-fibers.md) | 2,592 |
 | [Deferred](../concurrency/048-deferred.md) | 886 |
 | [Queue](../concurrency/049-queue.md) | 1,266 |
 | [PubSub](../concurrency/050-pubsub.md) | 1,132 |
@@ -252,7 +252,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Terminal](../platform/110-terminal.md) | 1,508 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 4,125 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **141,264** |
+| **All 100 pages** | **141,615** |
 
 ### VibeLang features
 
@@ -261,11 +261,11 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Control operations and handlers](111-control-operations-and-handlers.md) | 2,027 |
 | [Producers](112-producers.md) | 1,387 |
 | [Building an HTTP API](113-building-an-http-api.md) | 1,375 |
-| [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,845 |
-| [Cheat sheet](115-cheat-sheet.md) | 9,745 |
+| [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,851 |
+| [Cheat sheet](115-cheat-sheet.md) | 9,748 |
 | [Pattern matching with match and is](116-match-and-is.md) | 3,918 |
 | [Experimental platform APIs](118-experimental-platform-apis.md) | 3,219 |
-| **All 7 pages** | **26,516** |
+| **All 7 pages** | **26,525** |
 
 ### Specification
 
