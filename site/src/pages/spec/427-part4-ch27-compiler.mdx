@@ -159,7 +159,7 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 | `$region`, `$using`, `$fork` | Block-owned scopes, resources, and children |
 | `$service`, `$reference`, `$control` | Service keys, defaults, and control operations |
 | `$trusted`, `$trustedPlain` | Classify listed foreign exceptions |
-| `$plainOf` | A plain function's plain form from another module: `f[$direct]` once its module has attached it, and before that the plain form recorded on the program its hoisted Effect form returns (D268, D446) |
+| `$plainOf` | A plain function's plain form from another module: `f[$direct]` once its module has attached it, and before that the plain form recorded on the program its hoisted Effect form returns (D268, D446); an object literal's plain method carries its plain form as `m[$direct]` (D460) |
 | `handle`, `resume`, `$tailResume` | Continuation handling |
 | `$produce`, `$yield`, `$forOf`, `$forStream` | Producers: a producer value is a `Stream` whose channel is the adapter and whose `$produce` property is its program (D402) |
 | `acquireRelease`, `acquireDisposable` | Effect's acquisitions, which also record the value whose release they registered, so `using` adds no second release (D401), and run an interruptible acquire step with the interruptibility recorded while a `using` mask is in force (D451); a `.vibe` reference to Effect's own denotes these |
@@ -210,7 +210,9 @@ against it may rely on [Rule] (D366).
    which survives re-exports, aliases, default exports, and CommonJS; the
    marker goes with the declaration under another name, through `export *`,
    as a default export, and through a `const` bound to it, which declaration
-   emit gives a merged namespace of its own. A consumer of the declaration
+   emit gives a merged namespace of its own; an anonymous `export default` of
+   a function literal is written as a fresh `const` (rule H6) with its merged
+   namespace (D460). A consumer of the declaration
    passes the plain form wherever a plain function is expected, as a consumer
    of the source does, so `[1, 2].map(double)` is `[2, 4]` either way. A
    function with an Effect contract carries no marker, even where the
@@ -227,7 +229,13 @@ against it may rely on [Rule] (D366).
    "toString"`, and a `$plainStatic` member for its plain static methods. A
    consumer of the declaration calls a named method as a trusted plain call;
    a method not named is an Effect method or foreign code, by its declared
-   type (D431). A `trusted(impl, [Errors])` value's marker is its type, the
+   type (D431). A named method of a class is plain JavaScript, and its
+   declared signature is its plain call signature. A named method of an
+   exported object, an eligible unannotated method or function-literal
+   field, is declared as TypeScript code receives it, returning a cold
+   `Effect`, and carries its plain form at run time as `m[$direct]` on the
+   method, as a function does; its plain call signature is its declared
+   signature with the outer `Effect<A, never, never>` read as `A` (D460). A `trusted(impl, [Errors])` value's marker is its type, the
    runtime's `Trusted<F, Errors>`, which records its plain call signature
    and its listed error classes (D400). No generated function,
    such as a direct variant, a region, or a helper, is a public export.
@@ -258,8 +266,8 @@ declarations alone, across aliases and re-exports, recursive inference,
 generic callbacks, services and providers, data variants, and error families,
 and, for the rules the third review added, an Effect-annotated and an eligible
 unannotated function passed to `map`, a contextually typed `(x) => x.run()`,
-a class with plain methods, and exported compositions and extracted methods
-(D421, D422, D431, D458).
+a class with plain methods, an exported object with an eligible method, and
+exported compositions and extracted methods (D421, D422, D431, D458, D460).
 
 Services emit as runtime key classes with the identifier and shape that
 Chapter 4 defines (D361), so ordinary TypeScript can provide the service and
