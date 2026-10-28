@@ -1,0 +1,1 @@
+Hold the program as a function, and call it inside one: const config = () => loadConfig()

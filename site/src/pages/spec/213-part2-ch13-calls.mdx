@@ -423,7 +423,9 @@ export const config = loadConfig()
 ```text
 error EK1001: loadConfig() runs a program, but a module's top level is not inside one.
   config.vibe:2:23   export const config = loadConfig()
-  Export a function instead, or provide the value as a service with a Layer.
+  Hold the program as a function, and call it inside one: const config = () => loadConfig()
+  Run it inside a function that a program runs, such as main.
+  Or provide the value as a service with a Layer.
 ```
 
 A runner is called only where no fiber runs the code: a module's top level, or a plain callback that such a place passes to a TypeScript function, such as a `describe` body or a web framework's route handler. In code a fiber runs, a runner would start a new root with an empty Context and no handlers, outside the caller's structured concurrency:

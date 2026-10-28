@@ -9,4 +9,3 @@ The static block of Registry can't throw Bad: a static block runs as plain JavaS
 The constructor of Local can't throw Bad: a constructor runs as plain JavaScript, which never fails.
 A module's top level can't throw Bad: it runs as plain JavaScript, which never fails.
   Throw inside a function that a program runs, such as main.
-throw new Bad({ why: "expression" }) runs a program, but a module's top level is not inside one.

@@ -279,7 +279,7 @@ func (a *analyzer) reportFailingMethod(file *ast.SourceFile, fn *ast.Node, owner
 func (a *analyzer) reportFactoryFailures(file *ast.SourceFile, fn *ast.Node, name string) {
 	forEachEscapingThrow(fn, func(throw *ast.Node) {
 		text := nodeText(file, throw)
-		d := report(a.checker, throw, EK2115, name, "throw")
+		d := report(a.checker, throw, EK2115.With("{0} returns a program, so its body runs as plain JavaScript when {0} is called, and can't throw."), name)
 		note(d, "Fail when the program runs instead: return () => { {0} }.", text)
 	})
 }
@@ -346,6 +346,10 @@ var plainCodeFailure = EK2003.With("{0} can't throw {1}: {2} runs as plain JavaS
 // topLevelFailure is EK1001's text for a throw that can escape a module's top
 // level. {0} is what it throws.
 var topLevelFailure = EK1001.With("A module's top level can't throw {0}: it runs as plain JavaScript, which never fails.")
+
+// topLevelBlockNote is EK1001's fix for a block or statement at a module's
+// top level that runs a program.
+const topLevelBlockNote = "Move it into a function that a program runs, such as main."
 
 // moduleThrowNote names the escape for code that must throw a JavaScript
 // exception, such as a test's throwing getter.

@@ -346,7 +346,7 @@ func checkProvideBlocks(c *checker.Checker, file *ast.SourceFile) {
 			return false
 		}
 		if isProvideBlock(n) {
-			report(c, n.AsBlock().Statements.Nodes[0], EK1001.With("This provide block runs a program, but a module's top level is not inside one."))
+			note(report(c, n.AsBlock().Statements.Nodes[0], EK1001.With("This provide block runs a program, but a module's top level is not inside one.")), topLevelBlockNote)
 		}
 		return n.ForEachChild(visit)
 	}

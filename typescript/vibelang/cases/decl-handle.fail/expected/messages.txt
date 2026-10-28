@@ -4,3 +4,4 @@ Users is not a control: a handle clause answers an operation that a control decl
 This handle statement runs a program, but a module's top level is not inside one.
 Read it in the clause first, and resume with the value: resumeWith(() => value).
 Remove one of them: a handle statement answers each operation once.
+Move it into a function that a program runs, such as main.

@@ -223,7 +223,7 @@ func checkHandleStatements(c *checker.Checker, file *ast.SourceFile) {
 	visit = func(n *ast.Node, inFunction bool) bool {
 		if isHandleStatement(n) {
 			if !inFunction {
-				reportAt(c, file, scanner.GetRangeOfTokenAtPosition(file, n.Pos()), EK1001.With("This handle statement runs a program, but a module's top level is not inside one."))
+				note(reportAt(c, file, scanner.GetRangeOfTokenAtPosition(file, n.Pos()), EK1001.With("This handle statement runs a program, but a module's top level is not inside one.")), topLevelBlockNote)
 				cover(c, n.AsTryStatement().CatchClause) // TypeScript's errors about a clause's return outside a function
 			}
 			checkHandleClauses(c, n)

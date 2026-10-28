@@ -357,12 +357,26 @@ func reportTopLevelRun(c *checker.Checker, file *ast.SourceFile, call *ast.Node)
 	if catchExpressionOf(call) != nil || isInvokedForm(file, call) {
 		text = nodeText(file, call) // x catch y, whose callee is the keyword (catch_expressions.go), or throw x
 	}
+	if isInvokedForm(file, call) && strings.HasPrefix(text, "throw") {
+		// throw x at the top level, which the parser writes as (() => { throw x })()
+		a := analyzerFor(c)
+		if source := a.firstFailureSource(invokedArrow(call)); source != nil && source.Parent != nil && source.Parent.Kind == ast.KindThrowStatement {
+			d := report(c, call, topLevelFailure, c.TypeToString(a.thrownType(source.Parent)))
+			note(d, "Throw inside a function that a program runs, such as main.")
+			note(d, moduleThrowNote)
+			return
+		}
+	}
 	d := report(c, call, EK1001, text)
 	if owner, _ := ownerCall(call); owner != nil && ast.IsCallExpression(owner) && runnerOf(c, owner) != notRunner {
 		note(d, "Pass a program, a function with no parameters, to {0}:   () => {1}", nodeText(file, owner.Expression()), nodeText(file, call))
 		return
 	}
-	note(d, "Export a function instead, or provide the value as a service with a Layer.")
+	if declaration := ast.WalkUpParenthesizedExpressions(call).Parent; declaration != nil && ast.IsVariableDeclaration(declaration) && declaration.Initializer() == ast.WalkUpParenthesizedExpressions(call) && ast.IsIdentifier(declaration.Name()) {
+		note(d, "Hold the program as a function, and call it inside one: const {0} = () => {1}", declaration.Name().Text(), shortText(nodeText(file, call), "…"))
+	}
+	note(d, "Run it inside a function that a program runs, such as main.")
+	note(d, "Or provide the value as a service with a Layer.")
 }
 
 // isInvokedForm reports whether call is an expression form that the parser

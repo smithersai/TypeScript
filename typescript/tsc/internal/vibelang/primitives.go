@@ -327,19 +327,19 @@ func checkPrimitives(c *checker.Checker, file *ast.SourceFile) {
 		case "restore":
 			marker := n.AsBlock().Statements.Nodes[0]
 			if !inFunction {
-				report(c, marker, EK1001.With("This restore block runs a program, but a module's top level is not inside one."))
+				note(report(c, marker, EK1001.With("This restore block runs a program, but a module's top level is not inside one.")), topLevelBlockNote)
 			} else if !masked {
 				note(report(c, marker, EK2111), "Put it inside an uninterruptible block, or use interruptible { … } to make the code interruptible.")
 			}
 		case "uninterruptible":
 			if !inFunction {
-				report(c, n.AsBlock().Statements.Nodes[0], EK1001.With("This uninterruptible block runs a program, but a module's top level is not inside one."))
+				note(report(c, n.AsBlock().Statements.Nodes[0], EK1001.With("This uninterruptible block runs a program, but a module's top level is not inside one.")), topLevelBlockNote)
 			}
 			n.ForEachChild(func(child *ast.Node) bool { return visit(child, inFunction, true) })
 			return false
 		case "interruptible":
 			if !inFunction {
-				report(c, n.AsBlock().Statements.Nodes[0], EK1001.With("This interruptible block runs a program, but a module's top level is not inside one."))
+				note(report(c, n.AsBlock().Statements.Nodes[0], EK1001.With("This interruptible block runs a program, but a module's top level is not inside one.")), topLevelBlockNote)
 			}
 		}
 		n.ForEachChild(func(child *ast.Node) bool { return visit(child, inFunction, masked) })
