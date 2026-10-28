@@ -8,8 +8,7 @@ abstract class Users {
 abstract class Ask extends Control {
     abstract answer(): Effect.Effect<boolean, never, never>;
 }
-interface Ticket extends Schema.Schema.Type<typeof Ticket> {
-}
+type Ticket = typeof Ticket.Type;
 const Ticket = Schema.Struct({
     id: Schema.String, count: Schema.Number,
 });

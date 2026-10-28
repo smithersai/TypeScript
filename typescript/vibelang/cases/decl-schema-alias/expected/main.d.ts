@@ -1,8 +1,8 @@
 import { Effect, Schema } from "effect";
-export type Code = typeof Code.Type;
 export declare const Code: Schema.Literals<readonly ["root_missing", "read_failed"]>;
-export type Port = typeof Port.Type;
+export type Code = typeof Code.Type;
 export declare const Port: Schema.Number;
+export type Port = typeof Port.Type;
 export declare function main(): Effect.Effect<{
     code: string;
     invalid: string;

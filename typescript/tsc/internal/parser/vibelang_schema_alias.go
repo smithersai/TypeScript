@@ -25,7 +25,7 @@ import (
 // variable declaration is flagged NodeFlagsVibeLang too, which is how the
 // checker, the ESTree converter, and the projection tell the alias form from
 // a const written out. The type alias goes to p.reparseList, as the struct
-// form's interface does.
+// form's does.
 
 // VibeSyntaxSchemaAlias is the Name of the VibeSyntaxDeclaration recorded for
 // the alias form: Head runs from schema through the name, and Open and Close
@@ -70,6 +70,14 @@ func (p *Parser) parseSchemaAliasDeclaration(pos int, jsdoc jsdocScannerInfo, mo
 	p.withJSDoc(statement, jsdoc)
 
 	// type Code = typeof Code.Type
+	p.reparseList = append(p.reparseList, p.vibelangSchemaType(pos, keyword, name, modifiers))
+	return statement
+}
+
+// vibelangSchemaType makes the type that a schema declaration declares beside
+// its constant, type Name = typeof Name.Type (D280, D501), exported as the
+// constant is, on vibelangCompanionLoc.
+func (p *Parser) vibelangSchemaType(pos int, keyword core.TextRange, name *ast.Node, modifiers *ast.ModifierList) *ast.Node {
 	var aliasModifiers *ast.ModifierList
 	if modifiers != nil {
 		var copies []*ast.Node
@@ -83,9 +91,7 @@ func (p *Parser) parseSchemaAliasDeclaration(pos int, jsdoc jsdocScannerInfo, mo
 	right := p.vibelangSynthesized(p.factory.NewIdentifier("Type"), name.Loc)
 	query := p.vibelangSynthesized(p.factory.NewTypeQueryNode(p.vibelangSynthesized(p.factory.NewQualifiedName(left, right), name.Loc), nil /*typeArguments*/), name.Loc)
 	alias := p.factory.NewTypeAliasDeclaration(aliasModifiers, typeName, nil /*typeParameters*/, query)
-	p.vibelangSynthesized(alias, p.vibelangCompanionLoc(pos, keyword))
-	p.reparseList = append(p.reparseList, alias)
-	return statement
+	return p.vibelangSynthesized(alias, p.vibelangCompanionLoc(pos, keyword))
 }
 
 // vibelangCompanionLoc is the range of the declaration a schema form adds

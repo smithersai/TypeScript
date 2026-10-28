@@ -199,7 +199,7 @@ const Account = Schema.Struct({
   nickname: Schema.optional(Schema.String),
   role: Schema.Literals(["admin", "member"])
 })
-interface Account extends Schema.Schema.Type<typeof Account> {}
+type Account = typeof Account.Type
 ```
 
 ```vibe es

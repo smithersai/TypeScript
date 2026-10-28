@@ -1,12 +1,9 @@
 import { Effect, Schema } from "effect";
-export interface Address extends Schema.Schema.Type<typeof Address> {
-}
 export declare const Address: Schema.Struct<{
     readonly city: Schema.String;
     readonly zip: Schema.optional<Schema.String>;
 }>;
-export interface User extends Schema.Schema.Type<typeof User> {
-}
+export type Address = typeof Address.Type;
 export declare const User: Schema.Struct<{
     readonly id: Schema.String;
     readonly name: Schema.String;
@@ -24,6 +21,7 @@ export declare const User: Schema.Struct<{
         readonly at: Schema.Number;
     }>;
 }>;
+export type User = typeof User.Type;
 export declare function main(): Effect.Effect<{
     a: string | {
         readonly id: string;

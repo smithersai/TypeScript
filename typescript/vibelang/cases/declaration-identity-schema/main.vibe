@@ -1,0 +1,13 @@
+// A schema declaration declares what the Effect TypeScript in
+// typescript/main.ts declares: the Schema.Struct constant, then
+// type P = typeof P.Type (D501), from alchemy and t3code.
+import * as Schema from "effect/Schema"
+
+// alchemy: the trace a span carries.
+/** The trace a span carries. */
+export schema TraceJson { traceId: string }
+
+// t3code: a user profile.
+export schema Profile { name: string }
+
+export schema Code = "root_missing" | "read_failed"

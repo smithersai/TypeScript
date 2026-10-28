@@ -1121,7 +1121,7 @@ func (p *Parser) vibelangClauseResumes(block *ast.Node, anchor core.TextRange) b
 //	  tags: Schema.Array(Schema.String),
 //	  home: Address
 //	})
-//	interface User extends Schema.Schema.Type<typeof User> {}
+//	type User = typeof User.Type
 //
 // A field written mutable gets Schema.mutableKey (D134).
 //
@@ -1129,8 +1129,9 @@ func (p *Parser) vibelangClauseResumes(block *ast.Node, anchor core.TextRange) b
 // union, an array, a tuple, a record, an object type, or the name of another
 // schema, which the struct refers to as a value. Any other type becomes
 // Schema.Unknown flagged NodeFlagsVibeLang, which the checker reports as EK2109
-// (schemas.go). The struct call is flagged NodeFlagsVibeLang too. The interface
-// goes to p.reparseList, so the statement list holds it before the constant.
+// (schemas.go). The struct call is flagged NodeFlagsVibeLang too. The type
+// alias goes to p.reparseList, so the statement list holds it before the
+// constant; declaration emit writes it after, as Effect TypeScript does (D501).
 func (p *Parser) parseSchemaDeclaration(pos int, jsdoc jsdocScannerInfo, modifiers *ast.ModifierList) *ast.Node {
 	keyword := p.scanner.TokenRange()
 	p.nextToken() // schema
@@ -1154,23 +1155,8 @@ func (p *Parser) parseSchemaDeclaration(pos int, jsdoc jsdocScannerInfo, modifie
 	p.finishNode(statement, pos)
 	p.withJSDoc(statement, jsdoc)
 
-	// interface User extends Schema.Schema.Type<typeof User> {}
-	var interfaceModifiers *ast.ModifierList
-	if modifiers != nil {
-		var copies []*ast.Node
-		for _, modifier := range modifiers.Nodes {
-			copies = append(copies, p.vibelangSynthesized(p.factory.NewModifier(modifier.Kind), keyword))
-		}
-		interfaceModifiers = p.newModifierList(keyword, copies)
-	}
-	typeName := p.vibelangSynthesized(p.factory.NewIdentifier(name.Text()), name.Loc)
-	query := p.vibelangSynthesized(p.factory.NewTypeQueryNode(p.vibelangSynthesized(p.factory.NewIdentifier(name.Text()), name.Loc), nil /*typeArguments*/), name.Loc)
-	helper := p.vibelangSchemaMember(p.vibelangSchemaMember(nil, "Schema", keyword), "Type", keyword)
-	base := p.vibelangSynthesized(p.factory.NewExpressionWithTypeArguments(helper, p.newNodeList(name.Loc, []*ast.Node{query})), keyword)
-	clause := p.vibelangSynthesized(p.factory.NewHeritageClause(ast.KindExtendsKeyword, p.newNodeList(keyword, []*ast.Node{base})), keyword)
-	declaration := p.factory.NewInterfaceDeclaration(interfaceModifiers, typeName, nil /*typeParameters*/, p.newNodeList(keyword, []*ast.Node{clause}), p.newNodeList(keyword, nil))
-	p.vibelangSynthesized(declaration, p.vibelangCompanionLoc(pos, keyword))
-	p.reparseList = append(p.reparseList, declaration)
+	// type User = typeof User.Type (D501), as schema Name = Type writes it
+	p.reparseList = append(p.reparseList, p.vibelangSchemaType(pos, keyword, name, modifiers))
 	return statement
 }
 

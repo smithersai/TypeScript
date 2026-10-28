@@ -25,7 +25,7 @@ function decode(input: unknown) {
   }
 }
 
-// The interface is the struct's decoded type.
+// The type is the struct's decoded type.
 function guest(): User {
   return { id: "2", name: "Bo", role: "member", tags: [], home: { city: "Rome" }, score: [2, "b"], counts: {}, verified: true, login: { at: 0 } }
 }

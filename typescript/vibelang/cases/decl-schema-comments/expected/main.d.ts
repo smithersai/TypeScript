@@ -3,12 +3,8 @@
  */
 import { Effect, Schema } from "effect";
 /** The codes. */
-export type Code = typeof Code.Type;
-/** The codes. */
 export declare const Code: Schema.Literals<readonly ["a", "b"]>;
-/** A user. */
-export interface User extends Schema.Schema.Type<typeof User> {
-}
+export type Code = typeof Code.Type;
 /** A user. */
 export declare const User: Schema.Struct<{
     /** The id. */
@@ -21,14 +17,13 @@ export declare const User: Schema.Struct<{
         readonly city: Schema.String;
     }>;
 }>;
-/** A name. */
-export type Name = typeof Name.Type;
+export type User = typeof User.Type;
 /** A name. */
 export declare const Name: Schema.String;
-/** Nothing. */
-export type Nothing = typeof Nothing.Type;
+export type Name = typeof Name.Type;
 /** Nothing. */
 export declare const Nothing: Schema.Null;
+export type Nothing = typeof Nothing.Type;
 /** After the schemas. */
 export declare const after = 1;
 export declare function main(): Effect.Effect<{
