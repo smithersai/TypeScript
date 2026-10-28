@@ -800,6 +800,7 @@ A method's expectation is read once, from the contextual type the checker has wh
 | EK3004 | The `instanceof` expression | `x instanceof Users` |
 | EK3005 | The class name | A fully abstract generic class, which no one key can represent |
 | EK3006 | The static member's name | A static member with a service member's name, which `S.member(…)` could not reach |
+| EK3007 | The call | A service key called with arguments, `Fn(3)`, in `service_key_calls.go`; covers TS2348, TS2349 and TS2554 there; the quick fix writes `Fn()(3)` when the implementation is a function |
 
 ### Providers
 

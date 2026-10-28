@@ -90,6 +90,7 @@ Each entry gives the condition and the repair. The examples and language-service
 | EK3002 | A class extends a service key. | Implement the service's shape instead of extending its key. |
 | EK3003 | `new` tries to construct a service key. | Read the provided implementation with `Service()`; create implementations as objects or classes implementing its shape. |
 | EK3004 | `instanceof` tests a service key, which is no base class. | Test the implementation's data or a concrete implementation class instead. |
+| EK3007 | A service key is called with arguments, as `Fn(3)`. | `Fn()` returns the implementation: write `Fn()(3)` (quick fix), or call a member of it. |
 | EK4404 | A `try` hatch receives Effect's options object. | Pass code and mapping as separate arguments: `try(code, (cause) => new Failed({ cause }))`. |
 | EK4410 | The prelude's `fork` or `join`, or a hatch, is renamed or stored, as in `const spawn = fork` or `import { sync as run }`. Its first operand is syntax, so it is used only as the callee of `fork(…)`, `join(…)`, `sync(…)`, `try(…)`, or `callback(…)`. | Call it under its own name where it runs. To pass it, write a function literal: `(job) => fork job()`. |
 | EK4501 | A module method is read as a value through an instance. | Call `value.method(…)`, or use the module's function explicitly when passing it as a value. |

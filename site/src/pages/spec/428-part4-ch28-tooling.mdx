@@ -300,6 +300,7 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK3004 | `instanceof` on a service | None: a service is a key, not a base class | 4 |
 | EK3005 | A generic service class | Use an interface for the generic type | 4 |
 | EK3006 | A static member with the same name as a service member | Rename one | 4 |
+| EK3007 | A service key called with arguments, as `Fn(3)` for `service Fn: (n: number) => number`, in place of TypeScript's TS2348, whose suggestion of `new` would be EK3003; `S()` takes none and returns the implementation (Chapter 4, D415) | `Fn()(3)` (quick fix, for an implementation that is a function) | 4 |
 | EK3101 | A provider looks a service up per call where the contract allows no requirements | Capture the service when the layer is built, or declare it | 4 |
 | EK3201 | No provider for a required service, with the path that needs it | Add the provider the program defines to `wire` | 4 |
 | EK3202 | Two providers for one service | Remove one | 4 |

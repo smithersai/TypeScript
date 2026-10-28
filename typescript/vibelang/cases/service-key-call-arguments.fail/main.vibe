@@ -1,0 +1,16 @@
+// expect: EK3007
+// A service key takes no arguments: S() returns the implementation. Calling
+// it with arguments is EK3007, in place of TypeScript's TS2348, whose
+// suggestion of new would be EK3003. Fn()(3) calls the implementation.
+service Fn: (n: number) => number
+
+service Users {
+  find(id: string): string!!
+}
+
+export function lookups() {
+  const a = Fn(3)
+  const b = Users("ada")
+  const c = Fn()(3)
+  return [a, b, c]
+}
