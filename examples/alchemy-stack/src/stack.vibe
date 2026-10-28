@@ -1,0 +1,12 @@
+import * as Cloudflare from "@alchemy.run/cloudflare"
+import * as Alchemy from "alchemy"
+import Api from "./api.vibe"
+
+export default Alchemy.Stack(
+  "NotesStack",
+  { providers: Cloudflare.providers(), state: Cloudflare.state() },
+  () => {
+    const api = Api()
+    return { url: api.url }
+  }
+)

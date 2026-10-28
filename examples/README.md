@@ -16,11 +16,15 @@ examples build browser bundles with Vite.
 | [react-vite](react-vite/) | A React component that runs a VibeLang service lookup through a `ManagedRuntime` and renders its recovered error. |
 | [vue-vite](vue-vite/) | A Vue single-file component over a VibeLang layer whose setup holds the todo list. |
 | [svelte-vite](svelte-vite/) | A Svelte 5 `{#await}` block over quotes that `await.all` runs concurrently. |
+| [foldkit-app](foldkit-app/) | A Foldkit counter and todo list with one HTTP command, beside its Effect TypeScript original. |
+| [alchemy-stack](alchemy-stack/) | An Alchemy stack with a Cloudflare Worker over an R2 bucket, beside its Effect TypeScript original; tested without credentials. |
 
 Each example pins the published VibeLang packages; no compiler source build or Go installation is needed.
 In a Node example directory, run `bun install`,
 `bun run build`, and `bun run start`. In a frontend example, run
-`bun install`, `bun run dev`, or `bun run test` to check and build it. The users, http-api, and resilience
+`bun install`, `bun run dev`, or `bun run test` to check and build it.
+In foldkit-app or alchemy-stack, `bun run test` checks both versions with one suite.
+[FRAMEWORKS.md](FRAMEWORKS.md) pairs each with its Effect TypeScript and records the forms, commands and sharp edges. The users, http-api, and resilience
 projects also have `bun run test`; Vitest compiles their `.vibe` sources
 through `vibelang-vite`, with source maps for assertion stacks.
 Run file-tree from its own directory to find the bundled fixtures.

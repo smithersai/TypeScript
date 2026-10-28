@@ -29,7 +29,7 @@ trap 'rm -rf "$work"' EXIT HUP INT TERM
 runtime=$(cd "$root/packages/runtime" && npm pack --pack-destination "$work" --ignore-scripts --silent)
 node "$root/scripts/prepare-examples.mjs" "$root" "$work" "$work/$runtime"
 failed=0
-for name in hello users http-api file-tree resilience approval pipeline react-vite vue-vite svelte-vite; do
+for name in hello users http-api file-tree resilience approval pipeline react-vite vue-vite svelte-vite foldkit-app alchemy-stack; do
   dir="$work/$name"
   log="$logs/$name.log"
   if ! (cd "$dir" && bun install --no-cache) >"$log" 2>&1; then
@@ -43,6 +43,16 @@ for name in hello users http-api file-tree resilience approval pipeline react-vi
         printf 'OK   %-10s typecheck, tests and production build\n' "$name"
       else
         printf 'FAIL %-10s typecheck, tests or build (see .cache/check-examples/%s.log)\n' "$name" "$name"
+        failed=1
+      fi
+      continue ;;
+    # Each framework project tests its VibeLang source and its Effect
+    # TypeScript original with one suite; alchemy-stack never deploys.
+    foldkit-app|alchemy-stack)
+      if (cd "$dir" && bun run test) >>"$log" 2>&1; then
+        printf 'OK   %-10s bun run test over both versions\n' "$name"
+      else
+        printf 'FAIL %-10s bun run test (see .cache/check-examples/%s.log)\n' "$name" "$name"
         failed=1
       fi
       continue ;;
