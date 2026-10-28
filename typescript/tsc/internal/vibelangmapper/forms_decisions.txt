@@ -164,6 +164,7 @@ typescript/vibelang/cases/blocks-do-expression/main.vibe:53:18 lambda dual fallb
 typescript/vibelang/cases/blocks-do-expression/main.vibe:53:49 byname program table
 typescript/vibelang/cases/blocks-do-expression/main.vibe:57:22 byname program table
 typescript/vibelang/cases/blocks-do-expression/main.vibe:57:25 lambda dual fallback
+typescript/vibelang/cases/blocks-do-tail-match/main.vibe:6:13 lambda plain fallback
 typescript/vibelang/cases/blocks-throw-expression/main.vibe:11:22 lambda dual fallback
 typescript/vibelang/cases/blocks-throw-expression/main.vibe:25:29 lambda dual fallback
 typescript/vibelang/cases/blocks-throw-expression/main.vibe:30:38 lambda dual fallback
