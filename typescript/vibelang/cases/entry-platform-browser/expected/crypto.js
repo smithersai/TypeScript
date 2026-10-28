@@ -3,8 +3,8 @@ import * as Redacted from "effect/Redacted";
 import { Experimental } from "vibelang-runtime";
 import * as Effect from "effect/Effect";
 import * as runtime from "vibelang-runtime";
+import * as BrowserRuntime from "@effect/platform-browser/BrowserRuntime";
 import { ExperimentalBrowserServices as ExperimentalBrowserServices } from "vibelang-runtime/experimental/platform-browser";
-import { BrowserRuntime as BrowserRuntime } from "@effect/platform-browser";
 export function main() {
     return Effect.fnUntraced(function* main() {
         const mac = yield* (yield* Experimental.Crypto.Crypto).hmac("SHA-256", Redacted.make(new Uint8Array([1])), new Uint8Array([2]));

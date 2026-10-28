@@ -97,6 +97,8 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 - Tree-sitter highlighting could misread `catch`, `??`, statement starts, `!T`, empty type parameters and bare `await`; these forms now parse as the compiler parses them.
 
+- The starter now starts after a Yarn Classic install without needing Redis.
+
 - The starter's tests could not find Vite after a Yarn Classic install. The starter now installs Vite explicitly.
 
 - Importing both `vibelang-runtime` and `vibelang-runtime/kernel` in Bun no longer fails at startup, in either import order.

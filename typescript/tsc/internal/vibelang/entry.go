@@ -411,6 +411,17 @@ func bundleServices(c *checker.Checker, file *ast.SourceFile, bundle platformBun
 	return c.GetUnionType(outputs), len(inputs) > 0
 }
 
+// entryReference imports Effect's platform modules directly. Their package
+// barrels also load unrelated integrations and their optional peers, such as
+// NodeRedis's redis dependency, even when the entry needs only NodeRuntime.
+// Keep the barrel for checking its exports and the experimental bundle's API.
+func (tx *lowering) entryReference(bundle platformBundle) *ast.Node {
+	if strings.HasPrefix(bundle.module, "@effect/platform-") {
+		return tx.moduleNamespace(bundle.module + "/" + bundle.namespace)
+	}
+	return tx.classReference(classRef{module: bundle.module, name: bundle.namespace})
+}
+
 // entryStatement makes `runtime.$entry(import.meta.main, import.meta.url,
 // main, () => NodeRuntime.runMain(main()))`, or the same with runtime.$runMain.
 // A main that compiles to plain JavaScript runs through Effect.sync, and one
@@ -428,7 +439,7 @@ func (tx *lowering) entryStatement() *ast.Node {
 	}
 	layers := make([]*ast.Node, len(entry.bundles))
 	for i, bundle := range entry.bundles {
-		layers[i] = f.NewPropertyAccessExpression(tx.classReference(classRef{module: bundle.module, name: bundle.namespace}), nil /*questionDotToken*/, f.NewIdentifier("layer"), ast.NodeFlagsNone)
+		layers[i] = f.NewPropertyAccessExpression(tx.entryReference(bundle), nil /*questionDotToken*/, f.NewIdentifier("layer"), ast.NodeFlagsNone)
 	}
 	for i := len(layers) - 1; i >= 0; i-- {
 		provide := f.NewPropertyAccessExpression(tx.effectName(), nil /*questionDotToken*/, f.NewIdentifier("provide"), ast.NodeFlagsNone)
@@ -436,7 +447,7 @@ func (tx *lowering) entryStatement() *ast.Node {
 	}
 	var runner *ast.Node
 	if entry.runtime != nil {
-		runtime := tx.classReference(classRef{module: entry.runtime.module, name: entry.runtime.namespace})
+		runtime := tx.entryReference(*entry.runtime)
 		runner = f.NewPropertyAccessExpression(runtime, nil /*questionDotToken*/, f.NewIdentifier("runMain"), ast.NodeFlagsNone)
 	} else {
 		runner = tx.runtimeMember("$runMain")

@@ -3,5 +3,9 @@
   "version": "4.0.6",
   "type": "module",
   "types": "./index.d.ts",
-  "main": "./index.js"
+  "main": "./index.js",
+  "exports": {
+    ".": { "types": "./index.d.ts", "default": "./index.js" },
+    "./*": { "types": "./*.d.ts", "default": "./*.js" }
+  }
 }

@@ -3,8 +3,8 @@ import * as FileSystem from "effect/FileSystem";
 import { Experimental } from "vibelang-runtime";
 import * as Effect from "effect/Effect";
 import * as runtime from "vibelang-runtime";
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import { ExperimentalNodeServices as ExperimentalNodeServices } from "vibelang-runtime/experimental/platform-node";
-import { NodeRuntime as NodeRuntime } from "@effect/platform-node";
 export function main() {
     return Effect.fnUntraced(function* main() {
         const pid = yield* (yield* Experimental.Process.Process).pid;
