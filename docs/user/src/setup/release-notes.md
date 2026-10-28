@@ -354,6 +354,11 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
 - `for concurrent(limit()) (const item of items())` can evaluate `items()`
   before `limit()`, even selecting an old collection and skipping work.
   Evaluate the limit into a local before the loop.
+- A call of a plain function that returns a program it was given, such as
+  `pick(load)` with `function pick(p: number!!) { return p }`, gives back
+  the program unrun instead of running it once, and the same call at a
+  module's top level compiles instead of failing with EK1001. Call the
+  result, `pick(load)()`, and drop that extra call once this is fixed.
 
 #### Errors
 
