@@ -21,7 +21,7 @@ function readSettings() {
 ## Performing file operations
 
 ```vibe
-import { NodeFileSystem } from "@effect/platform-node"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 
 function saveSummary(text: string) {
   FileSystem.makeDirectory("./output", { recursive: true })
@@ -51,7 +51,7 @@ Calls run in order: the write completes before the read starts. Expected I/O fai
 | `stream`, `sink`, `watch` | Stream bytes, write through a sink, or observe changes |
 
 ```vibe
-import { NodeFileSystem } from "@effect/platform-node"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 
 function fileSize(path: string) {
   using file = FileSystem.open(path)
@@ -66,7 +66,7 @@ function fileSize(path: string) {
 
 ```vibe
 // main.vibe
-import { NodeFileSystem } from "@effect/platform-node"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 
 export function main() {
   provide NodeFileSystem.layer {

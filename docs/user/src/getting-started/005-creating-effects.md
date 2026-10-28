@@ -39,7 +39,7 @@ function attemptReservation(item: string, available: boolean) {
 
 ```vibe
 // run: provide NodeServices.layer { Console.log(token().length) }
-import { NodeServices } from "@effect/platform-node"
+import * as NodeServices from "@effect/platform-node/NodeServices"
 
 function token() {
   return Crypto.randomBytes(16)

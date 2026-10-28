@@ -18,7 +18,7 @@ function readSettings() {
 
 ```vibe
 // run: provide NodeFileSystem.layer { Console.log(JSON.stringify(saveSummary("ready"))) }
-import { NodeFileSystem } from "@effect/platform-node"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 
 function saveSummary(text: string) {
   FileSystem.makeDirectory("./output", { recursive: true })
@@ -49,7 +49,7 @@ Calls run in order: the write completes before the read starts. Expected I/O fai
 
 ```vibe
 // run: provide NodeFileSystem.layer { using path = FileSystem.makeTempFileScoped(); FileSystem.writeFileString(path, "hello"); Console.log(String(fileSize(path))) }
-import { NodeFileSystem } from "@effect/platform-node"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 
 function fileSize(path: string) {
   using file = FileSystem.open(path)
@@ -64,7 +64,7 @@ function fileSize(path: string) {
 
 ```vibe
 // main.vibe
-import { NodeFileSystem } from "@effect/platform-node"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 
 export function main() {
   provide NodeFileSystem.layer {

@@ -41,7 +41,7 @@ function attemptReservation(item: string, available: boolean) {
 ## Wrap synchronous operations
 
 ```vibe
-import { NodeServices } from "@effect/platform-node"
+import * as NodeServices from "@effect/platform-node/NodeServices"
 
 function token() {
   return Crypto.randomBytes(16)

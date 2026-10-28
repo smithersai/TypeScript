@@ -40,7 +40,7 @@ In `.vibe`, an unannotated `function*` declares a producer; don't use it for `Ef
 ## Call services between yields
 
 ```vibe
-import { NodeServices } from "@effect/platform-node"
+import * as NodeServices from "@effect/platform-node/NodeServices"
 
 function* fileTexts(directory: string) {
   const names = FileSystem.readDirectory(directory).sort()

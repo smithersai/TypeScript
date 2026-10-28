@@ -10,7 +10,7 @@ description: "Path is Effect's platform-specific path service, in place of node:
 ## Requesting the path service
 
 ```vibe
-import { NodePath } from "@effect/platform-node"
+import * as NodePath from "@effect/platform-node/NodePath"
 
 function pathSeparator() {
   return Path().sep
@@ -23,7 +23,7 @@ function pathSeparator() {
 ## Manipulating paths portably
 
 ```vibe
-import { NodePath } from "@effect/platform-node"
+import * as NodePath from "@effect/platform-node/NodePath"
 
 function describeReport() {
   const joined = Path.join("reports", "weekly.txt")
@@ -56,7 +56,7 @@ Most `Path` methods are plain synchronous TypeScript functions. Effect's own pac
 | `toFileUrl`, `fromFileUrl` | Effectful file-URL conversion |
 
 ```vibe
-import { NodePath } from "@effect/platform-node"
+import * as NodePath from "@effect/platform-node/NodePath"
 
 function asFileUrl(file: string) {
   const absolute = Path.resolve(file)

@@ -6,7 +6,7 @@
 
 ```vibe
 // run: provide NodePath.layer { Console.log(pathSeparator()) }
-import { NodePath } from "@effect/platform-node"
+import * as NodePath from "@effect/platform-node/NodePath"
 
 function pathSeparator() {
   return Path().sep
@@ -20,7 +20,7 @@ function pathSeparator() {
 
 ```vibe
 // run: provide NodePath.layer { Console.log(JSON.stringify(describeReport())) }
-import { NodePath } from "@effect/platform-node"
+import * as NodePath from "@effect/platform-node/NodePath"
 
 function describeReport() {
   const joined = Path.join("reports", "weekly.txt")
@@ -54,7 +54,7 @@ Most `Path` methods are plain synchronous TypeScript functions. Effect's own pac
 
 ```vibe
 // run: provide NodePath.layer { Console.log(asFileUrl("/reports/weekly.txt")) }
-import { NodePath } from "@effect/platform-node"
+import * as NodePath from "@effect/platform-node/NodePath"
 
 function asFileUrl(file: string) {
   const absolute = Path.resolve(file)

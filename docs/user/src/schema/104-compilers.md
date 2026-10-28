@@ -75,10 +75,12 @@ JIT constructs functions dynamically. When the engine or Content Security Policy
 ```ts
 // TypeScript (.ts)
 // build-schema-aot.ts
+// types: node
 // run: return Effect.flatMap(buildSchemas(), (result) => Console.log(`Prepared ${result.schemas} schema exports`))
 import { fileURLToPath } from "node:url"
 import { Console, Effect } from "effect"
-import { NodeFileSystem, NodePath } from "@effect/platform-node"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
+import * as NodePath from "@effect/platform-node/NodePath"
 import * as Build from "effect/schema/SchemaAOTCompiler/Build"
 
 export const buildSchemas = () => Effect.provide(

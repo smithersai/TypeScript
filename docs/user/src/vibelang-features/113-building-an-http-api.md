@@ -69,7 +69,7 @@ The JSON decoder runs at the call and returns the validated body. A repeated nam
 ```vibe
 // server.vibe
 // run: provide Logger.layer([]) { Effect.scoped { Layer.build(server(0)); Console.log("server acquired") }; Console.log("server released") }
-import { NodeHttpServer } from "@effect/platform-node"
+import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer"
 import { App } from "./routes.vibe"
 
 module node {

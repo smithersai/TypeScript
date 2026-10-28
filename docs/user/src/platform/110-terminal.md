@@ -20,7 +20,8 @@ The module's name `Terminal` also names its service, so `Terminal()` returns the
 
 ```vibe
 // main.vibe
-import { NodeRuntime, NodeTerminal } from "@effect/platform-node"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
+import * as NodeTerminal from "@effect/platform-node/NodeTerminal"
 function main() {
   const terminal = Terminal()
   terminal.display("Package prepared.\n")
@@ -138,7 +139,8 @@ Keep the interactive entry in its own module, so tests can import `main` and sup
 
 ```vibe
 // guessing-main.vibe
-import { NodeRuntime, NodeTerminal } from "@effect/platform-node"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
+import * as NodeTerminal from "@effect/platform-node/NodeTerminal"
 import { main } from "./guessing.vibe"
 
 NodeRuntime.runMain(() => Effect.provide(() => main(), NodeTerminal.layer))

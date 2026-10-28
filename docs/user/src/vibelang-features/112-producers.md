@@ -37,7 +37,7 @@ In `.vibe`, an unannotated `function*` declares a producer; don't use it for `Ef
 
 ```vibe
 // run: provide NodeServices.layer { const fs = FileSystem(); using dir = fs.makeTempDirectoryScoped(); fs.writeFileString(`${dir}/a.txt`, "short"); fs.writeFileString(`${dir}/b.txt`, "x".repeat(1001)); Console.log(firstLargeFile(dir) === `${dir}/b.txt`) }
-import { NodeServices } from "@effect/platform-node"
+import * as NodeServices from "@effect/platform-node/NodeServices"
 
 function* fileTexts(directory: string) {
   const names = FileSystem.readDirectory(directory).sort()

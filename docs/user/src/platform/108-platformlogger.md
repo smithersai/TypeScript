@@ -6,7 +6,7 @@ File logging uses Effect's `Logger` module. Combine a string formatter with `Log
 
 ```vibe
 // run: provide NodeFileSystem.layer { provide FileLogger { application() }; const text = FileSystem.readFileString("./application.log"); Console.log(text.includes("Index build started") && text.indexOf("Index build started") < text.indexOf("Index build completed")) }
-import { NodeFileSystem } from "@effect/platform-node"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 const FileLogger = Logger.layer([
   () => Logger.toFile(Logger.formatLogFmt, "./application.log", {
     batchWindow: "250 millis"
@@ -28,7 +28,8 @@ In Effect 4.0.6, `toFile` batches with a one-second window by default; `batchWin
 
 ```vibe
 // main.vibe
-import { NodeFileSystem, NodeRuntime } from "@effect/platform-node"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 const LoggerLive = Layer.provide(
   Logger.layer([
     () => Logger.toFile(Logger.formatLogFmt, "./application.log")
@@ -57,7 +58,8 @@ NodeRuntime.runMain(() => Effect.provide(() => main(), NodeFileSystem.layer))
 
 ```vibe
 // main.vibe
-import { NodeFileSystem, NodeRuntime } from "@effect/platform-node"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 const LoggerLive = Layer.provide(
   Logger.layer([
     Logger.withConsoleLog(Logger.make(({ message }) => String(message))),

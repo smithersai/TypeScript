@@ -11,7 +11,7 @@ A platform `runMain` starts a VibeLang application and ties its lifetime to the 
 
 ```vibe
 // preparation.vibe
-import { NodeRuntime } from "@effect/platform-node"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 
 function main() {
   Console.log("Preparing export")
@@ -28,13 +28,13 @@ Pass the runner a program, `() => main()`, so `main` hasn't run yet; passing `ma
 
 A runner also works in a plain callback passed from the top level to TypeScript, such as a framework's route handler or a `describe` body. A runner in code a fiber runs is EK1005: call the program or use `fork` there. Tests in `.vibe` use `it.effect`; Promise-style tests stay in `.ts`.
 
-Bun uses `BunRuntime.runMain` from `@effect/platform-bun`; Node.js and Deno use the Node adapter. Run the generated JavaScript entry module after the VibeLang build.
+Bun uses `BunRuntime.runMain` from `@effect/platform-bun`; Node.js and Deno use the Node adapter. Run the generated JavaScript entry module after the VibeLang build. Import each Node module from its own subpath, as `@effect/platform-node/NodeRuntime`: the package's index loads every module, `NodeRedis` included, so under Yarn Classic `import { NodeRuntime } from "@effect/platform-node"` fails at startup with `Cannot find package 'redis'`.
 
 ## Configuring runtime launch behavior
 
 ```vibe
 // startup-rejected.vibe
-import { NodeRuntime } from "@effect/platform-node"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 
 error StartupRejected {
   reason: string
@@ -63,7 +63,7 @@ export const launchOptions = {
 
 ```vibe
 // custom-entry.vibe
-import { NodeRuntime } from "@effect/platform-node"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import { launchOptions } from "./launch-options.ts"
 
 function main() {
@@ -80,7 +80,7 @@ Teardown is a plain host callback, not an Effect program. Write a custom one in 
 
 ```vibe
 // invalid-batch.vibe
-import { NodeRuntime } from "@effect/platform-node"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 
 error InvalidBatch {
   count: number
@@ -109,6 +109,7 @@ These host-side checks run the emitted entries in separate processes to verify s
 ```ts
 // TypeScript (.ts)
 // runtime-checks.ts
+// types: node
 import type {} from "./startup-rejected.vibe"
 import type {} from "./invalid-batch.vibe"
 import type {} from "./custom-entry.vibe"
@@ -126,7 +127,7 @@ const batch = launch("./invalid-batch.js")
 console.log(`batch: ${batch.status}, cleaned: ${batch.stdout.includes("Export cleanup finished")}`)
 const failedCustom = spawnSync(process.execPath, ["--input-type=module", "-e", `
   import { Effect } from "effect"
-  import { NodeRuntime } from "@effect/platform-node"
+  import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
   import { launchOptions } from "./launch-options.js"
   NodeRuntime.runMain(Effect.fail("rejected"), { ...launchOptions, disableErrorReporting: true })
 `], { cwd: fileURLToPath(new URL(".", import.meta.url)), encoding: "utf8" })
