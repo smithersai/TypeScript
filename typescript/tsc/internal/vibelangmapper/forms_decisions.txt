@@ -1778,6 +1778,7 @@ typescript/vibelang/cases/migrate-effect-gen-fixed/lib.vibe:42:25 lambda choice 
 typescript/vibelang/cases/migrate-effect-gen-fixed/lib.vibe:51:3 lambda program table
 typescript/vibelang/cases/migrate-effect-gen-fixed/lib.vibe:53:20 lambda plain fallback
 typescript/vibelang/cases/migrate-effect-gen-fixed/lib.vibe:8:22 lambda choice fallback
+typescript/vibelang/cases/migrate-global-import-fixed/util.vibe:16:22 lambda plain annotation
 typescript/vibelang/cases/module-aliases/main.vibe:12:24 lambda plain annotation
 typescript/vibelang/cases/module-aliases/main.vibe:12:90 lambda plain table
 typescript/vibelang/cases/module-aliases/main.vibe:14:26 lambda plain fallback

@@ -38,6 +38,8 @@ function firstTwo(values: ReadonlyArray<number>) {
 // Output: [1,2]
 ```
 
+`vibelang --fix` writes this form where code imports one of these modules under its own name (EK4842).
+
 Shared web-standard globals also keep their names: `Request`, `Response`, `Headers`, `URL`, `URLSearchParams`, `TextEncoder`, `TextDecoder`, `AbortController`, `AbortSignal`, `Blob`, `FormData`, `structuredClone`, `fetch`, and `Event`. So `new Request("https://x.test")` is the web Request; write `import { Request } from "effect"` for Effect's module. DOM-only globals do not shadow Effect's modules: with the DOM in your `lib`, `Option` is still Effect's. An import or local declaration named like a module shadows it, as `import * as Duration from "effect/Duration"` would. Value constructors such as `Duration.millis` build data; `Clock.currentTimeMillis()` and `Effect.sleep(...)` run computations. Effect's own packages are trusted: their data functions need no foreign-call boundary, and their exceptions are defects.
 
 ## Modules of subpath packages

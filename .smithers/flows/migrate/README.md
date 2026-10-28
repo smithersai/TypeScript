@@ -112,6 +112,7 @@ A run's `issues.jsonl` is the input to the loop that improves the flow. The repa
 | `Match.value(x).pipe(Match.when(…), …, Match.exhaustive)`, `pipe(Match.value(x), …)`, `Match.type<T>().pipe(…)` | `match (x) { when …: …; default: …; }` | EK4839 (D472) |
 | `pipe(x, Option.map(f), Option.getOrElse(g))`, `x.pipe(Option.…)` | `x.map(f).getOrElse(g)`, or `Option.fromNullishOr(x).map(f)` for a value that is not an Option | EK4840 (D473) |
 | `type X = typeof X.Type` just before `const X = Schema.Literals([…])`, or another schema other than a struct whose every part has a type | `schema X = <type>` | EK4841 (D474) |
+| `import { Array } from "effect"`, or another of Effect's modules a JavaScript global names (`String`, `Number`, `Boolean`, `Function`, `Symbol`, `BigInt`, `RegExp`) | `import { Array as Arr } from "effect"`, and `Arr.take(…)` for each use | EK4842 (D475) |
 | Effect error classes, `Context.Service` classes, `Schema.Struct` constants, `Effect.Effect<A, E, R>`, a running `Effect.succeed` or `Effect.fail`, catch combinators, `Effect.withSpan`, `provide` and `provideService` | `error`, `service`, `schema`, `A!E!R`, the value or `throw`, `catch` and `match`, the block forms | EK4830-EK4836 |
 
 Each rewrite keeps the program's meaning and type, or it is not made: the diagnostic it leaves says why in a note that starts `No quick fix:`.
