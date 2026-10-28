@@ -251,7 +251,7 @@ func checkHandleClauses(c *checker.Checker, node *ast.Node) {
 		answered := map[string]bool{}
 		for _, i := range group {
 			if answered[clauses[i].name] {
-				report(c, clauses[i].operation.Name(), EK2108.With("{0} already has a clause in this statement."), entityText(clauses[i].operation))
+				note(report(c, clauses[i].operation.Name(), EK2108.With("{0} already has a clause in this statement."), entityText(clauses[i].operation)), "Remove one of them: a handle statement answers each operation once.")
 			}
 			answered[clauses[i].name] = true
 		}

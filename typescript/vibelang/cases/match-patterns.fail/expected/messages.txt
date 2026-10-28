@@ -3,3 +3,5 @@ A binding cannot appear inside an or or not pattern yet.
 Bindings in an is pattern work only in the condition of an if or while statement, joined by &&.
 Regular expression patterns are not supported yet.
 Patterns joined by and, or, or not cannot share a level; add parentheses.
+Bind the whole value outside it, when let v and (A or B): …, or write one arm for each alternative.
+Bind the value and test it in a guard: when let v and if (…): …

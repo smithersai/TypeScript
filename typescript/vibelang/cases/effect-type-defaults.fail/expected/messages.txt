@@ -3,6 +3,6 @@ Write number!Errors!Dependencies; use number!! if it cannot fail and needs nothi
 main.vibe(14,10): error EK2001: Gone can escape find, but its contract says E = never.
 Catch it inside find, or change the contract to string!Gone!.
 main.vibe(14,10): error EK2002: find needs Users, but its contract says R = never.
-Provide Users inside find, or add it: string!!Users.
+Provide Users inside find with provide layer { … }, or add it to the contract: string!!Users.
 main.vibe(18,10): error EK2002: lookup needs Users, but its contract says R = never.
-Provide Users inside lookup, or add it: string!Gone!Users.
+Provide Users inside lookup with provide layer { … }, or add it to the contract: string!Gone!Users.

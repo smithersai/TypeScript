@@ -1,1 +1,2 @@
 This Schema.Struct has a _tag field; Schema.TaggedStruct("Opened", …) writes it and fills it in when you make a value.
+Write the comparison you mean, such as x !== 0, x !== "" or x !== undefined.

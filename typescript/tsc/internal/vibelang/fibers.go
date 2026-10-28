@@ -138,6 +138,8 @@ func checkAwait(c *checker.Checker, file *ast.SourceFile, call *ast.Node) {
 			note(d, "A program runs when you call it; fork it to run it concurrently, then join the fiber.")
 		} else if isAwaitable(c, t, 0) {
 			note(d, "Join fibers with join, and wait for each Deferred with d.await().")
+		} else {
+			note(d, "Remove await: a value needs no waiting.")
 		}
 	}
 	cover(c, call)

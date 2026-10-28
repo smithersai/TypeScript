@@ -7,3 +7,4 @@ await waits for a promise in JavaScript; wait for the Deferred with d.await().
 join takes a Fiber or an array or object of fibers, but this is Deferred<number, never>.
 Wait for a Deferred with d.await().
 join is VibeLang syntax, but a hatch body is plain TypeScript.
+Remove await: a value needs no waiting.

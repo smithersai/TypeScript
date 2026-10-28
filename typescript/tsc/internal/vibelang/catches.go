@@ -68,11 +68,11 @@ func checkCatchClauses(c *checker.Checker, file *ast.SourceFile) {
 		if n.Kind == ast.KindIfStatement && n.Expression().Kind == ast.KindTrueKeyword && n.Expression().Flags&ast.NodeFlagsReparsed != 0 {
 			for rest := n.AsIfStatement().ElseStatement; rest != nil; {
 				if rest.Kind == ast.KindIfStatement {
-					report(c, rest.Expression(), EK2106)
+					note(report(c, rest.Expression(), EK2106), "Remove it, or handle its case in the earlier clause.")
 					rest = rest.AsIfStatement().ElseStatement
 				} else {
 					if rest.Flags&ast.NodeFlagsReparsed == 0 { // not the throw that ends a chain
-						report(c, rest, EK2106)
+						note(report(c, rest, EK2106), "Remove it, or handle its case in the earlier clause.")
 					}
 					rest = nil
 				}

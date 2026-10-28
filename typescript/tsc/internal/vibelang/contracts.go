@@ -272,7 +272,7 @@ func (a *analyzer) checkContract(file *ast.SourceFile, fn *ast.Node) {
 		declared := channelType(c, contractType, "_R")
 		for _, escape := range escapes(c, info.requirements, info.requirementSources, declared) {
 			d := report(c, escape.source, EK2002, name, c.TypeToString(escape.t), c.TypeToString(declared))
-			note(d, "Provide {0} inside {1}, or add it: {2}.", c.TypeToString(escape.t), name, contractText(c, contractType, channelR, escape.t))
+			note(d, "Provide {0} inside {1} with provide layer { … }, or add it to the contract: {2}.", c.TypeToString(escape.t), name, contractText(c, contractType, channelR, escape.t))
 		}
 	}
 }

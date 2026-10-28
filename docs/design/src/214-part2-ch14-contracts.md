@@ -71,7 +71,7 @@ export function welcome(id: string): string!UserNotFound | MailError!Users {
 ```text
 error EK2002: welcome needs Mailer, but its contract says R = Users.
   welcome.vibe:3:3   Mailer.send(user.email, "Welcome")
-  Provide Mailer inside welcome, or add it: Effect<string, UserNotFound | MailError, Users | Mailer>.
+  Provide Mailer inside welcome with provide layer { … }, or add it to the contract: Effect<string, UserNotFound | MailError, Users | Mailer>.
 ```
 
 | Check | Rule | Diagnostic |

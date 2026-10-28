@@ -192,7 +192,7 @@ func checkCondition(c *checker.Checker, condition *ast.Node) {
 	t := c.GetTypeAtLocation(condition)
 	for _, member := range t.Distributed() {
 		if member.Flags()&(checker.TypeFlagsBooleanLike|checker.TypeFlagsNever) == 0 {
-			report(c, condition, EK4822, c.TypeToString(t))
+			note(report(c, condition, EK4822, c.TypeToString(t)), "Write the comparison you mean, such as x !== 0, x !== \"\" or x !== undefined.")
 			return
 		}
 	}

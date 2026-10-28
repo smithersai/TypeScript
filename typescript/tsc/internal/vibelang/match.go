@@ -273,7 +273,7 @@ func reportPatternError(c *checker.Checker, file *ast.SourceFile, call *ast.Node
 	case 1017:
 		reportAt(c, file, at, EK1017)
 	case 4702:
-		reportAt(c, file, at, EK4702)
+		note(reportAt(c, file, at, EK4702), "Bind the whole value outside it, when let v and (A or B): …, or write one arm for each alternative.")
 	case 4703:
 		note(reportAt(c, file, at, EK4703), "Use the pattern in an if or while condition, or match the value with match.")
 	case 4704:
@@ -281,7 +281,7 @@ func reportPatternError(c *checker.Checker, file *ast.SourceFile, call *ast.Node
 		if len(args) > 1 && args[1].Kind == ast.KindStringLiteral {
 			detail = args[1].Text()
 		}
-		reportAt(c, file, at, EK4704, detail)
+		note(reportAt(c, file, at, EK4704, detail), "Bind the value and test it in a guard: when let v and if (…): …")
 	case 4705:
 		note(reportAt(c, file, at, EK4705), "Write (a and b) or c, or a and (b or c).")
 	}
