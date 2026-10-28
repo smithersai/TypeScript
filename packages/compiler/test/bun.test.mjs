@@ -213,3 +213,20 @@ test("bun compiles a composite project, which may not turn off declaration emit 
 test("under Node, vibelang/bun names vibelang/register", async () => {
   await assert.rejects(import(preload), /vibelang\/bun is a Bun preload; under Node, use node --import vibelang\/register/)
 })
+
+test("loads a clean module despite unrelated baseline errors, but rejects a loaded bad module", { skip }, (t) => {
+  const { bun } = project(t, {
+    "src/value.vibe": 'export const value = 42\n',
+    "src/bad.vibe": 'export const value: number = "bad"\n',
+    "src/unrelated.ts": 'export const baseline: number = "bad"\n',
+    "main.ts": 'import { value } from "./src/value.vibe"; console.log(value)\n',
+    "bad.ts": 'import { value } from "./src/bad.vibe"; console.log(value)\n'
+  })
+  const clean = bun(["--preload", preload, "main.ts"])
+  assert.equal(clean.status, 0, clean.stderr)
+  assert.equal(clean.stdout, "42\n")
+  const bad = bun(["--preload", preload, "bad.ts"])
+  assert.notEqual(bad.status, 0)
+  assert.match(bad.stderr, /bad\.vibe:1:\d+ - error TS2322/)
+  assert.doesNotMatch(bad.stderr, /unrelated\.ts/)
+})

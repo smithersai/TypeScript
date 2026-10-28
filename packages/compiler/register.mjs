@@ -1,3 +1,4 @@
+import { diagnosticsForFile } from "./diagnostics.mjs"
 // node --import vibelang/register: Node loads .vibe modules from source.
 //
 // A .vibe module keeps its source URL as its identity, so a program that also
@@ -80,7 +81,7 @@ function emitted(file) {
   let compiled = results.get(project)
   // A module declaration's output is as new as its .vibe file.
   if (compiled !== undefined && changedSince(moduleDeclarationSource(file) ?? file, compiled.started)) compiled = undefined
-  if (compiled !== undefined && !compiled.result.errors.length && !compiled.result.outputs.has(file) && !compiled.missing.has(file)) {
+  if (compiled !== undefined && !compiled.result.outputs.has(file) && !compiled.missing.has(file)) {
     compiled = undefined
   }
   if (compiled === undefined) {
@@ -92,8 +93,9 @@ function emitted(file) {
     spent.compile += since(clock)
   }
   const { result } = compiled
-  if (result.errors.length) {
-    throw failure("ERR_VIBELANG_COMPILE", `vibelang: ${project} did not compile\n${result.errors.map(formatDiagnostic).join("\n")}`)
+  const errors = diagnosticsForFile(result.errors, file, result.files)
+  if (errors.length) {
+    throw failure("ERR_VIBELANG_COMPILE", `vibelang: ${project} did not compile\n${errors.map(formatDiagnostic).join("\n")}`)
   }
   const output = result.outputs.get(file)
   if (output === undefined) {

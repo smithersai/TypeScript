@@ -129,11 +129,11 @@ export default function vibelang(options = {}) {
     async transform(_source, id) {
       const file = cleanId(id)
       if (!file.endsWith(".vibe") || /[?&](?:raw|url)(?:&|=|$)/.test(id)) return
-      const { project, code, map, errors, warnings, first, error } = await (await loaded()).load(file)
+      const { project, code, map, errors, warnings, error } = await (await loaded()).load(file)
       this.addWatchFile(project)
-      // Every module of a failed compile fails, so Vite reports each request.
+      // Reject diagnostics for this source, including on repeated requests.
       if (errors.length) this.error(diagnostics(errors, file))
-      if (first) for (const warning of warnings) logger.warn(backend.formatDiagnostic(warning))
+      for (const warning of warnings) logger.warn(backend.formatDiagnostic(warning))
       if (error) this.error(error)
       return { code, map }
     },
@@ -156,8 +156,11 @@ export default function vibelang(options = {}) {
         if (module.file && isCompiled(module.file)) visit(module)
       }
       for (const module of affected) context.server.moduleGraph.invalidateModule(module)
-      // Compile the edited file's project now, so the overlay shows its diagnostics.
-      const { errors } = await projects.load(context.file)
+      // Recompile the sources Vite has loaded. A watched TypeScript source
+      // can change their contracts without making its own errors loader errors.
+      const errors = []
+      const sources = new Set([...affected].map((module) => module.file).filter((file) => file && isCompiled(file)))
+      for (const file of sources) errors.push(...(await projects.load(file)).errors)
       if (errors.length) {
         const { message, id, loc } = diagnostics(errors, context.file)
         context.server.config.logger.error(message)

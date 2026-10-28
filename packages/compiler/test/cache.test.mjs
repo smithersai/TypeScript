@@ -193,7 +193,8 @@ test("a changed tsconfig recompiles, including a config it extends", { skip }, a
   const { app, run, compiles } = await fixture(t, {
     "tsconfig.base.json": `{\n  // shared options\n  "compilerOptions": ${JSON.stringify(options)},\n}\n`,
     "tsconfig.json": JSON.stringify({ extends: "./tsconfig.base", include: ["src/**/*"] }),
-    "src/unused.vibe": "export function unused(): number {\n  const spare = 1\n  return 2\n}\n"
+    "src/unused.vibe": "export function unused(): number {\n  const spare = 1\n  return 2\n}\n",
+    "src/main.ts": 'import "./unused.vibe"; console.log(42)\n'
   })
   ok(run())
   ok(run())

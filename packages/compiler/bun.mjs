@@ -1,3 +1,4 @@
+import { diagnosticsForFile } from "./diagnostics.mjs"
 // bun --preload vibelang/bun: Bun loads .vibe modules from source.
 //
 // The Bun counterpart of vibelang/register, for `bun run`, `bun test`, and a
@@ -37,8 +38,9 @@ function emitted(file) {
     result = compileProjectSync({ project })
     results.set(project, result)
   }
-  if (result.errors.length) {
-    throw new Error(`vibelang: ${project} did not compile\n${result.errors.map(formatDiagnostic).join("\n")}`)
+  const errors = diagnosticsForFile(result.errors, file, result.files)
+  if (errors.length) {
+    throw new Error(`vibelang: ${project} did not compile\n${errors.map(formatDiagnostic).join("\n")}`)
   }
   const output = result.outputs.get(file)
   if (output === undefined) {

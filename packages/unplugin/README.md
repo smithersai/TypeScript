@@ -110,14 +110,14 @@ process per build, on the first `.vibe` module load, and again on every watch
 rebuild. The compiler writes to a directory under the system temporary
 directory; the plugin reads the JavaScript and source maps into memory and
 deletes it. It forces JavaScript and source-map emission,
-embeds source content, overrides `rootDir` to the root, checks and emits only
-the files under the root (`--loader-root`), and disables declarations,
-incremental output, and emission on errors. A source saved
+checks and emits only the files under the root (`--loader-root`),
+embeds source content, overrides `rootDir` to the root, and disables
+declarations and incremental output. A source saved
 during a compile starts another compile before any module is served.
 
 Each `.vibe` module declares every project source and the tsconfig as watch
-files, so an edit to any of them rebuilds the `.vibe` modules. A failed
-compile is reported once, as a build error whose message lists each diagnostic
+files, so an edit to any of them rebuilds the `.vibe` modules. Errors in a loaded source and project-wide errors are reported once for that module,
+as a build error whose message lists each diagnostic
 as `file:line:column - error TS2322: text`.
 
 ## Limitations
@@ -157,3 +157,9 @@ Vite. For each bundler it runs the bundle and compares its output with
 position. In watch mode it edits the `.vibe` source, a `.ts` file the
 `.vibe` module imports only for types, and the tsconfig, and waits for each
 rebuild.
+
+The source loaders compile the whole project for type-directed emit, but report
+only diagnostics for the source being loaded and project-wide errors, including
+configuration diagnostics.
+An unrelated file's type errors do not prevent loading a clean module. Run
+`vibelang -p tsconfig.json` to check every project file.

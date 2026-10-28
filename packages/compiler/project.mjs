@@ -1,3 +1,4 @@
+import { diagnosticsForFile } from "./diagnostics.mjs"
 // Whole-project compilation for the bundler plugins (vibelang-vite,
 // vibelang-unplugin) and the Node and Bun loaders (vibelang/register,
 // vibelang/bun).
@@ -180,7 +181,7 @@ const emitArgs = (project, root, out) => [
   "--pretty", "false", "--listFiles", "true", "--rootDir", emitRoot(root),
   "--outDir", out, "--sourceMap", "true", "--inlineSources", "true",
   "--inlineSourceMap", "false", "--sourceRoot", slash(emitRoot(root)).replace(/\/?$/, "/"), "--declaration", "false", "--declarationMap", "false",
-  "--noEmit", "false", "--emitDeclarationOnly", "false", "--noEmitOnError", "true",
+  "--noEmit", "false", "--emitDeclarationOnly", "false", "--noEmitOnError", "false",
   // A project checked with --noEmit may import .ts files without a rewrite of its
   // own; emitting it then needs one (TS5096), and the output imports .js anyway.
   "--rewriteRelativeImportExtensions", "true",
@@ -212,8 +213,8 @@ export function moduleDeclarationSource(path) {
 //                { code, map }, and from each output of its module
 //                declarations, such as main.vibe.text.js beside it, to that
 //   inputs       project source files the result depends on
-//   errors       diagnostics that blocked emission; outputs is then empty
-//   warnings     diagnostics of a successful compile
+//   errors       all project error diagnostics; loaders select by source
+//   warnings     all project warning diagnostics
 // and every file the compiler read, dependencies included, for the cache.
 function collect({ status, signal, output }, root, out) {
   const { files, diagnostics } = parseOutput(output, root)
@@ -236,7 +237,7 @@ function collect({ status, signal, output }, root, out) {
     outputs.set(join(dirname(realpath(source)), name), result)
   }
   const listings = new Map() // each output directory's file names
-  for (const source of errors.length ? [] : inputs) {
+  for (const source of inputs) {
     if (!source.endsWith(".vibe")) continue
     const path = relative(root, source)
     if (path.startsWith("..") || isAbsolute(path)) continue
@@ -416,8 +417,8 @@ const failed = "throw new Error(\"vibelang: this module did not compile; see the
  * compiles once per revision; invalidate() starts a new revision.
  *
  * load(file) resolves to { project, code, map, inputs, errors, warnings, first, error }.
- * errors and warnings are the whole compile's; first is true for the first
- * module loaded from that compile, so a bundler can report them once. `error`
+ * errors and warnings belong to the loaded source or are project-wide.
+ * first is true for the first module loaded from that compile. `error`
  * says that the project does not include the module. `cache` is as for
  * projectBackend: a compile a revision needs may come from the cache.
  */
@@ -476,8 +477,11 @@ export function projects({ root, project, compiler, cache, debug = () => {} }) {
     },
     async load(file) {
       const state = stateOf(projectOf(file))
-      const { outputs, inputs, errors, warnings } = await compiled(state)
-      // Every .vibe module shares its project's diagnostics.
+      const result = await compiled(state)
+      const { outputs, inputs } = result
+      const errors = diagnosticsForFile(result.errors, file, result.files)
+      const warnings = diagnosticsForFile(result.warnings, file, result.files)
+      // Keep the public first-module flag independent of source diagnostics.
       const first = state.reported !== state.compiled
       state.reported = state.compiled
       if (errors.length) return { project: state.tsconfig, code: failed, inputs, errors, warnings, first }

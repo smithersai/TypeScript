@@ -147,11 +147,11 @@ export const unplugin = createUnplugin((options = {}, meta) => {
     resolveId: meta.framework === "bun" ? undefined : resolveId,
     loadInclude: meta.framework === "bun" ? undefined : isCompiled,
     load: meta.framework === "bun" ? undefined : async function load(id) {
-      const { project, code, map, inputs, errors, warnings, first, error } = await loadModule(id)
+      const { project, code, map, inputs, errors, warnings, error } = await loadModule(id)
       // Any project source or the tsconfig can change the contracts this module compiles against.
       for (const input of [project, ...inputs]) this.addWatchFile(input)
-      // A compile's diagnostics are reported once, with its first module.
-      if (errors.length && first) {
+      // Reject this source's errors even after another clean module was loaded.
+      if (errors.length) {
         const first = errors.find((diagnostic) => diagnostic.file) || {}
         this.error({
           message: errors.map(backend.formatDiagnostic).join("\n"),
@@ -159,7 +159,7 @@ export const unplugin = createUnplugin((options = {}, meta) => {
           loc: first.file && { file: first.file, line: first.line, column: first.column - 1 }
         })
       }
-      if (first && !errors.length) for (const warning of warnings) this.warn(backend.formatDiagnostic(warning))
+      if (!errors.length) for (const warning of warnings) this.warn(backend.formatDiagnostic(warning))
       if (error) this.error(error)
       return { code, map, moduleType: "js" }
     },
@@ -173,9 +173,9 @@ export const unplugin = createUnplugin((options = {}, meta) => {
         // Bun ignores plugin source maps, so the module is its JavaScript alone.
         build.onLoad({ filter: /\.vibe(?:\.[^./\\]+\.js)?(?:\?.*)?$/ }, async ({ path }) => {
           if (!isCompiled(path)) return undefined
-          const { code, errors, warnings, first, error } = await loadModule(path)
-          if (errors.length && first) throw new Error(errors.map(backend.formatDiagnostic).join("\n"))
-          if (first && !errors.length) for (const warning of warnings) console.warn(backend.formatDiagnostic(warning))
+          const { code, errors, warnings, error } = await loadModule(path)
+          if (errors.length) throw new Error(errors.map(backend.formatDiagnostic).join("\n"))
+          if (!errors.length) for (const warning of warnings) console.warn(backend.formatDiagnostic(warning))
           if (error) throw new Error(error.message)
           return { contents: code, loader: "js" }
         })
@@ -211,9 +211,9 @@ export const unplugin = createUnplugin((options = {}, meta) => {
         })
         build.onLoad({ filter: /\.vibe(?:\.[^./\\]+\.js)?(?:\?.*)?$/ }, async ({ path }) => {
           if (!isCompiled(path)) return undefined
-          const { project, code, map, inputs, errors, warnings, first, error } = await loadModule(path)
+          const { project, code, map, inputs, errors, warnings, error } = await loadModule(path)
           const messages = []
-          if (errors.length && first) {
+          if (errors.length) {
             messages.push({
               ...await esbuildMessage(backend.formatDiagnostic, errors.find((diagnostic) => diagnostic.file) || errors[0]),
               text: errors.map(backend.formatDiagnostic).join("\n")
@@ -226,7 +226,7 @@ export const unplugin = createUnplugin((options = {}, meta) => {
               : code,
             loader: "js", resolveDir: dirname(path), watchFiles: [project, ...inputs],
             errors: messages,
-            warnings: first && !errors.length ? await Promise.all(warnings.map((warning) => esbuildMessage(backend.formatDiagnostic, warning))) : []
+            warnings: !errors.length ? await Promise.all(warnings.map((warning) => esbuildMessage(backend.formatDiagnostic, warning))) : []
           }
         })
       }

@@ -307,3 +307,30 @@ it.effect("greets") { assert.strictEqual(greet("Vite"), "Hello, Vite!") }
   assert.equal(result.code, 0, result.output)
   assert.match(result.output, /1 passed/)
 })
+
+test("Vite hot updates ignore diagnostics in unserved TypeScript sources", async (t) => {
+  const root = await fixture(t)
+  const configPath = join(root, "tsconfig.json")
+  const config = JSON.parse(await readFile(configPath, "utf8"))
+  config.include.push("*.ts")
+  await writeFile(configPath, JSON.stringify(config))
+  const unrelated = join(root, "unrelated.ts")
+  await writeFile(unrelated, "export const value: number = 1\n")
+  const plugin = vibelang({ compiler })
+  const messages = []
+  const logger = { warn() {}, error: (message) => messages.push(message) }
+  plugin.configResolved({ root, logger })
+  const file = join(root, "main.vibe")
+  await plugin.transform.call({ addWatchFile() {} }, "", file)
+  await writeFile(unrelated, 'export const value: number = "wrong"\n')
+  const loaded = { file, importers: [] }
+  const affected = await plugin.handleHotUpdate({
+    file: unrelated, modules: [],
+    server: {
+      moduleGraph: { idToModuleMap: new Map([[file, loaded]]), invalidateModule() {} },
+      config: { logger }, ws: { send: (message) => messages.push(message) }
+    }
+  })
+  assert.deepEqual(messages, [], "an unrelated watched source must not raise an overlay")
+  assert.deepEqual(affected, [loaded], "loaded modules still recompile against changed contracts")
+})

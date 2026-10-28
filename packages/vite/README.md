@@ -112,7 +112,7 @@ and after each source change; requests share that compilation. Each plugin
 instance owns an output directory under `node_modules/.vibelang/vite-*`, removed
 when Vite closes. It forces JavaScript and source-map emission, embeds source
 content, checks and emits only the files under the root (`--loader-root`), and
-disables declarations, incremental output, and emission on errors.
+disables declarations and incremental output.
 Source paths in compiler maps resolve to the original files before Vite composes
 the maps for its transformations.
 
@@ -128,7 +128,7 @@ also depends on the compiler and on the modules they import.
 
 The plugin never implements language syntax or lowering; prelude, service,
 program, and cross-file import support comes from the installed compiler.
-A compiler error blocks JavaScript serving, shows its original diagnostic text
+A compiler error in the loaded source, or a project-wide error, blocks JavaScript serving, shows its original diagnostic text
 and source location in the overlay, and clears on the next successful edit.
 
 ## Acceptance checks
@@ -156,3 +156,9 @@ The template and the users, http-api, and resilience examples also use this
 plugin for their source tests. Their advanced language features require the
 corresponding compiler lanes; the acceptance fixtures above use explicit Effect
 imports and plain and Effect functions supported by the initial compiler.
+
+The source loaders compile the whole project for type-directed emit, but report
+only diagnostics for the source being loaded and project-wide errors, including
+configuration diagnostics.
+An unrelated file's type errors do not prevent loading a clean module. Run
+`vibelang -p tsconfig.json` to check every project file.

@@ -126,3 +126,9 @@ Run `npm run build`, or `bun run build`; then run `npm run test`, or `bun run te
 ## Next
 
 Set up the editor: [VS Code and Cursor](vscode.md), [Neovim](neovim.md), [Zed](zed.md), or [other editors](other-editors.md). Then verify with step 4 of [Set up VibeLang](../setup.md).
+
+The source loaders compile the whole project for type-directed emit, but report
+only diagnostics for the source being loaded and project-wide errors, including
+configuration diagnostics.
+An unrelated file's type errors do not prevent loading a clean module. Run
+`vibelang -p tsconfig.json` to check every project file.

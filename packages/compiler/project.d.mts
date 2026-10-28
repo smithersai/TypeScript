@@ -23,9 +23,9 @@ export interface Result {
   readonly inputs: Array<string>
   /** Every file the compiler listed, including dependencies. */
   readonly files: Array<string>
-  /** Diagnostics that blocked emission; outputs is then empty. */
+  /** All project error diagnostics; emitted outputs may still be available. */
   readonly errors: Array<Diagnostic>
-  /** Diagnostics of a successful compile. */
+  /** All project warning diagnostics. */
   readonly warnings: Array<Diagnostic>
 }
 
@@ -35,11 +35,11 @@ export interface Loaded {
   readonly code: string
   readonly map?: Output["map"]
   readonly inputs: Array<string>
-  /** The compile's errors. The module's code throws when there are any. */
+  /** Errors for this source and project-wide errors. The module's code throws when there are any. */
   readonly errors: Array<Diagnostic>
-  /** The compile's warnings. */
+  /** Warnings for this source and project-wide warnings. */
   readonly warnings: Array<Diagnostic>
-  /** True for the first module loaded from this compile, so a bundler reports its diagnostics once. */
+  /** True for the first module loaded from this compile. */
   readonly first: boolean
   /** Set when the project does not include the module. */
   readonly error?: false | { readonly message: string; readonly id: string }

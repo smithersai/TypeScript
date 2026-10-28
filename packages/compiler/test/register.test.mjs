@@ -271,3 +271,33 @@ test("an included node_modules source without loader output reports the output l
     assert.doesNotMatch(result.stderr, /set VIBELANG_PROJECT/)
   }
 })
+
+test("loads a clean module despite unrelated baseline errors, but rejects a loaded bad module", { skip }, (t) => {
+  const { run } = project(t, {
+    "src/value.vibe": 'export const value = 42\n',
+    "src/bad.vibe": 'export const value: number = "bad"\n',
+    "src/unrelated.ts": 'export const baseline: number = "bad"\n',
+    "main.ts": 'import { value } from "./src/value.vibe"; console.log(value)\n',
+    "bad.ts": 'import { value } from "./src/bad.vibe"; console.log(value)\n'
+  })
+  const clean = run("main.ts")
+  assert.equal(clean.status, 0, clean.stderr)
+  assert.equal(clean.stdout, "42\n")
+  const bad = run("bad.ts")
+  assert.notEqual(bad.status, 0)
+  assert.match(bad.stderr, /bad\.vibe:1:\d+ - error TS2322/)
+  assert.doesNotMatch(bad.stderr, /unrelated\.ts/)
+})
+
+test("configuration diagnostics retain their original location at every load", { skip }, (t) => {
+  const { run } = project(t, {
+    "tsconfig.json": JSON.stringify({
+      compilerOptions: { strict: "invalid" }, include: ["src/**/*"]
+    }),
+    "src/value.vibe": "export const value = 42\n",
+    "main.ts": 'import { value } from "./src/value.vibe"; console.log(value)\n'
+  })
+  const result = run("main.ts")
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /tsconfig\.json:1:\d+ - error TS5024/)
+})

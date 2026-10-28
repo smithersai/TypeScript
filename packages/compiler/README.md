@@ -77,8 +77,8 @@ workspace package, such as a dependency linked to its source, still compiles
 with that package's own `tsconfig.json`. A module keeps its source URL, so a `.ts` file imported
 by both a TypeScript and a `.vibe` module loads once. A `module` declaration in
 `main.vibe` is a module of its own, `main.vibe.text.js` beside it, which is not
-on disk; the hook serves it from the same compile. Diagnostics that stop the
-compile are thrown at the import. The hook turns on Node's source-map support,
+on disk; the hook serves it from the same compile. Errors in the loaded source and project-wide errors are thrown at the import;
+unrelated source diagnostics do not block a clean module. The hook turns on Node's source-map support,
 so a stack trace names `.vibe` lines. It needs Node 26 or later, for
 `module.registerHooks`. `VIBELANG_REGISTER_DEBUG=1` prints each project's
 compile time with the time of each stage (the cache lookup, the snapshot of its
@@ -89,7 +89,7 @@ A long-running process compiles a project again when it imports a `.vibe`
 module that changed after the project compiled, or that did not exist yet, so
 a watcher that re-imports an edited file under a new URL gets its new code. The
 errors carry a `code`, as Node's module errors do: `ERR_VIBELANG_COMPILE` when
-the project does not compile (the message holds the diagnostics), and
+the loaded source has errors or a project-wide error prevents compilation, and
 `ERR_VIBELANG_PROJECT` when the module is outside the project.
 
 ### The compile cache
@@ -135,8 +135,7 @@ bun --preload vibelang/bun src/main.ts
 `vibelang/bun` is the same loader for Bun, through a runtime plugin: `bun run`,
 `bun test`, and a `preload` in `bunfig.toml` (top level for `bun run`, under
 `[test]` for `bun test`). It compiles each project once per process, or loads it
-from the compile cache, honors `VIBELANG_PROJECT`, and throws a failed compile's
-diagnostics at the import. Bun 1.4.2 ignores a plugin's source maps, so a stack
+from the compile cache, honors `VIBELANG_PROJECT`, and throws the loaded source's errors and project-wide errors at the import. Bun 1.4.2 ignores a plugin's source maps, so a stack
 frame names the `.vibe` file with the line of its compiled JavaScript. `bun
 test` discovers only its own test file names, so a Bun suite is a `.test.ts`
 file that imports `.vibe` modules.
@@ -150,7 +149,7 @@ tsconfig: a module inside `root` belongs to `project`; one of another workspace
 package, such as a package another package imports, belongs to the nearest
 `tsconfig.json` above it. Another package is one outside `root`, or one nested
 inside it with its own `package.json` and `tsconfig.json`. `load(file)` returns
-the module's JavaScript, its source map, and its project's diagnostics, for a
+the module's JavaScript, its source map, and its source diagnostics and project-wide diagnostics, for a
 `.vibe` file or for the output of one of its `module` declarations,
 `main.vibe.text.js` beside `main.vibe`, which `moduleDeclarationSource(path)`
 recognizes;
@@ -305,3 +304,9 @@ test("greeting", () => {
 ```
 
 Run `bun test`. Use `Effect.runPromise` in an async test when the Effect is asynchronous; provide any required services before running it.
+
+The source loaders compile the whole project for type-directed emit, but report
+only diagnostics for the source being loaded and project-wide errors, including
+configuration diagnostics.
+An unrelated file's type errors do not prevent loading a clean module. Run
+`vibelang -p tsconfig.json` to check every project file.
