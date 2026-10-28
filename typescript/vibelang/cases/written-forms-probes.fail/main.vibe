@@ -1,0 +1,22 @@
+// expect: EK4301 TS2304 TS2322
+// Conformance probes of written forms that fail (D500, Chapter 30).
+import { takesPlain } from "./helpers.ts"
+
+error TxError
+const cached: number!! = () => 1
+
+// An Effect annotation makes an Effect function where only a plain one fits.
+export function annotatedAtPlain() {
+  return takesPlain((x): number!! => x + 1)
+}
+
+// A literal at a destination that returns an Effect is an Effect function, so
+// returning the program cached returns it unrun; write cached().
+export function nested() {
+  return Effect.flatMap(Effect.succeed(1), (v) => cached)
+}
+
+// A callback's channels are type parameters: E and R are not declared here.
+export function channels<A>(work: () => A): A!TxError | E!R {
+  return work()
+}

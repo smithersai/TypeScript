@@ -1,0 +1,57 @@
+// expect-result: {"plainOnce":"number","effectOnce":"effect","count":1,"stored":[[2,4],[2,4]],"held":105,"picked":42,"built":0,"ran":7,"runs":3}
+// Conformance probes of written forms (D500, Chapter 30): each compiles with
+// the meaning its text gives, and no effect runs more or fewer times than
+// its source says.
+import { once } from "./helpers.ts"
+
+let count = 0
+let runs = 0
+function double(n: number): number {
+  return n * 2
+}
+function unannotatedDouble(n: number) {
+  return n * 2
+}
+function logged(n: number) {
+  runs++
+  return n + 100
+}
+const load: number!! = () => {
+  runs++
+  return 42
+}
+function pick(p: number!!): infer _ {
+  return p
+}
+function work(): number!! {
+  runs++
+  return 7
+}
+
+// Stored functions keep the form they were declared with.
+const twin = double
+const api = { double }
+
+export function main() {
+  // A literal where both forms fit is plain unless its annotation says Effect.
+  const plainOnce = once(() => {
+    count++
+    return count
+  })
+  const effectOnce = once((): number!! => {
+    count++
+    return count
+  })
+  // A holder of Effect functions runs the one it holds, once.
+  let g = unannotatedDouble
+  g = logged
+  const held = g(5)
+  // A plain function returning a program: a VibeLang call runs it, once.
+  const picked = pick(load)
+  // An arrow holds a program: building it runs nothing, calling it runs once.
+  const before = runs
+  const p = () => work()
+  const built = runs - before
+  const ran = p()
+  return { plainOnce, effectOnce, count, stored: [[1, 2].map(twin), [1, 2].map(api.double)], held, picked, built, ran, runs }
+}

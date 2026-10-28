@@ -32,7 +32,7 @@ function programFirst() {
   return start(firstProgram)
 }
 
-// No expected type: the lambda is plain because its body runs nothing (D10).
+// No expected type: the lambda's plain annotation makes it plain (D500).
 function bare() {
   const f = apply((x: number): number => Math.max(x, 0))
   return f(-3)
@@ -44,8 +44,8 @@ function bareEffect() {
   return f("z")
 }
 
-// A lambda a function returns has no expected type: plain, because its body
-// runs nothing, even inside an Effect function.
+// A lambda a function returns has no expected type: an Effect function (D500),
+// which the caller runs where it calls it.
 function returned(n: number) {
   Effect.sleep("1 millis")
   return (x: number) => Math.max(x, n)
