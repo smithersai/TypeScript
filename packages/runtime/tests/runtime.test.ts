@@ -71,10 +71,24 @@ test("fastcalls: $plainOf reaches a plain form before and after its attachment",
   expect($plainOf(double)).toBe(double$direct)
   expect(early.call(undefined, 4)).toBe(8)
   expect(Effect.runSync(double(5))).toBe(10)
-  // An Effect function records no plain form: its program comes back.
-  const effectful = () => Effect.succeed(1)
-  expect(Effect.isEffect(($plainOf(effectful) as () => unknown)())).toBe(true)
   expect($plainOf(7)).toBe(7)
+})
+
+test("fastcalls: $plainOf defects at the call when no plain form is recorded", async () => {
+  let runs = 0
+  const effectful = function missingPlain(n: number) {
+    return Effect.sync(() => { runs++; return n * 2 })
+  }
+  const plain = $plainOf(effectful) as (n: number) => number
+  expect(runs).toBe(0)
+  expect(() => plain(3)).toThrow(/missingPlain.*plain form/)
+  const bound = $plainOf(effectful.bind(undefined)) as (n: number) => number
+  expect(() => bound(3)).toThrow(/bound missingPlain.*plain form/)
+  const noForm = () => 7
+  expect(() => ($plainOf(noForm) as () => number)()).toThrow(/noForm.*plain signature/)
+  const exit = await Effect.runPromiseExit(Effect.sync(() => plain(3)))
+  expect(Exit.isFailure(exit) && Cause.hasDies(exit.cause)).toBe(true)
+  expect(runs).toBe(0)
 })
 
 // D15: a plain finally block's failure joins the one in flight, that one

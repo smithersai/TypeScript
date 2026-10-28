@@ -245,7 +245,10 @@ export const $plainOf = (f: unknown): unknown => {
     if (direct !== undefined) return Reflect.apply(direct, this, args)
     const program = Reflect.apply(f, this, args) as { [plainForm]?: () => unknown } | undefined
     const plain = program?.[plainForm]
-    return plain === undefined ? program : plain()
+    // D495 withdraws the Effect-form fallback described above: a missing
+    // plain form is a defect at this call.
+    if (plain === undefined) throw new TypeError(`Plain call of ${f.name || "<anonymous>"} found no plain form for its declared plain signature`)
+    return plain()
   }
 }
 
