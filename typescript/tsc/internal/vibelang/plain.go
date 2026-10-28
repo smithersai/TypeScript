@@ -35,8 +35,13 @@ const (
 )
 
 // isPlainCandidate reports whether D10 decides how fn compiles: a named .vibe
-// function declaration with a body and no overloads.
+// function declaration with a body and no overloads, or an annotated arrow
+// that a const holds (constArrowOf), whose plain cycles recurse as a
+// declaration's do (D412).
 func isPlainCandidate(fn *ast.Node) bool {
+	if fn != nil && fn.Kind == ast.KindArrowFunction {
+		return constArrowOf(fn) != nil
+	}
 	if fn == nil || fn.Kind != ast.KindFunctionDeclaration || fn.Name() == nil || !isLowerable(fn) || isProducer(fn) {
 		return false
 	}
@@ -44,12 +49,62 @@ func isPlainCandidate(fn *ast.Node) bool {
 	return symbol != nil && len(symbol.Declarations()) == 1
 }
 
+// constArrowOf returns the variable statement of fn, an arrow function with a
+// return annotation, when it is the initializer of the one declaration of a
+// const statement, const name = (…): T => …, whose name nothing else
+// declares, and its body reads none of this, super, arguments or new.target,
+// so a function declaration of that name means what the arrow means. It
+// returns nil otherwise.
+func constArrowOf(fn *ast.Node) *ast.Node {
+	if fn == nil || fn.Kind != ast.KindArrowFunction || fn.Type() == nil || !isLowerable(fn) {
+		return nil
+	}
+	declaration := fn.Parent
+	for declaration != nil && ast.IsParenthesizedExpression(declaration) {
+		declaration = declaration.Parent
+	}
+	if declaration == nil || !ast.IsVariableDeclaration(declaration) || declaration.Initializer() == nil || ast.SkipParentheses(declaration.Initializer()) != fn ||
+		!ast.IsIdentifier(declaration.Name()) || declaration.Type() != nil || declaration.AsVariableDeclaration().ExclamationToken != nil {
+		return nil
+	}
+	list := declaration.Parent
+	if list == nil || !ast.IsVariableDeclarationList(list) || list.Flags&ast.NodeFlagsBlockScoped != ast.NodeFlagsConst || len(list.AsVariableDeclarationList().Declarations.Nodes) != 1 {
+		return nil
+	}
+	statement := list.Parent
+	if statement == nil || !ast.IsVariableStatement(statement) || ast.HasSyntacticModifier(statement, ast.ModifierFlagsAmbient) {
+		return nil
+	}
+	if symbol := declaration.Symbol(); symbol == nil || len(symbol.Declarations()) != 1 || readsLexicalContext(fn.Body()) {
+		return nil
+	}
+	return statement
+}
+
+// readsLexicalContext reports whether body, outside the functions it declares
+// other than arrows, reads this, super, arguments or new.target.
+func readsLexicalContext(body *ast.Node) bool {
+	var visit func(node *ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		switch {
+		case node.Kind == ast.KindThisKeyword || node.Kind == ast.KindSuperKeyword || node.Kind == ast.KindMetaProperty:
+			return true
+		case ast.IsIdentifier(node) && node.Text() == "arguments":
+			return true
+		case ast.IsFunctionLike(node) && node.Kind != ast.KindArrowFunction, ast.IsClassLike(node):
+			return false
+		}
+		return node.ForEachChild(visit)
+	}
+	return body != nil && visit(body)
+}
+
 // isSplittable reports whether fn, when it compiles to plain JavaScript,
 // compiles to a $direct variant and an Effect form: a plain candidate with no
 // return type annotation or an Effect contract. A function annotated with a
 // plain return type keeps that type, and its callers call it as it is.
 func (a *analyzer) isSplittable(fn *ast.Node) bool {
-	if !isPlainCandidate(fn) || a.isFactory(fn) {
+	if fn == nil || fn.Kind != ast.KindFunctionDeclaration || !isPlainCandidate(fn) || a.isFactory(fn) {
 		return false
 	}
 	t := fn.Type()

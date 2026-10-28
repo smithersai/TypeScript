@@ -157,7 +157,8 @@ func (a *analyzer) forwardsPlainBudget(fn *ast.Node) bool {
 // return annotation: its own name is its plain form, which TypeScript and
 // .vibe callers call directly, and on a plain call cycle it recurses as an
 // unannotated cycle does, on the JavaScript stack and then, past the depth
-// budget, on heap frames (D412).
+// budget, on heap frames (D412). An arrow a const holds is one too: on a
+// cycle it compiles as a function declaration of the const's name.
 func (a *analyzer) isAnnotatedPlain(fn *ast.Node) bool {
 	return isPlainCandidate(fn) && !a.isFactory(fn) && fn.Type() != nil && !a.isEffectAnnotation(fn.Type())
 }
@@ -174,7 +175,11 @@ func (a *analyzer) ownCycleReference(call *ast.Node) *directReference {
 	if !ast.IsIdentifier(callee) || fn == nil || ast.GetSourceFileOfNode(fn) != ast.GetSourceFileOfNode(call) || !a.isAnnotatedPlain(fn) || !a.isPlainFunction(fn) {
 		return nil
 	}
-	if symbol := a.checker.GetResolvedSymbol(callee); symbol == nil || !slices.Contains(symbol.Declarations(), fn) {
+	declaration := fn
+	if constArrowOf(fn) != nil {
+		declaration = ast.WalkUpParenthesizedExpressions(fn.Parent) // const name = (…): T => …
+	}
+	if symbol := a.checker.GetResolvedSymbol(callee); symbol == nil || !slices.Contains(symbol.Declarations(), declaration) {
 		return nil
 	}
 	return &directReference{name: callee.Text(), own: true}

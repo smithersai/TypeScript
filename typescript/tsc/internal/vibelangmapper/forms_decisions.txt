@@ -2239,6 +2239,11 @@ typescript/vibelang/cases/plain-object-byname/repro.vibe:20:7 lambda plain annot
 typescript/vibelang/cases/plain-object-byname/repro.vibe:24:28 lambda plain fallback
 typescript/vibelang/cases/plain-object-byname/repro.vibe:25:3 lambda plain annotation
 typescript/vibelang/cases/plain-object-byname/repro.vibe:26:16 byname program annotation
+typescript/vibelang/cases/plain-recursion-const-arrow/main.vibe:10:13 lambda plain annotation
+typescript/vibelang/cases/plain-recursion-const-arrow/main.vibe:15:16 lambda plain annotation
+typescript/vibelang/cases/plain-recursion-const-arrow/main.vibe:21:22 lambda plain annotation
+typescript/vibelang/cases/plain-recursion-const-arrow/main.vibe:24:16 lambda plain annotation
+typescript/vibelang/cases/plain-recursion-const-arrow/main.vibe:8:19 lambda plain annotation
 typescript/vibelang/cases/plain-stream-byname/layers.vibe:11:27 lambda plain annotation
 typescript/vibelang/cases/plain-stream-byname/layers.vibe:12:22 byname program table
 typescript/vibelang/cases/plain-stream-byname/layers.vibe:15:24 lambda plain annotation

@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
@@ -90,10 +91,18 @@ func (tx *lowering) visitPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 // A plain-annotated member (D412) keeps its own name, with its modifiers, for
 // the plain entry that TypeScript and .vibe callers call, and its Effect form
 // takes a fresh name, name$effect, which its heap body's cycle calls run.
+//
+// An arrow a const holds (constArrowOf), const name = (…): T => …, compiles
+// the same way: its statement becomes the function declarations, under the
+// const's name and with the statement's export.
 func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 	f := tx.Factory()
-	name := node.Name().Text()
+	name := functionName(node)
 	own := tx.plan.ownCycles[node]
+	sourceModifiers := node.Modifiers()
+	if statement := constArrowOf(node); statement != nil {
+		sourceModifiers = statement.Modifiers()
+	}
 	effectText, directText, stackText := name, tx.directName(name), tx.freshName(name+"$stack")
 	if own {
 		effectText, directText = tx.freshName(name+"$effect"), name
@@ -185,7 +194,7 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 		// Fresh modifiers of the same kinds, so the source's comments are
 		// written once, before the Effect form.
 		var kinds []*ast.Node
-		if list := node.Modifiers(); list != nil {
+		if list := sourceModifiers; list != nil {
 			for _, modifier := range list.Nodes {
 				kinds = append(kinds, f.NewModifier(modifier.Kind))
 			}
@@ -199,7 +208,7 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 	tx.inEffect, tx.plain = false, true
 	parameters := tx.EmitContext().VisitParameters(node.ParameterList(), tx.Visitor())
 	tx.rawPlain = true
-	rawBody := tx.EmitContext().VisitFunctionBody(node.Body(), tx.Visitor())
+	rawBody := functionBlock(tx.EmitContext(), tx.EmitContext().VisitFunctionBody(node.Body(), tx.Visitor()))
 	tx.rawPlain = false
 	tx.rawCallbacks = true
 	savedBudget, savedWeight, savedEscapes := tx.eagerBudget, tx.eagerWeight, tx.eagerEscapes
@@ -210,7 +219,7 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 	}
 	tx.eagerBudget, tx.eagerEscapes = budgetName, false
 	tx.EmitContext().VisitParameters(node.ParameterList(), tx.Visitor())
-	eagerBody := tx.EmitContext().VisitFunctionBody(node.Body(), tx.Visitor())
+	eagerBody := functionBlock(tx.EmitContext(), tx.EmitContext().VisitFunctionBody(node.Body(), tx.Visitor()))
 	if tx.eagerEscapes {
 		eagerBody = tx.restorePlainBudget(eagerBody)
 	}
@@ -329,6 +338,39 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 		return f.NewSyntaxList(statements) // its own name is its plain form; nothing to mark
 	}
 	return f.NewSyntaxList(append(statements, tx.directMarker(node)...))
+}
+
+// cycleArrowOf returns the arrow that statement, a variable statement, holds
+// when the arrow is a const's annotated plain function (constArrowOf), or nil.
+func cycleArrowOf(statement *ast.Node) *ast.Node {
+	declarations := statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes
+	if len(declarations) != 1 || declarations[0].Initializer() == nil {
+		return nil
+	}
+	if arrow := ast.SkipParentheses(declarations[0].Initializer()); arrow.Kind == ast.KindArrowFunction && constArrowOf(arrow) == statement {
+		return arrow
+	}
+	return nil
+}
+
+// functionBlock returns body, a visited function body, as a block: an
+// arrow's expression body becomes a block that returns it.
+func functionBlock(ec *printer.EmitContext, body *ast.Node) *ast.Node {
+	if body == nil || ast.IsBlock(body) {
+		return body
+	}
+	block := ec.ConvertToFunctionBlock(body, false /*multiLine*/)
+	block.AsBlock().Statements.Loc = core.UndefinedTextRange()
+	return block
+}
+
+// bodyStatements returns body's statements, or none for an arrow's
+// expression body.
+func bodyStatements(body *ast.Node) []*ast.Node {
+	if body == nil || !ast.IsBlock(body) {
+		return nil
+	}
+	return body.Statements()
 }
 
 // ownNameShadowed reports whether fn's parameters, or the declarations of its

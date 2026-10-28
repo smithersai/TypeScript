@@ -1,0 +1,37 @@
+// A const that holds an arrow with a plain return annotation recurses as a
+// function declaration does (D412): on the JavaScript stack, then, past the
+// depth budget, on heap frames, so a deep recursion completes where it died
+// with RangeError: Maximum call stack size exceeded. That holds for an
+// expression or a block body, an exported const, a cycle through a function
+// declaration, and an arrow that a function's body declares.
+// expect-result: {"countdown":0,"sum":5000050000,"even":false,"depth":100000,"nested":100000,"mapped":[0,0]}
+const countdown = (n: number): number => n === 0 ? 0 : countdown(n - 1)
+
+const sum = (n: number): number => {
+  if (n === 0) return 0
+  return n + sum(n - 1)
+}
+
+const isEven = (n: number): boolean => n === 0 ? true : isOdd(n - 1)
+
+function isOdd(n: number): boolean {
+  return n === 0 ? false : isEven(n - 1)
+}
+
+export const depth = (n: number): number => n === 0 ? 0 : 1 + depth(n - 1)
+
+function nested(limit: number) {
+  const step = (n: number): number => n >= limit ? n : step(n + 1)
+  return step(0)
+}
+
+export function main() {
+  return {
+    countdown: countdown(100000),
+    sum: sum(100000),
+    even: isEven(100001),
+    depth: depth(100000),
+    nested: nested(100000),
+    mapped: [3, 4].map(countdown),
+  }
+}

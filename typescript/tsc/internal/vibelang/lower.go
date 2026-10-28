@@ -315,6 +315,8 @@ func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 		return tx.visitPlainFunctionDeclaration(node)
 	case node.Kind == ast.KindFunctionDeclaration && tx.plan.cyclicDirects[node]:
 		return tx.visitCyclicPlainFunctionDeclaration(node)
+	case node.Kind == ast.KindVariableStatement && tx.plan.cyclicDirects[cycleArrowOf(node)]:
+		return tx.visitCyclicPlainFunctionDeclaration(cycleArrowOf(node))
 	case node.Kind == ast.KindCallExpression && tx.plan.wireOrders[node] != nil:
 		return tx.visitWireCall(node)
 	case tx.plan.producers[node]:
@@ -818,7 +820,7 @@ func (tx *lowering) visitEffectFunctionDeclaration(node *ast.Node) *ast.Node {
 	// A source directive such as "use strict" also governs the forwarding
 	// declaration's receiver coercion when the file emits as a script.
 	var statements []*ast.Node
-	for _, statement := range node.Body().Statements() {
+	for _, statement := range bodyStatements(node.Body()) {
 		if !ast.IsPrologueDirective(statement) {
 			break
 		}
@@ -842,7 +844,11 @@ func (tx *lowering) effectFunctionDeclaration(node *ast.Node, parameters *ast.No
 	if ast.HasSyntacticModifier(node, ast.ModifierFlagsDefault) {
 		modifiers = append(modifiers, f.NewModifier(ast.KindDefaultKeyword))
 	}
-	statement := f.NewFunctionDeclaration(f.NewModifierList(modifiers), nil, node.Name(), nil, parameters, nil, nil, body)
+	name := node.Name()
+	if name == nil {
+		name = f.NewIdentifier(functionName(node)) // an arrow a const holds (constArrowOf)
+	}
+	statement := f.NewFunctionDeclaration(f.NewModifierList(modifiers), nil, name, nil, parameters, nil, nil, body)
 	tx.EmitContext().SetOriginal(statement, node)
 	statement.Loc = node.Loc
 	return statement
