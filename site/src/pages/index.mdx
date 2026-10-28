@@ -266,7 +266,7 @@ function getTodo(id: number) {
 // string!TodoFailed!
 
 function todoOrFallback(id: number) {
-  return retry(getTodo(id), Schedule.recurs(2)) catch "Todo unavailable"
+  return retry(() => getTodo(id), Schedule.recurs(2)) catch "Todo unavailable"
 }
 ```
 

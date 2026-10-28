@@ -31,13 +31,13 @@ function check(condition: boolean, message: string) {
 
 // Output:
 it.effect("a deadline returns the fallback") {
-  const pending = fork(() => Effect.timeoutOrElse(() => {
+  const pending = fork Effect.timeoutOrElse(() => {
     sleep("10 minutes")
     return Option.some("finished")
   }, {
     duration: "30 seconds",
     orElse: () => Option.none<string>()
-  }))
+  })
 
   TestClock.adjust("30 seconds")
   const result = join pending

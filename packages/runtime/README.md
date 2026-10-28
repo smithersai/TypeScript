@@ -108,6 +108,7 @@ JavaScript value. Decisions are in [`docs/design/DECISIONS.md`](../../docs/desig
 | `$noFailure` | Sentinel for a Cause without a recoverable expected failure | — |
 | `$noMatch` | Throw for a value that no match arm handled | — |
 | `$patternError` | Mark an unsupported pattern during checking | — |
+| `$provideEntries` | Provide a block's entries: a `Key = value` service as `Effect.provideService` does, a layer through `Effect.provide` | D173 |
 | `$provideService` | Supply a service implementation | — |
 | `$rest` | Extract object rest properties for a pattern | — |
 | `$schemaErrorFamily` | Register a schema error family and its union schema | — |
