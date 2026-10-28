@@ -70,14 +70,9 @@ export async function stageToolchain({ vibelang, out }) {
   return toolchain
 }
 
-/** Reads a staged toolchain: absolute paths to its compiler and tarballs. */
+/** Reads a staged toolchain: its compiler's absolute path, and its tarballs' names in dir. */
 export function readToolchain(dir) {
   dir = resolve(dir)
   const t = readJson(join(dir, "toolchain.json"))
-  return {
-    ...t,
-    dir,
-    compiler: join(dir, t.compiler),
-    specs: Object.fromEntries(Object.entries(t.packages).map(([name, file]) => [name, `file:${join(dir, file)}`]))
-  }
+  return { ...t, dir, compiler: join(dir, t.compiler) }
 }

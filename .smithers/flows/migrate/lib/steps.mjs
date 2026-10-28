@@ -2,7 +2,7 @@
 // run as a step of flow.ts or alone from step.mjs, and a later step reads what
 // an earlier one recorded. A step that has already recorded its result returns
 // it without running again.
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join, posix, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { buildInventory, listSources, readCoverage } from "./inventory.mjs"
@@ -17,6 +17,7 @@ import { repairPrompt } from "./repair.mjs"
 import * as Jj from "./jj.mjs"
 import * as Wire from "./wire.mjs"
 import { readToolchain } from "./toolchain.mjs"
+import { assertPortable, machineRoots } from "./portable.mjs"
 import { appendJsonl, batchName, must, readJson, readJsonIf, run as sh, slug, writeJson, writeText } from "./util.mjs"
 
 export const flowDir = fileURLToPath(new URL("../", import.meta.url))
@@ -143,7 +144,25 @@ async function wireTarget(config, log) {
   const t = config.target
   const changed = []
   const toolchain = config.toolchain.kind === "staged" ? readToolchain(config.toolchain.dir) : null
-  const specs = toolchain ? toolchain.specs : { vibelang: config.toolchain.version, "vibelang-runtime": config.toolchain.version, "vibelang-vite": config.toolchain.version }
+  // A staged toolchain's tarballs go into an ignored directory at the target's
+  // root, named relatively by each package; a published version is an exact
+  // registry version, and a toolchain directory an earlier run left is removed.
+  const ignore = join(t, ".gitignore")
+  const ignoreText = existsSync(ignore) ? readFileSync(ignore, "utf8") : ""
+  const ignoreNext = Wire.setIgnoreLine(ignoreText, `${Wire.toolchainDirectory}/`, Boolean(toolchain))
+  if (ignoreNext !== ignoreText) {
+    writeFileSync(ignore, ignoreNext)
+    changed.push(".gitignore")
+  }
+  const local = join(t, Wire.toolchainDirectory)
+  rmSync(local, { recursive: true, force: true })
+  if (toolchain) {
+    mkdirSync(local, { recursive: true })
+    for (const file of Object.values(toolchain.packages)) copyFileSync(join(toolchain.dir, file), join(local, file))
+  }
+  const specsFor = (pkg) => (toolchain
+    ? Wire.toolchainSpecs(pkg.dir, toolchain.packages)
+    : { vibelang: config.toolchain.version, "vibelang-runtime": config.toolchain.version, "vibelang-vite": config.toolchain.version })
   let effect = toolchain?.effect
   if (!effect) {
     const { stdout } = await must(`npm view vibelang-runtime@${config.toolchain.version} peerDependencies.effect`)
@@ -176,7 +195,7 @@ async function wireTarget(config, log) {
   const warnings = []
   for (const { pkg, path, json } of pkgJson) {
     let next = pkg.dir === "." ? root : json
-    next = Wire.addVibeLang(Wire.pinDependencies(next, pins), specs)
+    next = Wire.addVibeLang(Wire.pinDependencies(next, pins), specsFor(pkg))
     next.scripts = Wire.replaceTsc(next.scripts)
     writeIfChanged(path, readFileSync(path, "utf8"), JSON.stringify(next, null, 2) + "\n")
     const dir = join(t, pkg.dir)
@@ -190,7 +209,7 @@ async function wireTarget(config, log) {
   }
   const install = config.install ?? Wire.installCommand(manager)
   await must(install, { cwd: t, log: join(log, "install.log") })
-  return { manager, effect, pins, specs, changed, warnings, install }
+  return { manager, effect, pins, specs: Object.fromEntries(config.packages.map((pkg) => [pkg.dir, specsFor(pkg)])), changed, warnings, install }
 }
 
 /** setup: wire the toolchain, install, record the baseline tests, compile, declarations and inventory, and commit. */
@@ -258,6 +277,7 @@ export async function setup(options) {
   const inventory = buildInventory({ root: t, packages: config.packages, tokens, coverage: readCoverage(t, config.packages) })
   writeJson(p.inventory, inventory)
 
+  await assertPortable(t, machineRoots(t, p.run, config.toolchain.dir))
   const setupCommit = await Jj.commit(t, `migrate(vibelang): set up ${version.trim()}\n\nPins Effect ${wired?.effect ?? ""} for vibelang-runtime, adds the compiler and the Vite plugin, and lets .vibe files import modules by source name.`)
   await Jj.setBookmark(t, config.bookmark, setupCommit ?? baseCommit)
   const result = {
@@ -473,6 +493,7 @@ export async function record(options) {
     `Tokens (o200k) of the migrated files: ${before} -> ${now} (${tokens.percent ?? 0}%).`,
     `Verify: ${verified?.ok ? "tests, declarations and style pass" : `forced: ${options.force}`}.`
   ]
+  await assertPortable(t, machineRoots(t, p.run, config.toolchain.dir))
   const commit = await Jj.commit(t, lines.join("\n"))
   if (commit) await Jj.setBookmark(t, config.bookmark, commit)
   const result = { batch: b, at: new Date().toISOString(), commit, bookmark: config.bookmark, files: rows, tokens, forced: verified?.ok ? null : options.force }

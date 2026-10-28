@@ -31,7 +31,13 @@ sh scripts/build-vibelang.sh && (cd packages/runtime && bun install && bun run b
 node .smithers/flows/migrate/step.mjs toolchain --vibelang . --out <toolchain>
 ```
 
-The toolchain holds the native compiler, npm tarballs of `vibelang` (with that compiler), `vibelang-runtime` and `vibelang-vite`, and the TypeScript compiler API that reads declarations. Setup writes a staged toolchain's tarballs into the target's `package.json` as `file:` paths on the build host; a published version writes exact npm versions instead. The target must be a jj repository or a Git checkout, which setup makes a colocated jj repository.
+The toolchain holds the native compiler, npm tarballs of `vibelang` (with that compiler), `vibelang-runtime` and `vibelang-vite`, and the TypeScript compiler API that reads declarations. Setup copies the tarballs into `.vibelang-toolchain/` at the target's root, adds that directory to the target's `.gitignore`, and names them relatively from each package (`file:../../.vibelang-toolchain/vibelang-0.0.11.tgz`), so no commit names a path on the build host. Every commit the flow makes first checks the lines it adds for this machine's absolute paths and refuses them. The target must be a jj repository or a Git checkout, which setup makes a colocated jj repository.
+
+### Registry versions
+
+Once VibeLang publishes the version a migration needs, use the registry instead of a staged toolchain: run setup with `--vibelang-version <version>` in place of `--toolchain <dir>`. Setup then writes exact versions (`"vibelang": "0.0.12"`) and makes no `.vibelang-toolchain/`. Anyone can install the result, and the fork's pull request no longer depends on the tarballs.
+
+To switch a target that a staged toolchain set up, start a new run on it with `--vibelang-version`. Setup continues on the `vibe` bookmark. It replaces the three `file:` specifiers with the version, deletes `.vibelang-toolchain/` and its `.gitignore` line, reinstalls, records a new baseline, and commits the switch on top. The batches already on `vibe` stay as they are.
 
 ### Step by step
 

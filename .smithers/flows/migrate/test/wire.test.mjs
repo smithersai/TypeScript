@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { addCompilerOptions, addVibeLang, addVitePlugin, effectPins, installCommand, packageManager, pinDependencies, replaceTsc, setJsonOverrides, setYamlOverrides } from "../lib/wire.mjs"
+import { addCompilerOptions, addVibeLang, addVitePlugin, effectPins, installCommand, packageManager, pinDependencies, replaceTsc, setIgnoreLine, setJsonOverrides, setYamlOverrides, toolchainSpecs } from "../lib/wire.mjs"
 
 test("effectPins moves effect and its lockstep packages, not separately versioned ones", () => {
   assert.deepEqual(effectPins({ effect: "4.0.0", "@effect/platform-browser": "4.0.0", "@effect/vitest": "^4.0.0", "@effect/tsgo": "0.50.0", "@effect/platform-node": "4.0.0" }, "4.0.6"), {
@@ -97,4 +97,23 @@ test("packageManager reads the lockfile", () => {
   assert.equal(packageManager(["bun.lock"]), "bun")
   assert.equal(packageManager(["package.json"]), "npm")
   assert.equal(installCommand("pnpm"), "pnpm install --no-frozen-lockfile")
+})
+
+test("a staged toolchain's specifiers are relative to each package, into the ignored root directory", () => {
+  const tarballs = { vibelang: "vibelang-0.0.11.tgz", "vibelang-runtime": "vibelang-runtime-0.0.11.tgz" }
+  assert.deepEqual(toolchainSpecs("packages/foldkit", tarballs), {
+    vibelang: "file:../../.vibelang-toolchain/vibelang-0.0.11.tgz",
+    "vibelang-runtime": "file:../../.vibelang-toolchain/vibelang-runtime-0.0.11.tgz"
+  })
+  assert.equal(toolchainSpecs(".", tarballs).vibelang, "file:./.vibelang-toolchain/vibelang-0.0.11.tgz")
+  assert.equal(toolchainSpecs("apps/web/", tarballs).vibelang, "file:../../.vibelang-toolchain/vibelang-0.0.11.tgz")
+})
+
+test("setIgnoreLine adds the toolchain directory once and removes it for a published version", () => {
+  assert.equal(setIgnoreLine("node_modules\ndist", ".vibelang-toolchain/", true), "node_modules\ndist\n.vibelang-toolchain/\n")
+  assert.equal(setIgnoreLine("", ".vibelang-toolchain/", true), ".vibelang-toolchain/\n")
+  const added = setIgnoreLine("node_modules\n", ".vibelang-toolchain/", true)
+  assert.equal(setIgnoreLine(added, ".vibelang-toolchain/", true), added)
+  assert.equal(setIgnoreLine(added, ".vibelang-toolchain/", false), "node_modules\n")
+  assert.equal(setIgnoreLine("node_modules\n", ".vibelang-toolchain/", false), "node_modules\n")
 })

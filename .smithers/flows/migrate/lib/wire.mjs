@@ -141,3 +141,24 @@ export const installCommand = (manager) => ({
   yarn: "yarn install",
   npm: "npm install"
 })[manager]
+
+/** Where a staged toolchain's tarballs live in the target: at its root, ignored, so no commit names the machine's own paths. */
+export const toolchainDirectory = ".vibelang-toolchain"
+
+/**
+ * The dependency specifiers of a package at packageDir (relative to the
+ * repository root) for tarballs in the root's toolchain directory:
+ * file:../../.vibelang-toolchain/vibelang-0.0.11.tgz from packages/x.
+ */
+export function toolchainSpecs(packageDir, tarballs) {
+  const up = packageDir === "." || packageDir === "" ? "./" : "../".repeat(packageDir.split("/").filter(Boolean).length)
+  return Object.fromEntries(Object.entries(tarballs).map(([name, file]) => [name, `file:${up}${toolchainDirectory}/${file}`]))
+}
+
+/** A .gitignore's text with line present (add) or absent (remove); other lines are kept. */
+export function setIgnoreLine(text, line, present) {
+  const lines = text.split("\n")
+  const has = lines.some((l) => l.trim() === line)
+  if (present) return has ? text : `${text}${text && !text.endsWith("\n") ? "\n" : ""}${line}\n`
+  return has ? lines.filter((l) => l.trim() !== line).join("\n") : text
+}
