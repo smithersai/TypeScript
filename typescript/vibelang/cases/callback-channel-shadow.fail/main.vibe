@@ -1,0 +1,39 @@
+// expect: EK2130
+// In a function with a contract-less callback parameter, E and R, then E2
+// and R2, name the callbacks' channels in its contract and its other
+// parameters' types (D434). Where a type of that name is already in scope, a
+// type alias, interface, class or type parameter, and the contract rejects
+// the body, the name is EK2130, in place of the EK2001 and EK2002 that read
+// the name one way or the other ("its contract says R = R").
+type E = string
+
+interface R {
+  r: number
+}
+
+export function run(work: () => number): number!E {
+  return work()
+}
+
+export function withTag<E>(work: () => number, tag: E): number!never!R {
+  return work()
+}
+
+export function second(a: () => number, b: () => string, tag: E2): string!!R2 {
+  a()
+  return b()
+}
+
+type E2 = "e2"
+
+class R2 {}
+
+// A signature whose contract accepts its body still compiles.
+export function quiet<E>(work: () => number, tag: E): E!! {
+  return tag
+}
+
+// Channels written as the function's own type parameters name nothing else.
+export function own<F, Q>(work: () => number!F!Q): number!F!Q {
+  return work()
+}

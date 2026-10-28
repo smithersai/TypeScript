@@ -258,9 +258,25 @@ func (a *analyzer) checkContract(file *ast.SourceFile, fn *ast.Node) {
 	}
 	contractType := c.GetReturnTypeOfSignature(c.GetSignatureFromDeclaration(fn))
 	name := functionDisplayName(fn)
+	var errorEscapes, requirementEscapes []escape
+	if !k.inferred(channelE) {
+		errorEscapes = escapes(c, info.errors, info.errorSources, channelType(c, contractType, "_E"))
+	}
+	if !k.inferred(channelR) {
+		requirementEscapes = escapes(c, info.requirements, info.requirementSources, channelType(c, contractType, "_R"))
+	}
+	if len(errorEscapes)+len(requirementEscapes) > 0 {
+		if collisions := a.channelNameCollisions(fn); len(collisions) > 0 {
+			// The contract names a callback's channel and a type at once
+			// (callback_channels.go): EK2130 says so, where EK2001 and EK2002
+			// would read the name one way or the other.
+			reportChannelNameCollisions(c, file, collisions)
+			return
+		}
+	}
 	if !k.inferred(channelE) {
 		declared := channelType(c, contractType, "_E")
-		for _, escape := range escapes(c, info.errors, info.errorSources, declared) {
+		for _, escape := range errorEscapes {
 			d := report(c, escape.source, EK2001, c.TypeToString(escape.t), name, "its contract says E = "+c.TypeToString(declared))
 			if parameter := a.uncontractedCallbackOf(fn, escape.t); parameter != nil {
 				note(d, "{0} has no Effect contract, so a call to it can fail with any {1}. If it cannot fail, write its contract: {2}", declarationName(parameter), c.TypeToString(escape.t), callbackContractText(file, parameter))
@@ -270,7 +286,7 @@ func (a *analyzer) checkContract(file *ast.SourceFile, fn *ast.Node) {
 	}
 	if !k.inferred(channelR) {
 		declared := channelType(c, contractType, "_R")
-		for _, escape := range escapes(c, info.requirements, info.requirementSources, declared) {
+		for _, escape := range requirementEscapes {
 			d := report(c, escape.source, EK2002, name, c.TypeToString(escape.t), c.TypeToString(declared))
 			note(d, "Provide {0} inside {1} with provide layer { … }, or add it to the contract: {2}.", c.TypeToString(escape.t), name, contractText(c, contractType, channelR, escape.t))
 		}
