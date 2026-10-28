@@ -573,6 +573,22 @@ func runningText(c *checker.Checker, file *ast.SourceFile, node *ast.Node) (stri
 	return runningExpressionText(c, node, expressionText(file, node))
 }
 
+// thunkBody returns B when node is an arrow function, () => B, whose body B
+// is a call: a call of the arrow in place runs B where it stands, so a
+// rewrite writes load(id), not (() => load(id))(). It returns node otherwise,
+// and for an arrow that declares parameters, type parameters or a return
+// type, which B alone would drop.
+func thunkBody(node *ast.Node) *ast.Node {
+	arrow := ast.SkipParentheses(node)
+	if !ast.IsArrowFunction(arrow) || len(arrow.Parameters()) > 0 || arrow.TypeParameters() != nil || arrow.Type() != nil || ast.HasSyntacticModifier(arrow, ast.ModifierFlagsAsync) {
+		return node
+	}
+	if body := arrow.Body(); body != nil && !ast.IsBlock(body) && isInvocation(ast.SkipParentheses(body)) {
+		return body
+	}
+	return node
+}
+
 // runningExpressionText is runningText with source text whose identifiers may
 // have been hygienically renamed by a source rewrite.
 func runningExpressionText(c *checker.Checker, node *ast.Node, text string) (string, bool) {

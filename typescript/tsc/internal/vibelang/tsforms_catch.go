@@ -163,7 +163,7 @@ func catchCombinatorRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.
 	if self, inner := methodCatchParts(c, call); self != nil {
 		arguments = append([]*ast.Node{self}, inner.Arguments()...)
 	}
-	self := arguments[0]
+	self := thunkBody(arguments[0])
 	left, runs := runningText(c, file, self)
 	if !runs {
 		return nil

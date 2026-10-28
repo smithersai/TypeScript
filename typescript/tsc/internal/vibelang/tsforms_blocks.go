@@ -123,7 +123,7 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 	eager := !(isInvocation(operand) && analyzerFor(c).isByName(arguments[0])) &&
 		!ast.IsArrowFunction(operand) && !ast.IsFunctionExpression(operand) &&
 		!stableBindingRead(c, file, operand)
-	program, runs := runningText(c, file, arguments[0])
+	program, runs := runningText(c, file, thunkBody(arguments[0]))
 	if !runs {
 		return nil
 	}
