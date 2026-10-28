@@ -217,6 +217,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Tooling and bundlers
 
+- `vibelang --fix` left `pipe(x, Option.map(f), Option.getOrElse(g))` pipelines for you to rewrite with Option's methods. They now draw EK4840, whose quick fix writes `x.map(f).getOrElse(g)` through the same data-first functions.
 - `vibelang --fix` left Effect `Match` chains, `Match.value(x).pipe(Match.when(…), …, Match.exhaustive)`, for you to rewrite as a `match` expression. They now draw EK4839, whose quick fix writes the `match` wherever its arms test and give the same, with the chain's type.
 - `vibelang --fix` left every `Effect.gen(function* () { … })` program for you to rewrite by hand (EK1002). It now writes the body in direct style, each `yield* e` as the call that runs `e`, wherever that keeps what the program does, and EK1002's note says why where it does not.
 - In JavaScript that the experimental TypeScript content mapper emits, a module in an import cycle that called a plain VibeLang function, or passed one as a callback, before the exporting module had run got programs that never ran instead of values. It now gets the values, and no fiber or runner starts.

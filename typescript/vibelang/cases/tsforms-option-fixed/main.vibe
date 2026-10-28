@@ -1,0 +1,26 @@
+// expect-result: {"names":["ADA","anon"],"next":[2,null],"sizes":[3,0],"values":[5,null],"labels":["HI",""]}
+// An Option pipeline whose every stage is a function of the Option module
+// draws EK4840 (D473), whose quick fix writes it with Option's methods.
+// tsforms-option-fixed is what vibelang --fix writes.
+export const name = (nick: Option<string>) => nick.map((s) => s.trim().toUpperCase()).getOrElse(() => "anon")
+
+export const next = (o: Option<number>) => o.map((n) => n + 1).getOrNull()
+
+export const size = (id: string | null) => Option.fromNullishOr(id).map((s) => s.length).getOrElse(() => 0)
+
+export const value = (o: Option<number>) => o.getOrNull()
+
+export const label = (o: Option<string>) =>
+  o
+    .map((s) => s.toUpperCase())
+    .getOrElse(() => "")
+
+export function main() {
+  return {
+    names: [name(Option.some(" ada ")), name(Option.none())],
+    next: [next(Option.some(1)), next(Option.none())],
+    sizes: [size("abc"), size(null)],
+    values: [value(Option.some(5)), value(Option.none())],
+    labels: [label(Option.some("hi")), label(Option.none())],
+  }
+}
