@@ -446,6 +446,13 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   the program unrun instead of running it once, and the same call at a
   module's top level compiles instead of failing with EK1001. Call the
   result, `pick(load)()`, and drop that extra call once this is fixed.
+- A function with an Effect contract whose body compiles to plain
+  JavaScript, such as `function twice(n: number): number!! { return n * 2 }`
+  or `(x): number!! => x + 1`, is accepted where only a plain function fits:
+  at a module's top level, in a plain function, as a plain callback, or as
+  an overload's plain candidate. It runs synchronously there, and adding a
+  pause to its body later turns each such use into an error. Call it only
+  from Effect code, or remove the Effect contract if it is meant to be plain.
 
 #### Errors
 
@@ -564,6 +571,13 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
 - A service inside a namespace can work at runtime but lose its service-key
   API in generated declarations, so TypeScript consumers reject it as a
   provider key. Declare and export the service at the top level.
+- A generated `.d.ts` types an exported function with no return contract
+  and a body that compiles to plain JavaScript, such as
+  `export function double(n: number) { return n * 2 }`, as returning an
+  Effect. A consumer compiled against the `.d.ts` instead of the source
+  gets unrun Effects from `[1, 2].map(double)`, with no diagnostic, and
+  `double(2)` at its top level is `EK1001`. Give such an export a plain
+  return contract, `double(n: number): number`, which the `.d.ts` keeps.
 
 #### `--fix` and the formatter
 
