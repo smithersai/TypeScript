@@ -1,0 +1,71 @@
+// expect-result: {"labels":["Idle","Other busy"],"areas":[12,9],"events":["open","closed: done"],"kinds":["token text","oauth","numbered"],"sizes":[3,2],"counts":["one","many"]}
+// A choice written with Effect's Match functions draws EK4839 (D472), whose
+// quick fix writes a match expression with the same arms and type.
+// tsforms-match-fixed is what vibelang --fix writes.
+type Status = "idle" | "busy"
+
+export function label(status: Status): string {
+  return Match.value(status).pipe(
+    Match.when("idle", () => "Idle"),
+    // anything else
+    Match.orElse((other) => "Other " + other),
+  )
+}
+
+type Shape = { readonly _tag: "Circle"; readonly radius: number } | { readonly _tag: "Square"; readonly side: number }
+
+export function area(shape: Shape): number {
+  return Match.value(shape).pipe(
+    Match.tag("Circle", ({ radius }) => 3 * radius * radius),
+    Match.tag("Square", (square) => square.side * square.side),
+    Match.exhaustive,
+  )
+}
+
+type Event = { readonly _tag: "Opened" } | { readonly _tag: "Closed"; readonly reason: string }
+
+export const describe = (event: Event) =>
+  Match.value(event).pipe(
+    Match.withReturnType<string>(),
+    Match.tagsExhaustive({
+      Opened: () => "open",
+      Closed: ({ reason }) => {
+        const text = reason.trim()
+        return "closed: " + text
+      },
+    }),
+  )
+
+type Config = { readonly method: "token" | "oauth" | "none"; readonly value: string | number }
+
+export function kind(config: Config): string {
+  return Match.value(config).pipe(
+    Match.when({ method: "token", value: Match.string }, () => "token text"),
+    Match.whenOr({ method: "oauth" }, { method: "none" }, (c) => c.method),
+    Match.not({ value: Match.number }, () => "other"),
+    Match.orElse(() => "numbered"),
+  )
+}
+
+export const size = pipe(
+  Match.type<number | string>(),
+  Match.when(Match.number, (n) => n),
+  Match.when(Match.string, (s) => s.length),
+  Match.exhaustive
+)
+
+export function count(n: number) {
+  const word = Match.value(n).pipe(Match.when(1, () => "one"), Match.orElse(() => "many"))
+  return word
+}
+
+export function main() {
+  return {
+    labels: [label("idle"), label("busy")],
+    areas: [area({ _tag: "Circle", radius: 2 }), area({ _tag: "Square", side: 3 })],
+    events: [describe({ _tag: "Opened" }), describe({ _tag: "Closed", reason: " done " })],
+    kinds: [kind({ method: "token", value: "t" }), kind({ method: "oauth", value: 1 }), kind({ method: "token", value: 2 })],
+    sizes: [size(3), size("ab")],
+    counts: [count(1), count(5)],
+  }
+}

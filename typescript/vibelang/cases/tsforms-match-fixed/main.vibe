@@ -1,0 +1,65 @@
+// expect-result: {"labels":["Idle","Other busy"],"areas":[12,9],"events":["open","closed: done"],"kinds":["token text","oauth","numbered"],"sizes":[3,2],"counts":["one","many"]}
+// A choice written with Effect's Match functions draws EK4839 (D472), whose
+// quick fix writes a match expression with the same arms and type.
+// tsforms-match-fixed is what vibelang --fix writes.
+type Status = "idle" | "busy"
+
+export function label(status: Status): string {
+  return match (status) {
+    when "idle": "Idle";
+    // anything else
+    when let other: "Other " + other;
+  }
+}
+
+type Shape = { readonly _tag: "Circle"; readonly radius: number } | { readonly _tag: "Square"; readonly side: number }
+
+export function area(shape: Shape): number {
+  return match (shape) {
+    when { _tag: "Circle", let radius }: 3 * radius * radius;
+    when { _tag: "Square" } and let square: square.side * square.side;
+  }
+}
+
+type Event = { readonly _tag: "Opened" } | { readonly _tag: "Closed"; readonly reason: string }
+
+export const describe = (event: Event) =>
+  (match (event) {
+    when { _tag: "Opened" }: "open";
+    when { _tag: "Closed", let reason }: do {
+      const text = reason.trim()
+      "closed: " + text
+    };
+  } as string)
+
+type Config = { readonly method: "token" | "oauth" | "none"; readonly value: string | number }
+
+export function kind(config: Config): string {
+  return match (config) {
+    when { method: "token", value: String }: "token text";
+    when ({ method: "oauth" } or { method: "none" }) and let c: c.method;
+    when not { value: Number }: "other";
+    default: "numbered";
+  }
+}
+
+export const size = (u: string | number) => match (u) {
+  when Number and let n: n;
+  when String and let s: s.length;
+}
+
+export function count(n: number) {
+  const word: string = match (n) { when 1: "one"; default: "many"; }
+  return word
+}
+
+export function main() {
+  return {
+    labels: [label("idle"), label("busy")],
+    areas: [area({ _tag: "Circle", radius: 2 }), area({ _tag: "Square", side: 3 })],
+    events: [describe({ _tag: "Opened" }), describe({ _tag: "Closed", reason: " done " })],
+    kinds: [kind({ method: "token", value: "t" }), kind({ method: "oauth", value: 1 }), kind({ method: "token", value: 2 })],
+    sizes: [size(3), size("ab")],
+    counts: [count(1), count(5)],
+  }
+}
