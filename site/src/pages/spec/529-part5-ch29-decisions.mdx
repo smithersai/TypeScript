@@ -315,14 +315,14 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D348 | A Cause `throw` is decided by the operand's declared type; EK2140 | `unknown` and unions had no rule | Superseded by D406 | 3, 17 |
 | D349 | A catch binding is checked as code after the try block | The binding's type was not checked as flow |  | 3 |
 | D350 | A throw expression in a parameter default is EK1001 | It silently did nothing |  | 3 |
-| D351 | A handler has one answer type, and EK2119 is an error | A warning let a `resume` return outside its type | Amended by D410 | 9, 20 |
+| D351 | A handler has one answer type, and EK2119 is an error | A warning let a `resume` return outside its type | Amended by D410, D467 | 9, 20 |
 | D352 | A function known from a declaration is TypeScript to the handler check | Declarations carry no proof of a body |  | 9, 16 |
 | D353 | Every block owns its forks, an expression body included; an escaping block-owned fiber is an error, EK4838 (D386) | Lifetime depended on braces | Amended by D386, D408, D409 | 7, 26 |
 | D354 | Interrupting several fibers signals all before waiting; fiber forms read their operands once | Sequential interruption and double reads |  | 7 |
 | D355 | The E guarantee is stated with its assumptions, and D256 stands beside D15 | No chapter said what E promises |  | 14, 17 |
 | D356 | A construct closes the iterators it opens on every exit | Early exits leaked iterators | Amended by D404 | 7, 8, 26 |
 | D360 | The specification is the one normative text; the decision log records why | Contradictory amendments and an incomplete index |  | Intro, 29 |
-| D361 | A service's identifier is nominal: a required brand; implementations have the shape | An optional brand let a structural type relabel a requirement |  | 4, 27 |
+| D361 | A service's identifier is nominal: a required brand; implementations have the shape | An optional brand let a structural type relabel a requirement | Amended by D466 | 4, 27 |
 | D362 | A provider removes only the services it provides on every path; EK3207 for anything else | Unions, empty arrays, invalid values, and unchecked defaults compiled and died |  | 4 |
 | D363 | `wire` is recognized by symbol, keeps argument order, and never lets a layer provide its own input | Aliases skipped ordering; arguments ran reordered |  | 4 |
 | D364 | A `module` declaration is an ECMAScript module: live bindings, import order, case-sensitive names | An import denotes a binding, not a snapshot | Amended by D403 | 11, 26 |
@@ -368,9 +368,9 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D404 | JavaScript's own `for...of` is emitted only where its iterator close keeps both failures | `IteratorClose` drops a second failure | Amended by D424 | 8, 13, 17, 26 |
 | D405 | Every arm's test runs, the last arm's included | A literal-typed field may be a getter |  | 3, 11, 26 |
 | D406 | `throw` has one meaning; `Effect.failCause` rethrows a cause; EK2140 | Widening a Cause to `unknown` changed recovery |  | 3, 5, 13, 17, 28 |
-| D407 | `error` declarations are nominal; a class arm counts toward exhaustiveness only for a closed class | Same-shaped classes and custom `Symbol.hasInstance` defeated coverage | Amended by D427, D428 | 3, 14, 26, 27, 28 |
-| D408 | A fiber belongs to a region the source names, never to braces | Braces the formatter may add changed a fiber's lifetime |  | 7, 12, 13, 17, 20, 26, 28 |
-| D409 | A fiber stays with its owner by a flow rule the compiler checks; EK4838 | "Outlives the block" had no criterion | Amended by D455 | 7, 28 |
+| D407 | `error` declarations are nominal; a class arm counts toward exhaustiveness only for a closed class | Same-shaped classes and custom `Symbol.hasInstance` defeated coverage | Amended by D427, D428, D465 | 3, 14, 26, 27, 28 |
+| D408 | A fiber belongs to a region the source names, never to braces | Braces the formatter may add changed a fiber's lifetime | Amended by D464 | 7, 12, 13, 17, 20, 26, 28 |
+| D409 | A fiber stays with its owner by a flow rule the compiler checks; EK4838 | "Outlives the block" had no criterion | Amended by D455, D464 | 7, 28 |
 | D410 | A handler's left-out returns and its continuation's uses are read from syntax; EK2128 | "Computed from" and "`k` stays" were unchecked | Amended by D440 | 9, 28, 30 |
 | D411 | Every plain function carries a type-only plain marker, which declaration consumers trust | A phantom value member; plain-annotated exports were EK4401 to consumers | Amended by D421, D431, D445 | 10, 15, 26, 27 |
 | D412 | A plain function's recursion continues on heap frames, annotated or not | An annotation changed a deep recursion's exit |  | 15 |
@@ -425,6 +425,10 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D461 | A destination reaches both operands of `??` and `\|\|` and the right operand of `&&` | TypeScript types the left operand of `\|\|` and `??` by the destination too |  | 13, 30 |
 | D462 | A parenthesized await operation's literal operand is deferred; `join`'s operand is evaluated, never deferred | The grammar note evaluated `await.all([a(), b()])`'s elements; rule H called `join`'s operand deferred |  | 13, 30, Appendices |
 | D463 | EK4802 covers an Effect-form callback that returns a program where an Effect-returning callback is expected | Adding a log line to `(v) => cached` silently stopped `cached` from running |  | 13, 28, 30 |
+| D464 | `do` blocks and `match` arms own no fibers; `await f` of an owned fiber is EK4609 alone; a capture inside a `fork` operand is EK4838 | The ownership and escape rules left these edges unstated |  | 7, 28, 30 |
+| D465 | An `error` declaration's declaration carries `#private` and a merged-namespace `$error` marker; `effect`'s error classes are those extending `YieldableError` | A declaration consumer could not tell a closed `error` from an open class |  | 3, 14, 26, 27, 30, Appendices |
+| D466 | A service's emitted declaration imports `ServiceBrand` and uses `ServiceKey` or `ReferenceKey`; "only identifiers in R" is assignability | The emitted shape and the R rule's diagnostic were unstated |  | 4, 27, 30 |
+| D467 | A handler's answer type adds `undefined` only for a completion other than by returning | "Ends another way" was loose |  | 9 |
 
 #### Rules of the runtime and compiler
 

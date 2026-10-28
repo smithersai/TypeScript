@@ -250,8 +250,17 @@ against it may rely on [Rule] (D366).
    when they come to `never`; a slot the source fills stays.
 5. **Every nesting level.** A `service`, `control`, `error`, `schema`, or
    `data` declaration emits the same declarations inside a `namespace` as at
-   a file's top level. An `error` declaration's class declares its private
-   brand member, which makes it nominal to stock TypeScript too (D407).
+   a file's top level. An `error` declaration's class declares `#private;`,
+   which makes it nominal to stock TypeScript too (D407), and a namespace
+   merged with it declares the type-only marker that makes it a closed
+   `error` declaration to a declaration consumer, with `ErrorBrand` a type
+   import of `vibelang-runtime`:
+   `export declare namespace NotFound { type $error = ErrorBrand<"@acme/app/src/users#NotFound"> }`.
+   A namespace is not inherited, so each `error` declaration, a subclass
+   included, writes its own, and a TypeScript subclass has none; a brand on
+   the class itself would be inherited, and an instance member would mark
+   TypeScript subclasses too and make two families' brands conflict (TS2320)
+   (D465).
 6. **Hygienic.** A name that declaration emit adds, such as a key's base
    constant or a prelude import's alias (D123), is fresh against every name
    the file declares or imports (Chapter 13, rule H6).
@@ -271,6 +280,7 @@ implement its shape:
 
 ```ts dts
 import { Effect } from "effect"
+import type { ServiceBrand } from "vibelang-runtime"
 export interface Users extends Users.Shape, ServiceBrand<"@acme/app/src/users#Users"> {}
 declare const Users_base: import("vibelang-runtime").ServiceKey<Users, Users.Shape>
 export declare abstract class Users extends Users_base {}
@@ -281,7 +291,8 @@ export declare namespace Users {
 }
 ```
 
-A default service uses `ReferenceKey`. A service inside a namespace is written
+A default service's key is `ReferenceKey<Users.Shape>` in place of
+`ServiceKey<Users, Users.Shape>` (D466). A service inside a namespace is written
 the same way inside the namespace's body, without `declare`; the body then
 exports its members explicitly and ends with `export {}`, which keeps the base
 constant out of the namespace's exports. Declaration transforms add imports
@@ -293,7 +304,8 @@ preserve D12's callback parameters, and write source
 specifiers as `.js` (Chapter 26). TypeScript consumers need only the `.js`,
 `.d.ts`, `effect`, and runtime packages. A TypeScript class implements the
 service's shape, `implements Users.Shape`; `implements Users` asks for the
-brand, which no implementation has.
+brand, which no implementation has. A `.vibe` class written `implements Users`
+is emitted `implements Users.Shape` (D466).
 
 Trusted TypeScript contracts use `trusted(impl, [Errors])` (D249, Chapter 10).
 The older D23 declaration tags still affect the native compiler and draw
