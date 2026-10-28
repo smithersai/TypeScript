@@ -160,7 +160,7 @@ func checkProgramStarts(c *checker.Checker, file *ast.SourceFile) {
 			return false
 		}
 		if ast.IsCallExpression(node) {
-			if plain != nil && !a.passedAsProgram(node) && !discarded(node) {
+			if plain != nil && !a.passedAsProgram(node) {
 				if runs, explains := runsAtTopLevel(c, a, node); runs {
 					reportPlainCodeRun(c, file, node, plain)
 					if explains {
@@ -185,12 +185,6 @@ func checkProgramStarts(c *checker.Checker, file *ast.SourceFile) {
 		return node.ForEachChild(func(child *ast.Node) bool { return visit(child, topLevel, plain) })
 	}
 	file.AsNode().ForEachChild(func(child *ast.Node) bool { return visit(child, true, nil) })
-}
-
-// discarded reports whether call is a whole expression statement, whose
-// Effect value EK4801 reports as discarded.
-func discarded(call *ast.Node) bool {
-	return ast.IsExpressionStatement(ast.WalkUpParenthesizedExpressions(call).Parent)
 }
 
 // reportPlainCodeRun reports EK1001 for call, which would run a program in

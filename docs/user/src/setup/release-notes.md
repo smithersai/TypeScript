@@ -128,6 +128,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 - A `var` declaration inside a `do` expression previously compiled with the wrong scope; it now reports `EK1019` and offers `let` instead. Jumps that leave a `do` expression now report `EK1019`.
 
+- A running call used as a bare statement in a constructor, static block, getter or setter now reports EK1001 and explains that the surrounding code runs as plain JavaScript.
 - Running calls in getters, setters and parameter defaults now report EK1001 instead of silently returning or storing an unrun Effect, including defaults of Effect functions.
 - Effect functions now report EK4301 when assigned, returned or stored in a typed element that expects a plain function, including members of objects and class instances.
 - A plain call that finds no plain form now fails with a defect naming the function, instead of returning an unrun program.

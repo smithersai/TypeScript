@@ -135,7 +135,7 @@ func checkEffectRules(c *checker.Checker, file *ast.SourceFile) {
 // as `interrupt` or a function of no arguments that runs Effects: naming
 // one runs nothing (D24), so a program went on past `interrupt`. A call
 // that returns a program stays quiet; a call at a module's top level is
-// EK1001's.
+// EK1001's, as is a running call in code that stays plain JavaScript.
 func (r *ruleCheck) checkFloating(statement *ast.Node) {
 	expression := statement.Expression()
 	if isProvideLayer(statement) || isDiscardingForm(expression) || isHelperCall(expression) {
@@ -146,8 +146,17 @@ func (r *ruleCheck) checkFloating(statement *ast.Node) {
 		return
 	}
 	body := inLowerableBody(statement)
-	if !body && ast.IsCallExpression(ast.SkipParentheses(expression)) && ast.GetContainingFunction(statement) == nil {
-		return
+	if invocation := ast.SkipParentheses(expression); !body && ast.IsCallExpression(invocation) {
+		fn := ast.GetContainingFunction(statement)
+		if fn == nil {
+			return
+		}
+		switch fn.Kind {
+		case ast.KindConstructor, ast.KindGetAccessor, ast.KindSetAccessor, ast.KindClassStaticBlockDeclaration:
+			if !inHatch(statement) && r.a.runs(invocation) {
+				return
+			}
+		}
 	}
 	message := EK4801
 	if t := r.c.GetTypeAtLocation(expression); !isEffectType(r.c, t) {

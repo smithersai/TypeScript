@@ -1,0 +1,14 @@
+// expect: EK1001 EK1001 EK1001 EK1001 EK4801 EK4801
+function work() { sleep("1 millis"); return 1 }
+
+class Box {
+  constructor() { work() }
+  static { work() }
+  get value() { work(); return 1 }
+  set value(_value: number) { work() }
+}
+
+class References {
+  constructor() { work }
+  static { work }
+}
