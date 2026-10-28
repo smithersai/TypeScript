@@ -92,7 +92,7 @@ interface Cart {
 // interface Cart { readonly id: string; items: Array<string> }
 ```
 
-The declaration file writes `readonly`, so TypeScript code sees the same types. Readonly limits writes through the type, not the object: TypeScript assigns a mutable object to a readonly type, so TypeScript passes its objects in unchanged. Index signatures follow the same rule. Class members and arrays keep TypeScript's rules: write `ReadonlyArray` or `readonly T[]` for an array the code must not change.
+The declaration file writes `readonly`, so TypeScript code sees the same types, except in an object type that is `Readonly`'s type argument, `Readonly<{ id: string }>`, where `Readonly` makes the members readonly and the declaration file writes them as TypeScript would, without a `readonly` of their own. Readonly limits writes through the type, not the object: TypeScript assigns a mutable object to a readonly type, so TypeScript passes its objects in unchanged. Index signatures follow the same rule. Class members and arrays keep TypeScript's rules: write `ReadonlyArray` or `readonly T[]` for an array the code must not change.
 
 #### Inline TypeScript modules
 

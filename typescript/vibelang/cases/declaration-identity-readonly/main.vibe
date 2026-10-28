@@ -1,0 +1,13 @@
+// Readonly makes its object type's members readonly, so the declaration file
+// writes them as typescript/main.ts, the Effect TypeScript this file rewrites,
+// does: without readonly of their own. Readonly is shallow, so the object
+// type nested in a member keeps VibeLang's readonly default.
+export type Info = Readonly<{
+  path: ReadonlyArray<string>
+  label?: string
+  [key: string]: unknown
+}>
+
+export type Nested = Readonly<{ inner: { count: number } }>
+
+export type Pair = Readonly<{ mutable left: number; right: number }>
