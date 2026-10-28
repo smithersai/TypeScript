@@ -334,6 +334,24 @@ runs. Rows that allocate (Effect functions and suspending fast calls) still
 carry that load: on an idle machine the study measured the slow call at 179 ns
 and a suspending one at 259 ns. Rows that don't allocate repeated within 0.5 ns.
 
+## Provide blocks
+
+`provide Key = value { }` compiles to
+`$provideEntries(body, [$provideService(Key, "Key", value)])`, which provides
+the service as `Effect.provideService` does. Only a layer the block lists
+goes through `Effect.provide`. Nanoseconds per pass, best of 15 rounds of
+20,000 passes. From this directory:
+
+```sh
+bun run build && node tests/provide-bench.mjs
+```
+
+| Form | ns per pass |
+| --- | ---: |
+| `Effect.provideService` | 383 |
+| `provide Key = 1 { }` (`$provideEntries`) | 563 |
+| `Effect.provide` with a one-service Layer (before) | 2,103 |
+
 ## Prototype compatibility
 
 The extraction keeps the prototype's helper names and execution behavior. The

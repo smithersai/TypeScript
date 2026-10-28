@@ -79,7 +79,7 @@ export type $BuiltinResult<F extends (...args: any[]) => any> = ReturnType<F>
 
 // The runtime's region helpers (D13, D15, D132, D173): regions, handle
 // statements, and provide blocks lower onto these.
-export { $catch, $finally, $tailResume, $tailResumeWith, $provideService } from "vibelang-runtime"
+export { $catch, $finally, $tailResume, $tailResumeWith, $provideEntries, $provideService } from "vibelang-runtime"
 
 /**
  * `using x = acquire()` in an Effect body (D47, D94, D14): the block's Scope

@@ -128,8 +128,8 @@ export function main() {
 	if len(ds) > 0 {
 		t.Fatalf("%v", ds)
 	}
-	// The runner is ordinary JavaScript, outside the projected source.
-	write("main.mjs", js+"\nconsole.log(JSON.stringify(await Effect.runPromise(main())))")
+	// The runner is ordinary JavaScript, outside the projected source, with its own import.
+	write("main.mjs", js+"\nimport * as RunnerEffect from \"effect/Effect\"\nconsole.log(JSON.stringify(await RunnerEffect.runPromise(main())))")
 	cmd = exec.Command("node", "--no-warnings", "main.mjs")
 	cmd.Dir = dir
 	out, err = cmd.CombinedOutput()

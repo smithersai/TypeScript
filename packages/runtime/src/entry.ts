@@ -53,6 +53,7 @@ export const {
   $produce,
   $program,
   $programs,
+  $provideEntries,
   $provideService,
   $reference,
   $region,

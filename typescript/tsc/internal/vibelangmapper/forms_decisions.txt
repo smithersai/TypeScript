@@ -2359,6 +2359,15 @@ typescript/vibelang/cases/provide-generic-requirement/main.vibe:19:25 lambda eff
 typescript/vibelang/cases/provide-generic-requirement/main.vibe:19:52 byname program annotation
 typescript/vibelang/cases/provide-generic-requirement/main.vibe:6:27 lambda effectFn fallback
 typescript/vibelang/cases/provide-named-block-argument/main.vibe:3:50 block appended/program annotation
+typescript/vibelang/cases/provide-service-no-layer/main.vibe:13:3 lambda effectFn service
+typescript/vibelang/cases/provide-service-no-layer/main.vibe:25:18 lambda effectFn annotation
+typescript/vibelang/cases/provide-service-no-layer/main.vibe:34:30 lambda effectFn service
+typescript/vibelang/cases/provide-service-no-layer/main.vibe:40:30 lambda effectFn service
+typescript/vibelang/cases/provide-service-no-layer/main.vibe:40:60 lambda effectFn service
+typescript/vibelang/cases/provide-service-no-layer/main.vibe:64:30 lambda effectFn service
+typescript/vibelang/cases/provide-service-no-layer/main.vibe:65:32 lambda effectFn service
+typescript/vibelang/cases/provide-service-no-layer/main.vibe:65:68 lambda effectFn service
+typescript/vibelang/cases/provide-service-no-layer/main.vibe:73:30 lambda effectFn service
 typescript/vibelang/cases/provide-stream-loop/main.vibe:9:59 lambda effectFn table
 typescript/vibelang/cases/recursion-bridge/main.vibe:19:32 lambda plain table
 typescript/vibelang/cases/recursion-bridge/main.vibe:22:43 lambda plain table

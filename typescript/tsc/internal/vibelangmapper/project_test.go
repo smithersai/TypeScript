@@ -525,7 +525,7 @@ var projectionCases = []struct {
 	{
 		name:    "a provide block provides its layers to a region (D172, D173)",
 		source:  "function main() {\n  provide AppLive, Clock = clock {\n    return greet(\"42\")\n  }\n}\n",
-		virtual: "function main() { return $gen(function* () {\n  const $c = yield* Effect.provide([AppLive, $provideService(Clock, \"Clock\", clock)])($gen(function* () {\n    return $box((yield* $run(greet(\"42\"))))\n  })); return $unboxed($c)\n})}\n",
+		virtual: "function main() { return $gen(function* () {\n  const $c = yield* $provideEntries([AppLive, $provideService(Clock, \"Clock\", clock)])($gen(function* () {\n    return $box((yield* $run(greet(\"42\"))))\n  })); return $unboxed($c)\n})}\n",
 	},
 	{
 		name:    "a handle statement runs its block under handle (D132)",

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, Scope } from "effect"
 import {
   $catchExpression, $catchCause, $failureOf, $finallyExit, $fork,
-  $isFailure, $noFailure, $provideService, $region, $service, $using, acquireDisposable, acquireRelease,
+  $isFailure, $noFailure, $provideEntries, $provideService, $region, $service, $using, acquireDisposable, acquireRelease,
   interrupt, interruptible, restore, uninterruptible, wire, yieldNow
 } from "vibelang-runtime"
 
@@ -30,6 +30,21 @@ test("provide accepts a generated key, an Effect service, or its module", async 
   for (const invalid of [{}, { Counter: "not a key" }]) {
     expect(() => $provideService(invalid as any, "Counter", { value: 42 })).toThrow("Counter is not a service key")
   }
+})
+
+test("$provideEntries provides Key = value services without a Layer, and builds only the other layers", async () => {
+  const memoMap = Effect.map(Effect.serviceOption(Layer.CurrentMemoMap), (option) => option._tag)
+  const probe = Effect.all([Counter, Left, memoMap])
+  const one = $provideEntries(Effect.all([Counter, memoMap]), [$provideService(Counter, "Counter", { value: 0 })])
+  expect(await Effect.runPromise(one)).toEqual([{ value: 0 }, "None"])
+  const services = $provideEntries(probe, [
+    $provideService(Counter, "Counter", { value: 1 }),
+    $provideService({ Left }, "Left", { value: 2 }),
+    $provideService(Counter, "Counter", { value: 3 })
+  ])
+  expect(await Effect.runPromise(services)).toEqual([{ value: 3 }, { value: 2 }, "None"])
+  const mixed = $provideEntries([Layer.succeed(Counter)({ value: 4 }), $provideService(Left, "Left", { value: 5 })])(probe)
+  expect(await Effect.runPromise(mixed)).toEqual([{ value: 4 }, { value: 5 }, "Some"])
 })
 
 test("wire shares a resource layer across dependents and builds fresh for each provide", async () => {

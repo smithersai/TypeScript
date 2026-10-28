@@ -2,6 +2,7 @@ package vibelang
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -325,15 +326,29 @@ func layerChannels(c *checker.Checker, t *checker.Type) (provided, errors, needs
 }
 
 // visitProvideBlock lowers node, a provide block, to a region closure that runs
-// under Effect.provide with the block's layer.
+// under Effect.provide with the block's layer. A block with a Key = value
+// provider runs under $provideEntries instead, which provides each such
+// service as Effect.provideService does and builds only the other layers the
+// block lists:
+//
+//	provide Clock = testClock { ... }          $provideEntries(run, [$provideService(Clock, "Clock", testClock)])
+//	provide AppLive, Clock = testClock { ... } $provideEntries(run, [AppLive, $provideService(Clock, "Clock", testClock)])
 func (tx *lowering) visitProvideBlock(node *ast.Node) *ast.Node {
 	f := tx.Factory()
 	layer := tx.Visitor().VisitNode(provideLayer(node))
+	services := slices.ContainsFunc(providerList(provideLayer(node)), isServiceProvider)
+	if services && !ast.IsArrayLiteralExpression(layer) {
+		layer = f.NewArrayLiteralExpression(f.NewNodeList([]*ast.Node{layer}), false /*multiLine*/)
+	}
 	r := &region{}
 	statements := tx.regionStatements(r, node)
 	run := tx.runNow(tx.regionFunction(r, "provide", nil, node, statements), node)
-	provide := f.NewPropertyAccessExpression(tx.effectName(), nil /*questionDotToken*/, f.NewIdentifier("provide"), ast.NodeFlagsNone)
-	run = f.NewCallExpression(provide, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{run, layer}), ast.NodeFlagsNone)
+	if services {
+		run = tx.runtimeCall("$provideEntries", run, layer)
+	} else {
+		provide := f.NewPropertyAccessExpression(tx.effectName(), nil /*questionDotToken*/, f.NewIdentifier("provide"), ast.NodeFlagsNone)
+		run = f.NewCallExpression(provide, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{run, layer}), ast.NodeFlagsNone)
+	}
 	return tx.runRegion(node, run, r)
 }
 

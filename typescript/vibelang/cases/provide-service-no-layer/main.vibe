@@ -1,0 +1,81 @@
+// provide Key = value { ... } provides one service, as Effect.provideService
+// does: no Layer, so no Scope and no Layer MemoMap around the statements
+// (D173). Only a Layer the source writes goes through Effect.provide.
+export service Greeting {
+  text(): string!!
+}
+
+service Names {
+  name(): string!!
+}
+
+const NamesLive = Layer.succeed(Names, {
+  name() { return "Ada" }
+})
+
+const events: string[] = []
+
+function scope(): string!! {
+  const memo = Effect.serviceOption(Layer.CurrentMemoMap)
+  return Option.isSome(memo) ? "layer" : "no layer"
+}
+
+function greeting(text: string): Greeting.Shape {
+  events.push(text)
+  return { text: () => text }
+}
+
+function names() {
+  events.push("names")
+  return NamesLive
+}
+
+export function single(): string!! {
+  provide Greeting = { text: () => "hi" } {
+    return `${Greeting.text()}, ${scope()}`
+  }
+}
+
+export function two(): string!! {
+  provide Greeting = { text: () => "hi" }, Names = { name: () => "Bo" } {
+    return `${Names.name()} ${Greeting.text()}, ${scope()}`
+  }
+}
+
+// A Layer the source writes still builds one.
+export function layer(): string!! {
+  provide NamesLive {
+    return `${Names.name()}, ${scope()}`
+  }
+}
+
+// Providers evaluate in source order, Layers and services alike.
+export function mixed(): string!! {
+  events.length = 0
+  provide Greeting = greeting("first"), names() {
+    provide names(), Greeting = greeting("last") {
+      return `${Names.name()} ${Greeting.text()}, ${scope()}, ${events.join(" ")}`
+    }
+  }
+}
+
+// The innermost block wins, and the later of two entries for one key.
+export function nested(): string!! {
+  provide Greeting = { text: () => "outer" } {
+    provide Greeting = { text: () => "early" }, Greeting = { text: () => "inner" } {
+      return Greeting.text()
+    }
+  }
+}
+
+// One pass through a one-service block, for the run-loop count.
+export function once(): number!! {
+  provide Greeting = { text: () => "hi" } {
+    return Greeting.text().length
+  }
+}
+
+// The same statements, for Effect.provideService to provide.
+export function bare() {
+  return Greeting.text().length
+}

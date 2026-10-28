@@ -447,7 +447,9 @@ func isProvideBlock(node *ast.Node) bool {
 // its region, `Effect.provide(Layers)(program)`, which keeps the source order:
 // the providers come first. Several providers become an array, and a
 // provider written Key = value the layer $provideService(Key, "Key", value)
-// that provides that one service (D173, D175).
+// that provides that one service (D173, D175). A list with such a provider
+// runs under $provideEntries instead, typed as Effect.provide, which provides
+// those services as Effect.provideService does and builds no Layer for them.
 func (p *projector) provideBlock(node *ast.Node, e env) {
 	statements := node.Statements()
 	providers := statements[0].Expression()
@@ -480,6 +482,9 @@ func (p *projector) provideBlock(node *ast.Node, e env) {
 	}
 
 	open := openRegion(r, name) + p.names.prelude("Effect") + ".provide("
+	if slices.ContainsFunc(items, isProvideService) {
+		open = openRegion(r, name) + helperRef("$provideEntries") + "("
+	}
 	if array {
 		open += "["
 	}
