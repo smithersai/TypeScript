@@ -349,14 +349,21 @@ func checkSourceFile(c *checker.Checker, file *ast.SourceFile) {
 // diagnosticsState is what one checker remembers about diagnostics.
 type diagnosticsState struct {
 	covered   map[*ast.SourceFile][]core.TextRange
-	arguments map[*ast.SourceFile][]int // the starts of arguments whose type error an EK diagnostic explains
+	arguments map[*ast.SourceFile][]int          // the starts of arguments whose type error an EK diagnostic explains
+	codes     map[*ast.SourceFile][]coveredCodes // TypeScript codes that an EK diagnostic explains, each in one node
+}
+
+// coveredCodes are TypeScript diagnostic codes hidden inside one range.
+type coveredCodes struct {
+	loc   core.TextRange
+	codes []int32
 }
 
 type diagnosticsStateKey struct{}
 
 func diagnosticsStateOf(c *checker.Checker) *diagnosticsState {
 	return c.ExtensionState(diagnosticsStateKey{}, func() any {
-		return &diagnosticsState{covered: map[*ast.SourceFile][]core.TextRange{}, arguments: map[*ast.SourceFile][]int{}}
+		return &diagnosticsState{covered: map[*ast.SourceFile][]core.TextRange{}, arguments: map[*ast.SourceFile][]int{}, codes: map[*ast.SourceFile][]coveredCodes{}}
 	}).(*diagnosticsState)
 }
 
@@ -367,6 +374,15 @@ func cover(c *checker.Checker, node *ast.Node) {
 	file := ast.GetSourceFileOfNode(node)
 	state := diagnosticsStateOf(c)
 	state.covered[file] = append(state.covered[file], core.NewTextRange(scanner.SkipTrivia(file.Text(), node.Pos()), node.End()))
+}
+
+// coverCodes hides TypeScript's diagnostics with one of codes inside node,
+// because an EK diagnostic reported for node explains them. Unlike cover, it
+// keeps TypeScript's other errors inside node, such as an argument's.
+func coverCodes(c *checker.Checker, node *ast.Node, codes ...int32) {
+	file := ast.GetSourceFileOfNode(node)
+	state := diagnosticsStateOf(c)
+	state.codes[file] = append(state.codes[file], coveredCodes{core.NewTextRange(scanner.SkipTrivia(file.Text(), node.Pos()), node.End()), codes})
 }
 
 // coverArgument hides TypeScript's error that argument's type does not fit
@@ -408,8 +424,8 @@ func filterCoveredDiagnostics(c *checker.Checker, file *ast.SourceFile, diagnost
 		return diagnostics
 	}
 	state := diagnosticsStateOf(c)
-	covered, arguments := state.covered[file], state.arguments[file]
-	if len(covered) == 0 && len(arguments) == 0 {
+	covered, arguments, codes := state.covered[file], state.arguments[file], state.codes[file]
+	if len(covered) == 0 && len(arguments) == 0 && len(codes) == 0 {
 		return diagnostics
 	}
 	isCovered := func(d *ast.Diagnostic) bool {
@@ -417,6 +433,11 @@ func filterCoveredDiagnostics(c *checker.Checker, file *ast.SourceFile, diagnost
 			return false
 		}
 		if (d.Code() == 2345 || d.Code() == 2769 || d.Code() == 2344) && slices.Contains(arguments, d.Pos()) {
+			return true
+		}
+		if slices.ContainsFunc(codes, func(r coveredCodes) bool {
+			return slices.Contains(r.codes, d.Code()) && r.loc.Pos() <= d.Pos() && d.End() <= r.loc.End()
+		}) {
 			return true
 		}
 		return slices.ContainsFunc(covered, func(r core.TextRange) bool {

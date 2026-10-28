@@ -1,0 +1,33 @@
+// expect: EK1020 TS2554
+// A function declared in a .vibe file is not a constructor (rule L6): new on
+// one is EK1020, in place of TypeScript's TS7009, through a cast and under
+// @ts-ignore too, where it returned the function's program. An argument's own
+// error stays. A class constructs, and a function of a module declaration is
+// TypeScript's.
+module legacy {
+  export function Point(this: { x: number }, x: number) {
+    this.x = x
+  }
+}
+import { Point } from legacy
+
+function make() {
+  return 1
+}
+
+const build = (n: number) => n
+
+class Box {
+  constructor(readonly n: number) {}
+}
+
+export function main() {
+  const a = new make()
+  const b = new (make as any)()
+  // @ts-ignore
+  const c = new build(1)
+  const d = new make(make(2))
+  const e = new Box(1)
+  const f = new (Point as any)(2)
+  return [a, b, c, d, e.n, f.x]
+}

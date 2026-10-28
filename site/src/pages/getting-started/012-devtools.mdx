@@ -81,6 +81,7 @@ Each entry gives the condition and the repair. The examples and language-service
 | EK1007 | `%` appears outside a pipe body. | Use it only after the pipe operator, or name the value with a variable. |
 | EK1008 | One pipe uses its input both as a deferred program and as an immediate value. | Bind the value before the pipe, or pass the operator a program, `() => x`, instead of `%`. |
 | EK1017 | A `provide` statement was used in an expression position. | Write `provide layer { statements }` as a statement and return from inside its block. |
+| EK1020 | `new` calls a function declared in a `.vibe` file, which is not a constructor. | Declare a class, or call the function without `new`. |
 | EK2006 | `return`, `break`, or `continue` leaves a `finally` block and would discard a failure. | Move the jump after the `try` statement. |
 | EK2104 | A retired `layer` declaration has setup statements after its members. | Put setup first; prefer `Layer.effect(Service) { setup; return { … } }`. |
 | EK2105 | A retired typed catch tests a type without a literal `_tag`. | Write an untyped `catch (e)` and test `e` with `match` or `is`. |
