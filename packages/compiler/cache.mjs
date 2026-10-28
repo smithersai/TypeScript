@@ -136,28 +136,37 @@ function fileHolds(record) {
   }
 }
 
-// The compiler a project compiles with: the given file, and, for the vibelang
-// package's launcher, the native binary it runs (bin/vibelang's findBinary).
-function compilerFiles(compiler) {
-  const files = [compiler]
-  if (basename(dirname(compiler)) !== "bin" || basename(compiler) !== "vibelang") return files
+/**
+ * Returns the native binary that compiler, the vibelang package's launcher,
+ * runs (bin/vibelang's findBinary), or undefined when compiler is another
+ * program or the launcher finds none.
+ */
+export function launcherBinary(compiler) {
+  if (basename(dirname(compiler)) !== "bin" || basename(compiler) !== "vibelang") return undefined
   try {
     const manifest = JSON.parse(readFileSync(join(dirname(compiler), "../package.json"), "utf8"))
-    if (manifest.name !== "vibelang") return files
+    if (manifest.name !== "vibelang") return undefined
   } catch {
-    return files
+    return undefined
   }
-  if (!isNodeScript(compiler)) return files
-  if (process.env.VIBELANG_BINARY) return [...files, resolve(process.env.VIBELANG_BINARY)]
+  if (!isNodeScript(compiler)) return undefined
+  if (process.env.VIBELANG_BINARY) return resolve(process.env.VIBELANG_BINARY)
   const executable = process.platform === "win32" ? "vibelang.exe" : "vibelang"
   const local = join(dirname(compiler), "../native", executable)
-  if (existsSync(local)) return [...files, local]
+  if (existsSync(local)) return local
   try {
     const target = `vibelang-${process.platform}-${process.arch}/package.json`
-    return [...files, join(dirname(createRequire(compiler).resolve(target)), "bin", executable)]
+    return join(dirname(createRequire(compiler).resolve(target)), "bin", executable)
   } catch {
-    return files
+    return undefined
   }
+}
+
+// The compiler a project compiles with: the given file, and, for the vibelang
+// package's launcher, the native binary it runs.
+function compilerFiles(compiler) {
+  const binary = launcherBinary(compiler)
+  return binary === undefined ? [compiler] : [compiler, binary]
 }
 
 function isNodeScript(path) {

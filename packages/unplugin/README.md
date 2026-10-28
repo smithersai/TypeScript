@@ -97,8 +97,9 @@ vibelang({
 })
 ```
 
-Without a `compiler` option, the plugin runs `VIBELANG_BINARY`, else the launcher
-of the `vibelang` package resolved from the root. Set `VIBELANG_UNPLUGIN_DEBUG=1` to
+Without a `compiler` option, the plugin runs `VIBELANG_BINARY`, else the native
+compiler that the launcher of the `vibelang` package resolved from the root
+would run. Set `VIBELANG_UNPLUGIN_DEBUG=1` to
 trace each build start, compile, and module load on stderr.
 
 ## How it works

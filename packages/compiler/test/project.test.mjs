@@ -1,11 +1,11 @@
 import { strict as assert } from "node:assert"
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { test } from "node:test"
 import { fileURLToPath } from "node:url"
-import { findCompiler, formatDiagnostic, moduleDeclarationSource, nearestProject, parseExplainFiles, parseOutput, projectBackend, projectImports, projects } from "../project.mjs"
+import { compileProjectSync, findCompiler, formatDiagnostic, moduleDeclarationSource, nearestProject, parseExplainFiles, parseOutput, projectBackend, projectImports, projects } from "../project.mjs"
 
 const repo = fileURLToPath(new URL("../../../", import.meta.url))
 const native = process.env.VIBELANG_BINARY || join(repo, "typescript/built/local/tsc")
@@ -156,6 +156,35 @@ process.exit(spawnSync(${JSON.stringify(native)}, args, { stdio: "inherit" }).st
   const compiles = () => existsSync(calls) ? readFileSync(calls, "utf8").trim().split("\n").map((line) => JSON.parse(line)) : []
   return { root, app, compiler, compiles }
 }
+
+test("a compile runs the native compiler the vibelang launcher would run, without starting Node for the launcher", { skip: skip || (process.platform === "win32" && "the native stand-in is a shell script") }, async (t) => {
+  const { app } = workspace(t)
+  const previous = process.env.VIBELANG_BINARY
+  t.after(() => { if (previous === undefined) delete process.env.VIBELANG_BINARY; else process.env.VIBELANG_BINARY = previous })
+  delete process.env.VIBELANG_BINARY
+  // An installed vibelang package whose launcher and native compiler each record a run.
+  const runs = join(app, "runs.txt")
+  const launcher = join(app, "node_modules/vibelang/bin/vibelang")
+  const binary = join(app, "node_modules/vibelang/native/vibelang")
+  mkdirSync(dirname(launcher), { recursive: true })
+  mkdirSync(dirname(binary), { recursive: true })
+  writeFileSync(join(app, "node_modules/vibelang/package.json"), '{"name":"vibelang","type":"module"}')
+  writeFileSync(launcher, `#!/usr/bin/env node
+import { appendFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+appendFileSync(${JSON.stringify(runs)}, "launcher\\n")
+process.exit(spawnSync(${JSON.stringify(binary)}, process.argv.slice(2), { stdio: "inherit" }).status ?? 1)
+`)
+  writeFileSync(binary, `#!/bin/sh\necho native >> '${runs}'\nexec '${native}' "$@"\n`)
+  chmodSync(launcher, 0o755)
+  chmodSync(binary, 0o755)
+  const compiler = findCompiler(app)
+  assert.equal(compiler, launcher)
+  const result = compileProjectSync({ project: join(app, "tsconfig.json"), compiler, cache: false })
+  assert.deepEqual(result.errors, [])
+  assert.match(result.outputs.get(join(app, "src/main.vibe")).code, /fromApp = "app"/)
+  assert.equal(readFileSync(runs, "utf8"), "native\n")
+})
 
 test("a module outside root compiles with its own package's project, once per revision", { skip }, async (t) => {
   const { root, app, compiler, compiles } = workspace(t)

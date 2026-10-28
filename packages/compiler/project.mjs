@@ -13,7 +13,7 @@ import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { performance } from "node:perf_hooks"
 import { basename, dirname, isAbsolute, join, parse, relative, resolve } from "node:path"
-import { projectCache } from "./cache.mjs"
+import { launcherBinary, projectCache } from "./cache.mjs"
 
 const slash = (path) => path.replaceAll("\\", "/")
 const located = /^(.+?)\((\d+),(\d+)\):\s+(error|warning)\s+(\w+\d+):\s?(.*)$/
@@ -47,8 +47,13 @@ function isNodeLauncher(path) {
   }
 }
 
-const command = (compiler, args) =>
-  isNodeLauncher(compiler) ? [process.execPath, [compiler, ...args]] : [compiler, args]
+// The vibelang launcher only finds the native compiler and runs it, so a
+// compile runs that binary itself and skips starting Node for the launcher.
+function command(compiler, args) {
+  const binary = launcherBinary(compiler)
+  if (binary !== undefined && existsSync(binary)) return [binary, args]
+  return isNodeLauncher(compiler) ? [process.execPath, [compiler, ...args]] : [compiler, args]
+}
 
 /**
  * Parses `vibelang --pretty false --listFiles` output into the files the

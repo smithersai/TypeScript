@@ -157,7 +157,8 @@ recognizes;
 `invalidate()` makes every project compile again on its next load, or load from
 the cache when nothing changed. A compile runs `vibelang -p <tsconfig>
 --loader-root <root>`, which type-checks and emits only the files under `root`,
-the modules it serves. `compileProjectSync`, `projectBackend`, and
+the modules it serves. When the compiler is the `vibelang` launcher, the compile
+runs the native compiler the launcher would run, without starting Node for it. `compileProjectSync`, `projectBackend`, and
 `projects` take `cache: false` to turn the cache off, or `cache: { directory }`
 to move it.
 

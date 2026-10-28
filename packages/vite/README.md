@@ -102,8 +102,8 @@ imports `.vibe` modules from any working directory. A child given an
 environment of its own, without `NODE_OPTIONS`, does not inherit it.
 
 By default, the plugin resolves `vibelang` from the application's root and runs
-its Node launcher. Without a `compiler` option, `VIBELANG_BINARY` selects a
-native binary.
+the native compiler its Node launcher would run. Without a `compiler` option,
+`VIBELANG_BINARY` selects a native binary.
 
 ## How it works
 
