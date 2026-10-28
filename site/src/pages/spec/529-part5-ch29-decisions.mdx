@@ -391,7 +391,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D427 | Two installed copies of one package version are one type and two classes; a class arm needs one copy | A private brand did not separate copies |  | 3, 14, 26, 28 |
 | D428 | A class arm covers only what its test is guaranteed to accept | An arm over an open class counted as total |  | 3, 28 |
 | D429 | Four stale statements follow their rules | Chapters 1, 2, 4, and 24 contradicted rules in force |  | 1, 2, 4, 24 |
-| D430 | An Effect never satisfies a plain function type; EK4301 | An Effect method passed a plain interface and did nothing | Amended by D448, D453 | 10, 14, 28 |
+| D430 | An Effect never satisfies a plain function type; EK4301 | An Effect method passed a plain interface and did nothing | Amended by D448, D453, D485 | 10, 14, 28 |
 | D431 | A class names its plain methods in a marker; a `trusted` value's marker lists its error classes | Plain methods were foreign to declaration consumers; two rules disagreed on `trusted` failures | Amended by D460, D483 | 10, 26, 27 |
 | D432 | The prelude's `fork`, `join`, and hatches are used only under their own names; EK4410 | An import alias deferred an argument | Amended by D452 | 1, 7, 10, 13, 28 |
 | D433 | A `fork` of a program value is EK4613 | `fork job` ran nothing |  | 7, 13, 28 |
@@ -436,6 +436,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D482 | Overloads resolve as TypeScript resolves them: a literal is typed by the first candidate TypeScript checks it against, and no candidates are compared; EK1021 only where lifting or conversion is needed and its candidates disagree; reordering a library's overloads is a stated rough edge | The cross-candidate checks rejected `Effect.tap` and still missed named functions and generic calls at return positions |  | 2, 5, 13, 27, 28, 30 |
 | D483 | A function's plain form is part of its type, `Plain<F, C>`, wherever it is held, and every holder has its form; declarations write that type, at any depth | One function was plain or Effect by its holder; a returned object's method had no plain form in declarations |  | 10, 13, 15, 26, 27, 28, 30, Appendices |
 | D484 | A field of an object literal at a protocol key accepts only the plain form and holds the plain function; TypeScript receives it plain | An object literal's `toString` was both plain and cold, so `String(label)` threw a `TypeError` |  | 10, 13, 14, 27, 30, Appendices |
+| D485 | D430's check and a function value's form read a member by its declaration, with its container's type parameters uninstantiated | `Box<Effect<number>>` failed D430 against `{ get(): unknown }` and passed against `Box<unknown>` |  | 13, 14, 30 |
 
 #### Rules of the runtime and compiler
 
