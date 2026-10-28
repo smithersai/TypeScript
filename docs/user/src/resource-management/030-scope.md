@@ -85,28 +85,13 @@ function copyLabels() {
 
 `using` gives each declared acquisition a lifetime ending with the enclosing block. Don't return a resource to use after the block closes; return derived data, or let the caller own the acquisition. `using` works the same with Effect's existing scoped APIs.
 
-## Known limitation: pending interruption and JavaScript Disposables
+<a id="known-limitation-pending-interruption-and-javascript-disposables"></a>
 
-A JavaScript Disposable acquired in a masked section at the end of a `using`
-initializer can leak when an interruption is pending. The interruption is
-delivered as the mask ends, before `using` registers the release, so
-`Symbol.dispose` is never called. The pending
-[`scopes-using-pending-interrupt` case](https://github.com/smithersai/vibelang/tree/main/typescript/vibelang/cases/scopes-using-pending-interrupt)
-records `["acquired"]` instead of `["acquired","disposed"]`. This is the
-acquisition-to-registration window, not an interruption during the resource's
-later use. `using` itself does not mask acquisition.
+## Releasing JavaScript Disposables
 
-Wrap acquisition and cleanup together with `Effect.acquireRelease`, keeping its
-default protected acquisition. For a JavaScript Disposable, acquire a plain
-holder, `{ value: disposable }`, and dispose `holder.value` in the release
-callback. Bind the holder with `using` and use `holder.value` in the body.
-The holder has no disposal method, so only the registered release closes the
-resource. Release is registered before pending interruption is delivered.
+`using` releases each resource exactly once, on success, typed failure, defect, or interruption, including an interruption that is pending when acquisition finishes: acquiring a resource and registering its release can't be separated. A value acquired with `Effect.acquireRelease` or `Effect.acquireDisposable` is released only by its release, so a JavaScript Disposable that `acquireRelease` returns and its release disposes is closed once. Any other value with a disposal method is disposed once at block exit, `[Symbol.asyncDispose]` first, so `using` also accepts an AsyncDisposable; `using` reads that method once, when it acquires the value. A value with neither method is TS2850, unless its initializer requires `Scope`.
 
-Returning the Disposable itself from `acquireRelease` and also disposing it in
-the release callback closes it twice on normal exit: `using` adds its own
-`Symbol.dispose` call. The holder avoids this under the current runtime
-rules, including for a resource whose second close throws.
+Cancellation follows Effect. An initializer whose requirements include `Scope`, such as an `acquireRelease`, runs with the interruptibility in force where the `using` stands, and `acquireRelease` itself protects acquisition unless you pass `{ interruptible: true }`. Any other initializer runs masked until its value's release is registered.
 
 This example checks success, typed failure, defect, and interruption requested
 while acquisition is waiting. Each path closes the handle exactly once:
@@ -134,9 +119,9 @@ error Bad {}
 function acquire(events: string[]) {
   return Effect.acquireRelease(
     // sync's first argument is plain TypeScript, not VibeLang.
-    () => ({ value: sync((log: string[]) => open(log), events) }),
+    () => sync((log: string[]) => open(log), events),
     // sync's first argument is plain TypeScript, not VibeLang.
-    (holder) => sync((h) => h.value[Symbol.dispose](), holder)
+    (file) => sync((f) => f[Symbol.dispose](), file)
   )
 }
 
@@ -168,10 +153,10 @@ function pending() {
         Deferred.succeed(entered, undefined)
         Deferred.await(gate)
         // sync's first argument is plain TypeScript, not VibeLang.
-        return { value: sync((log: string[]) => open(log), events) }
+        return sync((log: string[]) => open(log), events)
       },
       // sync's first argument is plain TypeScript, not VibeLang.
-      (holder) => sync((h) => h.value[Symbol.dispose](), holder)
+      (file) => sync((f) => f[Symbol.dispose](), file)
     )
     events.push("never runs")
   }

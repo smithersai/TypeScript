@@ -26,6 +26,6 @@ export function names(ids: ReadonlyArray<string>) {
 - `provide UsersLive { ... }` supplies `Users`; `const UsersLive = Layer.succeed(Users, { name(id) { ... } })`.
 - `await.all [a(), b()]` runs both; `%` is `x` in `x |> f(%)`.
 - TypeScript bodies: `let`, loops, `typeof`, regex, Array/Map methods.
-- `using h = acquire()` frees on block exit. [Disposable limit](https://vibelang.sh/resource-management/030-scope.md#known-limitation-pending-interruption-and-javascript-disposables). `yieldNow()` first honors interrupts.
+- `using h = acquire()` frees it once on block exit, even on interruption. `yieldNow()` first honors interrupts.
 - A plain TypeScript call needs `sync((x) => f(x), x)`; if it can throw, `try((x) => f(x), (error: unknown) => new E(), x)`.
 - `@effect/vitest`: `it.effect("name") { assert.strictEqual(a, b) }` uses a test clock (`sleep` stalls); `it.live`: real time. Vitest hides `console.log` under agents; assert.

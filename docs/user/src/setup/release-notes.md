@@ -1349,7 +1349,7 @@ This release has no breaking changes.
 - A JavaScript Disposable acquired at the end of a masked `using`
   initializer can leak if interruption is pending before its release is
   registered. Use `Effect.acquireRelease` with protected acquisition; see
-  [the safe pattern](../resource-management/030-scope.md#known-limitation-pending-interruption-and-javascript-disposables).
+  [the safe pattern](../resource-management/030-scope.md#releasing-javascript-disposables).
 
 ## 0.0.6
 
@@ -1446,7 +1446,7 @@ None of these warnings changes the emitted JavaScript.
   `["acquired","disposed"]`. Use `Effect.acquireRelease` with its default
   protected acquisition and an explicit disposal callback, or
   `using h = Effect.acquireRelease(...)` for a lexical lifetime.
-  See the [safe pattern](../resource-management/030-scope.md#known-limitation-pending-interruption-and-javascript-disposables).
+  See the [safe pattern](../resource-management/030-scope.md#releasing-javascript-disposables).
 - A class method annotated with a plain return type whose body runs an
   Effect keeps its plain type; called through an interface, it returns the
   Effect instead of running it.

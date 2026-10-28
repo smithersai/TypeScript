@@ -2,7 +2,7 @@
   "version": 2,
   "flow": "docs",
   "source": ".smithers/flows/docs/flow.ts",
-  "digest": "91b444c896e1c6bfe89c7cad93f3c15e97dd984172f31e6cff841ff976a20903",
+  "digest": "6b2cf5fb38ec6e03fa300d1906fb78cc942b70f935e57a5fd2b792b663b4cf24",
   "inputs": [
     {
       "path": ".smithers/flows/docs/project.ts",
@@ -34,11 +34,11 @@
     },
     {
       "path": "docs/user/llms-essentials.md",
-      "sha256": "224bdda42458d20706a4ea593f0019bb2307e39786df806df489679b551f7a6e"
+      "sha256": "b8bb09ac77e3a376a59ef67aa305f64037478feab1a49ca7af7ebfa57166f15f"
     },
     {
       "path": "packages/compiler/skills/vibelang/SKILL.md",
-      "sha256": "a94252622d9212b7f5c573e1ad90478399e23f8777ce8dba1aa7e800e76df189"
+      "sha256": "95d11642ca8c2c4dd85cb258c1b6772be7e11f9e6c03fe04c1d05d70ca33d735"
     }
   ],
   "outputs": {
@@ -52,10 +52,10 @@
       "sha256": "1407d65d1b99dae026eb78058df5ababe0f2184b4ae205f9d537edca2a657ff8"
     },
     "AGENTS.md": {
-      "sha256": "6f5b8c2071cd6072173ff648aa956cdfacd044930b170dd63471f69534966f3f"
+      "sha256": "2533c3317d5adf3bcc9b7af40b34ab765c804aa3d32a7aa4616f395b17617fc0"
     },
     "templates/app/AGENTS.md": {
-      "sha256": "efb8e5284716b73cb2c86a07d4e0aca530918847a3ba6fd31dea8c97b5a55452"
+      "sha256": "864c9c3602cf13abdee221924c4e2cc58aa3844e9334f44f5d3958b7ce5cac19"
     }
   }
 }

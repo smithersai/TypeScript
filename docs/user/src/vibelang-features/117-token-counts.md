@@ -17,10 +17,10 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 
 | Load | Tokens |
 | --- | ---: |
-| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,477 |
-| The skill and the [cheat sheet](115-cheat-sheet.md) | 15,225 |
-| The skill and the user guide (134 pages) | 250,466 |
-| The user guide alone | 244,989 |
+| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,439 |
+| The skill and the [cheat sheet](115-cheat-sheet.md) | 15,187 |
+| The skill and the user guide (134 pages) | 250,322 |
+| The user guide alone | 244,883 |
 | The specification (33 chapters) | 191,263 |
 | The decision log, `docs/design/DECISIONS.md` | 127,626 |
 
@@ -96,20 +96,20 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Creating Effects](../getting-started/005-creating-effects.md) | 3,349 |
 | [Two Types of Errors](../error-management/006-two-error-types.md) | 642 |
 | [Basic Concurrency](../concurrency/007-basic-concurrency.md) | 1,481 |
-| **Core Concepts** | **18,001** |
+| **Core Concepts** | **18,073** |
 | [Effect's Modules](../getting-started/008-importing-effect.md) | 2,576 |
 | [Running Effects](../getting-started/009-running-effects.md) | 1,808 |
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
-| [Devtools](../getting-started/012-devtools.md) | 10,626 |
-| **All 12 pages** | **29,922** |
+| [Devtools](../getting-started/012-devtools.md) | 10,698 |
+| **All 12 pages** | **29,994** |
 
 ### Setup
 
 | Page | Tokens |
 | --- | ---: |
 | [Set up VibeLang](../setup.md) | 1,826 |
-| [Known limitations](../setup/known-limitations.md) | 476 |
+| [Known limitations](../setup/known-limitations.md) | 389 |
 | **Start a project** | **1,746** |
 | [New project](../setup/new-project.md) | 543 |
 | [Existing project](../setup/existing-project.md) | 1,203 |
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **27,701** |
-| [Release notes](../setup/release-notes.md) | 27,701 |
-| **All 15 pages** | **46,927** |
+| **Upgrade** | **27,687** |
+| [Release notes](../setup/release-notes.md) | 27,687 |
+| **All 15 pages** | **46,826** |
 
 ### Guides
 
@@ -153,9 +153,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Default Services](../requirements-management/026-default-services.md) | 966 |
 | [Managing Layers](../requirements-management/027-layers.md) | 2,482 |
 | [Layer Memoization](../requirements-management/028-layer-memoization.md) | 911 |
-| **Resource Management** | **4,529** |
-| [Introduction](../resource-management/029-introduction.md) | 1,623 |
-| [Scope](../resource-management/030-scope.md) | 2,906 |
+| **Resource Management** | **4,455** |
+| [Introduction](../resource-management/029-introduction.md) | 1,625 |
+| [Scope](../resource-management/030-scope.md) | 2,830 |
 | **Observability** | **6,469** |
 | [Logging](../observability/031-logging.md) | 1,935 |
 | [Metrics](../observability/032-metrics.md) | 1,316 |
@@ -252,7 +252,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Terminal](../platform/110-terminal.md) | 1,508 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 4,125 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **141,615** |
+| **All 100 pages** | **141,541** |
 
 ### VibeLang features
 
@@ -261,11 +261,11 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Control operations and handlers](111-control-operations-and-handlers.md) | 2,027 |
 | [Producers](112-producers.md) | 1,387 |
 | [Building an HTTP API](113-building-an-http-api.md) | 1,375 |
-| [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,851 |
+| [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,848 |
 | [Cheat sheet](115-cheat-sheet.md) | 9,748 |
 | [Pattern matching with match and is](116-match-and-is.md) | 3,918 |
 | [Experimental platform APIs](118-experimental-platform-apis.md) | 3,219 |
-| **All 7 pages** | **26,525** |
+| **All 7 pages** | **26,522** |
 
 ### Specification
 

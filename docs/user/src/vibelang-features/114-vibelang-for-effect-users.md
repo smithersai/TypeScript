@@ -92,7 +92,7 @@ Node runs the JavaScript output; importing the `.vibe` source directly with Node
 | `Effect.result(program)` (Effect 3: `Effect.either(program)`) | `Effect.result(() => program())` captures one program's typed failure as a `Result`; match `Result.Success(let value)` or `Result.Failure(let error)`. |
 | `Effect.exit(program)` | `exit(() => program())` captures its full outcome; match `Exit.Success(let value)` or `Exit.Failure(let cause)`. |
 | `Effect.ensuring(program, cleanup)` | `try` / `finally` |
-| `Effect.scoped` with `Effect.acquireRelease` | Acquire with `using` in the block that owns the resource; see the [pending-interruption limitation and holder](../resource-management/030-scope.md#known-limitation-pending-interruption-and-javascript-disposables) |
+| `Effect.scoped` with `Effect.acquireRelease` | Acquire with `using` in the block that owns the resource; it is released exactly once ([Releasing JavaScript Disposables](../resource-management/030-scope.md#releasing-javascript-disposables)) |
 | `Effect.forkScoped(program)` | `fork work()` for a child owned by the enclosing region, such as the function body; `fork { ... }` forks a block |
 | `Fiber.join(fiber)` | `join fiber`; `join [a, b]` joins several and interrupts the rest on a failure |
 | `Effect.all([a, b], { concurrency: "unbounded" })` | `await.all [a(), b()]`, like `Promise.all`; `await.all { x: a(), y: b() }` keeps the keys |

@@ -41,7 +41,7 @@ Declarations export like TypeScript declarations: `export data Shape { Circle { 
 | `Effect.catch(p, f)`, `Effect.orElseSucceed(p, () => v)` | `p catch (e) => f(e)`, `p catch v` |
 | `Effect.catchCause`, `Effect.failCause(c)` | `match (exit(p)) { when Exit.Success(let v): v; when Exit.Failure(let cause): ...; }`, `Effect.failCause(cause)`; `throw cause` is EK2140 |
 | `Effect.ensuring`, `Effect.onExit` | `try { } finally { }`, `try { } finally (exit) { }` |
-| `Effect.scoped` + `acquireRelease` | `using r = Effect.acquireRelease(() => open(), (r) => close(r))`, released at block exit; [pending-interruption limitation and safe Disposable holder](https://vibelang.sh/resource-management/030-scope#known-limitation-pending-interruption-and-javascript-disposables) |
+| `Effect.scoped` + `acquireRelease` | `using r = Effect.acquireRelease(() => open(), (r) => close(r))`, released once at block exit, even on interruption |
 | `Effect.fn("name")(function* ...)` | `function f() { return withSpan(() => { ... }, "name") }` |
 | `Effect.withSpan(p, "n")`, `it.effect("n", () => ...)` | `withSpan(() => p(), "n")`; a block param is always the call's last argument: `it.effect("n") { ... }`; a `{` that starts the next line is EK1022 |
 | `p.pipe(Effect.retry(s), Effect.timeout(t))` | `timeout(() => retry(() => p(), s), t)`; passing a `\|>` topic to `retry` is being retired |
@@ -96,7 +96,7 @@ A fiber belongs to the innermost region the source names: a function body (an ar
 - Services: `service` declarations; `Layer.effect(S) { }`; `provide` once around `main`: `requirements-management/025-services`, `requirements-management/027-layers`.
 - Retries and timeouts: bare `retry` and `timeout` or a pipe; per-attempt timeout inside the retry: `error-management/018-retrying`, `error-management/019-timing-out`.
 - Concurrency: the `await` operations, `fork`/`join`, `for concurrent`: `concurrency/007-basic-concurrency`, `concurrency/047-fibers`.
-- Resources: `using` in the block that owns them: `resource-management/029-introduction`. For a Disposable with an explicit release, acquire `{ value: disposable }` and release `holder.value`; binding the Disposable itself also calls `Symbol.dispose`.
+- Resources: `using` in the block that owns them: `resource-management/029-introduction`. A Disposable or AsyncDisposable is disposed once at block exit; one acquired with `Effect.acquireRelease` is released only by its release.
 - Data: `schema` declarations, fields of any schema (`Schema.FiniteFromString`); `Schema.Struct` for struct checks and `optionalKey`: `schema/087-basic-usage`. Tagged unions: `data`, `data-types/073-data`.
 - Matching: `vibelang-features/116-match-and-is`. Handlers: `vibelang-features/111-control-operations-and-handlers`. Producers: `vibelang-features/112-producers`.
 - Platform services: `platform/105-introduction`; each Node.js or web global's replacement: `platform/platform-globals`.

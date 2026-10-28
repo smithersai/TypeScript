@@ -80,7 +80,7 @@ Each entry gives the condition and the repair. The examples and language-service
 | EK1006 | A pipe body never uses its input topic, `%`. | Put `%` where the input belongs in the call after the pipe. |
 | EK1007 | `%` appears outside a pipe body. | Use it only after the pipe operator, or name the value with a variable. |
 | EK1008 | One pipe uses its input both as a deferred program and as an immediate value. | Bind the value before the pipe, or pass it by name everywhere. |
-| EK1017 | A provide statement was used in an expression position. | Write provide layer \{ statements \} as a statement and return from inside its block. |
+| EK1017 | A `provide` statement was used in an expression position. | Write `provide layer { statements }` as a statement and return from inside its block. |
 | EK2006 | `return`, `break`, or `continue` leaves a `finally` block and would discard a failure. | Move the jump after the `try` statement. |
 | EK2104 | A retired `layer` declaration has setup statements after its members. | Put setup first; prefer `Layer.effect(Service) { setup; return { … } }`. |
 | EK2105 | A retired typed catch tests a type without a literal `_tag`. | Write an untyped `catch (e)` and test `e` with `match` or `is`. |
@@ -104,7 +104,7 @@ Each entry gives the condition and the repair. The examples and language-service
 | EK4612 | A TypeScript hatch contains VibeLang `join`. | Move the join outside the hatch. |
 | EK4819 | Registered for `yield effect` in a TypeScript Effect generator; currently not emitted in `.ts` files. | In TypeScript use `yield* effect`; in VibeLang write ordinary calls instead of `Effect.gen`. |
 | EK4820 | Registered for a non-returning `yield* effect` whose success type is `never`; currently not emitted in `.ts` files. | In TypeScript write `return yield* effect` so control flow narrows; in VibeLang call the program directly. |
-| EK4838 | A returned fiber belongs to the block that is exiting and will be interrupted. | Use forkIn(scope, program) with a caller-owned scope, or detach(program) with an explicit shutdown strategy. |
+| EK4838 | A fiber escapes the region that owns it: it is returned, stored outside the region or in a collection, passed to another call, or captured, and the region interrupts it on exit. An error no setting lowers. | Use `Effect.forkScoped(() => p())` for the caller's scope, `forkIn(scope, () => p())` for a scope the caller holds, or `detach(() => p())` with an explicit shutdown strategy ([fiber lifetimes](/concurrency/047-fibers)). |
 | EK9100 | The editor's text-only projection needs a written type to choose a form. | Add the annotation requested by the message. |
 | EK9101 | An editor-only suggestion: the text-only projection cannot safely select a data-type method from the receiver's written type or access syntax. | Apply "Annotate as the fork infers", which writes the checker's receiver type as an annotation, or call the module function explicitly; optional or uncalled accesses need a direct call. |
 
