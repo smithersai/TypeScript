@@ -1,0 +1,49 @@
+import { absolute as trustedAbsolute } from "./helpers.js"
+
+function double(n: number) { return n * 2 }
+function triple(n: number) { return n * 3 }
+function pickFn(asc: boolean) { return asc ? double : Math.abs }
+
+export const chosen = (true ? double : Math.abs)(-2)
+const absolute = (false ? double : Math.abs)(-2)
+const plainPair = (true ? double : triple)(-2)
+const checked: number = chosen
+const trustedHelper = (true ? double : trustedAbsolute)(-2)
+const trustedRaw = (false ? double : trustedAbsolute)(-2)
+
+const order: Array<string> = []
+function scaled(this: { factor: number }, n: number) { return this.factor * n }
+const box = {
+  factor: 2,
+  get fn() { order.push("callee"); return true ? scaled : Math.abs }
+}
+function receiver() { order.push("receiver"); return box }
+function argument() { order.push("argument"); log("argument"); return -2 }
+
+// expect-result: {"a":-4,"b":-4,"c":-4,"chosen":-4,"absolute":2,"returnedAbsolute":2,"bound":-4,"trustedHelper":-4,"trustedRaw":2,"plainPair":-4,"received":-4,"order":["receiver","callee","argument"]}
+export function main() {
+  const a = (true ? double : Math.abs)(-2)
+  const b = (true ? double : triple)(-2)
+  const f = pickFn(true)
+  const c = f(-2)
+  const g = pickFn(false)
+  const returnedAbsolute = g(-2)
+  const bound = f.bind(null)(-2)
+  const received = receiver().fn(argument())
+  const values = {
+    a: typeof a === "number" ? a : "effect",
+    b: typeof b === "number" ? b : "effect",
+    c: typeof c === "number" ? c : "effect",
+    chosen: typeof chosen === "number" ? chosen : "effect",
+    absolute,
+    returnedAbsolute,
+    bound,
+    trustedHelper,
+    trustedRaw,
+    plainPair,
+    received,
+    order
+  }
+  log(JSON.stringify(values))
+  return values
+}

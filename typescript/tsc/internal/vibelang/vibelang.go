@@ -39,6 +39,7 @@ func init() {
 	checker.RegisterMemberReceiverHook(memberReceiver)
 	checker.RegisterCallSignaturesHook(effectValueCall)
 	checker.RegisterExpressionTypeHook(returnedExpressionType)
+	checker.RegisterExpressionTypeHook(plainUnionCalleeType)
 	checker.RegisterExpressionTypeHook(expressionType)
 	checker.RegisterAssertionOperandTypeHook(assertionOperandType)
 	checker.RegisterCatchVariableTypeHook(catchVariableType)
