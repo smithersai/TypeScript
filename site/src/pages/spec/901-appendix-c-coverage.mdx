@@ -261,7 +261,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | Feature | In VibeLang | Form |
 | --- | --- | --- |
 | Sinks (`sum`, `count`, `collect`, `head`, `drain`) | Unchanged | `Stream.run(stream, Sink.sum)` |
-| `Sink.fold`, `foldUntil`, `forEach` | Unchanged | VibeLang callbacks; pure ones pass as plain functions (D9) |
+| `Sink.fold`, `foldUntil`, `forEach` | Unchanged | VibeLang callbacks; a literal at a plain parameter is a plain function (D500) |
 | A producer into a sink | Changed | The producer is a `Stream`: `Stream.run(lines(path), sink)` (D402) |
 
 #### C16. Testing

@@ -8,15 +8,15 @@ title: "27. Compiler architecture"
 
 ```ts [Generated declaration]
 import { Effect } from "effect"
-import type { Plain } from "vibelang-runtime"
-// the plain marker is the type: F, the plain signature, and C, what TypeScript calls (D483)
-export declare const double: Plain<(n: number) => number, (n: number) => Effect.Effect<number, never, never>>
+// a declaration writes the form the source wrote (D500)
+export declare function double(n: number): number                 // double(n: number): number { … }
+export declare const half: (n: number) => Effect.Effect<number>   // half(n: number) { … }, no annotation
 ```
 
 The compiler writes ordinary TypeScript declarations with Effect contracts.
 TypeScript consumers call an Effect-returning function; VibeLang consumers
-run that Effect through an ordinary call, and call or pass the plain form of a
-function whose type carries it where a plain function is expected. The implementation is in
+run that Effect through an ordinary call, and call a plain function, which
+the declaration writes with its own signature, as JavaScript does. The implementation is in
 `typescript/tsc/internal/vibelang/`; `typescript/VIBELANG.md` lists its hooks,
 acceptance cases, and remaining limitations.
 
@@ -74,9 +74,11 @@ separate IR.
 
 A call runs where its callee is declared to return `Effect` (Chapter 13); a
 callee declared to return `Config`, `Exit`, or another Effect subtype returns
-data until that value is called. An unannotated or Effect-contract pure
-function gets a `$direct` variant for inline calls and an Effect form for the
-public ABI (D9, D10); a plain return annotation keeps one plain function (D67).
+data until that value is called. An Effect function, unannotated or with an
+Effect contract, whose body performs no Effect operation gets a `$direct`
+variant for its calls in Effect code and keeps its Effect form as its public
+ABI (D10, D421); a plain return annotation, `: infer _` included, makes one
+plain function (D67, D500).
 Calls and operands keep source order. `throw` adds an expected failure; `try`,
 `catch`, and `finally` become regions with completion records for jumps (D13,
 D15, D46).
@@ -114,28 +116,28 @@ With `--ignoreConfig` or files named on the command line, the program has no pac
 
 #### One checker pass
 
-Overload resolution is TypeScript's, from the arguments' own types: a
-function literal is typed once, as TypeScript types it, by the first candidate
-TypeScript checks it against, and no other candidate's typing is compared
-(D450, D482); a function argument is tried first in its own form, plain or Effect, and lifted
-only when no candidate accepts it as it is, with a candidate that takes it as a
-function preferred to one that converts it to a program (rule F, D380, D392).
-The hooks check each argument against the picked signature in the form Chapter
-13 gives the argument, so a function argument's form follows the signature
-TypeScript picks. The order of overloads never decides when an argument
+Overload resolution is TypeScript's, from the arguments' types: a function
+literal is typed once, as TypeScript types it, by the first candidate
+TypeScript checks it against, takes the form that candidate's destination
+gives it, and no other candidate's typing is compared (D450, D482, D500); a
+function with no required parameters converts to a program only when no
+candidate accepts the arguments as they are, with a candidate that takes it
+as a function preferred to one that converts it (rule F, D380). The hooks
+check each argument against the picked signature in the form Chapter 13
+gives the argument. The order of overloads never decides when an argument
 other than a function is evaluated; where it decides a function literal's
-typing, and with it the literal's form, rule F states the rough edge (D482,
-D494). A return in a
-program is checked against the Effect's success type. Function values, and
-the elements of array and object literals, convert to Effects where a
-parameter expects them (D7, D49, D423). Conversion runs no body when it
-happens; it decides whether the receiver's call of the function runs the body
-or builds a cold program whose runs do, as rule F specifies (D447), and it
-traverses no collection that an argument only names. D10 eligibility is a greatest fixpoint over the callee group. D12
-callback parameters carry inferred E and R type parameters. An intrinsic call such as
-Effect's `pipe` or the runtime's `wire` is recognized by the declaration its
-callee resolves to, through import aliases and namespace members, never by
-its spelling.
+typing, and with it the literal's form, it decides only whether the literal
+compiles (rule F, D482, D494, D500). A return in a program is checked
+against the Effect's success type. Function values, and the elements of
+array and object literals, convert to Effects where a parameter expects them
+(D7, D49, D423). Conversion runs no body when it happens; it decides whether
+the receiver's call of the function runs the body or builds a cold program
+whose runs do, as rule F specifies (D447), and it traverses no collection
+that an argument only names. D10's plain variants are a greatest fixpoint
+over the callee group, an optimization that decides no form (D421, D500).
+An intrinsic call such as Effect's `pipe` or the runtime's `wire` is
+recognized by the declaration its callee resolves to, through import aliases
+and namespace members, never by its spelling.
 
 D52 requires recursive E and R inference inside a call-graph component; the
 acceptance cases and `typescript/VIBELANG.md` record current coverage. No
@@ -162,12 +164,11 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 | `$region`, `$using`, `$fork` | Block-owned scopes, resources, and children |
 | `$service`, `$reference`, `$control` | Service keys, defaults, and control operations |
 | `$trusted`, `$trustedPlain` | Classify listed foreign exceptions |
-| `$plainOf` | The plain form of a value whose type is `Plain<F, C>`: `v[$direct]` where the value has it, and otherwise a function that calls the value with the same receiver and arguments and calls the plain form that the returned program records, which a module cycle (D446), a bound function, and a wrapper typed as returning its argument's type reach; a value that is neither fails at the call with a defect naming the function and the plain signature its type records (D268, D483, D495) |
 | `handle`, `resume`, `$tailResume` | Continuation handling |
 | `$produce`, `$yield`, `$forOf`, `$forStream` | Producers: a producer value is a `Stream` whose channel is the adapter and whose `$produce` property is its program (D402) |
 | `acquireRelease`, `acquireDisposable` | Effect's acquisitions, which also record the value whose release they registered, so `using` adds no second release (D401); a `.vibe` reference to Effect's own denotes these |
 | `$iteratorFrame` | Effect ownership of native iterator cleanup across suspension: the runtime loop's adapter, which unwinds a frame Effect abandons (D356) |
-| `$plainSync`, `$joinedFrame` | The Effect form of a plain function, which records its plain form for `$plainOf` (D446), and a generated frame, both turning a `SuppressedError` the runtime made back into the cause it stands for where it reaches an Effect frame (D340, D341) |
+| `$plainSync`, `$joinedFrame` | The Effect form of an Effect function built over its plain variant (Chapter 15), and a generated frame, both turning a `SuppressedError` the runtime made back into the cause it stands for where it reaches an Effect frame (D340, D341) |
 
 The runtime's README lists the full ABI. Compiler and helper changes belong in
 one commit. The smoke harness builds the runtime and links every case to that
@@ -183,7 +184,8 @@ against it may rely on [Rule] (D366).
    error, and requirement types, the same service and control identities, and
    the same legal uses of its callbacks, as a consumer compiled from the
    source. An exported function returns a cold `Effect`, one with a plain
-   return annotation is a plain function, and a producer returns a `Stream`,
+   return annotation, `: infer _` included, is a plain function (D500), and a
+   producer returns a `Stream`,
    the same producer value a VibeLang caller receives: a TypeScript consumer
    pulls it through the adapter, and a VibeLang consumer of the declaration
    that iterates it with `for...of` runs it on the loop's fiber, as a source
@@ -197,78 +199,42 @@ against it may rely on [Rule] (D366).
    body does: that a plain function never throws, or that a function whose R
    names a control operation never moves it to another fiber. A consumer that
    sees only declarations treats such a function as foreign code (EK4401,
-   EK4202) where a consumer of the source would not, except a function whose
-   type carries a plain form or a method its class's marker names (rule 3),
-   which it calls through its
-   plain form, in plain code too unless that form's return type is
-   definitely an Effect, as a consumer of the source does (Chapter 13,
-   D445, D480): an exception of a class the marker lists, which only a
-   `trusted` value's marker does, is an expected failure (D399, D400), and
-   any other is a defect (D431). It never runs or types a call differently.
-3. **The plain form.** A function whose own form is plain (Chapter 13, rule
-   F), one with a plain return annotation and an eligible unannotated one
-   alike, is declared with the runtime's type `Plain<F, C>`, a type import
-   of `vibelang-runtime`, its plain marker (D411, D483): `F` is its plain
-   call signature, and `C` the signature TypeScript code calls, `F` itself
-   for a function with a plain return annotation or a protocol member
-   (D484), and the cold `(…) => Effect.Effect<A, never, never>` for an
-   eligible unannotated one. `Plain<F, C>` is `C & { readonly [$direct]: F }`,
-   with `$direct` the runtime's exported symbol, and the run time supplies
-   that member: an eligible function's plain variant, attached to the
-   function object (D268), which survives re-exports, aliases, default
-   exports, and CommonJS, and a plain-annotated function or protocol member
-   itself. So an exported function whose own form is plain is declared as a
-   `const`, `export declare const double: Plain<(n: number) => number, (n: number) => Effect.Effect<number, never, never>>`,
-   an anonymous `export default` of one under a fresh name (rule H6), and
-   declaration emit writes the same type wherever such a function appears
-   in a type it writes out: a field or method of an exported object, of a
-   function's inferred return type, or of an element, and a class's
-   property, at any depth, written
-   as a property, since a method signature cannot carry it. A consumer of
-   the declaration reads the plain form from the type wherever the type
-   goes, as a consumer of the source does, and calls and passes that form,
-   in plain code too: `[1, 2].map(double)` is `[2, 4]`, and with
-   `export function makeApi() { return { half(n: number) { return n / 2 } } }`
-   declared as
-   `export declare const makeApi: Plain<() => { half: Plain<(n: number) => number, (n: number) => Effect.Effect<number, never, never>> }, () => Effect.Effect<{ half: Plain<(n: number) => number, (n: number) => Effect.Effect<number, never, never>> }, never, never>>`,
-   `makeApi().half(2)` is 1 at a module's top level, from source and from
-   declarations alike. A function with an Effect contract is declared with
-   its Effect signature alone, even where the compiler gives it a plain
-   variant for its calls, since its own form is Effect: passing it where a
-   plain function is expected is EK4301 to both consumers (D421). A function
-   whose type carries no plain form is an Effect function to its consumers,
-   and passing it where a plain function is expected is EK4301. A VibeLang
-   call of a function whose type carries a plain form calls that form, in
-   plain code too unless the form's return type is definitely an Effect,
-   and runs the Effect that form returns where it is (D480). Effect code may
-   run the Effect form instead, followed, where `F`'s return type is
-   definitely an Effect, by a run of the program the first run gives, since
-   the cold form's program returns the plain form's value unrun: both
-   produce the same observations (rule E11, D445). A class, whose method declarations
-   cannot carry such a type, names its plain methods in one marker instead:
-   a type-only `$plain` member of the namespace merged with the class, whose
-   type is the union of those methods' names, `type $plain = "format" |
-   "toString"`, and a `$plainStatic` member for its plain static methods. A
-   consumer of the declaration calls a named method as a trusted plain call;
-   a method not named is an Effect method or foreign code, by its declared
-   type (D431). A named method of a class is plain JavaScript, and its
-   declared signature is its plain call signature. An eligible unannotated
-   export's `Plain<F, C>` is inferred from its body, so its plain form is
-   part of its package's public types, as an inferred return type is part
-   of a TypeScript package's [Rule] (D495): a later version whose body loses
-   eligibility, as one that adds a log call does, changes its declared type,
-   a breaking change. A consumer compiled against the earlier declaration
-   whose plain call reaches a function with no plain form fails at that
-   call with a defect naming the function and the plain signature its
-   declaration recorded; it never runs the Effect form in its place. A
-   package that wants only written forms in its declarations sets
-   TypeScript's `isolatedDeclarations`, under which every exported function
-   writes its return type (TS9007), and a written return type decides the
-   form (rule F). A `trusted(impl,
-   [Errors])` value's type is the runtime's `Trusted\<F, Errors>`, which
-   records its plain call signature and its listed error classes (D400). No
-   generated function, such as a direct variant, a region, or a helper, is a
-   public export.
+   EK4202) where a consumer of the source would not, except a module the
+   compiler's manifest lists (rule 3): it calls that module's plain functions
+   and plain methods as plain calls, in plain code too unless a return type
+   is definitely an Effect, as a consumer of the source does (Chapter 13,
+   D445, D480), an exception of a class a `trusted` value's type lists is an
+   expected failure (D399, D400), and any other is a defect (D282, D500). It
+   never runs or types a call differently.
+3. **Written forms, and the manifest.** A plain function, one with a plain
+   return annotation or `: infer _` (Chapter 13, rule F, D500), is declared
+   with its TypeScript signature, as TypeScript's declaration emit writes it
+   for the same function written in TypeScript; an Effect function, one with
+   no return annotation or an Effect contract, with its Effect signature,
+   `(…) => Effect.Effect<A, E, R>`; and a class's method by its annotation,
+   or, unannotated, by D397's reading. No runtime type marks a form, so a
+   consumer reads a function's form from its declared type exactly as a
+   source consumer does: a function type whose return type is definitely an
+   Effect is an Effect function, and any other a plain function. A
+   declaration cannot say that a plain function was compiled from VibeLang,
+   and so never fails with an expected failure and needs no service, so the
+   compiler records it outside the declarations, which stay what TypeScript
+   would emit: beside the declaration files it emits, in the
+   declaration output's root directory, it writes `vibelang.manifest.json`,
+   whose `declarations` array lists, relative to that directory, each
+   declaration file it emitted from a `.vibe` file. A consumer that resolves
+   a declaration file listed in the nearest such manifest in its directory or
+   above it, up to its package's root, trusts that module as `trustedPackages`
+   trusts a package (D261). A package publishes the manifest with its
+   declarations. A plain export of a package without a manifest is foreign
+   code to a declaration consumer (EK4401), never a silent difference. A
+   function with an Effect contract is declared with its Effect signature
+   alone, even where the compiler gives it a plain variant for its calls, so
+   passing it where a plain function is expected is EK4301 to both consumers
+   (D421). A `trusted(impl, [Errors])` value's type is the runtime's
+   `Trusted<F, Errors>`, which records its plain call signature and its
+   listed error classes (D400). No generated function, such as a direct
+   variant, a region, or a helper, is a public export.
 4. **Standard TypeScript.** A declaration file is TypeScript that stock
    TypeScript checks with `skipLibCheck: false`: an Effect type is written
    `Effect.Effect<A, E, R>`, never in the `!` form, and no VibeLang keyword
@@ -303,12 +269,13 @@ A round-trip suite holds the compiler to rule 1: it compiles a stock
 TypeScript consumer and a VibeLang consumer of each case's emitted
 declarations alone, across aliases and re-exports, recursive inference,
 generic callbacks, services and providers, data variants, and error families,
-and, for the rules the third review added, an Effect-annotated and an eligible
-unannotated function passed to `map`, a contextually typed `(x) => x.run()`,
-a class with plain methods, an exported object with an eligible method and a
-protocol method, a method of a returned object, a `let` that holds a plain
-function, and exported compositions and extracted methods (D421, D422, D431,
-D458, D460, D483, D484).
+and, for the rules the third review and D500 added, an Effect-annotated,
+an unannotated, and a plain-annotated function passed to `map`, a
+contextually typed `(x) => x.run()`, a class with plain methods, an exported
+object with an unannotated method and a protocol method, a method of a
+returned object, a `let` that holds a plain function, a `: infer _` export,
+a callback parameter written with its channels, and exported compositions
+and extracted methods (D421, D458, D484, D500).
 
 Services emit as runtime key classes with the identifier and shape that
 Chapter 4 defines (D361), so ordinary TypeScript can provide the service and
@@ -337,7 +304,7 @@ name an effect module that an inferred type comes from
 through the name the source reaches it by, as Effect TypeScript that imports
 the module does (`Option.Option<string>`, not
 `import("effect/Option").Option<string>`; the Effect module always),
-preserve D12's callback parameters, and write source
+write each callback parameter's type as the source writes it, and write source
 specifiers as `.js` (Chapter 26). TypeScript consumers need only the `.js`,
 `.d.ts`, `effect`, and runtime packages. A TypeScript class implements the
 service's shape, `implements Users.Shape`; `implements Users` asks for the

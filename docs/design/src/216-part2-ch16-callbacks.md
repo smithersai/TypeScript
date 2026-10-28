@@ -1,9 +1,9 @@
 ### 16. Callbacks and higher-order functions
 
-#### A callback type without a contract accepts any contract
+#### A callback type means what TypeScript means
 
 ```ts es
-function mapAll<A, B>(items: ReadonlyArray<A>, f: (a: A) => B) {
+function mapAll<A, B, E, R>(items: ReadonlyArray<A>, f: (a: A) => B!E!R) {
   const out: B[] = []
   for (const item of items) out.push(f(item))
   return out
@@ -14,39 +14,36 @@ const names = mapAll(ids, (id) => Users.find(id).name)   // string[]!UserNotFoun
 const sizes = mapAll(words, (w) => w.length)             // number[]!!
 ```
 
-`f`'s type says nothing about errors or services, so `mapAll` passes through whatever its callback does: a missing contract on a callback parameter means "inferred from each call's argument", never "cannot fail, needs nothing". To restrict a callback, write its contract: `f: (a: A) => B!!`. D12 stands alongside D57: `infer` selects inferred channels in the return annotation of a function with a body, but introduces no inference in parameter types or aliases. In a callback parameter, `(a: A) => Effect<B>` keeps TypeScript's defaults, meaning `(a: A) => Effect<B, never, never>`, while `(a: A) => B` accepts any contract.
+A function type means what TypeScript means wherever it is written [Rule] (D500): `(a: A) => B` is a plain function type, in a parameter of a `.vibe` function as in a variable, a property, an interface member, an element, or a return, written in place or through a type alias. A callback that may run Effects says so in its type, `(a: A) => B!E!R`, with `E` and `R` declared as type parameters of the function, as Effect TypeScript declares a callback's channels on `Effect.forEach`. `mapAll` passes through whatever its callback does because its contract names the callback's channels: `f(item)` runs (Chapter 13, rule R), and its failures join E and its requirements R. A literal passed to `mapAll` takes the Effect form there (rule F), so `(w) => w.length` is an Effect function that cannot fail, and `sizes` needs nothing.
 
-The rule covers a parameter of any function, method, or function expression, a call argument or not, and only a parameter [Rule] (D68, D398). E and R are type parameters of the function that has the parameter: added channel parameters are named E and R, then E2 and R2 for another callback (D68), and default to `never`, so a call that omits an optional callback adds no failure and needs nothing. An optional call, `f?.(a)`, runs the callback when it is present, as `f(a)` does. A contract-less function type anywhere else, as the type of a variable, a property, an interface's method or field, an element, or a return, has no function to carry its channels, so it means what TypeScript means, a plain function type: a function that can pause or fail there is EK4301, and a contract written there says what it may do, as in `onSave: (doc: Doc) => void!SaveError!Store`.
+To accept only callbacks that cannot fail and need nothing, write `f: (a: A) => B!!`. To accept plain functions, write `f: (a: A) => B`, whose call is a plain call:
 
-**Naming the channels in a written contract** [Rule] (D434). A contract written on the function that has such a parameter names the channels D68 adds as `E` and `R`, then `E2` and `R2` for the second contract-less callback parameter, in parameter order; the names are in scope in its return annotation and its other parameter types. So a member that runs a callback passes the callback's channels through:
+```ts es
+function sumBy<A>(items: ReadonlyArray<A>, f: (a: A) => number): number {
+  let total = 0
+  for (const item of items) total += f(item)
+  return total
+}
+// a plain function: <A>(items: ReadonlyArray<A>, f: (a: A) => number) => number to every caller
+
+const total = sumBy(orders, (o) => o.amount)              // a plain literal at a plain destination
+const score = sumBy(ids, (id) => Users.find(id).score)    // EK4301: the literal is plain, and its body runs an Effect
+```
+
+A function type with no Effect in its return is never a contract whose channels are silently `never`: it is a plain function type, so an effectful literal passed there is EK4301, never a callback whose failures disappear (settled decision 2). Before D500, a contract-less callback parameter of a `.vibe` function accepted any contract, through channels the compiler added, `E` and `R`, then `E2` and `R2` (D12, D68, D331, D398, D434). That gave one written type two meanings, plain to TypeScript and polymorphic to VibeLang, and made a TypeScript-shaped parameter such as `container: (value: unknown) => string | null` an Effect callback that `SchemaGetter.transform`'s synchronous callback could not call. A service member that runs a callback writes its channels as a function does:
 
 ```ts es
 service Tx {
-  run<A>(work: () => A): A!TxError | E!R
+  run<A, E, R>(work: () => A!E!R): A!TxError | E!R
 }
 ```
 
-A written contract that does not name them keeps its meaning: a body that calls the callback is EK2001 and EK2002, since the callback's failures and requirements would escape it, and a declaration without a body promises that no implementation calls it. Where the signature's annotation or parameter types name `E`, `R`, `E2`, or `R2` while a declaration with a type meaning of that name is already in scope there, a type parameter of the signature or an enclosing declaration, or a type alias, interface, class, enum, or imported type of the file, the name is EK2130, so the callback's channels never silently shadow a type the file means (D455), whose repair writes the callback's channels as type parameters of the author's choosing: `run<A, F, Q>(work: () => A!F!Q): A!TxError | F!Q`.
-
-The rule follows the language a function type is written in, not how it is spelled (D331). A function type written in a `.vibe` file gains the channels in a parameter position, whether it is written in place or through a type alias or an interface that a `.vibe` file declares: an alias means what the type it names means, so extracting one changes nothing.
-
-```ts es
-type Visit = (node: Node) => void
-
-function walkAll(nodes: ReadonlyArray<Node>, visit: Visit) {
-  for (const node of nodes) visit(node)
-}
-// <E, R>(nodes: ReadonlyArray<Node>, visit: (node: Node) => void!E!R) => void!E!R
-```
-
-A function type that TypeScript declares, in a `.ts` file, a library, or a `module` declaration (D283), keeps TypeScript's meaning wherever it is used: a plain function. `Predicate.Predicate<T>` and `LazyArg<A>` are such types. A contract-less callback can pause and has no plain form, so it cannot be called inside a synchronous JavaScript callback such as a `sort` comparator, or passed on as one, as in `xs.find(p)`: either is EK4301. Call it in a `for...of` loop instead, or give the parameter a plain function type that TypeScript declares, such as `Predicate.Predicate<T>`.
-
-The declaration file writes the polymorphism out, as the comment shows, so a TypeScript caller passes a callback returning an `Effect` and wraps a plain one: `mapAll(words, (w) => Effect.succeed(w.length))`.
+The declaration file writes each type as the source writes it, so a TypeScript caller passes `mapAll` a callback returning an `Effect`, `mapAll(words, (w) => Effect.succeed(w.length))`, and `sumBy` a plain one.
 
 `mapAll` compiles to frames in v0 whatever its callback does (Chapter 15). The same rule makes wrappers short:
 
 ```ts es
-function withRetry<A>(times: number, program: () => A) {
+function withRetry<A, E, R>(times: number, program: () => A!E!R) {
   return retry(program, Schedule.recurs(times))
 }
 // <A, E, R>(times: number, program: () => A!E!R) => A!E!R
@@ -54,7 +51,7 @@ function withRetry<A>(times: number, program: () => A) {
 
 #### Callbacks into JavaScript
 
-A JavaScript function such as `Array.prototype.map` calls its callback synchronously, on a stack frame the runtime cannot pause or capture. A callback passed where a plain function type is expected must therefore compile to plain JavaScript (Chapter 15), with no Effect operation and E = `never`; anything else is EK4301 (Chapter 10). The same holds for a named VibeLang function passed as a value: `stores.map(makeSync)` passes `makeSync`'s plain form, since its own form is plain, and a function whose own form is Effect is rejected, an Effect-annotated one included, even where the compiler gives it a plain variant for its calls (Chapter 13, D421). A callback that calls a plain function, `xs.map((x) => double(x))`, is plain itself: the call calls `double`'s plain form (D445).
+A JavaScript function such as `Array.prototype.map` calls its callback synchronously, on a stack frame the runtime cannot pause or capture. A function literal at its plain destination is a plain function (Chapter 13, rule F), so it must compile to plain JavaScript (Chapter 15), with no Effect operation and E = `never`; anything else is EK4301 (Chapter 10). A named function passed as a value must be plain itself: `stores.map(makeSync)` needs `makeSync` declared with a plain return annotation, as Chapter 5 declares it, and an Effect function, an unannotated one included, is EK4301, even where the compiler gives it a plain variant for its calls (D421, D500). A callback that calls a plain function, `xs.map((x) => double(x))` with `double(n: number): number`, is plain itself; with an unannotated `double`, the literal's call of it runs an Effect, which is EK4301, and the quick fix writes `double`'s return type.
 
 #### Which Effect combinators run their argument on another fiber
 

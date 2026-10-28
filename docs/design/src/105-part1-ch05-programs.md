@@ -113,10 +113,10 @@ D8 kept the operator out of v0 because calls run: in `fetchUser(id) |> Effect.re
 Programs are values: store them in variables, return them, pass them around. Nothing runs until something calls them.
 
 ```ts es
-function makeSync(store: Store) {
+function makeSync(store: Store): () => SyncReport!SyncError!Inventory {
   return () => syncInventory(store)            // returns a program
 }
-// (() => SyncReport!SyncError!Inventory)!!
+// a plain function: (store: Store) => () => SyncReport!SyncError!Inventory
 
 function syncEverything(stores: ReadonlyArray<Store>) {
   const syncAll = stores.map(makeSync)                    // an array of programs; nothing ran
@@ -124,7 +124,7 @@ function syncEverything(stores: ReadonlyArray<Store>) {
 }
 ```
 
-`stores.map(makeSync)` passes `makeSync` to JavaScript's `Array.prototype.map`, which expects a plain function. `makeSync` is unannotated and performs no Effect operation, so its own form is plain (Chapter 13, rule F) and `map` receives it: `syncAll` holds programs. A function whose own form is Effect cannot be passed to `map` (EK4301, Chapter 10). Where `Effect.all` expects Effects, the elements of an array or object literal convert one by one, so the spread `[...syncAll]` reads `syncAll` once, at the call, into a literal whose elements become programs. Passing `syncAll` itself is a type error: nothing traverses a collection that a call only names (D423).
+`stores.map(makeSync)` passes `makeSync` to JavaScript's `Array.prototype.map`, which expects a plain function. `makeSync`'s return annotation is a function type, not an Effect, so it is a plain function (Chapter 13, rule F) and `map` receives it: `syncAll` holds programs. Its returned arrow stands where that annotation declares a function returning an Effect, so it is an Effect function, the program. Without the annotation, `makeSync` would be an Effect function, which `map` cannot call (EK4301, Chapter 10), whatever its body does (D500). Where `Effect.all` expects Effects, the elements of an array or object literal convert one by one, so the spread `[...syncAll]` reads `syncAll` once, at the call, into a literal whose elements become programs. Passing `syncAll` itself is a type error: nothing traverses a collection that a call only names (D423).
 
 An exported VibeLang function is a cold program to TypeScript: calling it runs none of its body (Chapter 10). A function that does work when it is called and returns a program for later is a **factory**, and VibeLang has no factory form of its own (D390). Two spellings cover what a factory does. A plain function, whose annotation says it returns a function, does its work at the call:
 
