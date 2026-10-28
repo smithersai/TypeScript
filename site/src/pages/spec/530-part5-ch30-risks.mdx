@@ -38,15 +38,15 @@ No design question here is open: each row states the rule that stands, what coul
 
 #### Conformance obligations
 
-Each rule the second review of 2026-10-27 repaired has a conformance case that fails on the rule it replaced [Rule] (D392-D420). An implementation conforms only when each holds:
+Each rule the second and third reviews of 2026-10-27 changed has a conformance case that fails on the rule it replaced [Rule] (D392-D444), except decisions that change only wording, an index, or a diagnostic's default (D413, D416, D429, D444), which the documentation, grammar, and registry checks cover. An implementation conforms only when each holds:
 
 | Case | It passes when | Rule |
 | --- | --- | --- |
 | Reordered overloads | `consume((n) => events.push(n))` gives the same `events` with the plain and the Effect overload in either order, and a pure literal against overloads TypeScript would leave open is EK1021 | D392 |
-| Inherited type parameters | `new Box(program).get()` and `flow(parse, fetchUser)(raw)` return the program unrun in source and declaration consumers | D393 |
+| Inherited type parameters | `new Box(program).get()` and `identity(program)` return the program unrun in source and declaration consumers, and `flow(parse, fetchUser)` is EK4301 | D393, D435 |
 | Await adoption | `await.all [exit(() => a()), exit(() => b())]` gives two `Exit` values; `await.all [job]` is EK4613 | D394 |
 | Annotated failures | `function f(t: string): unknown { return JSON.parse(t) }` is EK2003, and the unannotated `f`'s `SyntaxError` is caught by its caller's `catch` | D399 |
-| `trusted` in plain code | A `trusted(impl, [])` value compiles in `xs.map((x) => f(x))` and in a plain-annotated function | D400 |
+| `trusted` in plain code | A `trusted(impl, [])` value compiles in `xs.map((x) => f(x))` and in a plain-annotated function; with `[InvalidSlug]`, a plain function's own `catch` receives `InvalidSlug` typed, compiled from source and from declarations, and one that escapes is EK2003 | D400, D431 |
 | `Scope` without a release | `using held = lease()`, where `lease(): Lease!!Scope` returns a fresh `Disposable`, disposes once; so does a function that acquires another resource and returns a fresh `Disposable`; `Effect.acquireRelease` of a `Disposable` under `using`, written at the `using` or in a wrapper, releases once; an interruptible acquisition inside `using` can be cancelled during its wait | D401 |
 | Producer through a `Stream` binding | A producer bound to a `Stream`-typed variable and iterated by `for...of` runs on the loop's fiber, with the same fiber identity and handler reach as the unannotated binding; passed to a Stream function, it runs on the adapter's fiber, and a control operation in its R is EK4201 there | D402 |
 | Inline module order | Two module declarations, the first pushing `"first"` and the second importing a module that pushes `"dependency"`, give `first,dependency`, as separate files do | D403 |
@@ -58,6 +58,31 @@ Each rule the second review of 2026-10-27 repaired has a conformance case that f
 | Escaping fibers | `queue.offer(fork w())` and a function literal capturing an owned fiber are EK4838 | D409 |
 | Plain marker | Stock TypeScript rejects `double.$plain(2)`; a declaration consumer passes a plain-annotated export to `map` without EK4401 | D411 |
 | Annotated recursion | A plain-annotated `sumTo(100000)` completes as the unannotated one does | D412 |
+| Effect-annotated callback | `[1, 2].map(twice)`, with `twice(n: number): number!!`, is EK4301 from source and from declarations; the unannotated `twice` gives `[2, 4]` from both; each keeps its overload with a plain and an Effect overload in either order | D421 |
+| Contextual parameter types | `(x) => x.run()` against two candidates whose parameter types make `run()` plain under one and an Effect under the other is EK1021 | D422 |
+| Discarded iterable | One `discard` function, reached through `(xs: unknown) => string` and through `(xs: Iterable<Effect<number>>) => string`, steps a counting iterable in neither call; the second does not type-check until written `[...jobs]`, which steps it once, at the call | D423 |
+| Late iterator `return` | A body that installs a failing `return()` on a custom iterator and then fails gives both reasons, in order, on the native and the runtime loop; a `return` getter that gives `undefined` is read once per close and never at the loop's entry | D424 |
+| Widened disposable | `using held = lease()`, with `lease(): object!!Scope` returning a `Lease` after a pause, cancelled during the pause, releases the lease once, as the `Lease`-typed version does | D425 |
+| Exported composition | `composed("x")`, exported from a `.ts` file the program compiles, and `Box<Effect<number>>`'s `get` exported extracted and bound from a `.vibe` file, return the Effect as data from source and from declarations | D426 |
+| Duplicate package | With two installed copies of one package version declaring an `error` class, a match whose coverage counts its arm is EK4701 naming the second copy; with `default`, a value from the other copy takes `default` | D427 |
+| Open class arm | A match over `Error` whose last arm is `when Error:` and that has no `default` is EK4701 | D428 |
+| Optional callbacks | `retry(() => f(), { while: (e) => e.retryable })` accepts the literal in its own form; `retry(makeSync(store), policy)` compiles | D395 |
+| Hatch arguments | `sync(Math.random)` is EK4411; `sync(() => Math.random())` gives a number | D396 |
+| Method forms | Adding a service call to an unannotated `reset()` changes no TypeScript signature; a `toString` whose body can pause is EK4301 | D397 |
+| Callback channels | A `.vibe` interface member typed `(n: Node) => void` rejects a function that can fail (EK4301); a parameter of that type passes its callback's channels through | D398 |
+| Continuation uses | Storing `k` in a clause of a `handle(...)` call, passing a non-literal clauses object, and a `resume` in a function nested in a statement clause are EK2128 | D410, D440 |
+| Repeated `infer` and key calls | `Effect<infer V, infer V, never>` is EK2129; `Fn(3)` for a function-shaped service is EK3007 | D414, D415 |
+| Array patterns | An array pattern over `Iterable<number>` is EK4704 | D417 |
+| Curried pipe stage | `x \|> f(a)(%)`, where `x` has a `pipe` member that counts its calls, reads it never | D418 |
+| Entry services | An entry `main` that needs a service nothing provides fails to compile | D420 |
+| Structural plain member | A class with an unannotated `reset()` assigned to `{ reset(): void }`, in a `.vibe` file or as an argument to a TypeScript function, is EK4301; with `implements`, a call of `reset()` through the interface changes the counter | D430 |
+| Plain methods across declarations | A declaration consumer calls an exported class's plain `format()` and `toString()` with no EK4401 | D431 |
+| Renamed keywords | `import { fork as spawn }`, `const spawn = fork`, and `import { sync as s }` are EK4410 | D432 |
+| Forked program | `fork job`, with `const job = () => heartbeat()`, is EK4613; `fork job()` runs `heartbeat` | D433 |
+| Named channels | `service Tx { run<A>(work: () => A): A!TxError \| E!R }` accepts an implementation that calls `work`; inside `class Box<E>`, a member naming `E` that way is EK2130 | D434 |
+| Program-building callbacks | `ids.map((id) => () => fetchUser(id))` compiles and gives programs; a release returning its program is EK4802 | D436 |
+| Synchronous hatch result | `sync(() => thenable)` gives the thenable, whose `then` is never called | D439 |
+| Module cycle | A cyclic importer's top-level plain call of an eligible export, before the exporter's body runs, gives the source's result | D442 |
 
 The suite compiles each case from source and against declarations, with the plain path and with frames, and compares their observations (G10).
 
@@ -71,7 +96,7 @@ Each limit below comes from the current implementation, not from the design [Res
 | Bindings in `or` and `not` patterns (D210) | `when A(let x) or B(let x)` | The inline lowering of `or` has nowhere to declare a name | EK4702 |
 | `is` bindings (D211) | A binding used outside an `if` or `while` condition's `&&` chain and its branch | The lowering nests the branch inside the tests | EK4703 |
 | Pattern forms (D212) | Regular expression and relational patterns, computed keys other than names and literals | Not lowered yet | EK4704 |
-| Pattern domains (D214, D417) | An array pattern whose subject's type admits an iterable that is not an array; an object pattern against a primitive; `yield` in an arm of a match in expression position | The lowering tests arrays and objects directly | EK4704 for the array pattern, rejected before it could fail to match an iterable the proposal would iterate; run-time no-match for the object pattern; or TypeScript's error |
+| Pattern domains (D214, D417) | An array pattern whose subject's type admits an iterable that is not an array; `yield` in an arm of a match in expression position | The lowering tests arrays directly | EK4704 for the array pattern, rejected before it could fail to match an iterable the proposal would iterate; or TypeScript's error. That an object pattern never matches a primitive is a rule, not a restriction (Chapter 3, D441) |
 | Combinations in nested data patterns (Chapter 11) | A match whose coverage needs more combinations than the compiler counts | The count is bounded | EK4701, with `default` as the fix |
 | Data type parameters (D307) | More than four type parameters, or a constrained one | `Data.TaggedEnum.WithGenerics` passes at most four, unconstrained | EK2126 |
 | Await and join shapes (D171, D228) | Types of nested arrays and objects of fibers | Deeper recursive types exceed TypeScript's instantiation depth | EK4603, EK4611 |

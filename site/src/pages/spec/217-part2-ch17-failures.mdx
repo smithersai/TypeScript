@@ -123,7 +123,7 @@ function describe(id?: string) {
 
 #### The finalization rule
 
-**Applies to** every cleanup VibeLang runs: a `finally` block, a `finally (exit)` block, a `using` release, the close of a Scope region (a block that declares `using` or calls `fork`), a clause owner abandoning a continuation (Chapter 21), a fiber's exit releasing its transferred continuations, and the iterator close of the iterator rule below.
+**Applies to** every cleanup VibeLang runs: a `finally` block, a `finally (exit)` block, a `using` release, the close of a Scope region (a region that declares `using` or owns a `fork`, D408), a clause owner abandoning a continuation (Chapter 21), a fiber's exit releasing its transferred continuations, and the iterator close of the iterator rule below.
 
 **Checked.** A `return`, `break`, or `continue` that leaves a `finally` block is EK2006: in JavaScript it discards the failure in flight. A cleanup's own failures and requirements join the enclosing function's E and R. A control operation inside cleanup must be handled inside that cleanup (Chapter 9), so no handler outside can cut it short.
 
@@ -160,7 +160,7 @@ function report() {
 
 **Applies to** every construct that opens a JavaScript iterator: `for...of` over an iterable that is not a producer or a `Stream`, and array destructuring, in a binding, an assignment, a parameter, or a `for...of` head.
 
-**At run time.** An iterator the construct opens is closed, by calling its `return()` once, on every exit before the iterator is done: a jump, an expected failure, a defect, an interruption, or an abandonment, wherever the exit starts, in the loop head, a binding pattern's default, or the body (D356). The iterable's static type exempts nothing: an array whose `Symbol.iterator` was replaced is closed like any iterator. Closing is cleanup under the finalization rule, so a `return()` that throws while a failure is pending is added to the cause, where ECMAScript's `IteratorClose` would drop it. A producer and a `Stream` close by abandonment and scope close instead (Chapter 8).
+**At run time.** An iterator the construct opens is closed, by looking its `return` method up and calling it once, when it closes and never earlier, as ECMAScript's `IteratorClose` does (D424), on every exit before the iterator is done: a jump, an expected failure, a defect, an interruption, or an abandonment, wherever the exit starts, in the loop head, a binding pattern's default, or the body (D356). The iterable's static type exempts nothing: an array whose `Symbol.iterator` was replaced is closed like any iterator. Closing is cleanup under the finalization rule, so a `return()` that throws while a failure is pending is added to the cause, where ECMAScript's `IteratorClose` would drop it. A producer and a `Stream` close by abandonment and scope close instead (Chapter 8).
 
 ```ts [VibeLang]
 error Empty

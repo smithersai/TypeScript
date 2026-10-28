@@ -202,8 +202,8 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | Feature | In VibeLang | Form |
 | --- | --- | --- |
 | The `concurrency` option | Changed | Programs as functions, the same options |
-| Struct and record forms of `Effect.all` | Changed | Record fields convert to programs |
-| A computed array of programs | Changed | `Effect.all(stores.map(makeSync))` (D9) |
+| Struct and record forms of `Effect.all` | Changed | An object literal's fields convert to programs; a record built elsewhere is spread, `all({ ...jobs })` (D423) |
+| A computed array of programs | Changed | `Effect.all([...stores.map(makeSync)])`: a spread in a literal, whose elements convert (D9, D423) |
 | `Effect.forEach` with concurrency | Unchanged | The same call |
 | `Effect.zip` with `concurrent: true` | Changed | Programs as functions |
 | `race`, `raceFirst`, `raceAll` | Changed | Programs as functions; each has its own exit rule (Chapter 7) |
