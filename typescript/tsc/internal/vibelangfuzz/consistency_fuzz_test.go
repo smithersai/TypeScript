@@ -13,6 +13,8 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ls"
 	"github.com/microsoft/TypeScript/tsc/internal/ls/lsconv"
 	"github.com/microsoft/TypeScript/tsc/internal/lsp/lsproto"
+	"github.com/microsoft/TypeScript/tsc/internal/parser"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
 // consistencyTarget names FuzzEditorConsistency in gaps and pending lines.
@@ -270,6 +272,10 @@ func consistencyTwoSymbols(node *ast.Node) bool {
 // first reference. A reference counts when its text is the name of what it
 // names, so that a reference TypeScript resolves without naming the symbol,
 // such as `target` in `new.target`, does not; and when it names one symbol.
+// A receiver parameter named `this` is not an ordinary binding: upstream's
+// fourslash TestRenameThis allows its rename, but that turns an erased
+// receiver into a runtime parameter and can change call arity. It is not the
+// meaning-preserving alpha rename checkRename requires (D372).
 func (c *consistency) symbols() []*consistencySymbol {
 	r := c.before.r
 	checker, done := r.Program.GetTypeChecker(c.ctx)
@@ -710,8 +716,94 @@ func (c *consistency) checkSelectionRanges(offsets []int) {
 			childStart, childEnd, ok2 := lines.span(child.Range)
 			if ok1 && ok2 && (parentStart > childStart || childEnd > parentEnd) {
 				kind := p.kindOfRange(c.main, childStart, childEnd) + "-in-" + p.kindOfRange(c.main, parentStart, parentEnd)
-				Gap(c.t, consistencyTarget, "consistency:selection-ranges:nesting:"+kind, "LSP 3.17: at %s the selection range [%d, %d) %q is not inside its parent [%d, %d) %q\n%s", at, childStart, childEnd, p.files[c.main][childStart:childEnd], parentStart, parentEnd, p.files[c.main][parentStart:parentEnd], c.archive)
+				key := consistencySelectionNestingKey(c.main, p.files[c.main], min(childStart, parentStart), max(childEnd, parentEnd), kind)
+				Gap(c.t, consistencyTarget, key, "LSP 3.17: at %s the selection range [%d, %d) %q is not inside its parent [%d, %d) %q\n%s", at, childStart, childEnd, p.files[c.main][childStart:childEnd], parentStart, parentEnd, p.files[c.main][parentStart:parentEnd], c.archive)
 			}
 		}
+	}
+}
+
+// consistencySelectionNestingKey groups the source-order failures of nodes
+// VibeLang forms synthesize (D32), independently of their TypeScript kinds.
+// LSP 3.17 requires nesting for every form. Only ranges crossing a form's
+// own syntax use the pending key; TypeScript elsewhere in the file, and in
+// a form's body, keeps its strict key.
+func consistencySelectionNestingKey(name, text string, start, end int, kind string) string {
+	key := "consistency:selection-ranges:nesting:"
+	_, forms := parser.ParseVibeLangSyntax(ast.SourceFileParseOptions{FileName: tspath.RootedFilePath("/" + name), PathKey: tspath.PathKey("/" + name)}, text)
+	touches := func(a, b int) bool { return a < b && start < b && a < end }
+	for _, form := range forms {
+		if form.Kind == parser.VibeSyntaxClause && form.Name == "catch" {
+			continue // An ordinary TypeScript catch clause is recorded too.
+		}
+		if touches(form.Word.Pos(), form.Word.End()) || touches(form.Head.Pos(), form.Head.End()) {
+			return key + "vibelang"
+		}
+		switch form.Kind {
+		case parser.VibeSyntaxEffectType, parser.VibeSyntaxStatement:
+			if touches(form.Range.Pos(), form.Range.End()) {
+				return key + "vibelang"
+			}
+		case parser.VibeSyntaxDeclaration:
+			if touches(form.Range.Pos(), form.Head.End()) { // Includes declaration modifiers.
+				return key + "vibelang"
+			}
+		case parser.VibeSyntaxIs:
+			if touches(form.Right.Pos(), form.Right.End()) {
+				return key + "vibelang"
+			}
+		case parser.VibeSyntaxForConcurrent:
+			// The recorded range ends before the binding and iterable, whose
+			// selection nodes become an arrow and call arguments.
+			depth := 0
+			for _, token := range toolsScan(text[form.Head.End():]) {
+				if token.kind == ast.KindOpenParenToken {
+					depth++
+				} else if token.kind == ast.KindCloseParenToken {
+					depth--
+					if depth == 0 {
+						if touches(form.Head.End(), form.Head.End()+token.end) {
+							return key + "vibelang"
+						}
+						break
+					}
+				}
+			}
+		}
+		for _, arm := range form.Arms {
+			if touches(arm.Head.Pos(), arm.Head.End()) {
+				return key + "vibelang"
+			}
+		}
+	}
+	return key + kind
+}
+
+// TestConsistencySelectionNestingKey keeps the LSP nesting oracle strict
+// for TypeScript syntax, even beside or inside a VibeLang form (D32).
+func TestConsistencySelectionNestingKey(t *testing.T) {
+	for _, test := range []struct {
+		name, file, source, selection string
+		vibe                          bool
+	}{
+		{"contract", "main.vibe", "type T = number!!", "number!!", true},
+		{"declaration modifier", "main.vibe", "export data D { A }", "export", true},
+		{"catch expression", "main.vibe", "const x = 0 catch 1", "0 catch 1", true},
+		{"concurrent binding", "main.vibe", "for concurrent(1) (const x of []) {}", "x of []", true},
+		{"typescript", "main.ts", "function f(x: number) { return x + 1 }", "x + 1", false},
+		{"typescript sibling", "main.vibe", "type T = number!!; function f(x: number) { return x + 1 }", "x + 1", false},
+		{"typescript inside form", "main.vibe", "const x = do { const n = 1 + 2; n }", "1 + 2", false},
+		{"typescript catch", "main.vibe", "try {} catch (e) { const n = 1 + 2 }", "catch (e)", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			start := strings.Index(test.source, test.selection)
+			want := "consistency:selection-ranges:nesting:BinaryExpression-in-Block"
+			if test.vibe {
+				want = "consistency:selection-ranges:nesting:vibelang"
+			}
+			if got := consistencySelectionNestingKey(test.file, test.source, start, start+len(test.selection), "BinaryExpression-in-Block"); got != want {
+				t.Fatalf("got %s, want %s", got, want)
+			}
+		})
 	}
 }

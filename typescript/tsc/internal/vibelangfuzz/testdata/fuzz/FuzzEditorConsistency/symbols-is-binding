@@ -1,0 +1,3 @@
+go test fuzz v1
+string("-- main.vibe --\nexport function main(x) { if (x is Exit.Success(let n)) return n }\n")
+[]byte("\x00\x10")

@@ -6,19 +6,8 @@
 # listed by corpus file, so that it fails as XPASS once fixed.
 # <target> <key> <owner> <what is missing, with the decision it breaks>
 FuzzEditorConsistency feature:layer-declaration compiler hang: the parser loops on a stray `)` or `]` in a `layer` declaration's body (FuzzFormat corpus parser-hang-layer-close-paren)
-FuzzEditorConsistency consistency:selection-ranges:nesting:TypeReference-in-ExclamationToken compiler LSP 3.17 ("`parent.range` must contain `this.range`"): at the `!` of a contract such as `number!!`, the selection range of the type `number!!` has the `!` token as its parent; the Effect<A, E, R> node a contract synthesizes does not nest in source order (Chapter 28, The editor, D32)
-FuzzEditorConsistency corpus:selection-contract-bang compiler the minimal reproduction of consistency:selection-ranges:nesting:TypeReference-in-ExclamationToken
-FuzzEditorConsistency consistency:selection-ranges:nesting:VariableDeclaration-in-VariableDeclaration compiler LSP 3.17: at the `match` keyword of `match (input) { ... }`, the selection range `match (input` has the parent `match`; the nodes a match synthesizes do not nest (D32)
-FuzzEditorConsistency consistency:selection-ranges:nesting:CallExpression-in-CatchKeyword compiler LSP 3.17: in `latestTitle() catch "No title available"` the selection range of the catch expression has the `catch` keyword as its parent (D32)
-FuzzEditorConsistency consistency:selection-ranges:nesting:CallExpression-in-Block compiler LSP 3.17: inside `match (subject.state) { ... }` the selection range `match (subject.state` is not inside its parent `(subject.state) { ... }` (D32)
-FuzzEditorConsistency consistency:selection-ranges:nesting:ArrowFunction-in-CallExpression compiler LSP 3.17: in `for concurrent(8) (const id of ids) { ... }` the selection range starting at `id of ids` is not inside its parent starting at `ids` (D32)
-FuzzEditorConsistency consistency:selection-ranges:nesting:Block-in-Block compiler LSP 3.17: in `if (outcome is Exit.Success(let value)) return value` the if statement's selection range has a parent that starts inside it (D32)
-FuzzEditorConsistency consistency:selection-ranges:nesting:ArrowFunction-in-ArrowFunction compiler LSP 3.17: a selection range of a VibeLang form inside an arrow function is not inside its parent (D32)
-FuzzEditorConsistency consistency:selection-ranges:nesting:SourceFile-in-SourceFile compiler LSP 3.17: at `export data Delivery { ... }` the declaration's selection range, `export` included, has a parent that starts at `data` (D32)
-FuzzEditorConsistency consistency:selection-ranges:nesting:VariableStatement-in-SourceFile compiler LSP 3.17: at `export schema Todo { ... }` the declaration's selection range, `export` included, has a parent that starts at `schema` (D32)
-FuzzEditorConsistency consistency:selection-ranges:nesting:CallExpression-in-ArrowFunction compiler LSP 3.17: a selection range of a VibeLang call form inside an arrow function is not inside its parent (D32)
-FuzzEditorConsistency consistency:selection-ranges:nesting:IfStatement-in-Block compiler LSP 3.17: in the match arm `when { value: 1 and let n }: n` the arm's selection range has a parent that starts inside it (D32)
-FuzzEditorConsistency consistency:selection-ranges:nesting:CallExpression-in-PropertyAccessExpression compiler LSP 3.17: a selection range of a VibeLang call form is not inside its property access parent (D32)
+FuzzEditorConsistency consistency:selection-ranges:nesting:vibelang compiler LSP 3.17 ("parent.range must contain this.range"), D32: nodes synthesized for VibeLang surface forms have selection ranges that do not nest in source order; ordinary TypeScript syntax retains strict keys
+FuzzEditorConsistency corpus:selection-contract-bang compiler the minimal reproduction of consistency:selection-ranges:nesting:vibelang
 FuzzEditorConsistency consistency:organize-imports:error:TS2307 compiler D372, D283: Organize Imports rewrites `import { ... } from plans`, an import of a module declaration, as `from "./main.vibe.plans.js"`, the module's internal file name, which adds TS2307; an automatic change reports no new error (Chapter 28, Rewrites keep meaning)
 FuzzEditorConsistency consistency:organize-imports:error:TS2882 compiler D372, D283, D403: Organize Imports rewrites the side-effect import `import first` of a module declaration as `import "./main.vibe.first.js"`, which adds TS2882
 FuzzEditorConsistency consistency:rename:ClassDeclaration:diagnostics:EK2117 compiler LSP 3.17, D372: renaming an `error` or `schema error` declaration leaves `extends Base` in another error's heritage unrenamed (its references miss it), so the renamed program adds EK2117 and TS2304
@@ -36,3 +25,20 @@ FuzzEditorConsistency consistency:call-hierarchy:incoming-missing:ClassDeclarati
 FuzzEditorConsistency consistency:call-hierarchy:incoming-missing:FunctionDeclaration compiler LSP 3.17: a call inside a retired `select` arm is among its function's outgoing calls but not among the callee's incoming calls, whose references miss it (D32, D77)
 FuzzEditorConsistency consistency:document-symbols:selection-outside:Block compiler LSP 3.17 (selectionRange "Must be contained by the `range`"): the document symbol of the temporary `$is1` that `outcome is Exit.Success(let value)` synthesizes selects bytes outside its range (D32)
 FuzzEditorConsistency consistency:range:document-symbols compiler LSP 3.17: in `export function main() { return 1 catch }` a document symbol's range ends before it starts (1:40-1:39)
+FuzzEditorConsistency corpus:calls-error-extends compiler the minimal reproduction of consistency:call-hierarchy:incoming-missing:ClassDeclaration
+FuzzEditorConsistency corpus:calls-select compiler the minimal reproduction of consistency:call-hierarchy:incoming-missing:FunctionDeclaration
+FuzzEditorConsistency corpus:organize-module-named compiler the minimal reproduction of consistency:organize-imports:error:TS2307
+FuzzEditorConsistency corpus:organize-module-side-effect compiler the minimal reproduction of consistency:organize-imports:error:TS2882
+FuzzEditorConsistency corpus:rename-imported-type-module compiler the minimal reproduction of consistency:rename:InterfaceDeclaration:diagnostics:EK4407
+FuzzEditorConsistency corpus:rename-is-parameter compiler the minimal reproduction of consistency:rename:Parameter:diagnostics:TS2304
+FuzzEditorConsistency corpus:rename-match-guard compiler the minimal reproduction of consistency:rename:VariableDeclaration:diagnostics:TS2304
+FuzzEditorConsistency corpus:rename-match-property compiler the minimal reproduction of consistency:rename:VariableDeclaration:diagnostics:TS2339
+FuzzEditorConsistency corpus:rename-select-call compiler the minimal reproduction of consistency:rename:FunctionDeclaration:diagnostics:TS2304
+FuzzEditorConsistency corpus:selection-arrow-catch compiler the minimal reproduction of consistency:selection-ranges:nesting:vibelang
+FuzzEditorConsistency corpus:selection-catch compiler the minimal reproduction of consistency:selection-ranges:nesting:vibelang
+FuzzEditorConsistency corpus:selection-data compiler the minimal reproduction of consistency:selection-ranges:nesting:vibelang
+FuzzEditorConsistency corpus:selection-match-binding compiler the minimal reproduction of consistency:selection-ranges:nesting:vibelang
+FuzzEditorConsistency corpus:selection-property-catch compiler the minimal reproduction of consistency:selection-ranges:nesting:vibelang
+FuzzEditorConsistency corpus:selection-schema compiler the minimal reproduction of consistency:selection-ranges:nesting:vibelang
+FuzzEditorConsistency corpus:symbols-incomplete-catch compiler the minimal reproduction of consistency:range:document-symbols
+FuzzEditorConsistency corpus:symbols-is-binding compiler the minimal reproduction of consistency:document-symbols:selection-outside:Block

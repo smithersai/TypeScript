@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"testing"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/ls"
@@ -191,6 +192,8 @@ func consistencyCountDiff(before, after map[string]int, removedOnly bool) ([]str
 // another way; a symbol a declaration file declares, which describes code
 // outside the program that a rename does not change; and `main`, whose name
 // makes a function the program's entry (SKILL.md's Forms, D312).
+// symbols also leaves out a `this` receiver: renaming it changes its special
+// parameter semantics even in stock TypeScript (TestConsistencyThisParameter).
 func (c *consistency) checkRename(probe consistencyProbe, refs map[consistencySpan]bool) {
 	p := c.before
 	if !c.parses(p) || probe.ambient || probe.name == "main" {
@@ -380,5 +383,47 @@ func (c *consistency) checkOrganizeImports() {
 		Gap(c.t, consistencyTarget, "consistency:organize-imports:edits", "LSP 3.17: %s: %v\n%s\norganized:\n%s", c.where, err, c.archive, after)
 	} else if again != after {
 		Gap(c.t, consistencyTarget, "consistency:organize-imports:idempotent", "D372: %s changes the file again\n%s\norganized once:\n%s\ntwice:\n%s", c.where, c.archive, after, again)
+	}
+}
+
+// TestConsistencyThisParameter pins why the D372 alpha-rename oracle cannot
+// include an erased `this` receiver. Upstream's fourslash TestRenameThis
+// permits the rename. Stock TypeScript 7.1.0-beta's language service also
+// renames both occurrences below, making f.call(1) report TS2554 because f
+// now takes a runtime argument. This test checks that semantic distinction
+// and that ordinary parameters still reach the oracle.
+func TestConsistencyThisParameter(t *testing.T) {
+	w := NewWorkspace(t)
+	files := map[string]string{"main.ts": "function f(this: number, n = 0) { return this + n }\nf.call(1)\n"}
+	r := toolsCompile(t, w, consistencyTarget, files)
+	defer r.Remove()
+	if HasError(r.Diagnostics) {
+		t.Fatalf("the receiver example must type-check: %v", Keys(r.Dir, r.Diagnostics))
+	}
+	c := &consistency{t: t, ctx: t.Context(), w: w, main: "main.ts", archive: Archive(files)}
+	p := c.project(r, files)
+	c.before = p
+	symbols := c.symbols()
+	if slices.ContainsFunc(symbols, func(s *consistencySymbol) bool { return s.name == "this" }) {
+		t.Fatal("a special receiver reached the meaning-preserving rename oracle")
+	}
+	if !slices.ContainsFunc(symbols, func(s *consistencySymbol) bool { return s.name == "n" }) {
+		t.Fatal("an ordinary parameter did not reach the rename oracle")
+	}
+	response, err := p.service.ProvideRename(t.Context(), &lsproto.RenameParams{
+		TextDocument: lsproto.TextDocumentIdentifier{Uri: p.uri(c.main)},
+		Position:     p.position(c.main, strings.Index(files[c.main], "this")), NewName: "receiver",
+	}, nil)
+	if err != nil || response.WorkspaceEdit == nil {
+		t.Fatalf("TypeScript permits renaming the receiver: response %v, error %v", response, err)
+	}
+	edited, ok := c.apply(p, "receiver rename", "consistency:rename:Parameter", "receiver", response.WorkspaceEdit)
+	if !ok || !strings.Contains(edited.files[c.main], "f(receiver: number, n = 0) { return receiver + n }") {
+		t.Fatalf("the rename must turn the receiver into an ordinary parameter: %v", edited)
+	}
+	after := toolsCompile(t, w, consistencyTarget, edited.files)
+	defer after.Remove()
+	if !slices.ContainsFunc(after.Diagnostics, func(d *ast.Diagnostic) bool { return d.Source() == "" && d.Code() == 2554 }) {
+		t.Fatalf("the changed call arity must report TS2554: %v", Keys(after.Dir, after.Diagnostics))
 	}
 }
