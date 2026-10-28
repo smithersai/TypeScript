@@ -183,6 +183,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - `using` read a value's `[Symbol.dispose]` again at block exit, so replacing the method, or a getter that returned another one, changed which release ran. It now reads the method once, when it acquires the value, as JavaScript does.
 - `join` on an object or array read each element twice, so a getter could make it join one fiber and interrupt another. It now reads each element once.
 - In a function that compiles to plain JavaScript, a `finally` block that failed while another failure was in flight replaced it, so an outer `catch` saw the cleanup failure instead of the first one. The two failures now join as `Effect.ensuring` joins them, and the outer `catch` receives the first, as in an Effect function.
+- In a function that compiles to plain JavaScript, a `finally` block that crashed while another failure was in flight kept only the first: a TypeScript caller saw one exception, and an Effect caller one defect. The exception that leaves is now a `SuppressedError` whose `error` is the cleanup's and whose `suppressed` is the first, and an Effect caller sees both defects in order, as in a function that compiles to an Effect.
 - A failed `join` or `await.all`, or a decided `await.race`, interrupted the other fibers one at a time and waited for each one's cleanup before interrupting the next, so it hung when one fiber's cleanup waited for a sibling's. It now interrupts them all at once, as `Fiber.interruptAll` does, then waits for their cleanup.
 
 #### Editor and language server

@@ -52,7 +52,13 @@ func (tx *lowering) visitPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 	rest := f.NewParameterDeclaration(nil /*modifiers*/, f.NewToken(ast.KindDotDotDotToken), args, nil /*questionToken*/, nil /*type*/, nil /*initializer*/)
 	call := tx.generated(f.NewFunctionCallCall(f.NewIdentifier(directText), f.NewThisExpression(), []*ast.Node{f.NewSpreadElement(args)}))
 	thunk := tx.generated(f.NewArrowFunction(nil /*modifiers*/, nil /*typeParameters*/, f.NewNodeList(nil), nil /*type*/, nil /*fullSignature*/, f.NewToken(ast.KindEqualsGreaterThanToken), call))
-	sync := f.NewCallExpression(f.NewPropertyAccessExpression(tx.effectName(), nil /*questionDotToken*/, f.NewIdentifier("sync"), ast.NodeFlagsNone), nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{thunk}), ast.NodeFlagsNone)
+	var sync *ast.Node
+	if tx.plan.joinedSyncs[node] {
+		// A SuppressedError its plain form throws fails with its cause (D340, joined.go).
+		sync = tx.runtimeCall("$joinedSync", thunk)
+	} else {
+		sync = f.NewCallExpression(f.NewPropertyAccessExpression(tx.effectName(), nil /*questionDotToken*/, f.NewIdentifier("sync"), ast.NodeFlagsNone), nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{thunk}), ast.NodeFlagsNone)
+	}
 	wrapperBody := f.NewBlock(f.NewNodeList([]*ast.Node{tx.generated(f.NewReturnStatement(sync))}), false /*multiLine*/)
 	wrapper := f.UpdateFunctionDeclaration(node.AsFunctionDeclaration(), node.Modifiers(), nil /*asteriskToken*/, node.Name(), nil /*typeParameters*/, f.NewNodeList([]*ast.Node{rest}), nil /*type*/, nil /*fullSignature*/, wrapperBody)
 	ec.SetOriginal(wrapper, node)

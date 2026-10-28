@@ -160,6 +160,7 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 | `$produce`, `$yield`, `$forOf`, `$forStream` | Producers: a producer value is a `Stream` whose channel is the adapter and whose `$produce` property is its program (D402) |
 | `acquireRelease`, `acquireDisposable` | Effect's acquisitions, which also record the value whose release they registered, so `using` adds no second release (D401); a `.vibe` reference to Effect's own denotes these |
 | `$iteratorFrame` | Effect ownership of native iterator cleanup across suspension |
+| `$joinedSync`, `$joinedFrame` | The Effect form of a plain function, and a generated frame, that turn a `SuppressedError` the runtime made back into the cause it stands for where it reaches an Effect frame (D340, D341) |
 
 The runtime's README lists the full ABI. Compiler and helper changes belong in
 one commit. The smoke harness builds the runtime and links every case to that

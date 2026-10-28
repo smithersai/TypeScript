@@ -47,8 +47,12 @@ func (tx *lowering) protectIteratorFrames(node *ast.Node) *ast.Node {
 }
 
 // A recursive named generator is emitted as ({ *name() {...} }).name so
-// its name does not shadow the source function's binding (names.go).
+// its name does not shadow the source function's binding (names.go). A frame
+// that joinFrames wrapped, runtime.$joinedFrame(generator), is its generator.
 func iteratorGeneratorBody(node *ast.Node) *ast.Node {
+	if ast.IsCallExpression(node) && len(node.Arguments()) == 1 && ast.IsPropertyAccessExpression(node.Expression()) && node.Expression().Name().Text() == "$joinedFrame" {
+		node = node.Arguments()[0]
+	}
 	if ast.IsFunctionExpression(node) && node.AsFunctionExpression().AsteriskToken != nil {
 		return node.Body()
 	}

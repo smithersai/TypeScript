@@ -26,6 +26,7 @@ type plan struct {
 	intrinsics                 map[*ast.Node]bool       // intrinsics a source binding would capture, reached through the lowering's own import (prelude.go)
 	servicePlan
 	plainPlan
+	joinPlan
 	trustedPlan
 	tracingPlan
 	scopePlan
@@ -150,6 +151,7 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 				p.blockForms[node] = form
 			}
 			p.planPlain(a, node)
+			p.planJoins(a, node) // D340 (joined.go)
 			p.planServiceNode(c, node)
 			if p.wireOrders[node] != nil || fiberHelper(node) == "$forConcurrent" {
 				p.noteStable(c, node.Arguments()...) // arguments emitted in another order (order.go)

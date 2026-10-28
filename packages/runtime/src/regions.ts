@@ -1,4 +1,4 @@
-import { Cause, Effect, Scope } from "effect"
+import { Cause, Effect, Exit, Scope } from "effect"
 import * as K from "./kernel/kernel.js"
 
 export const $normal = { kind: "normal" } as const
@@ -97,21 +97,42 @@ class ExpectedFailure {
   }
 }
 
-/**
- * What plain code throws for cause (D13, D306, as `$catch` decides): an
- * ExpectedFailure when a catch recovers the cause's first expected failure,
- * because it holds no defect; otherwise the one JavaScript value
- * Effect.runSync would throw for it once its defects are elected (D305):
- * its first failure or defect, in order, as `Cause.squash` gives.
- */
-const thrownFor = (cause: Cause.Cause<unknown>): unknown => {
-  if (!K.isAbortCause(cause) && !cause.reasons.some(Cause.isDieReason)) {
-    const failure = cause.reasons.find(Cause.isFailReason)
-    if (failure !== undefined) return new ExpectedFailure(failure.error, cause)
+type Suppressed = Error & { readonly error: unknown; readonly suppressed: unknown }
+type SuppressedConstructor = new (error: unknown, suppressed: unknown, message?: string) => Suppressed
+
+/** ECMAScript's SuppressedError, or the runtime's own where the host lacks it (D340). */
+const SuppressedError: SuppressedConstructor = (globalThis as { SuppressedError?: SuppressedConstructor }).SuppressedError ??
+  class SuppressedError extends Error {
+    constructor(readonly error: unknown, readonly suppressed: unknown, message?: string) {
+      super(message)
+      this.name = "SuppressedError"
+    }
   }
-  const first = cause.reasons.find((reason) => Cause.isFailReason(reason) || Cause.isDieReason(reason))
-  return first === undefined ? Cause.squash(cause) : Cause.isFailReason(first) ? first.error : (first as Cause.Die).defect
+
+// The cause that each SuppressedError the runtime made stands for (D340).
+const joined = new WeakMap<object, Cause.Cause<unknown>>()
+
+/**
+ * D340: the exception that leaves plain code for a cause with a defect. A
+ * plain function never fails, so only defects leave it, and two failures
+ * leave as a `SuppressedError` whose `error` is the later one and whose
+ * `suppressed` is the earlier, as ECMA-262's DisposeResources reports them.
+ * The runtime records the cause it stands for, its failures elected to
+ * defects (D305), and turns it back into that cause where it reaches plain
+ * code's catch or finally, or an Effect frame ($joinedFrame, $joinedSync).
+ */
+const defectFor = (cause: Cause.Cause<unknown>): unknown => {
+  const values = cause.reasons.flatMap((reason) => Cause.isFailReason(reason) ? [reason.error] : Cause.isDieReason(reason) ? [reason.defect] : [])
+  let thrown = values[0]
+  for (let i = 1; i < values.length; i++) {
+    thrown = new SuppressedError(values[i], thrown, "A cleanup failed while another failure was in flight")
+    joined.set(thrown as Suppressed, K.electDefects(Cause.fromReasons(cause.reasons.slice(0, i + 1))))
+  }
+  return thrown
 }
+
+// The JavaScript value a thrown value stands for once a defect is present.
+const defectOf = (thrown: unknown): unknown => thrown instanceof ExpectedFailure ? defectFor(thrown.cause) : thrown
 
 /** D54: `throw e` in a function that compiles to plain JavaScript throws `$expected(e)`. */
 export const $expected = (error: unknown): unknown => new ExpectedFailure(error)
@@ -122,15 +143,80 @@ export const $expected = (error: unknown): unknown => new ExpectedFailure(error)
  * first, as `$finally`'s Effect.onExit combines causes, rather than the
  * finally block's replacing the other as in JavaScript: a catch outside
  * recovers the first expected failure, and a defect on either side makes the
- * whole a defect. pending is `$normal` when no failure was in flight.
+ * whole a defect, which leaves as a `SuppressedError` whose `error` is the
+ * finally block's exception and whose `suppressed` is the pending one (D340).
+ * pending is `$normal` when no failure was in flight.
  */
-export const $finallyFailure = (pending: unknown, thrown: unknown): unknown =>
-  pending === $normal ? thrown : thrownFor(Cause.combine(causeOf(pending), causeOf(thrown)))
+export const $finallyFailure = (pending: unknown, thrown: unknown): unknown => {
+  if (pending === $normal) return thrown
+  const cause = Cause.combine(causeOf(pending), causeOf(thrown))
+  if (!cause.reasons.some(Cause.isDieReason)) {
+    const failure = cause.reasons.find(Cause.isFailReason) as Cause.Fail<unknown>
+    return new ExpectedFailure(failure.error, cause)
+  }
+  const suppressed = new SuppressedError(defectOf(thrown), defectOf(pending), "A cleanup failed while another failure was in flight")
+  joined.set(suppressed, K.electDefects(cause))
+  return suppressed
+}
 
-// The cause a value thrown in plain code stands for: anything but an expected
-// failure is a defect.
+// The cause a value thrown in plain code stands for: an expected failure's,
+// a SuppressedError's that the runtime made, and otherwise a defect.
 const causeOf = (thrown: unknown): Cause.Cause<unknown> =>
-  thrown instanceof ExpectedFailure ? thrown.cause : Cause.die(thrown)
+  thrown instanceof ExpectedFailure ? thrown.cause : joinedCause(thrown) ?? Cause.die(thrown)
+
+const joinedCause = (thrown: unknown): Cause.Cause<unknown> | undefined =>
+  typeof thrown === "object" && thrown !== null ? joined.get(thrown) : undefined
+
+/**
+ * D340: the Effect form of a plain function that can throw a
+ * SuppressedError the runtime made. It runs the plain form as `Effect.sync`
+ * does, and fails with the cause that SuppressedError stands for, so the
+ * caller sees what the frame lowering of the same code gives.
+ */
+export const $joinedSync = <A>(plain: () => A): Effect.Effect<A> =>
+  Effect.suspend(() => {
+    try {
+      return Exit.succeed(plain())
+    } catch (thrown) {
+      const cause = joinedCause(thrown)
+      if (cause === undefined) throw thrown
+      return Exit.failCause(cause) as unknown as Exit.Exit<A>
+    }
+  })
+
+/**
+ * D340: a generated frame that calls plain code which can throw a
+ * SuppressedError the runtime made. Effect makes an exception that leaves a
+ * frame one defect; this adapter instead fails the frame with the cause the
+ * SuppressedError stands for, as the frame lowering of the same code would.
+ * A frame that threw is finished, so Effect, which runs the failure, never
+ * resumes it.
+ */
+export const $joinedFrame = <F extends (...args: any[]) => Generator<Effect.Effect<any, any, any>, any, any>>(body: F): F => {
+  const wrapped = function(this: unknown, ...args: Parameters<F>) {
+    const iterator = Reflect.apply(body, this, args) as Generator<Effect.Effect<any, any, any>, any, any>
+    const step = (resume: () => IteratorResult<Effect.Effect<any, any, any>, any>): IteratorResult<Effect.Effect<any, any, any>, any> => {
+      try {
+        return resume()
+      } catch (thrown) {
+        const cause = joinedCause(thrown)
+        if (cause === undefined) throw thrown
+        return { done: false, value: Effect.failCause(cause) }
+      }
+    }
+    return {
+      next: (value?: unknown) => step(() => iterator.next(value)),
+      throw: (error?: unknown) => step(() => iterator.throw(error)),
+      return: (value?: unknown) => iterator.return(value),
+      [Symbol.iterator]() {
+        return this
+      }
+    }
+  }
+  Object.defineProperty(wrapped, "length", { value: body.length, configurable: true })
+  Object.defineProperty(wrapped, "name", { value: body.name, configurable: true })
+  return wrapped as unknown as F
+}
 
 /**
  * D54, D13: a catch in a function that compiles to plain JavaScript starts

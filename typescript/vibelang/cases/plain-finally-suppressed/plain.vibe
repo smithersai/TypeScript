@@ -1,0 +1,65 @@
+// A finally block that fails while a defect is in flight, in a function that
+// compiles to plain JavaScript, keeps both failures (D340): the exception
+// that leaves is a SuppressedError whose error is the cleanup's and whose
+// suppressed is the pending one, and where it reaches an Effect frame the
+// runtime turns it back into both reasons, in order, as the frame lowering of
+// the same code gives (D341).
+error Bad
+
+function crash(label: string): number {
+  return (undefined as any)[label]
+}
+
+// Plain-annotated, so a TypeScript caller calls it directly.
+export function both(): number {
+  try { return crash("first") }
+  finally { crash("second") }
+}
+
+// A SuppressedError in flight, and a third defect.
+export function nested(): number {
+  try { return both() }
+  finally { crash("third") }
+}
+
+// Unannotated and eligible: frames call its plain form, TypeScript its Effect form.
+export function direct() {
+  try { return crash("first") }
+  finally { crash("second") }
+}
+
+// An expected failure in flight becomes a defect beside the cleanup's (D305),
+// so the outer catch never runs.
+function mixed() {
+  try {
+    try { throw new Bad() }
+    finally { crash("cleanup") }
+  } catch { return "caught" }
+}
+
+// The same code in frames.
+function framed() {
+  yieldNow()
+  try { return crash("first") }
+  finally { crash("second") }
+}
+
+function name(defect: unknown): string {
+  if (defect instanceof Bad) return defect._tag
+  return defect instanceof Error ? defect.message.split("'")[1] ?? defect.message : String(defect)
+}
+
+export function reasons(outcome: Exit<unknown, unknown>): string {
+  if (outcome is Exit.Success(let value)) return "ok"
+  return outcome.cause.reasons.map((reason) => reason._tag === "Die" ? `Die(${name(reason.defect)})` : reason._tag).join("+")
+}
+
+export function report() {
+  return {
+    both: reasons(exit(both())),
+    nested: reasons(exit(nested())),
+    direct: reasons(exit(direct())),
+    mixed: reasons(exit(mixed())),
+    framed: reasons(exit(framed()))
+  }
+}

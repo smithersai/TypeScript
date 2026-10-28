@@ -43,6 +43,8 @@ export const {
   $isRun,
   $iteratorFrame,
   $join,
+  $joinedFrame,
+  $joinedSync,
   $noFailure,
   $noMatch,
   $normal,

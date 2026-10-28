@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Cause, Context, Deferred, Fiber, Stream } from "effect"
 import {
-  $bind, $catch, $caught, $control, $expected, $finally, $finallyFailure, $fork, $forOf, $normal,
+  $bind, $catch, $caught, $control, $expected, $finally, $finallyFailure, $joinedFrame, $joinedSync, $fork, $forOf, $normal,
   $produce, $program, $programs, $reference, $region, $service, $tailResume,
   $tailResumeWith, $trusted, $trustedPlain, $using, $yield, $yieldAll, abandon, Control,
   Effect, Exit, fork, handle, handoff, Layer, pipe, resume,
@@ -91,8 +91,34 @@ test("regions: a plain-JavaScript finally joins its failure to the one in flight
   expect(plain(fail("first"), fail("cleanup"))).toBe("first")
   expect(plain(() => {}, fail("cleanup"))).toBe("cleanup")
   expect(plain(() => {}, () => {})).toBe("completed")
-  expect(thrown(() => plain(fail("first"), crash))).toEqual({ thrown: "first" })
-  expect(thrown(() => plain(crash, fail("cleanup")))).toEqual({ thrown: defect })
+  // D340: two failures with a defect leave as a SuppressedError, the
+  // cleanup's exception first.
+  const both = thrown(() => plain(fail("first"), crash)).thrown as SuppressedError
+  expect(both).toBeInstanceOf(SuppressedError)
+  expect([both.error, both.suppressed]).toEqual([defect, "first"])
+  const reversed = thrown(() => plain(crash, fail("cleanup"))).thrown as SuppressedError
+  expect([reversed.error, reversed.suppressed]).toEqual(["cleanup", defect])
+  // Another finally joins it as the cause it stands for.
+  const third = new RangeError("third")
+  const nested = thrown(() => plain(() => plain(fail("first"), crash), () => { throw third })).thrown as SuppressedError
+  expect(nested.error).toBe(third)
+  expect([(nested.suppressed as SuppressedError).error, (nested.suppressed as SuppressedError).suppressed]).toEqual([defect, "first"])
+  // An Effect frame sees every reason, in order, as Effect.onExit joins them.
+  const dies = (exit: Exit.Exit<unknown, unknown>) =>
+    Exit.isFailure(exit) ? exit.cause.reasons.map((reason) => Cause.isDieReason(reason) ? reason.defect : reason._tag) : "success"
+  expect(dies(Effect.runSyncExit($joinedSync(() => plain(fail("first"), crash))))).toEqual(["first", defect])
+  expect(dies(Effect.runSyncExit($joinedSync(() => plain(() => plain(fail("first"), crash), () => { throw third }))))).toEqual(["first", defect, third])
+  expect(dies(Effect.runSyncExit(Effect.gen($joinedFrame(function*() {
+    yield* Effect.void
+    return plain(crash, fail("cleanup"))
+  }))))).toEqual([defect, "cleanup"])
+  // Any other exception stays one defect, and a value passes through.
+  expect(dies(Effect.runSyncExit($joinedSync(crash)))).toEqual([defect])
+  expect(Effect.runSync($joinedSync(() => 7))).toBe(7)
+  expect(dies(Effect.runSyncExit(Effect.gen($joinedFrame(function*() {
+    yield* Effect.void
+    return crash()
+  }))))).toEqual([defect])
 })
 
 test("regions: finally runs and completes when its body is interrupted", async () => {

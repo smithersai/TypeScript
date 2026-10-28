@@ -134,7 +134,7 @@ const keep = <E = never>(cause: Cause.Cause<E> | undefined, predicate: (reason: 
 // Die of the same error, in place, with its annotations. A Stream's Done
 // signal stays a Fail so pulls still complete. The kernel applies the same
 // rule where it combines causes itself.
-const electDefects = <E>(cause: Cause.Cause<E>): Cause.Cause<E> => {
+export const electDefects = <E>(cause: Cause.Cause<E>): Cause.Cause<E> => {
   const reasons = cause.reasons
   if (!reasons.some(Cause.isDieReason) || !reasons.some(Cause.isFailReason)) return cause
   return Cause.fromReasons(reasons.map((reason): Cause.Reason<E> =>
