@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, Scope } from "effect"
 import {
-  $catchExpression, $catchCause, $failCause, $failureOf, $finallyExit, $fork,
+  $catchExpression, $catchCause, $failureOf, $finallyExit, $fork,
   $isFailure, $noFailure, $provideService, $region, $service, $using,
   interrupt, interruptible, restore, uninterruptible, wire, yieldNow
 } from "vibelang-runtime"
@@ -260,7 +260,7 @@ test("cause helpers preserve all reasons, distinguish undefined failures from no
   expect($failureOf(Cause.combine(Cause.fail(undefined), Cause.fail("second")))).toBeUndefined()
   expect($failureOf(Cause.combine(Cause.interrupt(123), Cause.fail("second")))).toBe("second")
   expect($failureOf(Cause.interrupt(123))).toBe($noFailure)
-  expect(Effect.runSync($catchCause($failCause(mixed), cause => Effect.succeed(cause)))).toEqual(mixed)
+  expect(Effect.runSync($catchCause(Effect.failCause(mixed), cause => Effect.succeed(cause)))).toEqual(mixed)
   Effect.runSync(Effect.gen(function*() {
     const id = yield* Effect.fiberId
     expect(yield* $catchCause(interrupt(), cause => Effect.succeed(cause))).toEqual(Cause.interrupt(id))

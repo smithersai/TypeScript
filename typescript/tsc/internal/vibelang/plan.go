@@ -35,7 +35,6 @@ type plan struct {
 	dataPlan
 	hatches     map[*ast.Node]hatchForm      // sync and try hatches, lowered to Effect's functions (hatches.go)
 	failureTags map[*ast.Node][]string       // the tags of each typed catch clause's test (catches.go)
-	causeThrows map[*ast.Node]bool           // throw statements whose value is a Cause (primitives.go)
 	methods     map[*ast.Node]methodCall     // method calls on Effect data types (datamethods.go)
 	blockForms  map[*ast.Node]blockParamForm // block param calls that move their block (blockparams.go)
 
@@ -62,7 +61,6 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 	p.handlerPlan = newHandlerPlan()
 	p.hatches = map[*ast.Node]hatchForm{}
 	p.failureTags = map[*ast.Node][]string{}
-	p.causeThrows = map[*ast.Node]bool{}
 	p.methods = map[*ast.Node]methodCall{}
 	p.blockForms = map[*ast.Node]blockParamForm{}
 	p.pipes = map[*ast.Node]pipeMode{}
@@ -135,11 +133,6 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 				p.hatches[node] = form
 				if form.mapper {
 					p.noteStable(c, node.Arguments()...) // the options object moves the mapper (order.go)
-				}
-			}
-			if node.Kind == ast.KindThrowStatement && (inLowerableBody(node) || inPlainGeneratorBody(node)) {
-				if _, ok := causeErrorOf(c, c.GetTypeAtLocation(node.Expression())); ok {
-					p.causeThrows[node] = true
 				}
 			}
 			if isFailureTest(node) {

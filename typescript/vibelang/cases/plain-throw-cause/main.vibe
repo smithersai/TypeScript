@@ -1,41 +1,38 @@
-// A function that compiles to plain JavaScript throws a Cause as an Effect
-// function does (D177, D54): its catch receives the cause's first expected
-// failure with the cause's type, and a cause that holds a defect passes
-// through the catch and stays a defect (D13). failed, died and mixed compile
-// to plain JavaScript; framedDied, which yields, compiles to frames.
+// A function that compiles to plain JavaScript throws what it is given, as an
+// Effect function does (D406, D54): a Cause held as unknown is the expected
+// failure itself, so the function's catch receives the Cause object, whatever
+// reasons it holds. failed, died and mixed compile to plain JavaScript;
+// framedDied, which yields, compiles to frames and agrees with them.
+function caught(cause: unknown) {
+  try { throw cause }
+  catch (e) { return e === cause && Cause.isCause(e) ? "Cause" : "other" }
+}
+
 function failed() {
-  try { throw Cause.fail("bad") }
-  catch (e) { const message: string = e; return typeof message + ":" + message }
+  return caught(Cause.fail("bad"))
 }
 
 function died() {
-  try { throw Cause.die("boom") }
-  catch { return "caught" }
+  return caught(Cause.die("boom"))
 }
 
 function mixed() {
-  try { throw Cause.combine(Cause.fail("bad"), Cause.die("boom")) }
-  catch { return "caught" }
+  return caught(Cause.combine(Cause.fail("bad"), Cause.die("boom")))
 }
 
 function framedDied() {
   yieldNow()
-  try { throw Cause.die("boom") }
-  catch { return "caught" }
+  const cause: unknown = Cause.die("boom")
+  try { throw cause }
+  catch (e) { return e === cause ? "Cause" : "other" }
 }
 
-function described(outcome: Exit<string, never>): string {
-  if (outcome is Exit.Success(let value)) return value
-  const reason = outcome.cause.reasons[0]
-  return reason._tag === "Die" ? "Die:" + String(reason.defect) : reason._tag
-}
-
-// expect-result: {"failed":"string:bad","died":"Die:boom","framedDied":"Die:boom","mixed":"Die:bad"}
+// expect-result: {"failed":"Cause","died":"Cause","framedDied":"Cause","mixed":"Cause"}
 export function main() {
   return {
     failed: failed(),
-    died: described(exit(died())),
-    framedDied: described(exit(framedDied())),
-    mixed: described(exit(mixed()))
+    died: died(),
+    framedDied: framedDied(),
+    mixed: mixed()
   }
 }

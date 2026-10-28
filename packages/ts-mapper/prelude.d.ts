@@ -284,7 +284,7 @@ export declare function $asProgram<A>(f: () => A): EffectModule.Effect<A, never,
 export declare function $asProgram<T>(value: T): T
 
 /** `throw x` in an Effect body projects to `return yield* $fail(x)`. */
-export declare function $fail<E>(value: E): EffectModule.Effect<never, E extends Cause.Cause<infer Failure> ? Failure : E>
+export declare function $fail<E>(value: E): EffectModule.Effect<never, E>
 
 /**
  * D278: the base of an error that extends another error,

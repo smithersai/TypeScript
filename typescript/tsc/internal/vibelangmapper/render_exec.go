@@ -286,9 +286,7 @@ var execHelpers = map[string]execSource{
 	"$method": {"vibelang-runtime/data-methods", "$method"},
 
 	"$gen":          {"effect/Effect", "gen"},
-	"$failValue":    {"effect/Effect", "fail"},
-	"$failCause":    {"effect/Effect", "failCause"},
-	"$isCause":      {"effect/Cause", "isCause"},
+	"$fail":         {"effect/Effect", "fail"},
 	"$hatchTry":     {"vibelang-runtime", "try"},
 	"$promise":      {"effect/Effect", "promise"},
 	"$tryPromise":   {"effect/Effect", "tryPromise"},
@@ -313,7 +311,7 @@ var execHelpers = map[string]execSource{
 // prologueHelpers are defined by the prefix of each file that uses them
 // (execRendering.prologue); temporaries are declared there too.
 var prologueHelpers = map[string]bool{
-	"$fail": true, "$end": true, "$Jump": true, "$jump": true, "$returned": true, "$jumped": true, "$value": true, "$acquire": true,
+	"$end": true, "$Jump": true, "$jump": true, "$returned": true, "$jumped": true, "$value": true, "$acquire": true,
 	"$returnRun": true, "$adapt": true, "$plain": true, "$member": true, "$dual": true, "$asProgram": true, "$programs": true, "$each": true,
 	"$t": true, "$s": true, "$scope": true, "$iterate": true, "$producerGen": true,
 }
@@ -446,9 +444,6 @@ func (r *execRendering) prologue() string {
 	}
 	if r.used["$plain"] {
 		parts = append(parts, "const "+r.local("$plain")+" = (f) => f["+r.local("$direct")+"] ?? f;")
-	}
-	if r.used["$fail"] {
-		parts = append(parts, "const "+r.local("$fail")+" = (value) => "+r.local("$isCause")+"(value) ? "+r.local("$failCause")+"(value) : "+r.local("$failValue")+"(value);")
 	}
 	var temps []string
 	for _, temp := range []string{"$t", "$s"} {

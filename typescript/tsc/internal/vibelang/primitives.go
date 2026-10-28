@@ -4,6 +4,7 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/ls"
+	"github.com/microsoft/TypeScript/tsc/internal/scanner"
 )
 
 // The primitives of a .vibe file that have their own syntax (D176-D180).
@@ -16,8 +17,9 @@ import (
 // A catch clause typed Cause catches every reason (Effect.catchCause); the
 // parser makes the catch variable $cause, which the checker types
 // Cause<E>, and the lowering runs the try block under the runtime's
-// $catchCause. `throw cause` with a Cause fails with all of its reasons
-// (Effect.failCause). `finally (exit)` binds `const exit = $exit()`, which the
+// $catchCause. `throw` fails with its operand whatever its type, so a throw
+// of a Cause is EK2140: `Effect.failCause(cause)` fails with every reason a
+// cause holds (D406). `finally (exit)` binds `const exit = $exit()`, which the
 // checker types as the try statement's Exit and the lowering turns into the
 // parameter of the finally closure under $finallyExit (Effect.onExit). An
 // interruption block is a block whose first statement calls a marker, such as
@@ -26,10 +28,35 @@ import (
 // `uninterruptible(program)` also calls. interrupt(), exit(program), and
 // yieldNow() are bare functions (effectroot.go, the runtime's primitives).
 
+// EK2140: a throw of a Cause (D406). {0} is the operand's type.
+var EK2140 = message(2140, errorCategory, "This throw would fail with the Cause object itself, of type {0}, as an expected failure: throw fails with the value it is given.")
+
 func init() {
 	registry[EK2111.Code] = EK2111
-	fileChecks = append(fileChecks, checkPrimitives)
+	registry[EK2140.Code] = EK2140
+	fileChecks = append(fileChecks, checkPrimitives, checkCauseThrows)
 	ls.RegisterQuickInfoHook(primitiveQuickInfo)
+}
+
+// checkCauseThrows reports EK2140 at each throw outside a hatch whose
+// operand's type is a Cause, or a union with one (D406). `throw e` fails
+// with Fail(e) whatever e is, so throwing a Cause would make the Cause
+// object an expected failure; `Effect.failCause(cause)` fails with every
+// reason it holds, as in Effect code. unknown and any are no Cause type: a
+// throw of one fails with the value. A throw expression is a throw statement
+// in the parser's arrow (D186), so one walk finds both.
+func checkCauseThrows(c *checker.Checker, file *ast.SourceFile) {
+	var visit func(node *ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		if node.Kind == ast.KindThrowStatement && (inLowerableBody(node) || inPlainGeneratorBody(node)) {
+			if t := c.GetTypeAtLocation(node.Expression()); isCauseType(t, c) {
+				d := report(c, node.Expression(), EK2140, c.TypeToString(t))
+				note(d, "Write Effect.failCause({0}) to fail with every reason the cause holds.", scanner.GetTextOfNode(node.Expression()))
+			}
+		}
+		return node.ForEachChild(visit)
+	}
+	file.AsNode().ForEachChild(visit)
 }
 
 // causeTypeID names the property every Effect 4 Cause has: `readonly
@@ -198,31 +225,18 @@ func causeInterface(c *checker.Checker) *checker.Type {
 	return nil
 }
 
-// causeErrorOf returns E when t is a Cause<E>, or a union of Causes, and
-// false otherwise. A Cause it cannot read E from contributes unknown.
-func causeErrorOf(c *checker.Checker, t *checker.Type) (*checker.Type, bool) {
-	if t == nil {
-		return nil, false
+// isCauseType reports whether t is a Cause type, or a union with one: a
+// member has the property every Effect 4 Cause has. unknown and any are not.
+func isCauseType(t *checker.Type, c *checker.Checker) bool {
+	if t == nil || t.Flags()&(checker.TypeFlagsAny|checker.TypeFlagsUnknown) != 0 {
+		return false
 	}
-	members := unionMembers(t)
-	if len(members) == 0 {
-		return nil, false
-	}
-	target := causeInterface(c)
-	var errors []*checker.Type
-	for _, member := range members {
-		if c.GetPropertyOfType(member, causeTypeID) == nil {
-			return nil, false
+	for _, member := range unionMembers(t) {
+		if member.Flags()&(checker.TypeFlagsAny|checker.TypeFlagsUnknown) == 0 && c.GetPropertyOfType(member, causeTypeID) != nil {
+			return true
 		}
-		if target != nil && member.Flags()&checker.TypeFlagsObject != 0 && member.ObjectFlags()&checker.ObjectFlagsReference != 0 && member.Target() == target {
-			if arguments := c.GetTypeArguments(member); len(arguments) == 1 {
-				errors = append(errors, arguments[0])
-				continue
-			}
-		}
-		errors = append(errors, c.GetUnknownType())
 	}
-	return c.GetUnionType(errors), true
+	return false
 }
 
 // causeVariableType types $cause, the variable of a catch clause typed

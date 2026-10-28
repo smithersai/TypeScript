@@ -75,11 +75,7 @@ func (a *analyzer) flowOf(node *ast.Node) *effectInfo {
 // thrownType returns the expected failure that throw adds to E.
 func (a *analyzer) thrownType(throw *ast.Node) *checker.Type {
 	c := a.checker
-	t := c.GetWidenedType(c.GetWidenedLiteralType(c.GetTypeOfExpressionBeforeWidening(throw.Expression())))
-	if e, ok := causeErrorOf(c, t); ok {
-		return e // throw cause: every reason it holds (D177, primitives.go)
-	}
-	return t
+	return c.GetWidenedType(c.GetWidenedLiteralType(c.GetTypeOfExpressionBeforeWidening(throw.Expression())))
 }
 
 // hasEscapingThrow reports whether a throw statement in fn's own body can end

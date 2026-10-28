@@ -117,14 +117,6 @@ const thrownFor = (cause: Cause.Cause<unknown>): unknown => {
 export const $expected = (error: unknown): unknown => new ExpectedFailure(error)
 
 /**
- * D54, D177: `throw cause` in a function that compiles to plain JavaScript
- * throws `$expectedCause(cause)`, which fails with every reason the cause
- * holds, as `Effect.failCause` does: a catch receives its first expected
- * failure only when it holds no defect.
- */
-export const $expectedCause = (cause: Cause.Cause<unknown>): unknown => thrownFor(cause)
-
-/**
  * D54, D15: a finally block of a function that compiles to plain JavaScript
  * that throws while a failure is in flight. The two join, the pending failure
  * first, as `$finally`'s Effect.onExit combines causes, rather than the

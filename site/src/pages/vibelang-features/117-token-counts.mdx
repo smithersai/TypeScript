@@ -22,16 +22,16 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 
 | Load | Tokens |
 | --- | ---: |
-| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,113 |
-| The skill and the [cheat sheet](/vibelang-features/115-cheat-sheet) | 14,705 |
-| The skill and the user guide (134 pages) | 246,942 |
-| The user guide alone | 241,829 |
-| The specification (33 chapters) | 174,043 |
+| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,125 |
+| The skill and the [cheat sheet](/vibelang-features/115-cheat-sheet) | 14,721 |
+| The skill and the user guide (134 pages) | 247,035 |
+| The user guide alone | 241,910 |
+| The specification (33 chapters) | 173,986 |
 | The decision log, `docs/design/DECISIONS.md` | 112,474 |
 
 ## Effect TypeScript beside VibeLang
 
-15.4% fewer tokens across 47 pairs in total; VibeLang is longer in 12 pairs. This is the saving over the combined source tokens, not the arithmetic mean of the percentages below.
+15.2% fewer tokens across 47 pairs in total; VibeLang is longer in 12 pairs. This is the saving over the combined source tokens, not the arithmetic mean of the percentages below.
 
 Each row is one [cheat sheet](/vibelang-features/115-cheat-sheet) entry: its Effect TypeScript blocks against its VibeLang blocks. A negative saving means the VibeLang snippet is longer.
 
@@ -57,7 +57,7 @@ Each row is one [cheat sheet](/vibelang-features/115-cheat-sheet) entry: its Eff
 | Catching in an expression | 47 | 41 | 12.8% |
 | Entry point | 22 | 11 | 50.0% |
 | Catch every cause | 49 | 48 | 2.0% |
-| Rethrow a cause | 35 | 45 | -28.6% |
+| Rethrow a cause | 35 | 49 | -40.0% |
 | Run on every exit | 29 | 33 | -13.8% |
 | Exit, yield, and interrupt | 33 | 34 | -3.0% |
 | Interruption | 65 | 58 | 10.8% |
@@ -84,7 +84,7 @@ Each row is one [cheat sheet](/vibelang-features/115-cheat-sheet) entry: its Eff
 | Wait for a Deferred | 30 | 28 | 6.7% |
 | Race | 43 | 56 | -30.2% |
 | A concurrent loop | 40 | 28 | 30.0% |
-| **All 47 entries** | **2,308** | **1,953** | **15.4%** |
+| **All 47 entries** | **2,308** | **1,957** | **15.2%** |
 
 ## Every page
 
@@ -132,23 +132,23 @@ Each row is one [cheat sheet](/vibelang-features/115-cheat-sheet) entry: its Eff
 | [Neovim](/setup/neovim) | 999 |
 | [Zed](/setup/zed) | 431 |
 | [Other editors](/setup/other-editors) | 327 |
-| **Upgrade** | **25,658** |
-| [Release notes](/setup/release-notes) | 25,658 |
-| **All 15 pages** | **44,837** |
+| **Upgrade** | **25,681** |
+| [Release notes](/setup/release-notes) | 25,681 |
+| **All 15 pages** | **44,860** |
 
 ### Guides
 
 | Page | Tokens |
 | --- | ---: |
 | [Getting Started](/013-getting-started) | 1,087 |
-| **Error Management** | **13,399** |
+| **Error Management** | **13,432** |
 | [Expected Errors](/error-management/014-expected-errors) | 4,201 |
-| [Unexpected Errors](/error-management/015-unexpected-errors) | 1,300 |
+| [Unexpected Errors](/error-management/015-unexpected-errors) | 1,327 |
 | [Fallback](/error-management/016-fallback) | 1,009 |
 | [Matching](/error-management/017-matching) | 760 |
 | [Retrying](/error-management/018-retrying) | 764 |
 | [Timing Out](/error-management/019-timing-out) | 837 |
-| [Sandboxing](/error-management/020-sandboxing) | 698 |
+| [Sandboxing](/error-management/020-sandboxing) | 704 |
 | [Error Accumulation](/error-management/021-error-accumulation) | 617 |
 | [Error Channel Operations](/error-management/022-error-channel-operations) | 1,362 |
 | [Parallel and Sequential Errors](/error-management/023-parallel-and-sequential-errors) | 763 |
@@ -209,9 +209,9 @@ Each row is one [cheat sheet](/vibelang-features/115-cheat-sheet) entry: its Eff
 | [Pattern Matching](/code-style/067-pattern-matching) | 1,656 |
 | [Excessive Nesting](/code-style/068-do) | 906 |
 | [Control Flow Operators](/code-style/069-control-flow) | 1,716 |
-| **Data Types** | **16,782** |
+| **Data Types** | **16,803** |
 | [BigDecimal](/data-types/070-bigdecimal) | 1,308 |
-| [Cause](/data-types/071-cause) | 1,134 |
+| [Cause](/data-types/071-cause) | 1,155 |
 | [Chunk](/data-types/072-chunk) | 870 |
 | [Data](/data-types/073-data) | 2,666 |
 | [DateTime](/data-types/074-datetime) | 2,798 |
@@ -257,7 +257,7 @@ Each row is one [cheat sheet](/vibelang-features/115-cheat-sheet) entry: its Eff
 | [Terminal](/platform/110-terminal) | 1,508 |
 | [Platform globals in VibeLang](/platform/platform-globals) | 4,125 |
 | [Cloudflare Workers](/platform/cloudflare-workers) | 747 |
-| **All 100 pages** | **141,034** |
+| **All 100 pages** | **141,088** |
 
 ### VibeLang features
 
@@ -267,10 +267,10 @@ Each row is one [cheat sheet](/vibelang-features/115-cheat-sheet) entry: its Eff
 | [Producers](/vibelang-features/112-producers) | 1,387 |
 | [Building an HTTP API](/vibelang-features/113-building-an-http-api) | 1,375 |
 | [VibeLang for Effect users](/vibelang-features/114-vibelang-for-effect-users) | 4,755 |
-| [Cheat sheet](/vibelang-features/115-cheat-sheet) | 9,592 |
+| [Cheat sheet](/vibelang-features/115-cheat-sheet) | 9,596 |
 | [Pattern matching with match and is](/vibelang-features/116-match-and-is) | 3,805 |
 | [Experimental platform APIs](/vibelang-features/118-experimental-platform-apis) | 3,219 |
-| **All 7 pages** | **26,160** |
+| **All 7 pages** | **26,164** |
 
 ### Specification
 
@@ -290,10 +290,10 @@ Each row is one [cheat sheet](/vibelang-features/115-cheat-sheet) entry: its Eff
 | [10. Working with TypeScript](/spec/110-part1-ch10-typescript) | 6,777 |
 | [11. The standard library](/spec/111-part1-ch11-stdlib) | 5,442 |
 | [12. Questions Effect users ask](/spec/112-part1-ch12-faq) | 3,522 |
-| **Part II. The rules** | **31,892** |
+| **Part II. The rules** | **31,848** |
 | [13. What a call means](/spec/213-part2-ch13-calls) | 17,397 |
 | [14. Contracts and inference](/spec/214-part2-ch14-contracts) | 4,247 |
-| [15. Which functions compile to plain JavaScript](/spec/215-part2-ch15-direct) | 3,186 |
+| [15. Which functions compile to plain JavaScript](/spec/215-part2-ch15-direct) | 3,142 |
 | [16. Callbacks and higher-order functions](/spec/216-part2-ch16-callbacks) | 2,035 |
 | [17. Failures, defects, interruption, and cleanup](/spec/217-part2-ch17-failures) | 5,027 |
 | **Part III. The runtime** | **26,085** |
@@ -306,13 +306,13 @@ Each row is one [cheat sheet](/vibelang-features/115-cheat-sheet) entry: its Eff
 | [24. What Effect provides and what the kernel adds](/spec/324-part3-ch24-effect) | 4,547 |
 | [25. Implementation strategies and costs](/spec/325-part3-ch25-strategies) | 1,946 |
 | [26. What compiled code must guarantee](/spec/326-part3-ch26-compiled) | 6,597 |
-| **Part IV. The compiler** | **18,541** |
-| [27. Compiler architecture](/spec/427-part4-ch27-compiler) | 4,336 |
-| [28. Tooling](/spec/428-part4-ch28-tooling) | 14,205 |
+| **Part IV. The compiler** | **18,528** |
+| [27. Compiler architecture](/spec/427-part4-ch27-compiler) | 4,324 |
+| [28. Tooling](/spec/428-part4-ch28-tooling) | 14,204 |
 | **Part V. Decisions** | **28,377** |
 | [29. Decisions](/spec/529-part5-ch29-decisions) | 22,014 |
 | [30. Risks and experiments](/spec/530-part5-ch30-risks) | 6,363 |
 | **Appendices** | **19,439** |
 | [A. Evidence index and B. Prior art](/spec/900-appendices) | 10,870 |
 | [C. Every Effect feature in VibeLang](/spec/901-appendix-c-coverage) | 8,569 |
-| **All 33 pages** | **174,043** |
+| **All 33 pages** | **173,986** |

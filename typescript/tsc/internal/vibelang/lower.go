@@ -400,9 +400,6 @@ func (tx *lowering) effectName() *ast.IdentifierNode {
 func (tx *lowering) visitThrowStatement(node *ast.Node) *ast.Node {
 	f := tx.Factory()
 	callee := f.NewPropertyAccessExpression(tx.effectName(), nil /*questionDotToken*/, f.NewIdentifier("fail"), ast.NodeFlagsNone)
-	if tx.plan.causeThrows[node] {
-		callee = tx.runtimeMember("$failCause") // throw cause (D177, primitives.go)
-	}
 	fail := f.NewCallExpression(
 		callee,
 		nil, /*questionDotToken*/

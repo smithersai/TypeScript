@@ -79,7 +79,7 @@ Declarations export like TypeScript declarations: `export data Shape { Circle { 
 | `Effect.fail(e)` | `throw new E({ id })`; in an expression `x ?? throw new E({ id })` |
 | `Effect.catchTag(s)` | `try { ... } catch (e) { return match (e) { when E: ...; default: throw e; } }` |
 | `Effect.catch(p, f)`, `Effect.orElseSucceed(p, () => v)` | `p catch (e) => f(e)`, `p catch v` |
-| `Effect.catchCause`, `Effect.failCause(c)` | `match (exit(p)) { when Exit.Success(let v): v; when Exit.Failure(let cause): ...; }`, `throw cause` |
+| `Effect.catchCause`, `Effect.failCause(c)` | `match (exit(p)) { when Exit.Success(let v): v; when Exit.Failure(let cause): ...; }`, `Effect.failCause(cause)`; `throw cause` is EK2140 |
 | `Effect.ensuring`, `Effect.onExit` | `try { } finally { }`, `try { } finally (exit) { }` |
 | `Effect.scoped` + `acquireRelease` | `using r = Effect.acquireRelease(() => open(), (r) => close(r))`, released at block exit; [pending-interruption limitation and safe Disposable holder](https://vibelang.sh/resource-management/030-scope#known-limitation-pending-interruption-and-javascript-disposables) |
 | `Effect.fn("name")(function* ...)` | `function f() { return withSpan("name") { ... } }` |
@@ -663,8 +663,8 @@ Each row says what replaces a global or one of its members: an Effect API first,
 | `process.cwd` | `Path.resolve()` |
 | `process.env` | `Config.String("NAME")()` |
 | `process.execPath` | `Experimental.Process.execPath()` |
-| `process.exit` | main's result: return or fail from main |
-| `process.exitCode` | main's result: return or fail from main |
+| `process.exit` | return from main for exit 0; fail for exit 1; interruption exits 130 |
+| `process.exitCode` | return from main for exit 0; fail for exit 1; interruption exits 130 |
 | `process.hrtime` | `Clock.monotonicTimeNanos()` |
 | `process.kill` | `Experimental.Process.kill(pid, { killSignal })` |
 | `process.memoryUsage` | `Experimental.Process.memoryUsage()` |

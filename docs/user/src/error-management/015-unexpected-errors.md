@@ -123,12 +123,12 @@ function decoderBoundary(opcode: number) {
   const outcome = exit(decodeOpcode(opcode))
   if (outcome is Exit.Success(let value)) return value
   const cause = outcome.cause
-  if (cause.hasInterrupts()) throw cause
+  if (cause.hasInterrupts()) return Effect.failCause(cause)
   if (cause.hasDies()) {
     Console.log("Decoder failed", JSON.stringify(cause.reasons.map((reason) => reason._tag)))
     return "disabled"
   }
-  throw cause
+  return Effect.failCause(cause)
 }
 ```
 
@@ -138,4 +138,4 @@ Decoder failed ["Die"]
 disabled
 ```
 
-`exit(program)` returns the whole outcome, as `Effect.exit` does: a `Failure` exit's cause holds every reason, including the defects and interruption that ordinary catch leaves alone or drops. Test it with `is` or `match` on `Exit.Success` and `Exit.Failure`. `throw cause` restores the original failure with every reason, as `Effect.failCause` does; it doesn't make the cause object a typed error. Inspect every reason before recovering from a mixed cause, and preserve cancellation unless the boundary has a reason to consume it.
+`exit(program)` returns the whole outcome, as `Effect.exit` does: a `Failure` exit's cause holds every reason, including the defects and interruption that ordinary catch leaves alone or drops. Test it with `is` or `match` on `Exit.Success` and `Exit.Failure`. `Effect.failCause(cause)` restores the original failure with every reason. `throw` fails with the value it is given, so `throw cause` would make the cause object a typed error; the compiler rejects it with EK2140. Inspect every reason before recovering from a mixed cause, and preserve cancellation unless the boundary has a reason to consume it.

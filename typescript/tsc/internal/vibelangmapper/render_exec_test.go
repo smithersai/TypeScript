@@ -704,9 +704,10 @@ export function scenario() {
 	assert.Equal(t, strings.TrimSpace(string(out)), `{"values":[1,2],"piped":3,"topic":4,"block":6,"top":8,"runs":6}`)
 }
 
-// TestThrowCauseRuntime checks D177 through the ordinary catch and exit
-// boundaries: throwing a Cause preserves its reasons rather than nesting it
-// as one expected failure, including defects in a combined cause.
+// TestThrowCauseRuntime checks D406 through the ordinary catch and exit
+// boundaries: Effect.failCause preserves a cause's reasons, defects in a
+// combined cause included, and throw fails with the value it is given, a
+// Cause held as unknown too, which the text projector cannot tell apart.
 func TestThrowCauseRuntime(t *testing.T) {
 	t.Parallel()
 	root, err := filepath.Abs("../../../..")
@@ -722,15 +723,24 @@ func TestThrowCauseRuntime(t *testing.T) {
 error Expected
 
 function fail() {
-  throw Cause.fail(new Expected())
+  Effect.failCause(Cause.fail(new Expected()))
 }
 
 function defect() {
-  throw Cause.die("defect")
+  Effect.failCause(Cause.die("defect"))
 }
 
 function combined() {
-  throw Cause.combine(Cause.fail(new Expected()), Cause.die("combined defect"))
+  Effect.failCause(Cause.combine(Cause.fail(new Expected()), Cause.die("combined defect")))
+}
+
+function value() {
+  const cause: unknown = Cause.die("not rethrown")
+  try {
+    throw cause
+  } catch (e) {
+    return e === cause ? "cause object" : "other"
+  }
 }
 
 function caught() {
@@ -757,7 +767,8 @@ export function main() {
     caught: caught(),
     defect: reasons(exit(defect())),
     combined: reasons(exit(combined())),
-    escaped: reasons(exit(fail()))
+    escaped: reasons(exit(fail())),
+    value: value()
   }
 }
 `
@@ -768,7 +779,7 @@ export function main() {
 	cmd.Stdin = strings.NewReader(js + "\nimport { runPromise as runCauseTest } from 'effect/Effect'; console.log(JSON.stringify(await runCauseTest(main())))")
 	out, err := cmd.CombinedOutput()
 	assert.NilError(t, err, "%s\n%s", out, js)
-	expected := `{"caught":"expected","defect":["Die"],"combined":["Fail","Die"],"escaped":["Fail"]}`
+	expected := `{"caught":"expected","defect":["Die"],"combined":["Fail","Die"],"escaped":["Fail"],"value":"cause object"}`
 	assert.Equal(t, strings.TrimSpace(string(out)), expected)
 }
 

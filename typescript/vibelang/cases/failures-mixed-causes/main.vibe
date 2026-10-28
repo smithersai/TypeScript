@@ -210,7 +210,7 @@ function holderDispose() {
   throw new E()
 }
 function handBuiltMixed() {
-  throw Cause.combine(Cause.fail(new E()), Cause.die("D"))
+  Effect.failCause(Cause.combine(Cause.fail(new E()), Cause.die("D")))
 }
 
 // Recovery forms.

@@ -35,9 +35,6 @@ export const $failureOf = <E>(cause: Cause.Cause<E>): E | typeof $noFailure => {
   return $noFailure
 }
 
-/** `throw cause` (D177): fails with every reason the cause holds. */
-export const $failCause = <E>(cause: Cause.Cause<E>): Effect.Effect<never, E> => Effect.failCause(cause)
-
 /**
  * The marker `finally (exit)` binds (D178). The checker types it as the Exit
  * of the try statement; the lowering removes it, so it never runs.

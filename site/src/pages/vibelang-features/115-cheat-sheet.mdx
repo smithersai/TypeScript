@@ -562,7 +562,7 @@ function logged() {
   const outcome = exit(getUser("1"))
   if (outcome is Exit.Failure(let cause)) {
     logError(cause)
-    throw cause
+    return Effect.failCause(cause)
   }
   return outcome.value
 }

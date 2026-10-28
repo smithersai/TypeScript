@@ -60,7 +60,7 @@ function diagnose() {
 MissingRecord:
 ```
 
-`exit`, like `Effect.exit`, runs the program and returns its full outcome as data. A failure exit's `.cause` includes defects and interruption, which ordinary `catch` does not handle. `throw cause` propagates the entire cause again; to branch on the whole outcome, `match` the exit with `Exit.Success(let value)` and `Exit.Failure(let cause)` arms.
+`exit`, like `Effect.exit`, runs the program and returns its full outcome as data. A failure exit's `.cause` includes defects and interruption, which ordinary `catch` does not handle. `Effect.failCause(cause)` propagates the entire cause again, while `throw cause` would fail with the cause object itself and is EK2140; to branch on the whole outcome, `match` the exit with `Exit.Success(let value)` and `Exit.Failure(let cause)` arms.
 
 ## Identifying reason variants
 
