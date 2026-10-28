@@ -700,20 +700,6 @@ listed with an upgrade step.
   `main.vibe.state.js`, so `module State` and `module state` in one file are
   EK4408, unlike two bindings. Today, use names that differ by more than case.
 
-- **An open error family does not get exhaustive matching.** Covering the
-  subclasses you know does not close a base family; a match without `default`
-  can compile and turn an unhandled expected error into a `TypeError` defect.
-  An empty typed error channel does not rule out defects. Today, add a
-  base-family arm or `default: throw e` to rethrow unmatched errors, or expose
-  an explicit closed union when exhaustive recovery is required.
-
-  ```vibe
-  // fragment
-  try { work() } catch (e) { return match (e) {
-    when KnownError: 1; // another subclass of the family can arrive
-  } }
-  ```
-
 - **A generic return type can decide whether a result runs.** Calls whose
   instantiated return type is Effect run their result, while mixed unions
   and structured Effect subtypes can remain data; an optional call has its
@@ -879,13 +865,6 @@ listed with an upgrade step.
   function returns.** Today `sync(() => Promise.resolve(5))` succeeds with
   `5`; under the specification it succeeds with the promise itself. Write the
   function `async` when you mean to wait, which both treat the same way.
-
-- **The specification rejects a `match` without `default` over an open subject
-  at compile time; the compiler throws when it runs.** Over a non-literal
-  `string`, `unknown`, `any`, a type parameter, a class that is not closed or
-  an open error family's base, a match that no arm fits throws a `TypeError`
-  today. Under the specification it is EK4701. Write a `default` arm, which
-  both accept.
 
 - **The specification makes EK9100 an error that no setting lowers; the
   compiler warns in the editor only and a project can set it.** Write the type
