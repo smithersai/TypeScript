@@ -112,6 +112,8 @@ JavaScript value. Decisions are in [`docs/design/DECISIONS.md`](../../docs/desig
 | `$schemaErrorFamily` | Register a schema error family and its union schema | — |
 | `$schemaErrorMember` | Register a schema error subclass with its ancestor families | — |
 | `$select` | Lower a retired select operation | — |
+| `acquireDisposable` | Effect's `acquireDisposable`, recording the value whose disposal it registered so `using` releases it once | D401, D481 |
+| `acquireRelease` | Effect's `acquireRelease`, recording the value whose release it registered so `using` releases it once | D401, D481 |
 | `attempt` | TypeScript name for the try hatch | — |
 | `callback` | Adapt a callback API with cancellation | — |
 | `customMatcher` | Symbol used to define a custom pattern matcher | — |
