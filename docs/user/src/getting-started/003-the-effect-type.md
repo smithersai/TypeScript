@@ -5,7 +5,7 @@
 ## Success, failure, and services
 
 ```vibe
-// run: Console.log(Effect.provide(convert(30, "EUR"), Layer.succeed(Rates, { lookup: (_currency) => 2 })))
+// run: Console.log(Effect.provide(() => convert(30, "EUR"), Layer.succeed(Rates, { lookup: (_currency) => 2 })))
 error MissingRate {
   currency: string
 }
@@ -36,7 +36,7 @@ Inferred errors and services are unions: calling the same function more than onc
 ## Write a contract
 
 ```vibe
-// run: Console.log(Effect.provide(safeRate("EUR"), Layer.succeed(Rates, { lookup: (_currency) => 2 })))
+// run: Console.log(Effect.provide(() => safeRate("EUR"), Layer.succeed(Rates, { lookup: (_currency) => 2 })))
 function rateOf(currency: string): number!MissingRate!Rates {
   return Rates.lookup(currency)
 }
@@ -59,7 +59,7 @@ Hovers show contracts this way, and declaration files keep `Effect.Effect<A, E, 
 ## Check selected channels
 
 ```vibe
-// run: Console.log(Effect.provide(checkedConversion(30, "EUR"), Layer.succeed(Rates, { lookup: (_currency) => 2 })))
+// run: Console.log(Effect.provide(() => checkedConversion(30, "EUR"), Layer.succeed(Rates, { lookup: (_currency) => 2 })))
 function rate(currency: string): Effect<number, infer E, Rates> {
   return Rates.lookup(currency)
 }
@@ -93,7 +93,7 @@ Inference applies only to return annotations of `.vibe` functions with bodies. I
 ## Description and execution
 
 ```vibe
-// run: Console.log(Effect.provide(displayedPrice(), Layer.succeed(Rates, { lookup: (_currency) => 2 })))
+// run: Console.log(Effect.provide(() => displayedPrice(), Layer.succeed(Rates, { lookup: (_currency) => 2 })))
 const conversion = () => convert(30, "EUR")
 
 function displayedPrice() {

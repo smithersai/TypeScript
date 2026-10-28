@@ -15,7 +15,7 @@ function operation() {
   return "complete"
 }
 
-const outcome = Effect.runPromiseExit(operation())
+const outcome = Effect.runPromiseExit(() => operation())
 // Output: Success
 // Output: complete
 ```

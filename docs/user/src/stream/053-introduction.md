@@ -96,7 +96,7 @@ function printReadings() {
 The consumer controls demand, so production slows when consumption does. Streams exchange internal batches, so a source can prepare several elements per pull, and buffering and concurrency add explicit read-ahead: backpressure does not mean one element at a time in memory.
 
 ```vibe
-// run: Effect.provide(printFirstReading(), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]))
+// run: Effect.provide(() => printFirstReading(), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]))
 function* readings() {
   for (let n = 1; n <= 3; n++) {
     sleep("50 millis")

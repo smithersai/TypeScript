@@ -154,7 +154,7 @@ The reducer defines both the grouping key and the merge rule. The limited sink s
 ## Folding with termination and count limits
 
 ```vibe
-// run: Console.log(JSON.stringify(Effect.provide(foldSamples(), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]))))
+// run: Console.log(JSON.stringify(Effect.provide(() => foldSamples(), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]))))
 const total = Sink.reduce(() => 0, (sum, n: number) => sum + n)
 const budget = Sink.fold(
   () => 0,

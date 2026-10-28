@@ -11,7 +11,7 @@ function operation() {
   return "complete"
 }
 
-const outcome = Effect.runPromiseExit(operation())
+const outcome = Effect.runPromiseExit(() => operation())
 // Output: Success
 // Output: complete
 ```
@@ -49,7 +49,7 @@ Most applications build their context from layers. Use an explicit context when 
 ## Change runtime behavior within a region
 
 ```vibe
-// run: Effect.provide(startup(), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]))
+// run: Effect.provide(() => startup(), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]))
 const Quiet = Logger.layer([])
 
 function startup() {

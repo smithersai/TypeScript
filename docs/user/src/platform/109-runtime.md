@@ -19,7 +19,7 @@ NodeRuntime.runMain(() => main())
 // Output: Export complete
 ```
 
-Pass the runner a program: `main()` in a runner argument is passed by name, so it hasn't run yet. The module's top level calls the recognized runner; the application work runs inside `main`. Supply application layers with `Effect.provide(() => main(), AppLive)` inside the runner's program.
+Pass the runner a program, `() => main()`, so `main` hasn't run yet; passing `main()` itself still compiles but is being retired. The module's top level calls the recognized runner; the application work runs inside `main`. Supply application layers with `Effect.provide(() => main(), AppLive)` inside the runner's program.
 
 A runner also works in a plain callback passed from the top level to TypeScript, such as a framework's route handler or a `describe` body. A runner in code a fiber runs is EK1005: call the program or use `fork` there. Tests in `.vibe` use `it.effect`; Promise-style tests stay in `.ts`.
 

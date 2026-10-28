@@ -5,7 +5,7 @@ VibeLang sequences computations with ordinary functions and calls, covering the 
 ## Sequence computations
 
 ```vibe
-// run: Console.log(Effect.provide(invoice(3), ConfigProvider.layer(ConfigProvider.fromUnknown({ UNIT_PRICE: 4 }))))
+// run: Console.log(Effect.provide(() => invoice(3), ConfigProvider.layer(ConfigProvider.fromUnknown({ UNIT_PRICE: 4 }))))
 function invoice(quantity: number) {
   const unitPrice = Config.Finite("UNIT_PRICE")()
   const subtotal = quantity * unitPrice

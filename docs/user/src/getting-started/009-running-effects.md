@@ -4,24 +4,24 @@ Runners start a program at an application boundary. Inside a running VibeLang fu
 
 Call a runner at module top level, or in a plain callback registered there with a TypeScript function, such as a `describe` body or framework route handler. A runner inside code a fiber runs is EK1005; call the program or use `fork` instead. Tests in `.vibe` use `it.effect` from `@effect/vitest`; Promise-style tests stay in `.ts`.
 
-An explicitly Effect-typed top-level `const` stores a cold program:
+A function at the top level holds a program without running it:
 
 ```vibe
-export const migrate: Effect.Effect<void, never, never> = Effect.suspend(() => {
+export const migrate = () => {
   Console.log("migrating")
-})
+}
 ```
 
-Importing this module prints nothing. To execute it, call `migrate()` inside a running function or pass `migrate` to a runner. Without the declared Effect type, the top-level call still reports EK1001; a `let`, a non-Effect annotation, or a type assertion does not opt in. Operands follow the ordinary by-name rules, so an eager program call inside the initializer needs its own program position.
+Importing this module prints nothing. To execute it, call `migrate()` inside a running function, or pass `() => migrate()` to a runner. A program call at the top level is EK1001. The older form, a `const` with a declared Effect type that holds its initializer, still compiles but is being retired.
 
-An object-literal field also holds a cold program when its contextual type is an Effect, whether that type comes from a service, a parameter, or a declaration:
+An object-literal field holds a program the same way, as a function:
 
 ```vibe
-interface Journal { read: Effect.Effect<number, never, never> }
-const makeNoop = (): Journal => ({ read: Effect.sync(() => 0) })
+interface Journal { read(): number!! }
+const makeNoop = (): Journal => ({ read: () => 0 })
 ```
 
-Constructing the object runs nothing; calling `journal.read()` inside a running function executes the stored program. The same holds in `Layer.sync` service literals and in `make({ read: work() })` when `make` expects an Effect field. A field typed `number` instead runs `work()` during construction and stores its result.
+Constructing the object runs nothing; calling `journal.read()` inside a running function runs the program. Write a `Layer.sync` service literal's members the same way, `{ read: () => work() }`. A field typed `number` runs `work()` during construction and stores its result.
 
 Running the same function's Effect again starts a fresh execution, including a fresh rest-parameter array. Assigning to a parameter, such as `++n` or `n += 1`, affects only that execution. Methods bind defaults and destructured parameters on each execution too. Program lambdas also bind their optional or rest parameters when they run. Objects passed by the caller keep their identity; changing their contents remains visible to later executions. A factory that explicitly returns a program keeps the outer state it captured when called.
 
@@ -64,7 +64,7 @@ function preparedMessage() {
   return "prepared"
 }
 
-const pending = Effect.runPromise(preparedMessage())
+const pending = Effect.runPromise(() => preparedMessage())
 // pending: Promise<string>
 // Output: prepared
 ```
@@ -83,7 +83,7 @@ function validate(input: string) {
 }
 
 const immediate = Effect.runSyncExit(() => validate(""))
-const eventual = Effect.runPromiseExit(preparedMessage())
+const eventual = Effect.runPromiseExit(() => preparedMessage())
 // immediate: Exit<number, BadInput>
 // eventual: Promise<Exit<string, never>>
 // Output: Failure
@@ -99,7 +99,7 @@ function heartbeat() {
   repeat(() => log("alive"), Schedule.spaced("200 millis"))
 }
 
-const running = Effect.runFork(Effect.provide(heartbeat(), Logger.layer([])))
+const running = Effect.runFork(() => Effect.provide(() => heartbeat(), Logger.layer([])))
 
 Effect.runPromise {
   sleep("650 millis")
@@ -135,6 +135,6 @@ The three contract channels do not say whether work runs synchronously. Prefer a
 
 ## Coming from Effect
 
-In `.vibe` files, pass `main()` too: the runner receives the call by name, as a program; `() => main()` means the same. A TypeScript caller gets a cold Effect from an exported VibeLang function and passes `main()` to the runner the same way.
+In `.vibe` files, pass the runner a program, `() => main()`; passing `main()` itself still compiles but is being retired. A TypeScript caller gets a cold Effect from an exported VibeLang function and passes `main()` to the runner the same way.
 
 [Upstream Effect page](https://effect.website/docs/v4/getting-started/running-effects)

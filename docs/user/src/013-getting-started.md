@@ -55,7 +55,7 @@ for source maps, named spans and a debugging entry.
 ## Guides and reference material
 
 ```vibe
-// run: Console.log(Effect.provide(main(), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))])))
+// run: Console.log(Effect.provide(() => main(), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))])))
 function main() {
   const label = "first program"
   log(label)
@@ -90,7 +90,7 @@ Find a specific operation by each page's headings; in a Markdown reader, follow 
 
 ## Using documentation with language models
 
-Give the model the relevant VibeLang guide with the Effect API signature. State that every function is an Effect, calls run, and a call passed where an operator expects a program is passed by name, as in `fork(fetchReport())`. Include your error and service declarations so generated code can preserve the contract.
+Give the model the relevant VibeLang guide with the Effect API signature. State that every function is an Effect, that a call runs where it stands, and that a program passed to an operator is written as an arrow, as in `retry(() => fetchReport(), policy)`, while `fork fetchReport()` forks the call. Include your error and service declarations so generated code can preserve the contract.
 
 Check the result with compiler feedback and focused tests. Effect's TypeScript tooling applies to `.ts` integration code; the [Devtools](getting-started/012-devtools.md) page covers VibeLang's compiler, language server, linting, and debugging setup.
 

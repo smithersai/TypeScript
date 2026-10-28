@@ -166,7 +166,7 @@ import { BrowserRuntime } from "@effect/platform-browser"
 import { ExperimentalBrowserCrypto } from "vibelang-runtime/experimental/platform-browser"
 import { main } from "./app.vibe"
 
-BrowserRuntime.runMain(Effect.provide(main(), ExperimentalBrowserCrypto.layer))
+BrowserRuntime.runMain(() => Effect.provide(() => main(), ExperimentalBrowserCrypto.layer))
 ```
 
 The page loads `page.vibe`'s JavaScript as a module script, bundled or not, and the runner call at its top level starts `main`, as a top-level runner call does in any module. `BrowserRuntime.runMain` interrupts `main` when the page is discarded. A host that says which module it started, such as Bun, runs a browser `main` itself, with `BrowserRuntime.runMain`.

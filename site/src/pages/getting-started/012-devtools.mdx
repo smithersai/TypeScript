@@ -79,7 +79,7 @@ Each entry gives the condition and the repair. The examples and language-service
 | EK1004 | A module's top level acquires a resource with `using`. | Move the acquisition into a function's block so it has a release scope. |
 | EK1006 | A pipe body never uses its input topic, `%`. | Put `%` where the input belongs in the call after the pipe. |
 | EK1007 | `%` appears outside a pipe body. | Use it only after the pipe operator, or name the value with a variable. |
-| EK1008 | One pipe uses its input both as a deferred program and as an immediate value. | Bind the value before the pipe, or pass it by name everywhere. |
+| EK1008 | One pipe uses its input both as a deferred program and as an immediate value. | Bind the value before the pipe, or pass the operator a program, `() => x`, instead of `%`. |
 | EK1017 | A `provide` statement was used in an expression position. | Write `provide layer { statements }` as a statement and return from inside its block. |
 | EK2006 | `return`, `break`, or `continue` leaves a `finally` block and would discard a failure. | Move the jump after the `try` statement. |
 | EK2104 | A retired `layer` declaration has setup statements after its members. | Put setup first; prefer `Layer.effect(Service) { setup; return { … } }`. |
@@ -193,7 +193,7 @@ npx vibelang -p tsconfig.json --fix --noEmit
 
 A service-class fix requires a literal key. A dynamic key stays as written, including its evaluation during class initialization.
 
-A block-form fix moves an invocation passed by name, a program written as an arrow function, or a program read from an import, a `const`, or a parameter or `let` the file never assigns. Any other program expression, such as a getter or a factory call, stays in its original combinator call, so it is evaluated before the providers or the span's arguments; the warning then offers no fix.
+EK4836's fix moves a call such as `main()`, a program written as an arrow function, or a program read from an import, a `const`, or a parameter or `let` the file never assigns. Any other program expression, such as a getter or a factory call, stays in its original combinator call, so it is evaluated before the providers or the span's arguments; the warning then offers no fix.
 
 When a fix removes the last value imported from another module, it keeps a side-effect import in the same position. Removing an unused binding must not remove that module's initialization.
 

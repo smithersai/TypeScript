@@ -23,7 +23,7 @@ const greet = Effect.fn("greet")(function* (id: string) {
 ```
 
 ```vibe
-// run: Console.log(Effect.provide(greet("ada"), Layer.succeed(Users, { find: (id) => ({ id, name: "Ada" }) })))
+// run: Console.log(Effect.provide(() => greet("ada"), Layer.succeed(Users, { find: (id) => ({ id, name: "Ada" }) })))
 interface User { id: string; name: string }
 
 error UserNotFound { id: string }
