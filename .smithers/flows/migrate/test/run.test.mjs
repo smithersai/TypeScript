@@ -20,12 +20,14 @@ test("parseArgs collects repeated options and flags", () => {
   assert.throws(() => one(options, "missing"), /required/)
 })
 
-test("nextStep walks setup, plan and each batch's steps, back to repair after a failed verify", () => {
+test("nextStep walks upgrade-effect, setup, plan and each batch's steps, back to repair after a failed verify", () => {
   const run = mkdtempSync(join(tmpdir(), "migrate-run-"))
   try {
     const p = paths(run)
     const write = (path, value) => { mkdirSync(join(path, ".."), { recursive: true }); writeFileSync(path, JSON.stringify(value)) }
     const at = (path, seconds) => utimesSync(path, seconds, seconds)
+    assert.deepEqual(nextStep(run), { step: "upgrade-effect" })
+    write(p.upgrade, {})
     assert.deepEqual(nextStep(run), { step: "setup" })
     write(p.setup, {})
     assert.deepEqual(nextStep(run), { step: "plan" })

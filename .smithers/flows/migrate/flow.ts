@@ -3,11 +3,12 @@ import { Node } from "@smthrs/plan";
 import { Config, Effect, Layer, Option, Schema } from "effect";
 import { flowStep } from "./lib/steps.mjs";
 
-// One execution migrates the next batch of a run: it sets the run up and plans
-// it the first time, then codemods, compiles, repairs, verifies and records one
-// batch, then reports. Every step reads and writes the run directory, so a
-// failed execution resumes where it stopped, and step.mjs runs the same steps
-// one at a time. README.md describes the run directory and the agent seam.
+// One execution migrates the next batch of a run: it upgrades Effect, sets the
+// run up and plans it the first time, then codemods, compiles, repairs,
+// verifies and records one batch, then reports. Every step reads and writes
+// the run directory, so a failed execution resumes where it stopped, and
+// step.mjs runs the same steps one at a time. README.md describes the run
+// directory and the agent seam.
 
 const implementationVersion = "migrate/v1";
 
@@ -28,7 +29,8 @@ const RunPayload = { run: Schema.String };
 const declare = <const Tag extends string, P extends Schema.Struct.Fields>(tag: Tag, payload: P) =>
   Action.make(tag, { implementationVersion, payload, success: Outcome, error: StepFailed });
 
-export const Setup = declare("migrate/Setup", SetupPayload);
+export const UpgradeEffect = declare("migrate/UpgradeEffect", SetupPayload);
+export const Setup = declare("migrate/Setup", RunPayload);
 export const Plan = declare("migrate/Plan", RunPayload);
 export const Codemod = declare("migrate/Codemod", RunPayload);
 export const Compile = declare("migrate/Compile", RunPayload);
@@ -51,7 +53,8 @@ const withAgent = (name: string, run: string) =>
 
 /** The steps' implementations, which the flow's host composes. */
 export const layer = Layer.mergeAll(
-  Setup.toLayer(({ packages, ...input }) => step("setup", { ...input, packages: [...packages] }), { implementationVersion }),
+  UpgradeEffect.toLayer(({ packages, ...input }) => step("upgrade-effect", { ...input, packages: [...packages] }), { implementationVersion }),
+  Setup.toLayer(({ run }) => step("setup", { run }), { implementationVersion }),
   Plan.toLayer(({ run }) => withAgent("plan", run), { implementationVersion }),
   Codemod.toLayer(({ run }) => step("codemod", { run }), { implementationVersion }),
   Compile.toLayer(({ run }) => step("compile", { run }), { implementationVersion }),
@@ -62,7 +65,7 @@ export const layer = Layer.mergeAll(
 );
 
 export default Flow.make("migrate", {
-  description: "Migrate an Effect TypeScript codebase to idiomatic VibeLang, one planned batch per execution: codemod, compile, agent repair, verify against the baseline tests and declarations, commit",
+  description: "Migrate an Effect TypeScript codebase to idiomatic VibeLang, one planned batch per execution: upgrade Effect and set VibeLang up first, then codemod, compile, agent repair, verify against the baseline tests and declarations, commit",
   capabilities: [],
   // The steps change the target repository and the run directory the payload
   // names, both outside this repository, so the flow declares no paths here.
@@ -72,7 +75,8 @@ export default Flow.make("migrate", {
   error: StepFailed,
   body: Node.capture({ implementationVersion }, (input: Schema.Struct.Type<typeof SetupPayload>) => {
     const run = { run: input.run };
-    return Setup.call(input).pipe(
+    return UpgradeEffect.call(input).pipe(
+      Node.andThen(Setup.call(run)),
       Node.andThen(Plan.call(run)),
       Node.andThen(Codemod.call(run)),
       Node.andThen(Compile.call(run)),

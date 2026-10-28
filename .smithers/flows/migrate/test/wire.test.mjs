@@ -5,60 +5,17 @@ import { join } from "node:path"
 import { test } from "node:test"
 import { fileURLToPath } from "node:url"
 import { loadTypeScript } from "../lib/declarations.mjs"
-import { addCompilerOptions, addVibeLang, addVitePlugin, effectPins, installCommand, packageManager, pinDependencies, replaceTsc, setIgnoreLine, setJsonOverrides, setYamlOverrides, testConfigArgument, toolchainSpecs, wireVite } from "../lib/wire.mjs"
+import { addCompilerOptions, addVibeLang, addVitePlugin, installCommand, packageManager, replaceTsc, setIgnoreLine, testConfigArgument, toolchainSpecs, wireVite } from "../lib/wire.mjs"
 
 // The runtime package's TypeScript (bun install in packages/runtime) has the compiler API.
 const ts = loadTypeScript([fileURLToPath(new URL("../../../../packages/runtime/", import.meta.url))])
 
-test("effectPins moves effect and its lockstep packages, not separately versioned ones", () => {
-  assert.deepEqual(effectPins({ effect: "4.0.0", "@effect/platform-browser": "4.0.0", "@effect/vitest": "^4.0.0", "@effect/tsgo": "0.50.0", "@effect/platform-node": "4.0.0" }, "4.0.6"), {
-    effect: "4.0.6", "@effect/platform-browser": "4.0.6", "@effect/vitest": "4.0.6", "@effect/platform-node": "4.0.6", "@effect/platform-node-shared": "4.0.6"
-  })
-})
-
-const yaml = `packages:
-  - 'packages/*'
-
-overrides:
-  '@types/node': 26.4.0
-  effect: 4.0.0
-  '@effect/platform-browser': 4.0.0
-
-  'monaco-editor>dompurify': 3.4.14
-other: 1
-`
-
-test("setYamlOverrides changes pinned keys in place and adds missing ones inside the block", () => {
-  const out = setYamlOverrides(yaml, { effect: "4.0.6", "@effect/platform-browser": "4.0.6", "@effect/vitest": "4.0.6" })
-  assert.equal(out, `packages:
-  - 'packages/*'
-
-overrides:
-  '@types/node': 26.4.0
-  effect: 4.0.6
-  '@effect/platform-browser': 4.0.6
-
-  'monaco-editor>dompurify': 3.4.14
-  '@effect/vitest': 4.0.6
-other: 1
-`)
-  assert.equal(setYamlOverrides("packages:\n  - a\n", { effect: "4.0.6" }), "packages:\n  - a\n\noverrides:\n  effect: 4.0.6\n")
-})
-
-test("JSON overrides go under pnpm for pnpm, at the top level otherwise", () => {
-  assert.deepEqual(setJsonOverrides({ name: "x" }, { effect: "4.0.6" }, "pnpm"), { name: "x", pnpm: { overrides: { effect: "4.0.6" } } })
-  assert.deepEqual(setJsonOverrides({ overrides: { a: "1" } }, { effect: "4.0.6" }, "npm"), { overrides: { a: "1", effect: "4.0.6" } })
-})
-
-test("package.json edits: pins, VibeLang packages and tsc in scripts", () => {
-  const pkg = { dependencies: { parse5: "^8" }, peerDependencies: { effect: "4.0.0" }, devDependencies: { effect: "4.0.0", vitest: "^5" } }
-  const pinned = pinDependencies(pkg, { effect: "4.0.6" })
-  assert.deepEqual(pinned.peerDependencies, { effect: "4.0.6" })
-  assert.deepEqual(pinned.devDependencies, { effect: "4.0.6", vitest: "^5" })
-  assert.equal(pkg.devDependencies.effect, "4.0.0")
-  const added = addVibeLang(pinned, { vibelang: "file:/t/v.tgz", "vibelang-runtime": "file:/t/r.tgz", "vibelang-vite": "file:/t/p.tgz" })
+test("package.json edits: VibeLang packages and tsc in scripts", () => {
+  const pkg = { dependencies: { parse5: "^8" }, devDependencies: { effect: "4.0.6", vitest: "^5" } }
+  const added = addVibeLang(pkg, { vibelang: "file:/t/v.tgz", "vibelang-runtime": "file:/t/r.tgz", "vibelang-vite": "file:/t/p.tgz" })
   assert.equal(added.dependencies["vibelang-runtime"], "file:/t/r.tgz")
   assert.deepEqual(Object.keys(added.devDependencies), ["effect", "vitest", "vibelang", "vibelang-vite"])
+  assert.equal(pkg.dependencies["vibelang-runtime"], undefined)
   assert.deepEqual(replaceTsc({ build: "pnpm run clean && tsc -b tsconfig.build.json", typecheck: "tsc -p tsconfig.json --noEmit", test: "vitest run", other: "tscx" }), {
     build: "pnpm run clean && vibelang -b tsconfig.build.json", typecheck: "vibelang -p tsconfig.json --noEmit", test: "vitest run", other: "tscx"
   })

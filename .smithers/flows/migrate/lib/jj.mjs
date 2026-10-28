@@ -22,6 +22,12 @@ export async function changedPaths(root) {
   return stdout.split("\n").filter(Boolean).map((line) => ({ status: line[0], path: line.slice(2) }))
 }
 
+/** The repository-relative paths of the files the working-copy commit tracks. */
+export async function trackedFiles(root) {
+  const { stdout } = await must("jj file list -r @", { cwd: root })
+  return stdout.split("\n").filter(Boolean)
+}
+
 /** Commits the working-copy change with message and returns the new commit's id, or null when nothing changed. */
 export async function commit(root, message) {
   if (!(await changedPaths(root)).length) return null

@@ -4,7 +4,8 @@
 // the same steps as a Smithers flow.
 //
 //   node .smithers/flows/migrate/step.mjs toolchain --vibelang <checkout> --out <dir>
-//   node .smithers/flows/migrate/step.mjs setup --run <dir> --target <repo> --package <dir> --test "<command>" --toolchain <dir>
+//   node .smithers/flows/migrate/step.mjs upgrade-effect --run <dir> --target <repo> --package <dir> --test "<command>" --toolchain <dir>
+//   node .smithers/flows/migrate/step.mjs setup --run <dir>
 //   node .smithers/flows/migrate/step.mjs plan --run <dir> [--accept <plan.json> | --agent "<command>"]
 //   node .smithers/flows/migrate/step.mjs codemod|compile|verify|record --run <dir> [--batch NN]
 //   node .smithers/flows/migrate/step.mjs repair --run <dir> [--batch NN] [--agent "<command>" | --done]
@@ -15,8 +16,8 @@ import { steps, nextStep } from "./lib/steps.mjs"
 import { stageToolchain } from "./lib/toolchain.mjs"
 
 const usage = `usage: node .smithers/flows/migrate/step.mjs <step> --run <dir> [options]
-steps: toolchain, setup, plan, codemod, compile, repair, revert, verify, record, report, next
-setup options: --target <repo> --package <dir>... --source <dir>... --test "<command>" [--test-cwd <dir>]
+steps: toolchain, upgrade-effect, setup, plan, codemod, compile, repair, revert, verify, record, report, next
+upgrade-effect options, which setup reads from the run: --target <repo> --package <dir>... --source <dir>... --test "<command>" [--test-cwd <dir>]
                (--toolchain <dir> | --vibelang-version <v>) [--tsconfig <file>] [--dts-tsconfig <file>]
                [--install "<command>"] [--no-wire] [--max-files N] [--max-lines N] [--allow-dirty]
                [--base <revision>] [--bookmark <name>]`

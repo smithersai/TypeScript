@@ -15,6 +15,8 @@ export function run(command, { cwd, env, log, input } = {}) {
     child.stdout.on("data", (chunk) => { stdout += chunk })
     child.stderr.on("data", (chunk) => { stderr += chunk })
     child.on("error", reject)
+    // A command that exits without reading its input (`true` as an install step) closes stdin first: that is no failure.
+    child.stdin.on("error", (error) => { if (error.code !== "EPIPE") reject(error) })
     child.on("close", (code, signal) => {
       const result = { command, cwd, code: code ?? 128, signal, stdout, stderr, ms: Date.now() - started }
       if (log) {

@@ -15,6 +15,7 @@ import { countTokens } from "./tokens.mjs"
 import { readIssues } from "./issues.mjs"
 import { repairPrompt } from "./repair.mjs"
 import * as Jj from "./jj.mjs"
+import * as Upgrade from "./upgrade.mjs"
 import * as Wire from "./wire.mjs"
 import { readToolchain } from "./toolchain.mjs"
 import { assertPortable, machineRoots } from "./portable.mjs"
@@ -31,6 +32,7 @@ export function paths(runDir) {
   return {
     run: r,
     config: join(r, "config.json"),
+    upgrade: join(r, "upgrade-effect.json"),
     setup: join(r, "setup.json"),
     inventory: join(r, "inventory.json"),
     planDraft: join(r, "plan.draft.json"),
@@ -57,7 +59,7 @@ const mtime = (path) => (existsSync(path) ? statSync(path).mtimeMs : 0)
 /** The step to run next, from what the run directory holds. */
 export function nextStep(runDir) {
   const p = paths(runDir)
-  if (!existsSync(p.setup)) return { step: "setup" }
+  if (!existsSync(p.setup)) return { step: existsSync(p.upgrade) ? "setup" : "upgrade-effect" }
   if (!existsSync(p.plan)) return { step: "plan" }
   const plan = readJson(p.plan)
   for (let i = 0; i < plan.batches.length; i++) {
@@ -139,7 +141,94 @@ export function makeConfig(options) {
   }
 }
 
-/** Sets VibeLang up in the target: dependencies, Effect pins, scripts, the Vite plugin and tsconfig. Returns what it changed. */
+/** The exact Effect version the toolchain's runtime requires. */
+async function runtimeEffect(config) {
+  if (config.toolchain.kind === "staged") return readToolchain(config.toolchain.dir).effect
+  const { stdout } = await must(`npm view vibelang-runtime@${config.toolchain.version} peerDependencies.effect`)
+  return stdout.trim()
+}
+
+const testsOf = (r) => ({ code: r.code, total: r.total, passed: r.passed, failed: r.failed, skipped: r.skipped, ms: r.ms })
+
+/**
+ * upgrade-effect: the first step. Starts the run's bookmark on the base, runs
+ * the target's tests as they are, moves every Effect version on Effect's major
+ * line to the exact one the VibeLang runtime requires (with the overrides that
+ * keep one copy installed), installs, runs the tests again, and commits the
+ * upgrade on its own, before any VibeLang change. A test the upgrade breaks is
+ * recorded as a setup issue and the step still finishes, so setup and every
+ * batch are compared with the upgraded tests.
+ */
+export async function upgradeEffect(options) {
+  const p = paths(options.run)
+  if (existsSync(p.upgrade)) return readJson(p.upgrade)
+  if (existsSync(p.setup)) return { skipped: "this run was set up before upgrade-effect was a step" }
+  const config = existsSync(p.config) ? readJson(p.config) : makeConfig(options)
+  writeJson(p.config, config)
+  const t = config.target
+  const logs = join(p.baseline, "logs")
+  const repo = await Jj.ensureRepo(t)
+  const dirty = await Jj.changedPaths(t)
+  if (dirty.length && !options.allowDirty) throw new Error(`${t} has uncommitted changes (${dirty.slice(0, 5).map((d) => d.path).join(", ")}); commit them or pass --allow-dirty`)
+  // The migration starts on its bookmark when an earlier run left one, else on the base (the default branch).
+  const previous = await Jj.bookmarkTarget(t, config.bookmark)
+  const base = config.base ?? (previous ? config.bookmark : "trunk()")
+  const baseCommit = await Jj.commitId(t, base)
+  if (/^0+$/.test(baseCommit)) throw new Error(`${base} is the root commit: the target has no default branch jj knows; pass --base <branch>`)
+  if ((await Jj.commitId(t, "@-")) !== baseCommit) {
+    if (dirty.length) throw new Error(`${t}'s working copy is not on ${base}; commit or discard its changes first`)
+    await Jj.newAt(t, baseCommit)
+  }
+
+  const manager = Wire.packageManager(readdirSync(t))
+  const install = (name) => must(config.install ?? Wire.installCommand(manager), { cwd: t, log: join(logs, `${name}-install.log`) })
+  const testRun = (name) => runTests({ command: config.test.command, cwd: join(t, config.test.cwd), root: t, jsonFile: join(p.baseline, `${name}.vitest.json`), log: join(logs, `${name}-tests.log`) })
+  // The target's own tests first, as it is: what fails here fails before the migration touches anything.
+  await install("upstream")
+  const before = await testRun("upstream")
+  if (before.code !== 0 && !before.tests) throw new Error(`the target's tests do not run (exit ${before.code}); see ${join(logs, "upstream-tests.log")}`)
+  writeJson(join(p.baseline, "upstream-tests.json"), { code: before.code, tests: before.tests })
+
+  const to = await runtimeEffect(config)
+  const manifests = (await Jj.trackedFiles(t)).filter((f) => /(?:^|\/)package\.json$/.test(f) || f === "pnpm-workspace.yaml")
+    .sort((a, b) => (a === "package.json" ? -1 : b === "package.json" ? 1 : a === "pnpm-workspace.yaml" ? -1 : b === "pnpm-workspace.yaml" ? 1 : a < b ? -1 : 1))
+  const upgrade = Upgrade.planUpgrade(manifests.map((path) => ({ path, text: readFileSync(join(t, path), "utf8") })), to, manager)
+  for (const f of upgrade.files) writeFileSync(join(t, f.path), f.text)
+  const changed = upgrade.files.map((f) => f.path)
+
+  let after = before
+  let comparison = null
+  let commit = null
+  if (changed.length) {
+    await install("upgraded")
+    after = await testRun("upgraded")
+    comparison = compareTests(before, after)
+    const issue = regressionIssue({
+      change: `Upgrading Effect from ${upgrade.from} to ${to}`, command: config.test.command, cwd: config.test.cwd, changed, before, after, comparison,
+      logs: { before: join(logs, "upstream-tests.log"), after: join(logs, "upgraded-tests.log") }
+    })
+    if (issue) appendJsonl(p.issues, issue)
+    await assertPortable(t, machineRoots(t, p.run, config.toolchain.dir))
+    commit = await Jj.commit(t, `migrate(vibelang): upgrade Effect to ${to}\n\nThe VibeLang runtime requires exactly effect ${to}. Moves effect and every\n@effect/* package on its major line from ${upgrade.from} to ${to}, with overrides\nthat keep one copy installed. No source file changes; VibeLang comes next.`)
+  }
+  writeJson(join(p.baseline, "upgraded-tests.json"), { code: after.code, tests: after.tests })
+  await Jj.setBookmark(t, config.bookmark, commit ?? baseCommit)
+  const result = {
+    at: new Date().toISOString(),
+    jj: { initialized: repo.initialized, base, baseCommit, commit: commit ?? baseCommit, bookmark: config.bookmark },
+    effect: { from: upgrade.from, to },
+    pins: upgrade.pins,
+    bumped: upgrade.bumped,
+    changed,
+    upstreamTests: testsOf(before),
+    tests: testsOf(after),
+    regressions: comparison && { newFailures: comparison.newFailures, missing: comparison.missing, exit: { before: before.code, after: after.code } }
+  }
+  writeJson(p.upgrade, result)
+  return result
+}
+
+/** Sets VibeLang up in the target: dependencies, scripts, the Vite plugin and tsconfig. Returns what it changed. */
 async function wireTarget(config, log) {
   const t = config.target
   const changed = []
@@ -163,39 +252,16 @@ async function wireTarget(config, log) {
   const specsFor = (dir) => (toolchain
     ? Wire.toolchainSpecs(dir, toolchain.packages)
     : { vibelang: config.toolchain.version, "vibelang-runtime": config.toolchain.version, "vibelang-vite": config.toolchain.version })
-  let effect = toolchain?.effect
-  if (!effect) {
-    const { stdout } = await must(`npm view vibelang-runtime@${config.toolchain.version} peerDependencies.effect`)
-    effect = stdout.trim()
-  }
-  const manager = Wire.packageManager(readdirSync(t))
-  const rootPkg = readJson(join(t, "package.json"))
-  const workspaceYaml = join(t, "pnpm-workspace.yaml")
-  const yaml = existsSync(workspaceYaml) ? readFileSync(workspaceYaml, "utf8") : null
-  const declared = {}
-  const note = (versions) => { for (const [k, v] of Object.entries(versions ?? {})) if (k === "effect" || k.startsWith("@effect/")) declared[k] ??= String(v) }
-  for (const m of (yaml ?? "").matchAll(/^\s+(['"]?)(effect|@effect\/[^'":]+)\1:\s*(\S+)/gm)) declared[m[2]] ??= m[3]
-  note(rootPkg.pnpm?.overrides); note(rootPkg.overrides); note(rootPkg.dependencies); note(rootPkg.devDependencies)
-  const pkgJson = config.packages.map((pkg) => ({ pkg, path: join(t, pkg.dir, "package.json"), json: readJson(join(t, pkg.dir, "package.json")) }))
-  for (const { json } of pkgJson) { note(json.dependencies); note(json.devDependencies); note(json.peerDependencies) }
-  if (!declared.effect) throw new Error("the target declares no effect dependency")
-  const pins = Wire.effectPins(declared, effect)
 
   const writeIfChanged = (path, before, after) => {
     if (before === after) return
     writeFileSync(path, after)
     changed.push(posix.relative(t, path))
   }
-  if (manager === "pnpm" && yaml !== null) writeIfChanged(workspaceYaml, yaml, Wire.setYamlOverrides(yaml, pins))
-  let root = Wire.pinDependencies(rootPkg, pins)
-  if (!(manager === "pnpm" && yaml !== null)) root = Wire.setJsonOverrides(root, pins, manager)
-  const rootIsPackage = config.packages.some((pkg) => pkg.dir === ".")
-  if (!rootIsPackage) writeIfChanged(join(t, "package.json"), JSON.stringify(rootPkg, null, 2) + "\n", JSON.stringify(root, null, 2) + "\n")
-
   const warnings = []
-  for (const { pkg, path, json } of pkgJson) {
-    let next = pkg.dir === "." ? root : json
-    next = Wire.addVibeLang(Wire.pinDependencies(next, pins), specsFor(pkg.dir))
+  for (const pkg of config.packages) {
+    const path = join(t, pkg.dir, "package.json")
+    const next = Wire.addVibeLang(readJson(path), specsFor(pkg.dir))
     next.scripts = Wire.replaceTsc(next.scripts)
     writeIfChanged(path, readFileSync(path, "utf8"), JSON.stringify(next, null, 2) + "\n")
     const dir = join(t, pkg.dir)
@@ -208,56 +274,44 @@ async function wireTarget(config, log) {
   const vite = Wire.wireVite({ root: t, packages: config.packages, test: config.test, ts: typeScriptOf(config), specsFor })
   changed.push(...vite.changed.filter((file) => !changed.includes(file)))
   warnings.push(...vite.warnings)
+  const manager = Wire.packageManager(readdirSync(t))
   const install = config.install ?? Wire.installCommand(manager)
   await must(install, { cwd: t, log: join(log, "install.log") })
-  return { manager, effect, pins, specs: Object.fromEntries(config.packages.map((pkg) => [pkg.dir, specsFor(pkg.dir)])), viteConfigs: vite.configs, changed, warnings, install }
+  return { manager, specs: Object.fromEntries(config.packages.map((pkg) => [pkg.dir, specsFor(pkg.dir)])), viteConfigs: vite.configs, changed, warnings, install }
 }
 
-/** setup: wire the toolchain, install, record the baseline tests, compile, declarations and inventory, and commit. */
+/** setup: on the Effect upgrade's commit, wire the toolchain, install, record the baseline tests, compile, declarations and inventory, and commit. */
 export async function setup(options) {
   const p = paths(options.run)
   if (existsSync(p.setup)) return readJson(p.setup)
-  const config = existsSync(p.config) ? readJson(p.config) : makeConfig(options)
-  writeJson(p.config, config)
+  const upgrade = readJsonIf(p.upgrade)
+  if (!upgrade) throw new Error("upgrade-effect has not run: it is the first step, and setup continues from its commit")
+  const config = readJson(p.config)
   const t = config.target
   const logs = join(p.baseline, "logs")
-  const repo = await Jj.ensureRepo(t)
-  const dirty = await Jj.changedPaths(t)
-  if (dirty.length && !options.allowDirty) throw new Error(`${t} has uncommitted changes (${dirty.slice(0, 5).map((d) => d.path).join(", ")}); commit them or pass --allow-dirty`)
-  // The migration starts on its bookmark when an earlier run left one, else on the base (the default branch).
-  const previous = await Jj.bookmarkTarget(t, config.bookmark)
-  const base = config.base ?? (previous ? config.bookmark : "trunk()")
-  const baseCommit = await Jj.commitId(t, base)
-  if (/^0+$/.test(baseCommit)) throw new Error(`${base} is the root commit: the target has no default branch jj knows; pass --base <branch>`)
-  if ((await Jj.commitId(t, "@-")) !== baseCommit) {
-    if (dirty.length) throw new Error(`${t}'s working copy is not on ${base}; commit or discard its changes first`)
-    await Jj.newAt(t, baseCommit)
+  // The working copy holds at most what the run's own installs changed since the upgrade's commit.
+  if ((await Jj.commitId(t, "@-")) !== upgrade.jj.commit) {
+    if ((await Jj.changedPaths(t)).length) throw new Error(`${t}'s working copy is not on the Effect upgrade's commit ${upgrade.jj.commit.slice(0, 12)}; commit or discard its changes first`)
+    await Jj.newAt(t, upgrade.jj.commit)
   }
-
-  // The target's own tests first, as it is: what fails here fails before the migration touches anything.
-  const testRun = (name) => runTests({ command: config.test.command, cwd: join(t, config.test.cwd), root: t, jsonFile: join(p.baseline, `${name}.vitest.json`), log: join(logs, `${name}-tests.log`) })
-  let upstream = null
-  if (config.wire) {
-    await must(config.install ?? Wire.installCommand(Wire.packageManager(readdirSync(t))), { cwd: t, log: join(logs, "upstream-install.log") })
-    upstream = await testRun("upstream")
-    if (upstream.code !== 0 && !upstream.tests) throw new Error(`the target's tests do not run (exit ${upstream.code}); see ${join(logs, "upstream-tests.log")}`)
-    writeJson(join(p.baseline, "upstream-tests.json"), { code: upstream.code, tests: upstream.tests })
-  }
+  // The tests as the upgrade left them are what setting VibeLang up is compared with.
+  const upstream = readJson(join(p.baseline, "upgraded-tests.json"))
   const wired = config.wire ? await wireTarget(config, logs) : null
   const compiler = compilerOf(config)
   const { stdout: version } = await must(`${JSON.stringify(compiler)} --version`)
 
   // The baseline every batch is compared with: the tests with VibeLang set up and nothing migrated.
-  const tests = await testRun("baseline")
+  const tests = wired
+    ? await runTests({ command: config.test.command, cwd: join(t, config.test.cwd), root: t, jsonFile: join(p.baseline, "baseline.vitest.json"), log: join(logs, "baseline-tests.log") })
+    : { ...upgrade.tests, tests: upstream.tests }
   writeJson(join(p.baseline, "tests.json"), { code: tests.code, tests: tests.tests })
-  if (!upstream && tests.code !== 0 && !tests.tests) throw new Error(`the baseline tests do not run (exit ${tests.code}); see ${join(logs, "baseline-tests.log")}`)
-  const wiring = upstream ? compareTests(upstream, tests) : null
+  const wiring = wired ? compareTests(upstream, tests) : null
   // Setting VibeLang up broke tests before any file moved: record it, so it is
   // not mistaken for a batch's regression, and finish setup with its evidence.
   const issue = wiring && regressionIssue({
-    change: `Setting up VibeLang (Effect ${wired.effect}${Object.keys(wired.pins).length > 1 ? " and its packages" : ""}, the Vite plugin)`,
+    change: "Setting up VibeLang (the compiler, the runtime and the Vite plugin)",
     command: config.test.command, cwd: config.test.cwd, changed: wired.changed, before: upstream, after: tests, comparison: wiring,
-    logs: { before: join(logs, "upstream-tests.log"), after: join(logs, "baseline-tests.log") }
+    logs: { before: join(logs, upgrade.changed.length ? "upgraded-tests.log" : "upstream-tests.log"), after: join(logs, "baseline-tests.log") }
   })
   if (issue) appendJsonl(p.issues, issue)
 
@@ -277,15 +331,16 @@ export async function setup(options) {
   writeJson(p.inventory, inventory)
 
   await assertPortable(t, machineRoots(t, p.run, config.toolchain.dir))
-  const setupCommit = await Jj.commit(t, `migrate(vibelang): set up ${version.trim()}\n\nPins Effect ${wired?.effect ?? ""} for vibelang-runtime, adds the compiler and the Vite plugin, and lets .vibe files import modules by source name.`)
-  await Jj.setBookmark(t, config.bookmark, setupCommit ?? baseCommit)
+  const setupCommit = await Jj.commit(t, `migrate(vibelang): set up ${version.trim()}\n\nAdds the compiler, the runtime and the Vite plugin, replaces tsc with vibelang\nin scripts, and lets .vibe files import modules by source name. Effect\n${upgrade.effect.to} came in the commit before.`)
+  await Jj.setBookmark(t, config.bookmark, setupCommit ?? upgrade.jj.commit)
   const result = {
     at: new Date().toISOString(),
-    jj: { initialized: repo.initialized, base, baseCommit, setupCommit: setupCommit ?? baseCommit, bookmark: config.bookmark },
+    jj: { initialized: upgrade.jj.initialized, base: upgrade.jj.base, baseCommit: upgrade.jj.baseCommit, upgradeCommit: upgrade.jj.commit, setupCommit: setupCommit ?? upgrade.jj.commit, bookmark: config.bookmark },
     compiler: { path: compiler, version: version.trim(), toolchain: config.toolchain.kind === "staged" ? readToolchain(config.toolchain.dir) : config.toolchain },
+    effect: upgrade.effect,
     wired,
-    upstreamTests: upstream && { code: upstream.code, total: upstream.total, passed: upstream.passed, failed: upstream.failed, skipped: upstream.skipped, ms: upstream.ms },
-    tests: { code: tests.code, total: tests.total, passed: tests.passed, failed: tests.failed, skipped: tests.skipped, ms: tests.ms },
+    upstreamTests: upgrade.tests,
+    tests: testsOf(tests),
     wiringRegressions: wiring && { newFailures: wiring.newFailures, missing: wiring.missing, exit: { before: upstream.code, after: tests.code } },
     compile,
     declarations,
@@ -504,6 +559,7 @@ export async function record(options) {
 /** report: every batch's outcome, the token totals and the run's issues, as Markdown and JSON. */
 export async function report(options) {
   const { p, config, setup: setupResult, plan: thePlan } = loadRun(options.run)
+  const upgrade = readJsonIf(p.upgrade)
   const batches = (thePlan?.batches ?? []).map((batch, i) => {
     const b = batchName(i)
     return { batch: b, files: batch.files, reason: batch.reason, codemod: readJsonIf(p.codemod(b)), verify: readJsonIf(p.verify(b)), record: readJsonIf(p.record(b)), reverted: readJsonIf(p.reverted(b), []) }
@@ -515,6 +571,7 @@ export async function report(options) {
     target: config.target,
     packages: config.packages.map((pkg) => pkg.dir),
     compiler: setupResult?.compiler?.version ?? null,
+    effect: upgrade && !upgrade.skipped ? { ...upgrade.effect, commit: upgrade.jj.commit, changed: upgrade.changed.length, regressions: upgrade.regressions } : null,
     baseline: setupResult?.tests ?? null,
     batches: { planned: batches.length, recorded: done.length },
     tokens: { ...tokens, percent: tokens.before ? Number((100 * (tokens.after - tokens.before) / tokens.before).toFixed(1)) : null },
@@ -530,6 +587,9 @@ export async function report(options) {
     "",
     `Target \`${config.target}\`, compiler ${data.compiler}. Baseline tests: ${data.baseline?.passed ?? "?"} passed, ${data.baseline?.failed?.length ?? 0} failing before the migration, ${data.baseline?.skipped ?? 0} skipped.`,
     "",
+    ...(data.effect ? [data.effect.changed
+      ? `Effect upgraded from ${data.effect.from} to ${data.effect.to} in \`${data.effect.commit.slice(0, 12)}\`, before VibeLang was set up; ${data.effect.regressions?.newFailures.length || data.effect.regressions?.missing.length ? "the upgrade broke tests (see the setup issues)" : "the tests pass as before"}.`
+      : `Effect was already ${data.effect.to}.`, ""] : []),
     `${data.batches.recorded} of ${data.batches.planned} batches recorded. Tokens of migrated files: ${tokens.before} -> ${tokens.after} (${data.tokens.percent ?? 0}%).`,
     "",
     "| Batch | Files | Migrated | Tests | Declarations | Style | Tokens | Commit |",
@@ -561,9 +621,10 @@ export async function report(options) {
   return data
 }
 
-export const steps = { setup, plan, codemod, compile, repair, revert, verify, record, report }
+export const steps = { "upgrade-effect": upgradeEffect, setup, plan, codemod, compile, repair, revert, verify, record, report }
 
 const summaries = {
+  "upgrade-effect": (r) => (r.skipped ? `skipped: ${r.skipped}` : `Effect ${r.effect.from} -> ${r.effect.to} in ${r.changed.length} files; ${r.regressions && (r.regressions.newFailures.length || r.regressions.missing.length) ? "tests regressed (a setup issue)" : "tests as before"}`),
   setup: (r) => `baseline: ${r.tests.passed ?? "?"} tests pass, ${r.tests.failed.length} fail; ${r.inventory.effectValueFiles} Effect files`,
   plan: (r) => (r.accepted ? `${r.plan.batches.length} batches` : `waiting for a plan at ${r.output}`),
   codemod: (r) => `${r.renames.length} renamed, ${r.importEdits.length} imports rewritten, ${Object.values(r.fix.totals).reduce((a, b) => a + b, 0)} fixes, ${r.fix.refused.length} refused`,
@@ -582,7 +643,7 @@ const summaries = {
  */
 export async function flowStep(step, options) {
   const done = (batch, result) => ({ step, batch: batch ?? "", summary: summaries[step](result) })
-  if (step === "setup" || step === "report") return done("", await steps[step](options))
+  if (step === "upgrade-effect" || step === "setup" || step === "report") return done("", await steps[step](options))
   if (step === "plan") {
     const result = await plan(options)
     if (!result.accepted) throw new Error(`plan needs an agent: set MIGRATE_AGENT, or answer ${result.prompt} and run step.mjs plan --accept`)

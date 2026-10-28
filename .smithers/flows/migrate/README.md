@@ -3,13 +3,14 @@
 The migrate flow moves an existing Effect TypeScript codebase to idiomatic VibeLang the way a codemod would: in small planned batches, mechanically wherever a rule can do the work, with an agent only where none can, and gated on the target's own tests and public API. Every run also produces the list of what the codemod could not do and what VibeLang got wrong, which is how the next run gets better.
 
 ```text
-setup ──▶ plan ──▶ for each batch: codemod ──▶ compile ──▶ repair ──▶ verify ──▶ record ──▶ report
-(no model) (agent)                 (no model)  (no model)  (agent)    (no model) (no model)  (no model)
+upgrade-effect ──▶ setup ──▶ plan ──▶ for each batch: codemod ──▶ compile ──▶ repair ──▶ verify ──▶ record ──▶ report
+(no model)        (no model) (agent)                 (no model)  (no model)  (agent)    (no model) (no model)  (no model)
 ```
 
 | Step | Model | What it does | Writes |
 | --- | --- | --- | --- |
-| setup | none | Installs and runs the target's tests as they are; sets VibeLang up (dependencies, Effect pinned to the runtime's version, `tsc` to `vibelang` in scripts, the `vibelang-vite` plugin, `rewriteRelativeImportExtensions`); installs and runs the tests again as the baseline; checks each package with `vibelang`; emits its declarations; inventories every source file; commits | `setup.json`, `baseline/`, `inventory.json` |
+| upgrade-effect | none | Installs and runs the target's tests as they are; moves `effect` and every `@effect/*` package on Effect's major line to the exact version the VibeLang runtime requires, wherever the repository declares it (dependencies, catalogs, overrides), with overrides that keep one copy installed; installs and runs the tests again; commits the upgrade alone, before any VibeLang change. Separately versioned tools such as `@effect/tsgo` keep their versions, and a peer range keeps its operator | `upgrade-effect.json`, `baseline/upstream-tests.json`, `baseline/upgraded-tests.json` |
+| setup | none | On the upgrade's commit, sets VibeLang up (dependencies, `tsc` to `vibelang` in scripts, the `vibelang-vite` plugin, `rewriteRelativeImportExtensions`); installs and runs the tests as the baseline, compared with the upgraded tests; checks each package with `vibelang`; emits its declarations; inventories every source file; commits | `setup.json`, `baseline/`, `inventory.json` |
 | plan | one agent call | Orders the Effect files into small batches, leaves and tested modules first, each with a reason; the answer is validated before anything reads it | `plan.prompt.md`, `plan.draft.json`, `plan.json` |
 | codemod | none | Marks each member TypeScript declares writable `mutable`, which keeps it writable in `.vibe` (D134), renames the batch to `.vibe`, rewrites imports by VibeLang's rules, runs `vibelang --fix` until it fixes nothing, and records each rewrite it applied or refused | `batches/NN/codemod.json` |
 | compile | none | `vibelang --noEmit`: the batch's diagnostics and any error new against the baseline | `batches/NN/compile.json` |
@@ -22,7 +23,7 @@ Each step reads and writes the run directory, so a step that already recorded it
 
 ## Run it
 
-Every batch lands on a jj bookmark, `vibe` unless `--bookmark` names another: setup starts it on the default branch (`trunk()`, or `--base <branch>`, such as `dev`), or continues an earlier run's `vibe`, and each recorded batch is one commit on top of the last. The flow never pushes. After each run, the orchestrator pushes `vibe` to the library's fork and opens a pull request from it there, so the migration's diff is reviewable.
+Every batch lands on a jj bookmark, `vibe` unless `--bookmark` names another: upgrade-effect starts it on the default branch (`trunk()`, or `--base <branch>`, such as `dev`), or continues an earlier run's `vibe`, and each recorded batch is one commit on top of the last. The first two commits are the Effect upgrade and VibeLang's setup, so a reviewer reads the dependency upgrade, and any test it breaks, apart from the migration. The flow never pushes. After each run, the orchestrator pushes `vibe` to the library's fork and opens a pull request from it there, so the migration's diff is reviewable.
 
 Both ways need a VibeLang toolchain: a published version (`--vibelang-version 0.0.11`), or a staged build of a checkout, which runs the compiler on main before it is published:
 
@@ -31,13 +32,13 @@ sh scripts/build-vibelang.sh && (cd packages/runtime && bun install && bun run b
 node .smithers/flows/migrate/step.mjs toolchain --vibelang . --out <toolchain>
 ```
 
-The toolchain holds the native compiler, npm tarballs of `vibelang` (with that compiler), `vibelang-runtime` and `vibelang-vite`, and the TypeScript compiler API that reads declarations. Setup copies the tarballs into `.vibelang-toolchain/` at the target's root, adds that directory to the target's `.gitignore`, and names them relatively from each package (`file:../../.vibelang-toolchain/vibelang-0.0.11.tgz`), so no commit names a path on the build host. Every commit the flow makes first checks the lines it adds for this machine's absolute paths and refuses them. The target must be a jj repository or a Git checkout, which setup makes a colocated jj repository.
+The toolchain holds the native compiler, npm tarballs of `vibelang` (with that compiler), `vibelang-runtime` and `vibelang-vite`, and the TypeScript compiler API that reads declarations. Setup copies the tarballs into `.vibelang-toolchain/` at the target's root, adds that directory to the target's `.gitignore`, and names them relatively from each package (`file:../../.vibelang-toolchain/vibelang-0.0.11.tgz`), so no commit names a path on the build host. Every commit the flow makes first checks the lines it adds for this machine's absolute paths and refuses them. The target must be a jj repository or a Git checkout, which upgrade-effect makes a colocated jj repository.
 
 ### Registry versions
 
-Once VibeLang publishes the version a migration needs, use the registry instead of a staged toolchain: run setup with `--vibelang-version <version>` in place of `--toolchain <dir>`. Setup then writes exact versions (`"vibelang": "0.0.12"`) and makes no `.vibelang-toolchain/`. Anyone can install the result, and the fork's pull request no longer depends on the tarballs.
+Once VibeLang publishes the version a migration needs, use the registry instead of a staged toolchain: start the run with `--vibelang-version <version>` in place of `--toolchain <dir>`. Setup then writes exact versions (`"vibelang": "0.0.12"`) and makes no `.vibelang-toolchain/`. Anyone can install the result, and the fork's pull request no longer depends on the tarballs.
 
-To switch a target that a staged toolchain set up, start a new run on it with `--vibelang-version`. Setup continues on the `vibe` bookmark. It replaces the three `file:` specifiers with the version, deletes `.vibelang-toolchain/` and its `.gitignore` line, reinstalls, records a new baseline, and commits the switch on top. The batches already on `vibe` stay as they are.
+To switch a target that a staged toolchain set up, start a new run on it with `--vibelang-version`. Upgrade-effect continues on the `vibe` bookmark, and commits only when the version needs another Effect. Setup then replaces the three `file:` specifiers with the version, deletes `.vibelang-toolchain/` and its `.gitignore` line, reinstalls, records a new baseline, and commits the switch on top. The batches already on `vibe` stay as they are.
 
 ### Step by step
 
@@ -45,7 +46,8 @@ Each command prints its result and the next step. A person, or an agent session 
 
 ```sh
 step="node .smithers/flows/migrate/step.mjs"
-$step setup --run <run> --target <repo> --package packages/core --test "pnpm exec vitest run" --test-cwd packages/core --toolchain <toolchain>
+$step upgrade-effect --run <run> --target <repo> --package packages/core --test "pnpm exec vitest run" --test-cwd packages/core --toolchain <toolchain>
+$step setup --run <run>                       # reads the run's options
 $step plan --run <run>                        # writes plan.prompt.md and a deterministic draft
 $step plan --run <run> --accept <answer.json> # validates and records the plan
 $step codemod --run <run>
@@ -63,11 +65,11 @@ $step next --run <run>                        # what to run next
 
 Setup adds the `vibelang-vite` plugin to the Vite or Vitest config the tests load. When the test command, or the package script it runs (`pnpm test`), names one with `--config`, such as a monorepo's shared `../../vite.config.ts`, setup wires that file, and the package that owns it gets `vibelang` and `vibelang-vite` as dev dependencies. Otherwise it wires each package's own config.
 
-`setup` takes `--base` and `--bookmark` (above), `--package` and `--source` more than once, `--tsconfig` (default `tsconfig.json`, the project the tests check), `--dts-tsconfig` (default `tsconfig.build.json` when it exists: the project whose declarations are the public API), `--install`, `--no-wire` for a target that already has VibeLang, `--max-files` and `--max-lines` per batch (6 and 900), and `--allow-dirty`.
+`upgrade-effect` takes the run's options, which setup and the later steps read from the run: `--base` and `--bookmark` (above), `--package` and `--source` more than once, `--tsconfig` (default `tsconfig.json`, the project the tests check), `--dts-tsconfig` (default `tsconfig.build.json` when it exists: the project whose declarations are the public API), `--install`, `--no-wire` for a target that already has VibeLang, `--max-files` and `--max-lines` per batch (6 and 900), and `--allow-dirty`.
 
 ### As a Smithers flow
 
-`flow.ts` declares the same steps as durable actions of `Flow.make("migrate", ...)`. One execution sets the run up and plans it the first time, then migrates the next batch and reports; the next execution migrates the batch after it. `run.ts` runs one execution on the in-memory engine:
+`flow.ts` declares the same steps as durable actions of `Flow.make("migrate", ...)`. One execution upgrades Effect, sets the run up and plans it the first time, then migrates the next batch and reports; the next execution migrates the batch after it. `run.ts` runs one execution on the in-memory engine:
 
 ```sh
 MIGRATE_AGENT="<agent command>" bun .smithers/flows/migrate/run.ts --run <run> --target <repo> \
@@ -92,7 +94,7 @@ node .smithers/flows/migrate/build-context.mjs --check   # fail when it is stale
 
 ## Each run improves the next
 
-A run's `issues.jsonl` is the input to the loop that improves the flow. The repair agent appends one entry per lesson; setup appends one when setting VibeLang up breaks a target test before any file moves, and still finishes, so no batch is blamed for it. A runner without per-test results, such as `bun test`, is compared by its exit status, and the issue names the logs from before and after.
+A run's `issues.jsonl` is the input to the loop that improves the flow. The repair agent appends one entry per lesson; upgrade-effect and setup append one when the Effect upgrade or setting VibeLang up breaks a target test before any file moves, and still finish, so no batch is blamed for it. A runner without per-test results, such as `bun test`, is compared by its exit status, and the issue names the logs from before and after.
 
 | Entry | Where it goes |
 | --- | --- |
