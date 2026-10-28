@@ -401,7 +401,7 @@ When the host starts this module, its entry statement runs `main` with Node's ru
 
 ```ts ts
 // run.ts
-import { NodeRuntime } from "@effect/platform-node"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import { main } from "./main.js"
 
 NodeRuntime.runMain(main())
