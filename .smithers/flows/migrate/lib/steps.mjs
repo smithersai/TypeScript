@@ -194,7 +194,12 @@ export async function upgradeEffect(options) {
     .sort((a, b) => (a === "package.json" ? -1 : b === "package.json" ? 1 : a === "pnpm-workspace.yaml" ? -1 : b === "pnpm-workspace.yaml" ? 1 : a < b ? -1 : 1))
   const upgrade = Upgrade.planUpgrade(manifests.map((path) => ({ path, text: readFileSync(join(t, path), "utf8") })), to, manager)
   for (const f of upgrade.files) writeFileSync(join(t, f.path), f.text)
-  const changed = upgrade.files.map((f) => f.path)
+  // A patch named for a moved package's old version is renamed for the new one, its manifest hunks carried with it.
+  for (const patch of upgrade.patches) {
+    writeFileSync(join(t, patch.to), Upgrade.carryPatch(readFileSync(join(t, patch.from), "utf8"), patch.versions, to))
+    rmSync(join(t, patch.from))
+  }
+  const changed = [...upgrade.files.map((f) => f.path), ...upgrade.patches.flatMap((patch) => [patch.from, patch.to])]
 
   let after = before
   let comparison = null
@@ -219,6 +224,8 @@ export async function upgradeEffect(options) {
     effect: { from: upgrade.from, to },
     pins: upgrade.pins,
     bumped: upgrade.bumped,
+    selectors: upgrade.selectors,
+    patches: upgrade.patches.map(({ from, to }) => ({ from, to })),
     changed,
     upstreamTests: testsOf(before),
     tests: testsOf(after),

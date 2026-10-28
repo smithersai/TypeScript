@@ -139,6 +139,54 @@ export function setJsonOverrides(pkg, pins, manager) {
 }
 
 const indentOf = (text) => /\n([ \t]+)"/.exec(text)?.[1] ?? "  "
+const escape = (text) => text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")
+
+/**
+ * Carries forward what names a moved package at its old version, which the
+ * package manager would otherwise drop or reject: each `name@old` selector
+ * (pnpm's minimumReleaseAgeExclude, allowBuilds and patchedDependencies keys,
+ * Bun's patchedDependencies) becomes `name@to`, and a patch file named for
+ * the old version (`patches/@effect__vitest@4.0.5.patch`) is renamed for the
+ * new one. moved maps each package to its old versions. Returns the text, the
+ * selectors changed, and the patch files to move.
+ */
+export function carrySelectors(text, moved, to) {
+  const selectors = []
+  const patches = []
+  let out = text
+  for (const [name, olds] of moved) {
+    for (const old of olds) {
+      if (old === to) continue
+      // A patch named for the old version, as the value of that version's entry.
+      const entry = new RegExp(`(${escape(name)}@)${escape(old)}(['"]?\\s*:\\s*['"]?)([^'"\\s,}]*@)${escape(old)}(\\.patch)`, "g")
+      out = out.replace(entry, (_, key, between, path, ext) => {
+        patches.push({ from: `${path}${old}${ext}`, to: `${path}${to}${ext}`, versions: [old] })
+        return `${key}${old}${between}${path}${to}${ext}`
+      })
+      const selector = new RegExp(`(?<![\\w@/.-])${escape(name)}@${escape(old)}(?![\\w.+-])`, "g")
+      out = out.replace(selector, (match) => {
+        selectors.push({ from: match, to: `${name}@${to}` })
+        return `${name}@${to}`
+      })
+    }
+  }
+  return { text: out, selectors, patches }
+}
+
+/**
+ * A patch carried to a package's new version: in its package.json sections,
+ * each old version (the package's own, and Effect's that it depends on)
+ * becomes the new one, so the hunks' context matches the new release's
+ * manifest. Hunks of other files are kept as they are.
+ */
+export function carryPatch(text, versions, to) {
+  let manifest = false
+  return text.split("\n").map((line) => {
+    if (line.startsWith("diff --git ")) manifest = / b\/package\.json$/.test(line)
+    if (!manifest || /^(?:diff |index |--- |\+\+\+ |@@ )/.test(line)) return line
+    return versions.reduce((l, v) => l.replace(new RegExp(`(?<![\\w.])${escape(v)}(?![\\w.-])`, "g"), to), line)
+  }).join("\n")
+}
 
 /**
  * The Effect upgrade of a repository. files is [{ path, text }]: every
@@ -147,8 +195,10 @@ const indentOf = (text) => /\n([ \t]+)"/.exec(text)?.[1] ?? "  "
  * Effect's old version is the first effect version declared; each @effect/*
  * package on its major line moves with it, and separately versioned tools
  * (@effect/tsgo 0.x) keep theirs. A peer range keeps its operator, so a
- * library's contract stays a range. Returns the versions moved, the pins the
- * overrides hold, and the files whose text changed.
+ * library's contract stays a range. Selectors and patches that name an old
+ * version move with it. Returns the versions moved, the pins the overrides
+ * hold, the selectors carried, the patch files to move (the caller moves
+ * them with carryPatch), and the files whose text changed.
  */
 export function planUpgrade(files, to, manager) {
   const scanned = files.map((f) => ({ ...f, declarations: (f.path.endsWith(".yaml") ? yamlDeclarations : jsonDeclarations)(f.text) }))
@@ -169,6 +219,17 @@ export function planUpgrade(files, to, manager) {
     bumped.push(...edits.map((e) => ({ file: f.path, name: e.name, from: e.spec, to: e.text })))
     if (edits.length) next.set(f.path, applyEdits(f.text, edits))
   }
+  // Selectors and patches that name a moved package's old version move with it.
+  const moved = new Map()
+  for (const b of bumped) moved.set(b.name, new Set([...(moved.get(b.name) ?? []), b.from.replace(/^[\^~]/, "")]))
+  const selectors = []
+  const patches = []
+  for (const f of files) {
+    const carried = carrySelectors(next.get(f.path) ?? f.text, moved, to)
+    selectors.push(...carried.selectors.map((c) => ({ file: f.path, ...c })))
+    for (const patch of carried.patches) patches.push({ ...patch, versions: [...new Set([...patch.versions, from])] })
+    if (carried.text !== f.text) next.set(f.path, carried.text)
+  }
   // Overrides keep one copy of each pinned package however a dependency's range reads.
   if (bumped.length) {
     const yaml = files.find((f) => f.path === "pnpm-workspace.yaml")
@@ -185,5 +246,5 @@ export function planUpgrade(files, to, manager) {
       if (after !== holder.text) next.set(holder.path, after)
     }
   }
-  return { from, to, pins, bumped, files: files.filter((f) => next.has(f.path)).map((f) => ({ path: f.path, text: next.get(f.path) })) }
+  return { from, to, pins, bumped, selectors, patches, files: files.filter((f) => next.has(f.path)).map((f) => ({ path: f.path, text: next.get(f.path) })) }
 }

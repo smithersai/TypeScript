@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { test } from "node:test"
-import { jsonDeclarations, jsonStrings, planUpgrade, selectorTarget, setJsonOverrides, setYamlOverrides, yamlDeclarations } from "../lib/upgrade.mjs"
+import { carryPatch, carrySelectors, jsonDeclarations, jsonStrings, planUpgrade, selectorTarget, setJsonOverrides, setYamlOverrides, yamlDeclarations } from "../lib/upgrade.mjs"
 import { readIssues } from "../lib/issues.mjs"
 import { flowStep, nextStep, paths, upgradeEffect } from "../lib/steps.mjs"
 import * as Jj from "../lib/jj.mjs"
@@ -101,7 +101,8 @@ test("planUpgrade moves Effect and its major line wherever a pnpm workspace decl
   assert.equal(plan.files[0].text, workspaceYaml
     .replace("effect: 4.0.5", "effect: 4.0.6").replace('"@effect/vitest": 4.0.5', '"@effect/vitest": 4.0.6')
     .replace('"@effect/platform-node": 4.0.5', '"@effect/platform-node": 4.0.6').replace("effect: ^4.0.4", "effect: 4.0.6")
-    .replace('"@opencode/schema>effect": 4.0.5', `"@opencode/schema>effect": 4.0.6\n  '@effect/vitest': 4.0.6\n  '@effect/platform-node': 4.0.6\n  '@effect/platform-node-shared': 4.0.6`))
+    .replace('"@opencode/schema>effect": 4.0.5', `"@opencode/schema>effect": 4.0.6\n  '@effect/vitest': 4.0.6\n  '@effect/platform-node': 4.0.6\n  '@effect/platform-node-shared': 4.0.6`)
+    .replace("- effect@4.0.5", "- effect@4.0.6"))
   // A peer range keeps its operator; a catalog reference follows the catalog.
   assert.equal(plan.files[1].text, core.replace('"^4.0.5"', '"^4.0.6"'))
   assert.deepEqual(plan.bumped.filter((b) => b.file !== "pnpm-workspace.yaml"), [{ file: "packages/core/package.json", name: "effect", from: "^4.0.5", to: "^4.0.6" }])
@@ -117,6 +118,61 @@ test("planUpgrade moves a Bun workspace's catalog and adds top-level overrides i
     overrides: { effect: "4.0.6", "@effect/sql-sqlite-bun": "4.0.6" }
   })
   assert.ok(plan.files[0].text.includes('\n\t"overrides": {\n\t\t"effect": "4.0.6"'))
+})
+
+// t3code pins and patches @effect/vitest at Effect's version; moving it without
+// these left pnpm a patch for a version no longer installed.
+test("carrySelectors moves each selector and patch entry that names an old version, and nothing else", () => {
+  const yaml = [
+    "allowBuilds:",
+    "  esbuild: true",
+    "minimumReleaseAgeExclude:",
+    '  - "@effect/vitest@4.0.5"',
+    "  - effect@4.0.5",
+    "  - effect@4.0.50",
+    '  - "@effect/platform-node-shared@4.0.5"',
+    "packageExtensions:",
+    '  "@effect/vitest@*":',
+    "    dependencies: {}",
+    "patchedDependencies:",
+    '  "@effect/vitest@4.0.5": patches/@effect__vitest@4.0.5.patch',
+    "  effect@4.0.5: 'patches/effect@4.0.5.patch'",
+    '  "@pierre/diffs@1.6.1": patches/@pierre%2Fdiffs@1.6.1.patch',
+    ""
+  ].join("\n")
+  const moved = new Map([["effect", new Set(["4.0.5"])], ["@effect/vitest", new Set(["4.0.5"])], ["@effect/platform-node", new Set(["4.0.5"])]])
+  const carried = carrySelectors(yaml, moved, "4.0.6")
+  assert.equal(carried.text, yaml
+    .replace('"@effect/vitest@4.0.5"', '"@effect/vitest@4.0.6"').replace("- effect@4.0.5\n", "- effect@4.0.6\n")
+    .replace('"@effect/vitest@4.0.5": patches/@effect__vitest@4.0.5.patch', '"@effect/vitest@4.0.6": patches/@effect__vitest@4.0.6.patch')
+    .replace("effect@4.0.5: 'patches/effect@4.0.5.patch'", "effect@4.0.6: 'patches/effect@4.0.6.patch'"))
+  assert.deepEqual(carried.patches.map((p) => [p.from, p.to]).sort(), [
+    ["patches/@effect__vitest@4.0.5.patch", "patches/@effect__vitest@4.0.6.patch"],
+    ["patches/effect@4.0.5.patch", "patches/effect@4.0.6.patch"]
+  ])
+  assert.deepEqual(carrySelectors(yaml, moved, "4.0.5").text, yaml)
+})
+
+test("carryPatch carries the versions in a patch's package.json hunks and leaves other hunks alone", () => {
+  const patch = [
+    "diff --git a/dist/index.js b/dist/index.js",
+    "--- a/dist/index.js",
+    "+++ b/dist/index.js",
+    "@@ -1 +1 @@",
+    '-export * from "vitest"; // 4.0.5',
+    '+export * from "vite-plus/test"; // 4.0.5',
+    "diff --git a/package.json b/package.json",
+    "index b78f4d6..8c43672 100644",
+    "--- a/package.json",
+    "+++ b/package.json",
+    "@@ -37,7 +37,6 @@",
+    '   "peerDependencies": {',
+    '-    "vitest": ">=5.0.0 <6.0.0",',
+    '     "effect": "^4.0.5",',
+    '     "other": "14.0.5"',
+    ""
+  ].join("\n")
+  assert.equal(carryPatch(patch, ["4.0.5"], "4.0.6"), patch.replace('"effect": "^4.0.5"', '"effect": "^4.0.6"'))
 })
 
 test("planUpgrade changes nothing at the runtime's version, and needs an effect version", () => {
@@ -166,6 +222,41 @@ test("upgrade-effect commits the Effect upgrade on the base and records the test
     assert.deepEqual(nextStep(run), { step: "setup" })
     assert.deepEqual(await upgradeEffect(options), result)
     assert.deepEqual(await flowStep("upgrade-effect", options), { step: "upgrade-effect", batch: "", summary: "Effect 4.0.5 -> 4.0.6 in 2 files; tests regressed (a setup issue)" })
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+// t3code: the patch for @effect/vitest@4.0.5 and the release-age selectors
+// have to name 4.0.6 after the upgrade, or pnpm refuses the install.
+test("upgrade-effect carries pnpm's patched dependency and selectors to the new version in the upgrade's commit", async () => {
+  const root = mkdtempSync(join(tmpdir(), "migrate-upgrade-patch-"))
+  const target = join(root, "repo")
+  const toolchain = join(root, "toolchain")
+  try {
+    mkdirSync(join(target, "packages/core"), { recursive: true })
+    mkdirSync(join(target, "patches"))
+    await must("jj git init && jj config set --repo user.name test && jj config set --repo user.email test@localhost", { cwd: target })
+    writeFileSync(join(target, "package.json"), '{ "name": "fixture", "private": true }\n')
+    writeFileSync(join(target, "pnpm-lock.yaml"), "")
+    const yaml = 'packages:\n  - packages/*\n\ncatalog:\n  effect: 4.0.5\n  "@effect/vitest": 4.0.5\n\nminimumReleaseAgeExclude:\n  - "@effect/vitest@4.0.5"\n\npatchedDependencies:\n  "@effect/vitest@4.0.5": patches/@effect__vitest@4.0.5.patch\n'
+    writeFileSync(join(target, "pnpm-workspace.yaml"), yaml)
+    const patch = 'diff --git a/package.json b/package.json\n--- a/package.json\n+++ b/package.json\n@@ -1,4 +1,3 @@\n {\n-  "vitest": "5",\n   "effect": "^4.0.5"\n }\n'
+    writeFileSync(join(target, "patches/@effect__vitest@4.0.5.patch"), patch)
+    writeFileSync(join(target, "packages/core/package.json"), '{ "name": "core", "dependencies": { "effect": "catalog:" } }\n')
+    writeFileSync(join(target, "packages/core/core.test.ts"), 'import { expect, test } from "bun:test"\ntest("runs", () => expect(1).toBe(1))\n')
+    const base = await Jj.commit(target, "base")
+    mkdirSync(toolchain)
+    writeJson(join(toolchain, "toolchain.json"), { version: "0.0.11", effect: "4.0.6", compiler: "native/vibelang", packages: {} })
+
+    const result = await upgradeEffect({ run: join(root, "run"), target, packages: ["packages/core"], test: "bun test", testCwd: "packages/core", toolchain, install: "true", base })
+    assert.equal(readFileSync(join(target, "pnpm-workspace.yaml"), "utf8"), yaml.replaceAll("4.0.5", "4.0.6").replace("  '@effect/vitest': 4.0.6\n", "") + "\noverrides:\n  effect: 4.0.6\n  '@effect/vitest': 4.0.6\n")
+    assert.equal(existsSync(join(target, "patches/@effect__vitest@4.0.5.patch")), false)
+    assert.equal(readFileSync(join(target, "patches/@effect__vitest@4.0.6.patch"), "utf8"), patch.replace("^4.0.5", "^4.0.6"))
+    assert.deepEqual(result.patches, [{ from: "patches/@effect__vitest@4.0.5.patch", to: "patches/@effect__vitest@4.0.6.patch" }])
+    assert.equal(result.regressions.newFailures.length, 0)
+    const { stdout } = await must(`jj diff --summary -r ${result.jj.commit}`, { cwd: target })
+    assert.deepEqual(stdout.trim().split("\n").sort(), ["M pnpm-workspace.yaml", "R patches/{@effect__vitest@4.0.5.patch => @effect__vitest@4.0.6.patch}"])
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
