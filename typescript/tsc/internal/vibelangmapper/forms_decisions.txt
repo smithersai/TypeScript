@@ -1315,7 +1315,7 @@ typescript/vibelang/cases/fork-escape-capture.fail/main.vibe:35:11 lambda plain 
 typescript/vibelang/cases/fork-escape-capture.fail/main.vibe:40:22 byname program table
 typescript/vibelang/cases/fork-escape-capture.fail/main.vibe:41:16 lambda dual fallback
 typescript/vibelang/cases/fork-escape-capture.fail/main.vibe:46:22 byname program table
-typescript/vibelang/cases/fork-escape-capture.fail/main.vibe:47:28 block prepended/program table
+typescript/vibelang/cases/fork-escape-capture.fail/main.vibe:47:26 block appended/effectFn annotation
 typescript/vibelang/cases/fork-escape-fixes/main.vibe:11:28 lambda program table
 typescript/vibelang/cases/fork-escape-fixes/main.vibe:14:22 lambda dual fallback
 typescript/vibelang/cases/fork-escape-fixes/main.vibe:14:46 lambda program table

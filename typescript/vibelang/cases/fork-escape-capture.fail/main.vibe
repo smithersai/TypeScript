@@ -44,7 +44,14 @@ export function local() {
 
 export function blockParam() {
   const fiber = fork heartbeat()
-  return withSpan("watch") {
+  return within("watch") {
     return Fiber.interrupt(fiber)
   }
+}
+
+// A block param is its call's last argument (S2); this callee takes its
+// program last, so the block still captures the owned fiber.
+function within(name: string, body: () => void!!) {
+  log(name)
+  return body()
 }
