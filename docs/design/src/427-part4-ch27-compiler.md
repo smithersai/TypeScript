@@ -182,9 +182,11 @@ against it may rely on [Rule] (D366).
    pulls it through the adapter, and a VibeLang consumer of the declaration
    that iterates it with `for...of` runs it on the loop's fiber, as a source
    consumer does (Chapter 10, D402). Declaration emit writes a signature
-   from an inferred type as TypeScript infers it, which is the type rule R
-   reads in the source, so the consumer's call runs or returns data as the
-   source's does, with no alias (Chapter 13, D458).
+   from an inferred type as TypeScript infers it, which is the type rules R
+   and F read in the source, since they read a type as TypeScript writes
+   it, so the consumer's call runs or returns data, and a function value has
+   the form, as the source's does, with no alias (Chapter 13, D458, D491,
+   D492).
 2. **More conservative, never different.** A declaration cannot prove what a
    body does: that a plain function never throws, or that a function whose R
    names a control operation never moves it to another fiber. A consumer that
