@@ -1,0 +1,5 @@
+{
+  "name": "reserved-catch-binding",
+  "source": "let catch = 1",
+  "accepted": false
+}

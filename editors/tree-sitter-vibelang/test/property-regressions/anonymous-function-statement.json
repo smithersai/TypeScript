@@ -1,0 +1,5 @@
+{
+  "name": "anonymous-function-statement",
+  "source": "function(){}",
+  "accepted": false
+}

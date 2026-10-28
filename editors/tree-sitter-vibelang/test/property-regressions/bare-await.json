@@ -1,0 +1,5 @@
+{
+  "name": "bare-await",
+  "source": "function f(){await}",
+  "accepted": true
+}

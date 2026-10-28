@@ -12,7 +12,7 @@
 
 const TypeScript = require('tree-sitter-typescript/typescript/grammar');
 
-module.exports = grammar(TypeScript, {
+const VibeLang = grammar(TypeScript, {
   name: 'vibe',
 
   precedences: ($, previous) => previous.filter(
@@ -34,8 +34,7 @@ module.exports = grammar(TypeScript, {
     [$.effect_type, $.type_predicate],
     // catch binds looser than || and tighter than ?: (vibelang_catch.go); a
     // pipe binds looser than ?: and tighter than assignment (vibelang_pipes.go).
-    // ?? shares ?:'s level here, so a ?? b catch c groups as a ?? (b catch c),
-    // where the compiler reads (a ?? b) catch c.
+    // Nullish coalescing also binds tighter than catch.
     [
       'member',
       'template_call',
@@ -54,6 +53,7 @@ module.exports = grammar(TypeScript, {
       'bitwise_or',
       'logical_and',
       'logical_or',
+      'nullish',
       'catch',
       'ternary',
       'pipe',
@@ -76,6 +76,10 @@ module.exports = grammar(TypeScript, {
   ]),
 
   conflicts: ($, previous) => previous.concat([
+    [$.layer_value, $.primary_expression],
+    [$.primary_expression, $.await_expression],
+    [$.primary_expression, $._property_name, $.await_expression],
+    [$._property_name, $.provide_statement],
     // a < b against a<T>(x), as TypeScript's await has them.
     [$.call_expression, $.instantiation_expression, $.binary_expression, $.fork_expression],
     [$.call_expression, $.instantiation_expression, $.binary_expression, $.join_expression],
@@ -135,7 +139,14 @@ module.exports = grammar(TypeScript, {
 
     // ------------------------------------------------------------ Types
 
-    type: ($, previous) => choice(previous, $.effect_type),
+    type: ($, previous) => choice(previous, $.effect_type, $.non_nullable_type),
+
+    // TypeScript parses prefix !T as a JSDoc non-nullable type.
+    non_nullable_type: $ => prec.right(seq('!', $.type)),
+
+    type_parameters: $ => seq('<', optional(seq(
+      $.type_parameter, repeat(seq(',', $.type_parameter)), optional(','),
+    )), '>'),
 
     // Result!Error!Dependencies (D127, vibelang.go): User!NotFound, number!!,
     // string!!Approval. An empty slot is never; a slot does not start with {,
@@ -406,6 +417,19 @@ module.exports = grammar(TypeScript, {
       $.topic_reference,
     ),
 
+    // Preserve TypeScript's operators, changing only ??'s precedence.
+    binary_expression: ($, previous) => {
+      function nullish(rule) {
+        if (rule.type === 'PREC_LEFT' && rule.content.members?.some(
+          member => member.type === 'FIELD' && member.content?.value === '??',
+        )) return {...rule, value: 'nullish'};
+        if (rule.members) return {...rule, members: rule.members.map(nullish)};
+        if (rule.content) return {...rule, content: nullish(rule.content)};
+        return rule;
+      }
+      return nullish(previous);
+    },
+
     // x catch fallback, x catch (e) => handler (D236, vibelang_catch.go).
     catch_expression: $ => prec.left('catch', seq(
       field('left', $.expression),
@@ -633,6 +657,7 @@ module.exports = grammar(TypeScript, {
       'match',
       'mutable',
       'using',
+      'await',
     ),
   },
 });
@@ -644,3 +669,127 @@ module.exports = grammar(TypeScript, {
 function commaSep(rule) {
   return optional(seq(rule, repeat(seq(',', rule))));
 }
+
+
+
+// ExpressionStatement has the TypeScript lookahead restriction: an unparenthesized
+// object, function or class starts a statement, never an expression statement.
+// Restrict only the left edge, including through calls, operators and commas;
+// operands after an operator or an opening parenthesis keep the full grammar.
+// ABI 14 has no global reserved-word table. Exclude the exact spelling from
+// identifiers lexically, while retaining IdentifierName for property names.
+const identifierName = VibeLang.grammar.rules.identifier;
+function propertyNames(rule) {
+  if (rule.type === 'ALIAS' && rule.value === 'property_identifier') {
+    return {...rule, content: {type: 'CHOICE', members: [
+      rule.content, {type: 'STRING', value: 'catch'},
+    ]}};
+  }
+  if (rule.members) return {...rule, members: rule.members.map(propertyNames)};
+  if (rule.content) return {...rule, content: propertyNames(rule.content)};
+  return rule;
+}
+const rules = Object.fromEntries(Object.entries(VibeLang.grammar.rules)
+  .map(([name, rule]) => [name, propertyNames(rule)]));
+const forbidden = new Set(['object', 'function_expression', 'generator_function', 'class']);
+const restricted = new Set(forbidden);
+function nullable(rule) {
+  if (rule.type === 'BLANK' || rule.type === 'REPEAT') return true;
+  if (rule.type === 'CHOICE') return rule.members.some(nullable);
+  if (rule.type === 'SEQ') return rule.members.every(nullable);
+  return rule.content ? nullable(rule.content) : false;
+}
+function leftChildren(rule) {
+  if (rule.type === 'SYMBOL') return [rule.name];
+  if (rule.type === 'CHOICE') return rule.members.flatMap(leftChildren);
+  if (rule.type === 'SEQ') {
+    const names = [];
+    for (const member of rule.members) {
+      names.push(...leftChildren(member));
+      if (!nullable(member)) break;
+    }
+    return names;
+  }
+  return rule.content ? leftChildren(rule.content) : [];
+}
+let changed;
+do {
+  changed = false;
+  for (const [name, rule] of Object.entries(rules)) {
+    if (!restricted.has(name) && leftChildren(rule).some(name => restricted.has(name))) {
+      restricted.add(name);
+      changed = true;
+    }
+  }
+} while (changed);
+const invisible = new Set([
+  ...VibeLang.grammar.inline.map(rule => rule.name ?? rule),
+  ...VibeLang.grammar.supertypes.map(rule => rule.name ?? rule),
+]);
+function restrict(rule, $) {
+  if (rule.type === 'SYMBOL' && restricted.has(rule.name)) {
+    if (forbidden.has(rule.name)) return null;
+    const variant = $['_statement_' + rule.name];
+    return rule.name.startsWith('_') || invisible.has(rule.name)
+      ? variant : alias(variant, $[rule.name]);
+  }
+  if (rule.type === 'CHOICE') return choice(...rule.members.map(rule => restrict(rule, $)).filter(Boolean));
+  if (rule.type === 'SEQ') {
+    let atStart = true;
+    const members = rule.members.map(member => {
+      const result = atStart ? restrict(member, $) : member;
+      atStart &&= nullable(member);
+      return result;
+    });
+    return members.every(Boolean) ? {...rule, members} : null;
+  }
+  if (rule.content) {
+    const content = restrict(rule.content, $);
+    return content ? {...rule, content} : null;
+  }
+  return rule;
+}
+const needed = new Set();
+function need(name) {
+  if (!restricted.has(name) || forbidden.has(name) || needed.has(name)) return;
+  needed.add(name);
+  for (const child of leftChildren(rules[name])) need(child);
+}
+need('_expressions');
+const variants = [...needed];
+module.exports = grammar(VibeLang, {
+  name: 'vibe',
+  inline: ($, previous) => previous.concat(variants.filter(name => VibeLang.grammar.inline.includes(name)).map(name => $['_statement_' + name])),
+  conflicts: ($, previous) => previous.concat([[$.export_statement, $._statement__lhs_expression]]).flatMap(list => {
+    let combinations = [[]];
+    for (const rule of list) {
+      const variant = $['_statement_' + rule.name];
+      const options = needed.has(rule.name) ? [[rule], [variant], [rule, variant]] : [[rule]];
+      combinations = combinations.flatMap(prefix => options.map(option => [...prefix, ...option]));
+    }
+    return combinations;
+  }),
+  precedences: ($, previous) => previous.flatMap(list => {
+    const options = rule => needed.has(rule.name) ? [rule, $['_statement_' + rule.name]] : [rule];
+    return list.flatMap((rule, i) => list.slice(i + 1).flatMap(after =>
+      options(rule).flatMap(before => options(after).map(after => [before, after]))));
+  }),
+  rules: Object.fromEntries([
+    ...Object.entries(rules).map(([name, rule]) => [name, () => rule]),
+    ['identifier', () => {
+      const [first, rest] = identifierName.content.members;
+      const continuation = rest.content;
+      const except = (pattern, letter) => new RegExp(pattern.value.replace('[^', '[^' + letter), 'u');
+      const tail = repeat(continuation);
+      return token(choice(
+        seq(except(first, 'c'), tail),
+        ...[...'catch'].map((letter, i) => seq(
+          'catch'.slice(0, i), optional(seq(except(continuation, letter), tail)),
+        )).slice(1),
+        seq('catch', continuation, tail),
+      ));
+    }],
+    ['expression_statement', $ => restrict(rules.expression_statement, $)],
+    ...variants.map(name => ['_statement_' + name, $ => restrict(rules[name], $)]),
+  ]),
+});

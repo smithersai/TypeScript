@@ -1,0 +1,5 @@
+{
+  "name": "catch-property",
+  "source": "x.catch(1); const o = {catch: 1}",
+  "accepted": true
+}

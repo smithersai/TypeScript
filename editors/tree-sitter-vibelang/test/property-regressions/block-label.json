@@ -1,0 +1,6 @@
+{
+  "name": "block-label",
+  "source": "{a:0}",
+  "accepted": true,
+  "shape": "labeled_statement"
+}

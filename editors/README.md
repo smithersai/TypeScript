@@ -51,7 +51,15 @@ npm run generate
 npm test
 ```
 
-`npm test` checks that `src/` is what `grammar.js` generates, runs the corpus tests in `test/corpus/`, and parses every `.vibe` file in the repository (except failing compiler cases, `*.fail`, and files `scripts/corpus.mjs` lists as deliberately invalid) and every `vibe` block under `docs/`, failing on any ERROR or MISSING node. `node scripts/corpus.mjs name=/path/to/dir` adds another directory's `.vibe` files.
+Expression statements follow TypeScript's lookahead restriction: parenthesize
+an object or anonymous function used as a statement. The grammar reserves
+TypeScript's `catch`, groups `a ?? b catch c` as `(a ?? b) catch c`, and
+accepts the compiler parser's `!T` types, empty type parameter lists, and bare
+`await` identifiers. The last three follow the pinned TypeScript parser where
+the normative grammar appendix inherits TypeScript; accepting syntax here
+does not imply that the compiler's checker permits it.
+
+`npm test` checks that `src/` is what `grammar.js` generates, runs the corpus tests in `test/corpus/`, and parses every `.vibe` file in the repository (except failing compiler cases, `*.fail`, and files `scripts/corpus.mjs` lists as deliberately invalid) and every `vibe` block under `docs/`, failing on any ERROR or MISSING node. It also runs the parser-agreement regressions in `test/property-regressions/`. `node scripts/corpus.mjs name=/path/to/dir` adds another directory's `.vibe` files.
 
 ## Zed
 

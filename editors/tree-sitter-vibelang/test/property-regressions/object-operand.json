@@ -1,0 +1,6 @@
+{
+  "name": "object-operand",
+  "source": "a + {a:0,b:0}",
+  "accepted": true,
+  "shape": "object"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "parenthesized-function",
+  "source": "(function(){})",
+  "accepted": true,
+  "shape": "function_expression"
+}

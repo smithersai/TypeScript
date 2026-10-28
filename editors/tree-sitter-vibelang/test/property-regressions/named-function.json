@@ -1,0 +1,6 @@
+{
+  "name": "named-function",
+  "source": "function f(){}",
+  "accepted": true,
+  "shape": "function_declaration"
+}

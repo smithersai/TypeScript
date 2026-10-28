@@ -1,0 +1,6 @@
+{
+  "name": "function-argument",
+  "source": "f(function(){})",
+  "accepted": true,
+  "shape": "function_expression"
+}

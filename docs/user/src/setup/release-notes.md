@@ -91,6 +91,8 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 ### Bugs fixed since 0.0.10
 
+- Tree-sitter highlighting could misread `catch`, `??`, statement starts, `!T`, empty type parameters and bare `await`; these forms now parse as the compiler parses them.
+
 - A `var` declaration inside a `do` expression previously compiled with the wrong scope; it now reports `EK1019` and offers `let` instead. Jumps that leave a `do` expression now report `EK1019`.
 
 - Repeated calls along a chain of functions without written contracts could make the compiler run out of memory. Inferred error and service channels now keep each type once, so repeated calls no longer multiply inference work.
@@ -389,7 +391,7 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
 
   ```vibe
   // fragment
-  catch ({ id = fallback() }) { return id }
+  try { work() } catch ({ id = fallback() }) { return id }
   ```
 
 - An error subclass without its own constructor can lose its own fields when its base has a custom constructor that rebuilds the argument object.
@@ -619,7 +621,7 @@ listed with an upgrade step.
 
   ```vibe
   // fragment
-  catch (e) { return match (e) {
+  try { work() } catch (e) { return match (e) {
     when KnownError: 1; // another subclass of the family can arrive
   } }
   ```

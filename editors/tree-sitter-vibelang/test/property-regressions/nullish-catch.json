@@ -1,0 +1,6 @@
+{
+  "name": "nullish-catch",
+  "source": "a??b catch c",
+  "accepted": true,
+  "shape": "catch_expression[^]*left: \\(binary_expression[^]*handler: \\(identifier"
+}

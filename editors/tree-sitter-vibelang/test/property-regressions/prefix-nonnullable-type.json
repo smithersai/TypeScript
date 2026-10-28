@@ -1,0 +1,6 @@
+{
+  "name": "prefix-nonnullable-type",
+  "source": "let x:!T",
+  "accepted": true,
+  "shape": "non_nullable_type"
+}

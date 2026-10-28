@@ -38,6 +38,7 @@ const skipped = new Set(['node_modules', '.git', '.jj']);
 
 // Files that are not VibeLang on purpose.
 const invalid = new Set([
+  'typescript/vibelang/lsp-fixture/src/malformed-pipe.vibe', // LSP parse error fixture
   'packages/compiler/test/eslint/fixtures/broken.vibe', // ESLint's parse error fixture
 ]);
 

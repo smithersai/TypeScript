@@ -1,0 +1,6 @@
+{
+  "name": "parenthesized-object",
+  "source": "({a:0,b:0})",
+  "accepted": true,
+  "shape": "object"
+}
