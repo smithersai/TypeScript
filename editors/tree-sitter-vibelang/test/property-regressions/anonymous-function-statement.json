@@ -1,5 +1,33 @@
 {
-  "name": "anonymous-function-statement",
-  "source": "function(){}",
-  "accepted": false
+  "property": "grammar-cases",
+  "rule": "docs/design/src/428-part4-ch28-tooling.md: The editor; docs/design/src/900-appendices.md: Grammar (D419), Contextual words, Declarations, Statements, Expressions, Patterns; metamorphic statement splicing",
+  "seed": 42,
+  "counterexamplePath": "62:3:2:12:12",
+  "generatorVersion": 1,
+  "fastCheckVersion": "4.10.2",
+  "command": "node --test test/grammar.property.test.mjs",
+  "numRuns": 63,
+  "numShrinks": 4,
+  "id": "anonymous-function-statement",
+  "input": {
+    "source": "function(){}",
+    "strictKnownFailures": true
+  },
+  "discovery": {
+    "chunks": [
+      "function detached() {\n  const fiber = Effect.forkDetach(() => compute(1))\n  return fiber\n}"
+    ],
+    "mutation": {
+      "kind": "delete",
+      "at": 1993,
+      "text": "("
+    }
+  },
+  "reason": "Appendix Grammar D419 inherits TypeScript statement grammar: function(){} at the start of a statement requires a declaration name (TS1003). Tree-sitter accepts an anonymous function expression as an expression statement. Parenthesizing the expression is valid in both parsers.",
+  "files": {
+    "minimal.vibe": "function(){}\n"
+  },
+  "replay": "FC_PROPERTY='grammar-cases' node --test test/grammar.property.test.mjs",
+  "discoveryReplay": "FC_PROPERTY='grammar-cases' FC_SEED=42 FC_PATH='62:3:2:12:12' node --test test/grammar.property.test.mjs",
+  "resolution": "Tree-sitter now agrees with the compiler parser; replay this input as a passing regression."
 }

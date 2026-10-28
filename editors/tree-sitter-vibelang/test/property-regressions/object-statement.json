@@ -1,5 +1,53 @@
 {
-  "name": "object-statement",
-  "source": "{a:0,b:0}",
-  "accepted": false
+  "property": "grammar-projects",
+  "rule": "docs/design/src/428-part4-ch28-tooling.md: The editor; docs/design/src/900-appendices.md: Grammar (D419), Contextual words, Declarations, Statements, Expressions, Patterns",
+  "seed": -657496828,
+  "counterexamplePath": "0:3:2:2:2:2:2:2:2:2:2:18:18",
+  "generatorVersion": 1,
+  "fastCheckVersion": "4.10.2",
+  "command": "node --test test/grammar.property.test.mjs",
+  "numRuns": 1,
+  "numShrinks": 12,
+  "id": "object-statement",
+  "input": {
+    "source": "{a:0,b:0}",
+    "strictKnownFailures": true
+  },
+  "discovery": {
+    "project": {
+      "modules": [
+        {
+          "typescript": false,
+          "inline": true,
+          "value": 0,
+          "text": "plain",
+          "padding": 0
+        },
+        {
+          "typescript": false,
+          "inline": false,
+          "value": 0,
+          "text": "plain",
+          "padding": 0
+        }
+      ],
+      "directory": "src",
+      "dotted": false,
+      "query": "",
+      "edit": 1,
+      "options": false
+    },
+    "mutation": {
+      "kind": "replace",
+      "at": 9990,
+      "text": ";"
+    }
+  },
+  "reason": "Appendix Grammar, Expressions: a statement starting with { is TypeScript's block, not an object expression. The compiler rejects the colon after the second label; tree-sitter accepts the whole statement as an object. Also occurs in inline TypeScript modules.",
+  "files": {
+    "minimal.vibe": "{a:0,b:0}\n"
+  },
+  "replay": "FC_PROPERTY='grammar-projects' node --test test/grammar.property.test.mjs",
+  "discoveryReplay": "FC_PROPERTY='grammar-projects' FC_SEED=-657496828 FC_PATH='0:3:2:2:2:2:2:2:2:2:2:18:18' node --test test/grammar.property.test.mjs",
+  "resolution": "Tree-sitter now agrees with the compiler parser; replay this input as a passing regression."
 }

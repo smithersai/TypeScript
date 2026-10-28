@@ -96,6 +96,8 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 ### Bugs fixed since 0.0.10
 
+- The original editor syntax property tests now check the seven repaired tree-sitter disagreements as passing regressions instead of leaving them marked as expected failures.
+
 - Neovim's editor smoke test rejected an intentionally malformed LSP fixture; it now checks that fixture's expected parse error and keeps checking valid fixtures for clean syntax.
 
 - Tree-sitter highlighting could misread `catch`, `??`, statement starts, `!T`, empty type parameters and bare `await`; these forms now parse as the compiler parses them.

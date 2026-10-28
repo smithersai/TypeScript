@@ -1,6 +1,40 @@
 {
-  "name": "nullish-catch",
-  "source": "a??b catch c",
-  "accepted": true,
-  "shape": "catch_expression[^]*left: \\(binary_expression[^]*handler: \\(identifier"
+  "property": "grammar-precedence",
+  "rule": "docs/design/src/900-appendices.md: Grammar (D419), Contextual words, Declarations, Statements, Expressions, Patterns, Precedence; docs/design/src/213-part2-ch13-calls.md: expression rules",
+  "seed": 42,
+  "counterexamplePath": "1:1:1",
+  "generatorVersion": 1,
+  "fastCheckVersion": "4.10.2",
+  "command": "node --test test/grammar.property.test.mjs",
+  "replay": "FC_PROPERTY='grammar-precedence' node --test test/grammar.property.test.mjs",
+  "numRuns": 2,
+  "numShrinks": 2,
+  "id": "nullish-catch",
+  "input": {
+    "source": "a??b catch c",
+    "strictKnownFailures": true
+  },
+  "discovery": {
+    "operator": "??",
+    "left": "a",
+    "right": "b"
+  },
+  "reason": "Appendix Grammar, Precedence: ?? binds tighter than catch. Tree-sitter groups a??(b catch c); the compiler and specification require (a??b) catch c.",
+  "files": {
+    "minimal.vibe": "a??b catch c\n"
+  },
+  "diagnostics": {
+    "compilerValid": true,
+    "treeSitterValid": true,
+    "compilerCatchRange": [
+      0,
+      12
+    ],
+    "treeSitterCatchRange": [
+      3,
+      12
+    ]
+  },
+  "discoveryReplay": "FC_PROPERTY='grammar-precedence' FC_SEED=42 FC_PATH='1:1:1' node --test test/grammar.property.test.mjs",
+  "resolution": "Tree-sitter now agrees with the compiler parser; replay this input as a passing regression."
 }

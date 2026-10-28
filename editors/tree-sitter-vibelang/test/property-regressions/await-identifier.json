@@ -1,0 +1,33 @@
+{
+  "property": "grammar-cases",
+  "rule": "docs/design/src/428-part4-ch28-tooling.md: The editor; docs/design/src/900-appendices.md: Grammar (D419), Contextual words, Declarations, Statements, Expressions, Patterns; metamorphic statement splicing",
+  "seed": 42,
+  "counterexamplePath": "20:1:1:1",
+  "generatorVersion": 1,
+  "fastCheckVersion": "4.10.2",
+  "command": "node --test test/grammar.property.test.mjs",
+  "numRuns": 21,
+  "numShrinks": 3,
+  "id": "await-identifier",
+  "input": {
+    "source": "function f(){await}",
+    "strictKnownFailures": true
+  },
+  "discovery": {
+    "chunks": [
+      "// expect: TS2304\nexport function main() { await }\n"
+    ],
+    "mutation": {
+      "kind": "none",
+      "at": 0,
+      "text": "("
+    }
+  },
+  "reason": "Appendix Grammar D419 and Contextual words preserve the TypeScript parsing of await outside an async function. Here the compiler parses await as an identifier (the checker rejects the unresolved name), but tree-sitter insists on an await operand.",
+  "files": {
+    "minimal.vibe": "function f(){await}\n"
+  },
+  "replay": "FC_PROPERTY='grammar-cases' node --test test/grammar.property.test.mjs",
+  "discoveryReplay": "FC_PROPERTY='grammar-cases' FC_SEED=42 FC_PATH='20:1:1:1' node --test test/grammar.property.test.mjs",
+  "resolution": "Tree-sitter now agrees with the compiler parser; replay this input as a passing regression."
+}

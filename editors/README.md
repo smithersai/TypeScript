@@ -59,7 +59,17 @@ accepts the compiler parser's `!T` types, empty type parameter lists, and bare
 the normative grammar appendix inherits TypeScript; accepting syntax here
 does not imply that the compiler's checker permits it.
 
-`npm test` checks that `src/` is what `grammar.js` generates, runs the corpus tests in `test/corpus/`, and parses every `.vibe` file in the repository (except failing compiler cases, `*.fail`, and files `scripts/corpus.mjs` lists as deliberately invalid) and every `vibe` block under `docs/`, failing on any ERROR or MISSING node. It also runs the parser-agreement regressions in `test/property-regressions/`. `node scripts/corpus.mjs name=/path/to/dir` adds another directory's `.vibe` files.
+`npm test` checks that `src/` is what `grammar.js` generates, runs the corpus tests in `test/corpus/`, and parses every `.vibe` file in the repository (except failing compiler cases, `*.fail`, and files `scripts/corpus.mjs` lists as deliberately invalid) and every `vibe` block under `docs/`, failing on any ERROR or MISSING node. It also runs the parser-agreement focused regressions in `test/parser-agreement-regressions/`. `node scripts/corpus.mjs name=/path/to/dir` adds another directory's `.vibe` files.
+
+The original fuzz regressions live in `tree-sitter-vibelang/test/property-regressions/`.
+The property suite replays the seven repaired disagreements as passing tests and
+compares generated programs, mutations, statement splices, Unicode projects,
+precedence and recursive patterns against a parser-only compiler probe. Its
+shared runner records a seed and shrunk input for reproducible failures.
+`FC_SEED=42 npm test` gives a repeatable discovery seed. Two compiler-side
+disagreements remain recorded: a tail `match` inside `do` without parentheses,
+and an unnamed `module`. The grammar accepts the tail `match` and requires a name in a `module`
+declaration, following the normative appendix.
 
 ## Zed
 

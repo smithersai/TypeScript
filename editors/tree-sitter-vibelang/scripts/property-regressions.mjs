@@ -9,8 +9,8 @@ const grammar = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = mkdtempSync(join(tmpdir(), 'vibe-property-'));
 const lib = process.argv.indexOf('--lib');
 const parser = lib < 0 ? [] : ['--lib-path', resolve(process.argv[lib + 1]), '--lang-name', 'vibe'];
-const cases = readdirSync(join(grammar, 'test/property-regressions')).sort().map(name =>
-  JSON.parse(readFileSync(join(grammar, 'test/property-regressions', name), 'utf8')));
+const cases = readdirSync(join(grammar, 'test/parser-agreement-regressions')).sort().map(name =>
+  JSON.parse(readFileSync(join(grammar, 'test/parser-agreement-regressions', name), 'utf8')));
 let failed = 0;
 try {
   for (const {name, source, accepted, shape} of cases) {

@@ -1,0 +1,42 @@
+{
+  "property": "grammar-cases",
+  "rule": "docs/design/src/428-part4-ch28-tooling.md: The editor; docs/design/src/900-appendices.md: Grammar (D419), Contextual words, Declarations, Statements, Expressions, Patterns; metamorphic statement splicing",
+  "seed": 42,
+  "counterexamplePath": "41:11",
+  "generatorVersion": 1,
+  "fastCheckVersion": "4.10.2",
+  "command": "node --test test/grammar.property.test.mjs",
+  "replay": "FC_PROPERTY='grammar-cases' node --test test/grammar.property.test.mjs",
+  "numRuns": 42,
+  "numShrinks": 1,
+  "id": "catch-identifier",
+  "input": {
+    "source": "catch",
+    "strictKnownFailures": true
+  },
+  "discovery": {
+    "chunks": [
+      "// expect: EK1008\n// A pipe passes its left side by name or evaluates it, not both (D155): race\n// expects programs, so the first % is a program that runs work(), while\n// Effect.succeed takes a value.\nfunction work() {\n  sleep(\"1 millis\")\n  return 1\n}\n\nexport function main() {\n  return work() |> race(%, Effect.succeed(%))\n}\n"
+    ],
+    "mutation": {
+      "kind": "replace",
+      "at": 1183,
+      "text": "catch"
+    }
+  },
+  "reason": "D419 inherits TypeScript reserved words: catch cannot be an identifier. Tree-sitter accepts it as an identifier, whereas the compiler reports TS1005. Discovered both in return catch and a const catch binding.",
+  "files": {
+    "minimal.vibe": "catch\n"
+  },
+  "diagnostics": {
+    "compilerValid": false,
+    "treeSitterValid": true,
+    "diagnostics": [
+      "TS1005@0:5 try expected",
+      "TS1005@5:0 { expected"
+    ],
+    "tree": "(program (expression_statement (identifier)))"
+  },
+  "discoveryReplay": "FC_PROPERTY='grammar-cases' FC_SEED=42 FC_PATH='41:11' node --test test/grammar.property.test.mjs",
+  "resolution": "Tree-sitter now agrees with the compiler parser; replay this input as a passing regression."
+}

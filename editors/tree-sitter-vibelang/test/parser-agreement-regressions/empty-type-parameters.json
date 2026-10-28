@@ -1,0 +1,6 @@
+{
+  "name": "empty-type-parameters",
+  "source": "interface X<>{}",
+  "accepted": true,
+  "shape": "type_parameters"
+}

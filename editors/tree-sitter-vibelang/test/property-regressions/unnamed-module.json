@@ -1,0 +1,33 @@
+{
+  "property": "grammar-cases",
+  "rule": "docs/design/src/428-part4-ch28-tooling.md: The editor; docs/design/src/900-appendices.md: Grammar (D419), Contextual words, Declarations, Statements, Expressions, Patterns; metamorphic statement splicing",
+  "seed": 42,
+  "counterexamplePath": "22:16:16",
+  "generatorVersion": 1,
+  "fastCheckVersion": "4.10.2",
+  "command": "node --test test/grammar.property.test.mjs",
+  "numRuns": 23,
+  "numShrinks": 2,
+  "id": "unnamed-module",
+  "knownFailure": true,
+  "input": {
+    "source": "module{export{}}",
+    "strictKnownFailures": true
+  },
+  "discovery": {
+    "chunks": [
+      "// A sync or try hatch awaits a promise and returns any other value (D232).\n// The compiler writes Effect.sync or Effect.promise only where the type\n// proves which applies: a value whose then is data is not a promise, and a\n// function that may return either, number | Promise<number>, goes through\n// the runtime's hatch, which tests each value, so the typed number is\n// always a number.\nmodule helpers {\n  export function pick(flag: boolean): number | Promise<number> {\n    return flag ? Promise.resolve(6) : 7\n  }\n}\nimport { pick } from helpers\n\n// expect-result: [1,2,3,4,5,6,7,42]\nexport function main() {\n  const resolved: number = sync((flag: boolean): number | Promise<number> => flag ? Promise.resolve(1) : 2, true)\n  const plain: number = sync((flag: boolean): number | Promise<number> => flag ? Promise.resolve(1) : 2, false)\n  const tried: number = try((flag: boolean): number | Promise<number> => flag ? Promise.resolve(3) : 4, (error) => String(error), true)\n  const triedPlain: number = try((flag: boolean): number | Promise<number> => flag ? Promise.resolve(3) : 4, (error) => String(error), false)\n  const value: number = sync([1].length > 1 ? 0 : Promise.resolve(5))\n  const data = sync(() => ({ then: 7, value: 42 }))\n  const picked: number = sync(pick, true)\n  const pickedPlain: number = sync(pick, false)\n  return [resolved, plain, tried, triedPlain, value, picked, pickedPlain, data.value]\n}\n"
+    ],
+    "mutation": {
+      "kind": "delete",
+      "at": 9028,
+      "text": "("
+    }
+  },
+  "reason": "The compiler parser intentionally accepts an unnamed module for the checker to report EK4408, whereas tree-sitter reports ERROR. Appendix Grammar, Declarations requires a BindingIdentifier. The specification does not settle whether this rejection must occur during parsing or checking; retain the exact parser/editor disagreement without assigning blame.",
+  "files": {
+    "minimal.vibe": "module{export{}}\n"
+  },
+  "replay": "FC_PROPERTY='grammar-cases' node --test test/grammar.property.test.mjs",
+  "discoveryReplay": "FC_PROPERTY='grammar-cases' FC_SEED=42 FC_PATH='22:16:16' node --test test/grammar.property.test.mjs"
+}
