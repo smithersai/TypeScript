@@ -2,7 +2,9 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import * as vibe from "./out/a.js"
 import * as ts from "./out/reference.js"
-assert.doesNotMatch(readFileSync(new URL("./out/a.js", import.meta.url), "utf8"), /fnUntraced|yield\*|vibelang-runtime|effect\//)
+// Plain code: no frames and no Effect. Its for...of loops use the runtime's
+// close helper, which joins a failing return() to the failure in flight (D424).
+assert.doesNotMatch(readFileSync(new URL("./out/a.js", import.meta.url), "utf8"), /fnUntraced|yield\*|effect\//)
 for (const { consume, repositoryCheckEnvironment } of [vibe, ts]) {
   const input = { PATH: "/bin", SMITHERS_CACHE_URL: "url", SMITHERS_CACHE_TOKEN: "token", PRIVATE: "secret" }
   const value = consume(input)

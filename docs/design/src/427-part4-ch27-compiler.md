@@ -151,7 +151,7 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 | --- | --- |
 | `$programs` | Convert the functions a spread supplies to an array or object literal where programs are expected, as the spread reads them (D423) |
 | `$catch`, `$finally` | Expected-failure handling and cleanup |
-| `$expected`, `$caught`, `$finallyFailure` | A plain function's typed throw, its catch's filter that rethrows defects, and its finally block's failure joined to the one in flight (D15, D54, D282); with them the combining form that a failing `finally` or iterator close uses in plain code, which carries two defects across a JavaScript frame as a `SuppressedError` (D340, D341) |
+| `$expected`, `$caught`, `$finallyFailure` | A plain function's typed throw, its catch's filter that rethrows defects, and its finally block's failure joined to the one in flight (D15, D54, D282); with them the combining form that a failing `finally` or iterator close uses in plain code, which carries two defects across a JavaScript frame as a `SuppressedError` (D340, D341); `$finallyFailure` is also the close helper of every native `for...of`, in plain code and frames, whose body and head failures leave the loop by `break` so that a failing `return()` reaches it (D404, D424) |
 | `$region`, `$using`, `$fork` | Block-owned scopes, resources, and children |
 | `$service`, `$reference`, `$control` | Service keys, defaults, and control operations |
 | `$trusted`, `$trustedPlain` | Classify listed foreign exceptions |
@@ -159,7 +159,7 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 | `handle`, `resume`, `$tailResume` | Continuation handling |
 | `$produce`, `$yield`, `$forOf`, `$forStream` | Producers: a producer value is a `Stream` whose channel is the adapter and whose `$produce` property is its program (D402) |
 | `acquireRelease`, `acquireDisposable` | Effect's acquisitions, which also record the value whose release they registered, so `using` adds no second release (D401); a `.vibe` reference to Effect's own denotes these |
-| `$iteratorFrame` | Effect ownership of native iterator cleanup across suspension |
+| `$iteratorFrame` | Effect ownership of native iterator cleanup across suspension: the runtime loop's adapter, which unwinds a frame Effect abandons (D356) |
 | `$joinedSync`, `$joinedFrame` | The Effect form of a plain function, and a generated frame, that turn a `SuppressedError` the runtime made back into the cause it stands for where it reaches an Effect frame (D340, D341) |
 
 The runtime's README lists the full ABI. Compiler and helper changes belong in

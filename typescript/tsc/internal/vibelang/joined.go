@@ -23,7 +23,8 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // joinsFailures reports whether a call of fn, a .vibe function that compiles
 // to plain JavaScript, can throw a SuppressedError the runtime made: fn, or a
 // .vibe function that compiles to plain JavaScript and that fn calls,
-// directly or through others, has a try statement with a finally block.
+// directly or through others, has a try statement with a finally block or a
+// for...of, whose iterator close joins failures too (closing.go).
 // Nested functions count, since a plain callback's exception passes through
 // whatever calls it.
 func (a *analyzer) joinsFailures(fn *ast.Node) bool {
@@ -44,7 +45,7 @@ func (a *analyzer) joinsFailures(fn *ast.Node) bool {
 		var visit func(n *ast.Node) bool
 		visit = func(n *ast.Node) bool {
 			switch {
-			case n.Kind == ast.KindTryStatement && n.AsTryStatement().FinallyBlock != nil:
+			case n.Kind == ast.KindTryStatement && n.AsTryStatement().FinallyBlock != nil, n.Kind == ast.KindForOfStatement:
 				joins = true
 				return true
 			case ast.IsCallExpression(n):

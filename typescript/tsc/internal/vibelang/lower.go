@@ -325,6 +325,7 @@ func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 func (tx *lowering) visitSourceFile(file *ast.SourceFile) *ast.Node {
 	visited := tx.reachIntrinsics(tx.Visitor().VisitEachChild(file.AsNode()))
 	tx.markProgramArrows(visited)
+	visited = tx.closeLoops(visited)  // before joinFrames, which wraps a frame whose loop joins failures
 	visited = tx.joinFrames(visited) // inside $iteratorFrame, which calls the frame it wraps
 	visited = tx.protectIteratorFrames(visited)
 	if tx.plan.entry != nil {

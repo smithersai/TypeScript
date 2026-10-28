@@ -1,5 +1,11 @@
 import { Effect } from "effect"
 
+// The runtime loop's adapter (design chapter 26). It is not the close helper
+// that D404 and D424 require around JavaScript's own for...of: that is the
+// loop rewrite the compiler emits (closing.go), which joins a failing
+// return() to the failure in flight with $finallyFailure. This adapter owns
+// what that rewrite cannot see, a frame that Effect abandons.
+//
 // Effect abandons a generator at a failed or interrupted yield* without
 // calling its return() (design chapter 24). A native for...of or an array
 // destructuring in that generator would keep its iterator open: JavaScript

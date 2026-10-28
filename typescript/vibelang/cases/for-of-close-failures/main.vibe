@@ -1,0 +1,101 @@
+// JavaScript's own for...of keeps both failures (D404, D424): when the body,
+// or the head's destructuring, fails and the iterator's return() then throws
+// too, the loop fails with both, in order, as the iterator rule and a frame
+// give, in plain code and in frames alike, where ECMAScript's IteratorClose
+// drops the second. return is looked up once per close and never at the
+// loop's entry, even when the iterator gains it while the loop runs.
+let lookups = 0
+
+function crash(label: string): number {
+  return (undefined as any)[label]
+}
+
+class Counted {
+  i = 0
+  constructor(readonly closeFails: boolean) {}
+  next(): IteratorResult<number> {
+    this.i++
+    return this.i > 3 ? { done: true, value: undefined } : { done: false, value: this.i }
+  }
+  get return(): () => IteratorResult<number> {
+    lookups++
+    return this.closeFails ? () => ({ done: true, value: crash("close") }) : () => ({ done: true, value: undefined })
+  }
+  [Symbol.iterator](): Counted {
+    return this
+  }
+}
+
+// An iterator with no return method until the loop gives it one.
+class Late {
+  i = 0
+  return: (() => IteratorResult<number>) | undefined = undefined
+  next(): IteratorResult<number> {
+    this.i++
+    return { done: false, value: this.i }
+  }
+  [Symbol.iterator](): Late {
+    return this
+  }
+}
+
+function plainBody(): number {
+  for (const n of new Counted(true)) crash("body")
+  return 0
+}
+
+function plainHead(): number {
+  for (const [a] of new Counted(true) as any) crash("unreached")
+  return 0
+}
+
+function plainLate(): number {
+  const late = new Late()
+  for (const n of late) {
+    late.return = () => ({ done: true, value: crash("close") })
+    crash("body")
+  }
+  return 0
+}
+
+function plainBreak(): number {
+  for (const n of new Counted(true)) break
+  return 0
+}
+
+function plainOk(): number {
+  let sum = 0
+  for (const n of new Counted(false)) {
+    sum += n
+    if (n === 2) break
+  }
+  return sum
+}
+
+function framed() {
+  yieldNow()
+  for (const n of new Counted(true)) crash("body")
+  return 0
+}
+
+function name(defect: unknown): string {
+  return defect instanceof TypeError ? defect.message.split("'")[1] ?? "type" : String(defect)
+}
+
+function reasons(outcome: Exit<unknown, unknown>): string {
+  if (outcome is Exit.Success(let value)) return `ok(${value})`
+  return outcome.cause.reasons.map((reason) => reason._tag === "Die" ? `Die(${name(reason.defect)})` : reason._tag).join("+")
+}
+
+// expect-result: {"body":"Die(body)+Die(close)","head":"Die(type)+Die(close)","late":"Die(body)+Die(close)","break":"Die(close)","ok":"ok(3)","framed":"Die(body)+Die(close)","lookups":5}
+export function main() {
+  const result = {
+    body: reasons(exit(plainBody())),
+    head: reasons(exit(plainHead())),
+    late: reasons(exit(plainLate())),
+    break: reasons(exit(plainBreak())),
+    ok: reasons(exit(plainOk())),
+    framed: reasons(exit(framed()))
+  }
+  return { ...result, lookups }
+}

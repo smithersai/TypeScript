@@ -27,11 +27,28 @@ function text$direct(value) {
 function text(...args) { return Effect.sync(() => text$direct.call(this, ...args)); }
 text[runtime.$direct] = text$direct;
 export function main() {
-    return Effect.fnUntraced(function* main() {
+    return Effect.fnUntraced(runtime.$joinedFrame(function* main() {
         const phases = ["draft", "review", "published"];
         const logged = [];
-        for (const phase of phases)
-            record$direct(phase, logged);
+        {
+            let pending_1 = runtime.$normal;
+            try {
+                for (const phase of phases) {
+                    try {
+                        record$direct(phase, logged);
+                    }
+                    catch (thrown_1) {
+                        pending_1 = thrown_1;
+                        break;
+                    }
+                }
+            }
+            catch (thrown_2) {
+                throw runtime.$finallyFailure(pending_1, thrown_2);
+            }
+            if (pending_1 !== runtime.$normal)
+                throw pending_1;
+        }
         return {
             phases: phases.map(phaseLabel$direct),
             widths: phases.map(width$direct),
@@ -41,6 +58,6 @@ export function main() {
             announced: yield* announce("published"),
             text: text$direct("hi")
         };
-    }).apply(this, arguments);
+    })).apply(this, arguments);
 }
 runtime.$entry(import.meta.main, import.meta.url, main, () => runtime.$runMain(main()));
