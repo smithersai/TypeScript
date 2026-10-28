@@ -15,6 +15,29 @@ export const UsingRestore = Context.Reference<Restore | undefined>("vibelang/Usi
 })
 
 /**
+ * What acquisitions recorded (D401): for each Scope, the values whose release
+ * an acquisition registered in it. `using` adds no release for a recorded
+ * value. Weak on both sides, so a record lives no longer than its Scope and
+ * its value.
+ */
+const recorded = new WeakMap<Scope.Scope, WeakSet<object>>()
+
+const isObject = (value: unknown): value is object =>
+  (typeof value === "object" && value !== null) || typeof value === "function"
+
+/** Records that the release of `value` is registered in `scope`. */
+const record = (scope: Scope.Scope, value: unknown): void => {
+  if (!isObject(value)) return
+  let values = recorded.get(scope)
+  if (values === undefined) recorded.set(scope, values = new WeakSet())
+  values.add(value)
+}
+
+/** Whether an acquisition recorded that it registered the release of `value` in `scope`. */
+export const isRecorded = (scope: Scope.Scope, value: unknown): boolean =>
+  isObject(value) && recorded.get(scope)?.has(value) === true
+
+/**
  * Runs `program` with interruption held off, as `using` holds it off around
  * an initializer whose value it may own (D425). `UsingRestore` gives the
  * acquisitions inside it the interruptibility the code around the `using`
@@ -31,14 +54,15 @@ export const holdingInterruption = <A, E, R>(program: (restore: Restore) => Effe
 
 /**
  * `Effect.acquireRelease`, as `vibelang-runtime` gives it: Effect's
- * arguments, and what Effect's does (D401). The acquire step is masked unless
- * `{ interruptible: true }`; the release is registered in the Scope the
- * acquisition runs with, in the same uninterruptible step that produces the
- * value. Inside a `using` initializer that holds interruption off, an
- * interruptible acquire step runs with the interruptibility the code around
- * the `using` had (`UsingRestore`), so cancellation reaches it there as it
- * would outside `using`. A `.vibe` reference to Effect's `acquireRelease`
- * denotes this one.
+ * arguments, and what Effect's does, and it records the value whose release
+ * it registered, so `using` adds no second release (D401). The acquire step
+ * is masked unless `{ interruptible: true }`; the release is registered in
+ * the Scope the acquisition runs with, and recorded, in the same
+ * uninterruptible step that produces the value. Inside a `using` initializer
+ * that holds interruption off, an interruptible acquire step runs with the
+ * interruptibility the code around the `using` had (`UsingRestore`), so
+ * cancellation reaches it there as it would outside `using`. A `.vibe`
+ * reference to Effect's `acquireRelease` denotes this one.
  */
 export const acquireRelease = <A, E, R, R2>(
   acquire: Effect.Effect<A, E, R>,
@@ -52,7 +76,10 @@ export const acquireRelease = <A, E, R, R2>(
         Effect.flatMap(Effect.scope, (scope) =>
           Effect.tap(
             options?.interruptible ? (around ?? restore)(acquire) : acquire,
-            (a) => Scope.addFinalizerExit(scope, (exit) => Effect.provideContext(release(a, exit), Context.add(context, UsingRestore, undefined)))
+            (a) => {
+              record(scope, a)
+              return Scope.addFinalizerExit(scope, (exit) => Effect.provideContext(release(a, exit), Context.add(context, UsingRestore, undefined)))
+            }
           )
         )
       )
@@ -63,8 +90,9 @@ export const acquireRelease = <A, E, R, R2>(
  * `Effect.acquireDisposable`, as `vibelang-runtime` gives it (D401): a
  * masked acquisition of a Disposable or an AsyncDisposable whose release
  * calls `[Symbol.asyncDispose]()` when the value has it, else
- * `[Symbol.dispose]()`, as Effect's does. A `.vibe` reference to Effect's
- * `acquireDisposable` denotes this one.
+ * `[Symbol.dispose]()`, as Effect's does, and which records the value
+ * (D401). A `.vibe` reference to Effect's `acquireDisposable` denotes this
+ * one.
  */
 export const acquireDisposable = <A extends AsyncDisposable | Disposable, E, R>(
   acquire: Effect.Effect<A, E, R>

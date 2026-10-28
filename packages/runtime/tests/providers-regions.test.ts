@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, Scope } from "effect"
 import {
   $catchExpression, $catchCause, $failureOf, $finallyExit, $fork,
-  $isFailure, $noFailure, $provideService, $region, $service, $using, acquireRelease,
+  $isFailure, $noFailure, $provideService, $region, $service, $using, acquireDisposable, acquireRelease,
   interrupt, interruptible, restore, uninterruptible, wire, yieldNow
 } from "vibelang-runtime"
 
@@ -92,8 +92,8 @@ test("a region closes children before earlier using resources", async () => {
 
 for (const masked of [true, false]) {
   // $using holds interruption off around the initializer (D425). Masked: the
-  // interruption waits for the acquisition and lands after the Disposable's
-  // release is registered, so both releases run. Interruptible: the
+  // interruption waits for the acquisition, which recorded the Disposable's
+  // release, so that release alone runs (D401). Interruptible: the
   // runtime's acquireRelease runs its acquire step with the interruptibility
   // the code around the using had (D401), so the interruption reaches the
   // wait, and nothing is acquired.
@@ -118,9 +118,69 @@ for (const masked of [true, false]) {
       const exit = yield* Fiber.await(child)
       expect(Exit.isFailure(exit) && exit.cause.reasons.some(Cause.isInterruptReason)).toBe(true)
     }))
-    expect(events).toEqual(masked ? ["acquired", "disposed", "released"] : [])
+    expect(events).toEqual(masked ? ["acquired", "released"] : [])
   })
 }
+
+// D401: only an acquisition's record decides that using adds no release. The
+// runtime's acquisitions record the value in the Scope they registered its
+// release in; a value they did not record there, Effect's own acquisition's
+// included, is disposed by using once.
+test("using adopts a release only from an acquisition's record", async () => {
+  const events: string[] = []
+  const handle = (name: string) => ({ [Symbol.dispose]() { events.push(`dispose ${name}`) } })
+  const released = (name: string) => () => Effect.sync(() => { events.push(`release ${name}`) })
+  await Effect.runPromise($region(scope => Effect.gen(function*() {
+    yield* $using(scope, acquireRelease(Effect.succeed(handle("recorded")), released("recorded")))
+    yield* $using(scope, acquireDisposable(Effect.succeed(handle("disposable"))))
+    yield* $using(scope, Effect.acquireRelease(Effect.succeed(handle("effect's")), released("effect's")))
+    yield* $using(scope, Effect.andThen(Scope.Scope, Effect.succeed(handle("scope only"))))
+    const outside = yield* Effect.scoped(acquireRelease(Effect.succeed(handle("elsewhere")), released("elsewhere")))
+    yield* $using(scope, Effect.succeed(outside), { hold: true, requiresScope: false })
+  })))
+  expect(events).toEqual([
+    "release elsewhere",
+    "dispose elsewhere",
+    "dispose scope only",
+    "dispose effect's",
+    "release effect's",
+    "dispose disposable",
+    "release recorded"
+  ])
+})
+
+// D343: the disposal method is read once, at registration, asyncDispose first,
+// and called with the value as this; a promise it returns is awaited.
+test("using reads a value's disposal method once, Symbol.asyncDispose first", async () => {
+  const events: string[] = []
+  const both = {
+    name: "both",
+    [Symbol.dispose]() { events.push(`dispose ${this.name}`) },
+    async [Symbol.asyncDispose]() {
+      await new Promise(resolve => setTimeout(resolve, 5))
+      events.push(`async dispose ${this.name}`)
+    }
+  }
+  const replaced: Disposable = { [Symbol.dispose]() { events.push("original") } }
+  await Effect.runPromise($region(scope => Effect.gen(function*() {
+    yield* $using(scope, Effect.succeed(both), { hold: true, requiresScope: false })
+    yield* $using(scope, Effect.succeed(replaced), { hold: true, requiresScope: false })
+    replaced[Symbol.dispose] = () => { events.push("replacement") }
+  })))
+  expect(events).toEqual(["original", "async dispose both"])
+})
+
+// D401: a value with no disposal method fails at the declaration with a
+// TypeError, a defect, unless the initializer requires Scope or the value is
+// null or undefined.
+test("a using value with no disposal method is a TypeError unless the initializer requires Scope", () => {
+  const exit = Effect.runSyncExit($region(scope => $using(scope, Effect.succeed({ name: "plain" }), { hold: true, requiresScope: false })))
+  expect(Exit.isFailure(exit) && exit.cause.reasons.find(Cause.isDieReason)?.defect).toBeInstanceOf(TypeError)
+  for (const value of [null, undefined]) {
+    expect(Effect.runSync($region(scope => $using(scope, Effect.succeed(value), { hold: true, requiresScope: false })))).toBe(value)
+  }
+  expect(Effect.runSync($region(scope => $using(scope, Effect.succeed({ name: "scoped" }), { hold: true, requiresScope: true })))).toEqual({ name: "scoped" })
+})
 
 // D425: an interruption that arrives while a held initializer runs, in its
 // own mask or in a wait, lands after the value's release is registered, and
@@ -290,7 +350,7 @@ test("using releases on failure and interruption with Symbol.asyncDispose", asyn
   expect(events).toEqual(["async dispose failed", "async dispose interrupted"])
 })
 
-test("a resource that releases itself keeps its own release: Symbol.dispose still runs (D94), Symbol.asyncDispose never does", async () => {
+test("a recorded acquisition keeps its own release, for a Disposable and an AsyncDisposable (D401)", async () => {
   const events: string[] = []
   const released = (name: string) => () => Effect.sync(() => { events.push(`release ${name}`) })
   const both = {
@@ -298,12 +358,12 @@ test("a resource that releases itself keeps its own release: Symbol.dispose stil
     async [Symbol.asyncDispose]() { events.push("async dispose both") }
   }
   await Effect.runPromise($region(scope => Effect.gen(function*() {
-    yield* $using(scope, Effect.acquireRelease(Effect.succeed(asyncResource(events, "own")), released("own")))
-    yield* $using(scope, Effect.acquireRelease(Effect.succeed({ [Symbol.dispose]() { events.push("dispose sync") } }), released("sync")))
+    yield* $using(scope, acquireRelease(Effect.succeed(asyncResource(events, "own")), released("own")))
+    yield* $using(scope, acquireRelease(Effect.succeed({ [Symbol.dispose]() { events.push("dispose sync") } }), released("sync")))
     yield* $using(scope, Effect.succeed(both))
     yield* $using(scope, Effect.succeed(null))
   })))
-  expect(events).toEqual(["dispose both", "dispose sync", "release sync", "release own"])
+  expect(events).toEqual(["async dispose both", "release sync", "release own"])
 })
 
 test("a Symbol.asyncDispose rejection is a defect beside the block's exit; earlier releases still run", async () => {

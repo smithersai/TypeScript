@@ -1,10 +1,10 @@
-// The pattern for a JavaScript Disposable that must not leak when an
-// interruption is pending: acquire a plain holder with Effect.acquireRelease
-// and dispose holder.value in the release. The holder has no
-// [Symbol.dispose]() of its own, so using adds no second release (D94), and
-// the release is registered inside the protected acquisition (D25). The
-// Disposable throws when it is closed twice, so each run shows exactly one
-// close: on success, typed failure, defect, and pending interruption.
+// A plain holder acquired with Effect.acquireRelease, whose release disposes
+// holder.value, closes a JavaScript Disposable once: the acquisition records
+// its release, registered inside the protected acquisition (D25, D401). The
+// holder is no longer needed, since using adds no release to a value that an
+// acquisition recorded (scopes-using-effect-release), but it still works.
+// The Disposable throws when it is closed twice, so each run shows exactly
+// one close: on success, typed failure, defect, and pending interruption.
 module files {
   export function open(events: string[]) {
     let closed = false

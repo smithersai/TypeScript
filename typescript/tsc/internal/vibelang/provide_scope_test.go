@@ -12,10 +12,11 @@ import (
 // A provide block can own a lexical Scope as well as provide services. Lowering
 // the Scope first used to discard its provider marker and emit an unprovided
 // $region, even though the inferred contract removed the supplied requirements.
+// The using binds null: an Effect without Scope must give a Disposable (D401).
 func TestProvideBlockKeepsProviderWhenScoped(t *testing.T) {
 	t.Parallel()
 	for _, body := range []string{
-		`using value = Effect.succeed(1); return value`,
+		`using value = null; return 1`,
 		`const child = fork(() => Effect.succeed(1)); return 1`,
 	} {
 		t.Run(body, func(t *testing.T) {

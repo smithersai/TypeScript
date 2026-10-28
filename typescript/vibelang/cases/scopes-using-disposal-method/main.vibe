@@ -1,0 +1,39 @@
+// using reads the disposal method of a value it owns once, when it registers
+// the disposal: [Symbol.asyncDispose] if the value has one, else
+// [Symbol.dispose], and calls it with the value as this (D343). Replacing the
+// method on the value afterwards changes nothing.
+module resources {
+  export function both(events: string[]) {
+    return {
+      name: "both",
+      [Symbol.dispose](): void { events.push(`dispose ${this.name}`) },
+      async [Symbol.asyncDispose](): Promise<void> { events.push(`async dispose ${this.name}`) }
+    }
+  }
+
+  export function replaceable(events: string[]) {
+    return {
+      name: "replaceable",
+      [Symbol.dispose](): void { events.push(`dispose ${this.name}`) }
+    }
+  }
+
+  export function replace(resource: Disposable, events: string[]): void {
+    resource[Symbol.dispose] = () => { events.push("the replacement ran") }
+  }
+}
+import { both, replaceable, replace } from resources
+
+function work(events: string[]) {
+  using first = sync((log: string[]) => both(log), events)
+  using second = sync((log: string[]) => replaceable(log), events)
+  sync((resource: Disposable, log: string[]) => replace(resource, log), second, events)
+  events.push("body")
+}
+
+// expect-result: ["body","dispose replaceable","async dispose both"]
+export function main() {
+  const events: string[] = []
+  work(events)
+  return events
+}

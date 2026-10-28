@@ -1,6 +1,8 @@
 package vibelang
 
 import (
+	"slices"
+
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
@@ -38,13 +40,17 @@ import (
 // so its using is always a Scope region; await using is EK1003, and the
 // lowering treats it as using.
 //
-// using decides by its initializer: a call that runs an Effect is an
-// acquisition, whose Effect runs with the block's Scope and whose own release
-// frees it; any other initializer is a value, and TypeScript checks that it
-// is a Disposable, null, or undefined. A value that is a Disposable, from
-// either kind, is also released with [Symbol.dispose]() when the block exits.
-// using adds no masking of its own: an acquisition is masked or interruptible
-// as its Effect.acquireRelease says (D25). for (using x of values) takes each
+// using runs its initializer with the block's Scope, so every release an
+// acquisition there registers runs when the block exits, and exactly one
+// owner releases the value (D401): the acquisition, when it recorded the
+// value's release (Effect.acquireRelease and Effect.acquireDisposable, as the
+// runtime gives them), and otherwise using, which disposes a value with a
+// disposal method once. TypeScript checks that the value is a Disposable,
+// null, or undefined unless the initializer requires Scope (TS2850). Where
+// the value may be an object, using holds interruption off around the
+// initializer until the owner is settled (D425), and an acquisition with
+// { interruptible: true } keeps that policy for its acquire step (D25). for
+// (using x of values) takes each
 // value with using in a Scope region around that iteration's body, so the
 // value is released when the iteration ends, by any path; over an iterator,
 // a producer, or a Stream, $forOf runs those iterations and closes what it
@@ -196,18 +202,61 @@ func (a *analyzer) isAcquisition(call *ast.Node) bool {
 	return usingDeclarationOf(call) != nil && a.runs(call)
 }
 
-// usingInitializer is the checker's using initializer hook. An acquisition
-// needs no [Symbol.dispose](): the resource's own release frees it.
+// requiresScope reports whether initializer, a using declaration's, is an
+// acquisition whose requirements include Scope. Then using may bind a value
+// it cannot dispose, which the acquisition releases (D401). Scope never
+// decides who releases a value using can dispose: the run-time record does.
+func (a *analyzer) requiresScope(initializer *ast.Node) bool {
+	if initializer.Kind != ast.KindCallExpression || !a.isAcquisition(initializer) {
+		return false
+	}
+	acquisition := &effectInfo{}
+	a.addCall(acquisition, initializer)
+	for _, r := range acquisition.requirements {
+		members := []*checker.Type{r}
+		if r.Flags()&checker.TypeFlagsUnion != 0 {
+			members = r.Types()
+		}
+		if slices.ContainsFunc(members, isScopeType) {
+			return true
+		}
+	}
+	return false
+}
+
+// usingInitializer is the checker's using initializer hook. In a .vibe
+// body, using releases an AsyncDisposable too, and an initializer that
+// requires Scope may give a value using cannot dispose, which its
+// acquisition releases (D401). Whether it does depends on contracts that may
+// still be in inference while TypeScript checks the declaration, so
+// TypeScript's own check is skipped there, and checkUsingInitializers checks
+// the value once the file is checked.
 func usingInitializer(c *checker.Checker, declaration *ast.Node) bool {
 	initializer := declaration.Initializer()
 	if initializer == nil || !isVibeLangFile(ast.GetSourceFileOfNode(declaration)) {
 		return false
 	}
-	initializer = ast.SkipParentheses(initializer)
-	if initializer.Kind != ast.KindCallExpression || !inLowerableBody(initializer) {
-		return false
+	return inLowerableBody(initializer) && usingDeclarationOf(initializer) != nil
+}
+
+func init() { fileChecks = append(fileChecks, checkUsingInitializers) }
+
+// checkUsingInitializers checks each using declaration whose TypeScript
+// check usingInitializer skipped: unless its initializer requires Scope, its
+// value must be a Disposable, an AsyncDisposable, null, or undefined, as
+// TypeScript's TS2850 requires (D401).
+func checkUsingInitializers(c *checker.Checker, file *ast.SourceFile) {
+	a := analyzerFor(c)
+	var visit func(node *ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		if node.Kind == ast.KindVariableDeclaration {
+			if initializer := node.Initializer(); initializer != nil && usingInitializer(c, node) && !a.requiresScope(ast.SkipParentheses(initializer)) {
+				c.CheckUsingDisposable(node)
+			}
+		}
+		return node.ForEachChild(visit)
 	}
-	return analyzerFor(c).isAcquisition(initializer)
+	file.AsNode().ForEachChild(visit)
 }
 
 // forkOwner returns the region whose Scope owns the fiber that call starts,

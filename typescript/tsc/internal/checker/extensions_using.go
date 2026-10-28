@@ -1,6 +1,9 @@
 package checker
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/diagnostics"
+)
 
 // UsingInitializerHook reports whether the initializer of declaration, a
 // variable declaration in a `using` list, acquires a resource that a language
@@ -26,4 +29,23 @@ func (c *Checker) applyUsingInitializerHooks(declaration *ast.Node) bool {
 		}
 	}
 	return false
+}
+
+// CheckUsingDisposable checks that the initializer of declaration, a variable
+// declaration in a `using` list whose check a hook skipped, gives a
+// Disposable, an AsyncDisposable, null, or undefined, or a union of them, as
+// `await using` requires, and otherwise reports TS2850. A language
+// extension whose `using` releases an AsyncDisposable too calls it once the
+// initializer's type is settled.
+func (c *Checker) CheckUsingDisposable(declaration *ast.Node) {
+	initializer := declaration.Initializer()
+	globalDisposableType := c.getGlobalDisposableType()
+	globalAsyncDisposableType := c.getGlobalAsyncDisposableType()
+	if initializer == nil || globalDisposableType == c.emptyObjectType || globalAsyncDisposableType == c.emptyObjectType {
+		return
+	}
+	optionalDisposableType := c.getUnionType([]*Type{globalAsyncDisposableType, globalDisposableType, c.nullType, c.undefinedType})
+	widenedInitializerType := c.widenTypeForVariableLikeDeclaration(c.checkExpressionCached(initializer), declaration, false)
+	c.checkTypeAssignableTo(widenedInitializerType, optionalDisposableType, initializer,
+		diagnostics.The_initializer_of_a_using_declaration_must_be_either_an_object_with_a_Symbol_dispose_method_or_be_null_or_undefined)
 }

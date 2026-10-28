@@ -14,12 +14,13 @@ type scopePlan struct {
 	forks       map[*ast.Node]*ast.Node // fork calls, mapped to the region that owns the fiber (ownerRegion)
 	usingLoops  map[*ast.Node]bool      // for (using x of values) statements, and for (using x = v; ...) statements under their labels
 	usingHolds  map[*ast.Node]bool      // using declarations whose value may be an object, around whose initializer using holds interruption off (D425)
+	usingScoped map[*ast.Node]bool      // using declarations whose initializer requires Scope, whose value using may bind without disposing it (D401)
 	recording   map[*ast.Node]string    // references to Effect's acquireRelease or acquireDisposable, which denote the runtime's (D401)
 	renamed     map[string]bool         // local names that an import gives acquireRelease or acquireDisposable, or nil before the file's imports are read
 }
 
 func newScopePlan() scopePlan {
-	return scopePlan{scopeBlocks: map[*ast.Node]bool{}, scopeBodies: map[*ast.Node]bool{}, scopeLoops: map[*ast.Node]bool{}, usings: map[*ast.Node]bool{}, forks: map[*ast.Node]*ast.Node{}, usingLoops: map[*ast.Node]bool{}, usingHolds: map[*ast.Node]bool{}, recording: map[*ast.Node]string{}}
+	return scopePlan{scopeBlocks: map[*ast.Node]bool{}, scopeBodies: map[*ast.Node]bool{}, scopeLoops: map[*ast.Node]bool{}, usings: map[*ast.Node]bool{}, forks: map[*ast.Node]*ast.Node{}, usingLoops: map[*ast.Node]bool{}, usingHolds: map[*ast.Node]bool{}, usingScoped: map[*ast.Node]bool{}, recording: map[*ast.Node]string{}}
 }
 
 // planScopes records the Scope regions of fn, a function the lowering turns
@@ -33,13 +34,13 @@ func (p *scopePlan) planScopes(a *analyzer, fn *ast.Node) {
 		case isBlockUsing(node):
 			p.scopeBlocks[node.Parent] = true
 			p.usings[node] = true
-			p.planUsingDeclarations(a.checker, node.AsVariableStatement().DeclarationList)
+			p.planUsingDeclarations(a, node.AsVariableStatement().DeclarationList)
 		case isUsingForOf(node):
 			p.usingLoops[node] = true
-			p.planUsingDeclarations(a.checker, node.AsForInOrOfStatement().Initializer)
+			p.planUsingDeclarations(a, node.AsForInOrOfStatement().Initializer)
 		case isUsingFor(node):
 			p.usingLoops[outermostLabel(node)] = true
-			p.planUsingDeclarations(a.checker, node.AsForStatement().Initializer)
+			p.planUsingDeclarations(a, node.AsForStatement().Initializer)
 		case node.Kind == ast.KindCallExpression:
 			if owner := a.forkOwner(node); owner != nil {
 				switch {
@@ -130,11 +131,15 @@ func (tx *lowering) visitAcquisitionReference(node *ast.Node) *ast.Node {
 }
 
 // planUsingDeclarations records, for each declaration of list, a using
-// declaration list, whether its value may be an object (D425).
-func (p *scopePlan) planUsingDeclarations(c *checker.Checker, list *ast.Node) {
+// declaration list, whether its value may be an object (D425) and whether
+// its initializer requires Scope (D401).
+func (p *scopePlan) planUsingDeclarations(a *analyzer, list *ast.Node) {
 	for _, declaration := range list.AsVariableDeclarationList().Declarations.Nodes {
-		if valueMayBeObject(c.GetTypeAtLocation(declaration.Name())) {
+		if valueMayBeObject(a.checker.GetTypeAtLocation(declaration.Name())) {
 			p.usingHolds[declaration] = true
+		}
+		if initializer := declaration.Initializer(); initializer != nil && a.requiresScope(ast.SkipParentheses(initializer)) {
+			p.usingScoped[declaration] = true
 		}
 	}
 }
@@ -165,15 +170,22 @@ func valueMayBeObject(t *checker.Type) bool {
 // usingCall returns the runtime's $using of initializer, the initializer of
 // declaration, with the region's scope. Unless the value can only be a
 // primitive, null, or undefined, $using holds interruption off from the
-// start of the initializer until the value's owner is settled (D425).
+// start of the initializer until the value's owner is settled (D425). When
+// the initializer requires Scope, a value that $using cannot dispose is
+// bound as it is (D401).
 func (tx *lowering) usingCall(scope *ast.Node, declaration *ast.Node, initializer *ast.Node) *ast.Node {
 	f := tx.Factory()
 	hold := f.NewKeywordExpression(ast.KindFalseKeyword)
 	if tx.plan.usingHolds[declaration] {
 		hold = f.NewKeywordExpression(ast.KindTrueKeyword)
 	}
+	requiresScope := f.NewKeywordExpression(ast.KindFalseKeyword)
+	if tx.plan.usingScoped[declaration] {
+		requiresScope = f.NewKeywordExpression(ast.KindTrueKeyword)
+	}
 	options := f.NewObjectLiteralExpression(f.NewNodeList([]*ast.Node{
 		f.NewPropertyAssignment(nil /*modifiers*/, f.NewIdentifier("hold"), nil /*postfixToken*/, nil /*typeNode*/, hold),
+		f.NewPropertyAssignment(nil /*modifiers*/, f.NewIdentifier("requiresScope"), nil /*postfixToken*/, nil /*typeNode*/, requiresScope),
 	}), false /*multiLine*/)
 	return tx.runtimeCall("$using", scope, initializer, options)
 }

@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit, Scope } from "effect"
 import * as K from "./kernel/kernel.js"
 import { $direct } from "./fastcalls.js"
-import { holdingInterruption } from "./resources.js"
+import { holdingInterruption, isRecorded } from "./resources.js"
 
 export const $normal = { kind: "normal" } as const
 
@@ -43,58 +43,70 @@ export const $region = <A, E, R>(body: (scope: Scope.Scope) => Effect.Effect<A, 
   Effect.scopedWith(body)
 
 /**
- * `using x = acquire()`: only this acquisition sees the block's Scope (D14,
- * Codex R8), through a Scope of its own inside the block's. Once its value
- * arrives, the block's release of it is registered: `[Symbol.dispose]()` for
- * a Disposable from either kind of acquisition (D94), and an awaited
- * `[Symbol.asyncDispose]()` for an AsyncDisposable without `Symbol.dispose`
- * whose acquisition registered no release of its own. A resource that
- * releases itself, such as an `acquireRelease`, is never released again
- * asynchronously.
+ * `using x = e` (D342, D401): `e` runs with the block's Scope, so every
+ * release an acquisition in `e` registers there runs once when the block
+ * exits. When `e` gives its value, exactly one owner releases it. If an
+ * acquisition recorded that it registered the value's release in the block's
+ * Scope, the acquisition owns it and `using` adds nothing. Otherwise a value
+ * with a disposal method gets one disposal, which reads the method once, now:
+ * `[Symbol.asyncDispose]` if the value has one, else `[Symbol.dispose]`
+ * (D343). Otherwise nothing more happens for `null`, `undefined`, or an
+ * initializer that requires Scope, and any other value is a `TypeError`
+ * defect, as ECMAScript's `using` makes it.
  *
- * Unless `hold` is false, interruption is held off from the start of the
- * initializer until that release is registered, so an interruption that
- * arrives while the initializer runs lands after it, and the block releases
- * the value (D425, scopes-using-pending-interrupt). An acquisition with
- * `{ interruptible: true }` inside the initializer still runs its acquire
- * step with the interruptibility the code around the `using` had (D401,
- * resources.ts). The compiler passes `hold: false` when the value's type
- * admits only primitives, `null`, and `undefined`, which `using` never
- * releases; then the acquisition's own policy alone decides (D25). The
- * content mapper, which reads no types, passes no options.
+ * Unless `hold` is false, interruption is held off from the start of `e`
+ * until the owner is settled, so an interruption that arrives while `e` runs
+ * lands after the release is registered (D425,
+ * scopes-using-pending-interrupt). An acquisition with `{ interruptible:
+ * true }` in `e` still runs its acquire step with the interruptibility the
+ * code around the `using` had (D401, resources.ts). The compiler passes
+ * `hold: false` when the value's type admits only primitives, `null`, and
+ * `undefined`, and `requiresScope` when `e`'s requirements include Scope.
+ * The content mapper, which reads no types, passes no options.
  */
 export const $using = <A, E, R>(
   scope: Scope.Scope,
   acquire: Effect.Effect<A, E, R>,
-  options?: { readonly hold?: boolean }
+  options?: { readonly hold?: boolean; readonly requiresScope?: boolean }
 ): Effect.Effect<A, E, Exclude<R, Scope.Scope>> => {
-  const take = () => {
-    const own = Scope.forkUnsafe(scope)
-    return Effect.tap(Scope.provide(acquire, own), (value: unknown) => {
-      const release = disposal(value, own.state._tag !== "Empty")
-      return release === undefined ? Effect.void : Scope.addFinalizer(scope, release)
-    })
-  }
+  const requiresScope = options?.requiresScope ?? true
+  const take = () => Effect.tap(Scope.provide(acquire, scope), (value: unknown) => adopt(scope, value, requiresScope))
   return options?.hold === false ? Effect.suspend(take) : holdingInterruption(take)
 }
 
-/**
- * The block's release of a `using` value, or undefined when it has none:
- * `[Symbol.dispose]()`, else, when the acquisition registered no release,
- * `[Symbol.asyncDispose]()` awaited. A throw or a rejection is a defect. As
- * JavaScript's `using` does, it reads the method once, when the value is
- * acquired, and calls that method with the value as `this` at block exit.
- */
-const disposal = (value: unknown, releasesItself: boolean): Effect.Effect<void> | undefined => {
-  if (value === null || (typeof value !== "object" && typeof value !== "function")) return undefined
-  const resource = value as Partial<Disposable & AsyncDisposable>
-  const dispose = resource[Symbol.dispose]
-  if (typeof dispose === "function") return Effect.sync(() => void Reflect.apply(dispose, resource, []))
-  if (releasesItself) return undefined
-  const asyncDispose = resource[Symbol.asyncDispose]
-  if (typeof asyncDispose === "function") return Effect.promise(() => Reflect.apply(asyncDispose, resource, []))
-  return undefined
+/** Settles who releases `value`, the value of a `using` initializer, in `scope` (D401). */
+const adopt = (scope: Scope.Scope, value: unknown, requiresScope: boolean): Effect.Effect<void> => {
+  if (value === null || value === undefined || isRecorded(scope, value)) return Effect.void
+  const dispose = disposalMethod(value)
+  if (dispose !== undefined) {
+    return Scope.addFinalizer(scope, Effect.suspend(() => {
+      const result: unknown = Reflect.apply(dispose, value, [])
+      return isPromiseLike(result) ? Effect.promise(() => result) : Effect.void
+    }))
+  }
+  if (requiresScope) return Effect.void
+  return Effect.die(new TypeError("The value of a using declaration must be Disposable, AsyncDisposable, null, or undefined"))
 }
+
+/**
+ * `value`'s disposal method, as ECMAScript's `await using` reads it
+ * (`GetDisposeMethod`, D343): `[Symbol.asyncDispose]` if present, else
+ * `[Symbol.dispose]`, each read once. A method that is present but not a
+ * function is a `TypeError`.
+ */
+const disposalMethod = (value: unknown): ((this: unknown) => unknown) | undefined => {
+  if ((typeof value !== "object" || value === null) && typeof value !== "function") return undefined
+  const resource = value as { readonly [Symbol.asyncDispose]?: unknown; readonly [Symbol.dispose]?: unknown }
+  let method = resource[Symbol.asyncDispose]
+  if (method === undefined || method === null) method = resource[Symbol.dispose]
+  if (method === undefined || method === null) return undefined
+  if (typeof method !== "function") throw new TypeError("A using value's disposal method is not a function")
+  return method as (this: unknown) => unknown
+}
+
+const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
+  ((typeof value === "object" && value !== null) || typeof value === "function") &&
+  typeof (value as { readonly then?: unknown }).then === "function"
 
 /**
  * D54: a failure in flight in a function that compiles to plain JavaScript,

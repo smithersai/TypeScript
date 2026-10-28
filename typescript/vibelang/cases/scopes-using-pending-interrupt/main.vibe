@@ -4,9 +4,11 @@
 // settled, so an interruption that arrives meanwhile lands after the release
 // is registered, and the value is released: an initializer that ends in its
 // own mask ("ending"), one that waits ("waiting"), and one whose value is
-// typed object ("widened"). An acquisition with { interruptible: true } keeps
-// that policy for its acquire step inside the hold, here through a wrapper:
-// the interruption reaches its wait, and nothing is acquired ("interruptible").
+// typed object, which needs Scope in its contract to bind a value that may
+// not be Disposable ("widened", Chapter 6's lease). An acquisition with
+// { interruptible: true } keeps that policy for its acquire step inside the
+// hold, here through a wrapper: the interruption reaches its wait, and
+// nothing is acquired ("interruptible").
 // expect-result: {"ending":["acquired","disposed"],"waiting":["acquired","disposed"],"widened":["acquired","disposed"],"interruptible":[]}
 export function main() {
   return { ending: endingInMask(), waiting: waiting(), widened: widened(), interruptible: interruptible() }
@@ -65,7 +67,7 @@ function widened() {
   const entered = Deferred.make<void>()
   const gate = Deferred.make<void>()
 
-  function open(): object!! {
+  function open(): object!!Scope {
     Deferred.succeed(entered, undefined)
     Deferred.await(gate)
     events.push("acquired")
