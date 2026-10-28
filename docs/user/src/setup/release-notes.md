@@ -93,6 +93,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 - A `var` declaration inside a `do` expression previously compiled with the wrong scope; it now reports `EK1019` and offers `let` instead. Jumps that leave a `do` expression now report `EK1019`.
 
+- Repeated calls along a chain of functions without written contracts could make the compiler run out of memory. Inferred error and service channels now keep each type once, so repeated calls no longer multiply inference work.
 - A `module` declaration's exports were copies: after `bump()` changed an exported `let count`, the file and its re-exports still read `0`, and the module's imports ran before the file's earlier imports. Each module declaration the file imports now compiles to a JavaScript module of its own, `main.vibe.text.js` beside `main.js`, so its exports are live bindings and it runs in import order; `vibelang/register`, `vibelang/bun`, `vibelang-vite` and `vibelang-unplugin` load it from the file's compile.
 - Quick fixes dropped the comments inside what they rewrote: a comment in an error's field list or before an `Effect.succeed` argument disappeared. Fixes now keep those comments, and a rewrite that cannot keep its comments is not offered.
 - `vibelang --fix` stopped after 16 rounds, so a file with more than 16 nested `Effect.Effect<…>` types was only partly rewritten and a second run changed it again. It now continues until nothing is left to fix, and reports a rewrite that repeats a source state instead of writing a partial result.

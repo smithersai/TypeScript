@@ -180,7 +180,8 @@ func (a *analyzer) handleFlow(node *ast.Node) *effectInfo {
 // withoutRequirement returns info without the requirements that are handled,
 // the members of its requirements that have type handled.
 func withoutRequirement(c *checker.Checker, info *effectInfo, handled *checker.Type) *effectInfo {
-	out := &effectInfo{errors: info.errors, errorSources: info.errorSources, effect: info.effect}
+	out := &effectInfo{effect: info.effect}
+	out.addErrors(info)
 	for i, requirement := range info.requirements {
 		for _, member := range unionMembers(requirement) {
 			if !c.IsTypeAssignableTo(member, handled) {

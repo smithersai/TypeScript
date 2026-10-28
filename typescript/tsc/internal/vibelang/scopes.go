@@ -305,8 +305,10 @@ func (a *analyzer) addScoped(info *effectInfo, call *ast.Node) {
 		forked := &effectInfo{}
 		a.addCall(forked, call)
 		forked = withoutScope(forked)
-		forked.errors, forked.errorSources = nil, nil
-		info.add(forked)
+		info.addRequirements(forked)
+		if info.effect == nil {
+			info.effect = forked.effect
+		}
 		return
 	}
 	a.addServiceLookup(info, call)
@@ -319,7 +321,8 @@ func (a *analyzer) addScoped(info *effectInfo, call *ast.Node) {
 // splitting unions and keeping each requirement's source: a Scope region
 // supplies the Scope that its acquisitions and forks ask for.
 func withoutScope(info *effectInfo) *effectInfo {
-	out := &effectInfo{errors: info.errors, errorSources: info.errorSources, effect: info.effect}
+	out := &effectInfo{effect: info.effect}
+	out.addErrors(info)
 	for i, r := range info.requirements {
 		var source *ast.Node
 		if i < len(info.requirementSources) {

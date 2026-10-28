@@ -31,6 +31,8 @@ function convert(amount: number, currency: string) {
 
 Errors and services from several calls accumulate as unions. Catching a failure removes it from `E`; providing a service removes it from `R`. Write a full annotation, such as `number!!Rates`, to have the compiler check a promise. `Effect<number, never, Rates>` is accepted too, and means the same.
 
+Inferred errors and services are unions: calling the same function more than once does not add another copy of its error or service types. Chains of repeated calls do not need written contracts to keep inference bounded.
+
 ## Write a contract
 
 ```vibe

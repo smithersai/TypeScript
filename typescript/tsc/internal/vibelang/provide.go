@@ -87,8 +87,7 @@ func (a *analyzer) provideFlow(block *ast.Node) *effectInfo {
 		info.effect = body.effect
 	}
 	provided, errors, needs := providerChannelsOf(c, layer)
-	info.errors = append(info.errors, body.errors...)
-	info.errorSources = append(info.errorSources, body.errorSources...)
+	info.addErrors(body)
 	for i, requirement := range body.requirements {
 		for _, member := range unionMembers(requirement) {
 			switch {

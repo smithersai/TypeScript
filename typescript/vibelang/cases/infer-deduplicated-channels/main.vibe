@@ -1,0 +1,31 @@
+// expect-result: 14
+export error Missing
+export service Need { value(): number!! }
+
+export function base(x: number) {
+  if (x < 0) throw new Missing()
+  return Need.value()
+}
+
+export function twice(x: number) {
+  const a = base(x)
+  return a > 0 ? a : base(x + 1)
+}
+
+export function contracted(x: number): number!Missing {
+  try { return twice(x) } finally { twice(x) }
+}
+
+export class Chain {
+  base(x: number) { return base(x) }
+  top(x: number) {
+    const a = this.base(x)
+    return a > 0 ? a : this.base(x + 1)
+  }
+}
+
+export function main() {
+  provide Layer.succeed(Need, { value: () => 7 }) {
+    return contracted(1) + new Chain().top(1)
+  }
+}

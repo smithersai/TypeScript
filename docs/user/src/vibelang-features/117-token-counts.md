@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,462 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 15,265 |
-| The skill and the user guide (134 pages) | 252,587 |
-| The user guide alone | 247,125 |
+| The skill and the user guide (134 pages) | 252,670 |
+| The user guide alone | 247,208 |
 | The specification (33 chapters) | 192,003 |
 | The decision log, `docs/design/DECISIONS.md` | 129,458 |
 
@@ -90,8 +90,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Start Here** | **2,257** |
 | [Welcome](../001-onboarding.md) | 1,657 |
 | [Why VibeLang?](../getting-started/002-why-effect.md) | 600 |
-| **Learning Path** | **9,740** |
-| [The Effect Type](../getting-started/003-the-effect-type.md) | 1,790 |
+| **Learning Path** | **9,781** |
+| [The Effect Type](../getting-started/003-the-effect-type.md) | 1,831 |
 | [Installation](../getting-started/004-installation.md) | 2,471 |
 | [Creating Effects](../getting-started/005-creating-effects.md) | 3,349 |
 | [Two Types of Errors](../error-management/006-two-error-types.md) | 642 |
@@ -102,7 +102,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
 | [Devtools](../getting-started/012-devtools.md) | 11,313 |
-| **All 12 pages** | **30,685** |
+| **All 12 pages** | **30,726** |
 
 ### Setup
 
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **28,681** |
-| [Release notes](../setup/release-notes.md) | 28,681 |
-| **All 15 pages** | **47,842** |
+| **Upgrade** | **28,723** |
+| [Release notes](../setup/release-notes.md) | 28,723 |
+| **All 15 pages** | **47,884** |
 
 ### Guides
 

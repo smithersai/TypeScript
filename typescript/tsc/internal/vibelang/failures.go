@@ -1,7 +1,6 @@
 package vibelang
 
 import (
-	"slices"
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -103,7 +102,8 @@ func hasEscapingThrow(fn *ast.Node) bool {
 func (a *analyzer) tryFlow(node *ast.Node) *effectInfo {
 	try := node.AsTryStatement()
 	body := a.tryBlockFlow(try.TryBlock)
-	escapes := &effectInfo{requirements: slices.Clone(body.requirements), requirementSources: slices.Clone(body.requirementSources), effect: body.effect}
+	escapes := &effectInfo{effect: body.effect}
+	escapes.addRequirements(body)
 	if try.CatchClause != nil {
 		clause := try.CatchClause.AsCatchClause()
 		if clause.VariableDeclaration != nil {
@@ -114,8 +114,7 @@ func (a *analyzer) tryFlow(node *ast.Node) *effectInfo {
 		}
 		escapes.add(a.flowOf(clause.Block))
 	} else {
-		escapes.errors = append(escapes.errors, body.errors...)
-		escapes.errorSources = append(escapes.errorSources, body.errorSources...)
+		escapes.addErrors(body)
 	}
 	if try.FinallyBlock != nil {
 		escapes.add(a.flowOf(try.FinallyBlock))

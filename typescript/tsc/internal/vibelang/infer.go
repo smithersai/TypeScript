@@ -33,9 +33,13 @@ func inferredReturnType(c *checker.Checker, fn *ast.Node, t *checker.Type) *chec
 }
 
 // effectInfo lists what running a function's body adds to the error and
-// requirement channels of its Effect, each with its source: the call or throw
-// in the body that adds it.
+// requirement channels of its Effect. Each channel is a type-identity set,
+// ordered by first occurrence, with the first call or throw that adds it.
+// The never type adds no entries. Maps only test membership: declarations
+// and diagnostics always traverse the ordered slices.
 type effectInfo struct {
+	errorSet           map[*checker.Type]bool
+	requirementSet     map[*checker.Type]bool
 	errors             []*checker.Type
 	requirements       []*checker.Type
 	errorSources       []*ast.Node   // errorSources[i] adds errors[i]
@@ -44,23 +48,48 @@ type effectInfo struct {
 }
 
 func (info *effectInfo) addError(t *checker.Type, source *ast.Node) {
+	if t == nil || t.Flags()&checker.TypeFlagsNever != 0 || info.errorSet[t] {
+		return
+	}
+	if info.errorSet == nil {
+		info.errorSet = make(map[*checker.Type]bool)
+	}
+	info.errorSet[t] = true
 	info.errors = append(info.errors, t)
 	info.errorSources = append(info.errorSources, source)
 }
 
 func (info *effectInfo) addRequirement(t *checker.Type, source *ast.Node) {
+	if t == nil || t.Flags()&checker.TypeFlagsNever != 0 || info.requirementSet[t] {
+		return
+	}
+	if info.requirementSet == nil {
+		info.requirementSet = make(map[*checker.Type]bool)
+	}
+	info.requirementSet[t] = true
 	info.requirements = append(info.requirements, t)
 	info.requirementSources = append(info.requirementSources, source)
 }
 
 // add adds what other lists, keeping its sources.
 func (info *effectInfo) add(other *effectInfo) {
-	info.errors = append(info.errors, other.errors...)
-	info.requirements = append(info.requirements, other.requirements...)
-	info.errorSources = append(info.errorSources, other.errorSources...)
-	info.requirementSources = append(info.requirementSources, other.requirementSources...)
+	info.addErrors(other)
+	info.addRequirements(other)
 	if info.effect == nil {
 		info.effect = other.effect
+	}
+}
+
+// addErrors and addRequirements copy one channel without sharing mutable storage.
+func (info *effectInfo) addErrors(other *effectInfo) {
+	for i, t := range other.errors {
+		info.addError(t, other.errorSources[i])
+	}
+}
+
+func (info *effectInfo) addRequirements(other *effectInfo) {
+	for i, t := range other.requirements {
+		info.addRequirement(t, other.requirementSources[i])
 	}
 }
 
