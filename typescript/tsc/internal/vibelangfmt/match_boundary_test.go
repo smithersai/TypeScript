@@ -13,6 +13,7 @@ import (
 
 func TestMatchStatementBoundary(t *testing.T) {
 	for _, source := range []string{
+		"function f() { return do { let n = 0\n match (n) { default: 2; } } }",
 		"export function main() {\n  let n = 0\n  match (n) {\n    default: n = 1;\n  }\n}\n",
 		"function f() { let n = 0; if (n === 0) match (n) { default: n = 1; } }",
 		"function f() { return\n match (0) { default: 1; } }",

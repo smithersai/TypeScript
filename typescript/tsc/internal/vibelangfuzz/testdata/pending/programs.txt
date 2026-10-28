@@ -17,10 +17,6 @@ FuzzSpecPrograms  feature:module-block     programs  not generated: a module blo
 # in programs_fuzz_test.go), so a new disagreement of an input that holds the
 # feature still fails. The corpus line only marks the reproduction, which
 # holds every feature and fails as XPASS once every oracle holds.
-FuzzSpecPrograms  feature:do-match-value               compiler  D187, Appendix grammar: a match expression as a do block's last statement, `do { const a = 1; match (a) { when 1: 2; default: 3; } }`, fails to parse (TS1109, then TS2322 void), though the same statement parses in a function body
-FuzzSpecPrograms  compile:TS1109/do-match-value        compiler  D187, Appendix grammar: a match expression as a do block's last statement fails to parse ("Expression expected")
-FuzzSpecPrograms  compile:TS2322/do-match-value        compiler  D187: after the failed parse the do block's value is void, so a number binding of it draws TS2322
-FuzzSpecPrograms  corpus:do-match-value                compiler  D187, Appendix grammar: a match expression as a do block's last statement fails to parse (TS1109)
 FuzzSpecPrograms  feature:unreachable-code             compiler  D346, D214: an exhaustive match in code after a return draws EK4701 ("E1 is left") and TS2339 on its bindings, because the lowering relies on TypeScript's narrowing, which unreachable code lacks; the spec covers by the subject's declared type
 FuzzSpecPrograms  compile:EK4701/unreachable-code      compiler  D346, D214: an exhaustive match after a statement that always returns draws EK4701, since TypeScript narrows unreachable code to never
 FuzzSpecPrograms  corpus:unreachable-match             compiler  D346, D214: an exhaustive match after a statement that always returns draws EK4701

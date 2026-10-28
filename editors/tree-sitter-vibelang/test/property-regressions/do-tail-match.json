@@ -10,7 +10,6 @@
   "numRuns": 35,
   "numShrinks": 3,
   "id": "do-tail-match",
-  "knownFailure": true,
   "input": {
     "source": "x=do{match(0){}}",
     "strictKnownFailures": true
@@ -25,16 +24,14 @@
       "text": "("
     }
   },
-  "reason": "D187 and Appendix Grammar permit a match expression as a do block completion. The compiler reports TS1109 while tree-sitter accepts it. Already recorded in vibelangfuzz/testdata/pending/programs.txt; parentheses around match avoid the parser bug.",
+  "reason": "D187 regression: a final match supplies the do completion; the compiler and tree-sitter both accept it.",
   "files": {
     "minimal.vibe": "x=do{match(0){}}\n"
   },
   "diagnostics": {
-    "compilerValid": false,
+    "compilerValid": true,
     "treeSitterValid": true,
-    "diagnostics": [
-      "TS1109@5:10 Expression expected."
-    ]
+    "diagnostics": []
   },
   "discoveryReplay": "FC_PROPERTY='grammar-generated' FC_SEED=42 FC_PATH='34:8:8:8' node --test test/grammar.property.test.mjs"
 }

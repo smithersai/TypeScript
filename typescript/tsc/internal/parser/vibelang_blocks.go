@@ -97,6 +97,14 @@ func (p *Parser) vibelangCompletion(statements *ast.NodeList) {
 // completion value: a return for an expression statement, or the statement
 // itself with its branches converted.
 func (p *Parser) vibelangCompletionOf(statement *ast.Node) *ast.Node {
+	// Statement matches are already lowered to labeled blocks. At a do
+	// completion, return each selected arm instead of discarding
+	// its arm value or treating its generated label as a user statement.
+	if info := p.vibelangMatches[statement]; info != nil {
+		returned := p.matchReturnStatementAt(info, statement.Loc)
+		returned.Parent = statement.Parent
+		return returned
+	}
 	switch statement.Kind {
 	case ast.KindExpressionStatement:
 		returned := p.factory.NewReturnStatement(statement.Expression())

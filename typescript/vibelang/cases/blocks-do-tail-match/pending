@@ -1,1 +1,0 @@
-compiler D187, Appendix Grammar: a match as the final statement of a do block reports TS1109. Also recorded by FuzzSpecPrograms feature:do-match-value; G1 parser differential shrank it to x=do{match(0){}}.

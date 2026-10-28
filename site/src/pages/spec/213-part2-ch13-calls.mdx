@@ -445,6 +445,8 @@ Tests in `.vibe` use `it.effect`. A test that must `await` a Promise stays in a 
 
 #### Blocks as values
 
+A final `match` supplies the selected arm’s value, as in `do { match (0) { default: 2; } }`, whose value is `2`. This also applies when the `match` is in a final block or an `if` branch.
+
 A `do { }` expression (D187, the TC39 [do expressions](https://github.com/tc39/proposal-do-expressions) proposal) has the value of its last statement. It is evaluated where it stands, like any expression, and builds no program. To pass a block as a program, write a function literal or a block param. An await operation's element is already a program, so a `do` there gives the element statements of its own:
 
 ```ts

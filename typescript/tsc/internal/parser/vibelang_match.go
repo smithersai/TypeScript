@@ -1202,12 +1202,18 @@ func (p *Parser) matchFunctionCall(info *matchInfo) *ast.Node {
 // matchReturnStatement writes return match (...) { ... } as a block whose
 // arms return their values.
 func (p *Parser) matchReturnStatement(info *matchInfo, pos int) *ast.Node {
+	return p.matchReturnStatementAt(info, core.NewTextRange(pos, p.nodePos()))
+}
+
+// matchReturnStatementAt also serves do completion after parsing has moved
+// past the match. Keep the block at the original statement range.
+func (p *Parser) matchReturnStatementAt(info *matchInfo, loc core.TextRange) *ast.Node {
 	statements := p.matchStatements(info, func(value *ast.Node, at core.TextRange) []*ast.Node {
 		return []*ast.Node{p.vibelangSpanning(p.factory.NewReturnStatement(value), at)}
 	}, func(noMatch *ast.Node, at core.TextRange) *ast.Node {
 		return p.vibelangSpanning(p.factory.NewReturnStatement(noMatch), at)
 	})
-	return p.finishNode(p.factory.NewBlock(p.newNodeList(core.NewTextRange(pos, p.nodePos()), statements), true /*multiLine*/), pos)
+	return p.finishNodeWithEnd(p.factory.NewBlock(p.newNodeList(loc, statements), true /*multiLine*/), loc.Pos(), loc.End())
 }
 
 // matchStatement writes a match that stands as a statement as a labeled
@@ -1222,7 +1228,9 @@ func (p *Parser) matchStatement(info *matchInfo, pos int) *ast.Node {
 		return p.vibelangSpanning(p.factory.NewExpressionStatement(noMatch), at)
 	})
 	block := p.finishNode(p.factory.NewBlock(p.newNodeList(core.NewTextRange(info.anchor.End(), p.nodePos()), statements), true /*multiLine*/), info.anchor.End())
-	return p.finishNode(p.factory.NewLabeledStatement(p.mTemp(label, info.anchor), block), pos)
+	statement := p.finishNode(p.factory.NewLabeledStatement(p.mTemp(label, info.anchor), block), pos)
+	p.vibelangMatches[statement] = info
+	return statement
 }
 
 // conjuncts returns the operands of the && chain expr, outermost first.

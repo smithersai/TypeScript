@@ -310,3 +310,5 @@ For any other type, a match without `default` that no arm fits throws a `TypeErr
 - `is` bindings are not in scope in an `else` branch or after the statement.
 - A match inside a larger expression runs its arms in their own function, so an arm there cannot `yield`. A match after `return` or as a statement can.
 - `async match` and the proposal's regular expression and relational patterns.
+
+A `match` can end a `do` block: `do { match (0) { default: 2; } }` has the selected arm’s value, `2`.

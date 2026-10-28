@@ -497,7 +497,7 @@ func (e *encoder) match(form parser.VibeSyntax) error {
 	statement := false
 	var visit func(*ast.Node) bool
 	visit = func(node *ast.Node) bool {
-		if node.Kind == ast.KindLabeledStatement && scanner.SkipTrivia(e.source, node.Pos()) == form.Word.Pos() {
+		if (node.Kind == ast.KindLabeledStatement || node.Kind == ast.KindBlock) && scanner.SkipTrivia(e.source, node.Pos()) == form.Word.Pos() {
 			statement = true
 			return true
 		}
