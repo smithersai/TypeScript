@@ -39,6 +39,12 @@ func runningCallQuickInfo(c *checker.Checker, node *ast.Node) (string, string) {
 	}
 	returns := "`" + c.TypeToStringEx(success, call, hoverTypeFlags, nil) + "`"
 	if a := analyzerFor(c); a.byNameOf(call) != nil {
+		if form := a.keywordFormOf(a.byNameOf(call)); form != nil && a.keywordOperand(a.byNameOf(call)) {
+			if name := awaitOperationNames[fiberHelper(form)]; name != "" {
+				return "", "An element of `" + name + "`, a program by syntax: it runs on the element's own fiber when the operation runs, not here, and returns " + returns + "."
+			}
+			return "", "The operand of `fork`, a program by syntax: it runs on the new fiber, not here, and returns " + returns + "."
+		}
 		if owner := a.byNameOwner(a.byNameOf(call)); owner != nil {
 			return "", "Passed by name to `" + calleeText(owner) + "` as a program: it runs when that program runs, not here, and returns " + returns + "."
 		}

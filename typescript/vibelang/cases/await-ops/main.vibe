@@ -39,7 +39,7 @@ function record() {
 // A fiber already running is awaited, not restarted.
 function held() {
   const user = fork getUser("3")
-  return await.all [user, count()]
+  return await.all [join user, count()]
 }
 
 // A failure interrupts the rest and propagates.
@@ -73,13 +73,13 @@ function raceFailure() {
 
 function raceBlocks() {
   return await.race [
-    () => {
+    do {
       sleep("1 second")
-      return "timeout"
+      "timeout"
     },
-    () => {
-      const user = getUser("4")
-      return `got ${user}`
+    do {
+      const user = getUser("4");
+      `got ${user}`
     }
   ]
 }
@@ -92,7 +92,7 @@ function anyWins() {
 function deferred() {
   const ready = Deferred.make<string>()
   Deferred.succeed(ready, "ready")
-  return await.race [ready, slow()]
+  return await.race [ready.await(), slow()]
 }
 
 // Of elements ready at once, the first written wins.

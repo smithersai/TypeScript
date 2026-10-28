@@ -9,7 +9,7 @@ abstract class Ask extends Control {
 
 function forked() {
   return handle(() => {
-    const child = fork(() => Ask.ask("in a child fiber"))
+    const child = fork Ask.ask("in a child fiber")
     return Fiber.join(child)
   }, Ask, {
     ask(question, k) { return resume(k, question.length) }

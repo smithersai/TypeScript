@@ -84,7 +84,7 @@ A histogram sorts observations into configured buckets and tracks count, sum, mi
 ## Timing computations
 
 ```vibe
-// run: provide TestClock.layer() { const worker = fork(() => render()); TestClock.adjust("30 millis"); Console.log(join worker); const state = Metric.value(renderTime); Console.log(state.count, state.sum, state.min, state.max) }
+// run: provide TestClock.layer() { const worker = fork render(); TestClock.adjust("30 millis"); Console.log(join worker); const state = Metric.value(renderTime); Console.log(state.count, state.sum, state.min, state.max) }
 const renderTime = Metric.timer("guide_render_duration", {
   boundaries: [5, 20, 50, 100, 500]
 })

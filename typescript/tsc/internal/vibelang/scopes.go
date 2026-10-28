@@ -347,6 +347,11 @@ func (a *analyzer) addScoped(info *effectInfo, call *ast.Node) {
 	if a.forkOwner(call) != nil {
 		if arguments := call.Arguments(); len(arguments) > 0 {
 			program := c.GetTypeAtLocation(arguments[0])
+			if operand := ast.SkipParentheses(arguments[0]); a.keywordOperand(operand) {
+				// A keyword operand's own type is its value's; its program's
+				// R is what running it needs (D322).
+				program = a.keywordProgramType(operand, a.keywordValueType(operand))
+			}
 			if r := channelType(c, program, "_R"); r != nil {
 				info.addRequirement(r, call)
 				if info.effect == nil {

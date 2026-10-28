@@ -71,7 +71,7 @@ function scopedAnnotations() {
 ## Measuring log spans
 
 ```vibe
-// run: const records: unknown[] = []; const capture = Logger.make(({ message, fiber, date }) => { records.push([message, fiber.getRef(References.CurrentLogSpans).map(([label, start]) => [label, date.getTime() - start])]) }); provide TestClock.layer() { TestClock.setTime(0); provide Logger.layer([capture]) { const worker = fork(() => timedExport()); TestClock.adjust("30 millis"); join worker } }; Console.log(JSON.stringify(records))
+// run: const records: unknown[] = []; const capture = Logger.make(({ message, fiber, date }) => { records.push([message, fiber.getRef(References.CurrentLogSpans).map(([label, start]) => [label, date.getTime() - start])]) }); provide TestClock.layer() { TestClock.setTime(0); provide Logger.layer([capture]) { const worker = fork timedExport(); TestClock.adjust("30 millis"); join worker } }; Console.log(JSON.stringify(records))
 function timedExport() {
   Effect.withLogSpan(() => {
     logInfo("opening output")

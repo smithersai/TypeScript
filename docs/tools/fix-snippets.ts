@@ -145,6 +145,7 @@ export async function fixPage(markdown: string, dir: string, compiler: string, t
   const before = await checkProject(join(dir, "before"), blocks, compiler)
   const { filenames, offsets } = writeProject(join(dir, "fix"), blocks, { omitFragments: true })
   const markers = new Map<number, { start: string; end: string }>()
+  const runMarkers = new Map<number, { start: string; end: string }>()
   for (const block of blocks.filter(block => block.language === "vibe" && !block.fragment)) {
     const path = join(dir, "fix", filenames.get(block.number)!)
     const text = readFileSync(path, "utf8")
@@ -152,23 +153,46 @@ export async function fixPage(markdown: string, dir: string, compiler: string, t
     while (text.includes(tag)) tag += "$"
     const start = `// ${tag}:start\n`, end = `\n// ${tag}:end`
     const at = text.split("\n").slice(0, offsets.get(filenames.get(block.number)!)!).join("\n").length + (offsets.get(filenames.get(block.number)!)! ? 1 : 0)
-    writeFileSync(path, text.slice(0, at) + start + block.source + end + text.slice(at + block.source.length))
+    let fixedText = text.slice(0, at) + start + block.source + end + text.slice(at + block.source.length)
+    // A run marker's code is the block's too: check and migrate it beside
+    // the block, as runBlock appends it, and write back a one-line result.
+    if (block.run) {
+      let helper = `$docsFixRun${block.number}`
+      while (fixedText.includes(helper)) helper += "$"
+      fixedText += `\n// ${tag}:run\nfunction ${helper}() { ${block.run} }\n// ${tag}:run-end\n`
+      runMarkers.set(block.number, { start: `// ${tag}:run\nfunction ${helper}() { `, end: ` }\n// ${tag}:run-end` })
+    }
+    writeFileSync(path, fixedText)
     markers.set(block.number, { start, end })
   }
   const fixed = await command([compiler, "--fix", ...(allFixes ? [] : ["--fix-migration-only"]), "--noEmit", "--pretty", "false", "-p", join(dir, "fix/tsconfig.json")], join(dir, "fix"), 120000)
   if (fixed.timedOut) throw new Error("--fix timed out")
-  if (/EK1023 not fixed:/.test(fixed.stdout + fixed.stderr)) throw new Error(`migration refused: ${fixed.stdout}${fixed.stderr}`)
+  if (/EK(?:1023|4609|4610|4613) not fixed:/.test(fixed.stdout + fixed.stderr)) throw new Error(`migration refused: ${fixed.stdout}${fixed.stderr}`)
   if (fixed.exitCode !== 0 && !parseDiagnostics(fixed.stdout + "\n" + fixed.stderr).length) {
     throw new Error(`--fix failed (${fixed.exitCode}): ${fixed.stdout}${fixed.stderr}`)
   }
   const sources = new Map<number, string>()
+  const migratedRuns = new Set<number>()
   for (const block of blocks) {
     const marker = markers.get(block.number)
     if (!marker) continue
     const text = readFileSync(join(dir, "fix", filenames.get(block.number)!), "utf8")
     const start = text.indexOf(marker.start), end = text.indexOf(marker.end)
     if (start < 0 || end < start) throw new Error(`block ${block.number}: --fix removed its source boundary`)
-    const raw = text.slice(start + marker.start.length, end)
+    let raw = text.slice(start + marker.start.length, end)
+    const runMarker = runMarkers.get(block.number)
+    if (runMarker && block.run) {
+      const runStart = text.indexOf(runMarker.start), runEnd = text.indexOf(runMarker.end)
+      if (runStart < 0 || runEnd < runStart) throw new Error(`block ${block.number}: --fix removed its run marker's boundary`)
+      const run = text.slice(runStart + runMarker.start.length, runEnd)
+      if (run !== block.run) {
+        if (/[\r\n]/.test(run)) throw new Error(`block ${block.number}: the migrated run marker no longer fits on one line`)
+        const line = /^(\s*\/\/ run:\s*)(.*)$/m.exec(raw)
+        if (!line || line[2] !== block.run) throw new Error(`block ${block.number}: --fix changed its run marker's line`)
+        raw = raw.slice(0, line.index) + line[1] + run + raw.slice(line.index + line[0].length)
+        migratedRuns.add(block.number)
+      }
+    }
     if (raw !== block.source) {
       const source = annotateRegions(raw)
       preserveDirectives(block.source, source)
@@ -189,8 +213,9 @@ export async function fixPage(markdown: string, dir: string, compiler: string, t
   // A changed dependency can affect an unchanged block on the page too.
   // A legacy block rejected by the new checker cannot run before its fix.
   // Its marked stdout remains mandatory after the migration, including
-  // unchanged blocks that depend on it.
-  if (!before.some(block => block.migration)) await verifyOutputs(join(dir, "run-before"), before, compiler, timeout)
+  // unchanged blocks that depend on it. A migrated run marker, likewise,
+  // cannot compile before its fix.
+  if (!before.some(block => block.migration) && !migratedRuns.size) await verifyOutputs(join(dir, "run-before"), before, compiler, timeout)
   await verifyOutputs(join(dir, "run-after"), after, compiler, timeout)
   return { markdown: rewritten, changed: sources.size, blocks: blocks.length }
 }

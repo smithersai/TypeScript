@@ -48,14 +48,14 @@ function boom() {
 // The ticker stops before the server, acquired earlier, is released.
 function serve() {
   using server = resource("server")
-  fork(() => ticker("ticker"))
+  fork ticker("ticker")
   Effect.sleep("5 millis")
   return `served by ${server}`
 }
 
 // Fiber.join waits for the child and returns its result.
 function joined() {
-  const child = fork(() => compute(21))
+  const child = fork compute(21)
   events.push("parent goes on")
   return Fiber.join(child)
 }
@@ -64,7 +64,7 @@ function joined() {
 // it stops when the body exits, after the block.
 function inner() {
   {
-    fork(() => ticker("inner"))
+    fork ticker("inner")
     Effect.sleep("2 millis")
   }
   events.push("after inner block")
@@ -74,7 +74,7 @@ function inner() {
 // A fork in a loop body stops at the end of its iteration.
 function perIteration() {
   for (const n of [1, 2]) {
-    fork(() => ticker(`loop ${n}`))
+    fork ticker(`loop ${n}`)
     Effect.sleep("2 millis")
     events.push(`end of iteration ${n}`)
   }
@@ -83,7 +83,7 @@ function perIteration() {
 
 // The child's failure reaches the parent only through Fiber.join.
 function failingChild() {
-  const child = fork(() => boom())
+  const child = fork boom()
   try {
     Fiber.join(child)
   } catch (e) {
@@ -94,7 +94,7 @@ function failingChild() {
 
 // A block that fails still stops its fibers.
 function failingBlock() {
-  fork(() => ticker("doomed"))
+  fork ticker("doomed")
   Effect.sleep("2 millis")
   throw new Boom()
 }

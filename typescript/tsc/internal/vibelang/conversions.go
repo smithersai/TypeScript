@@ -46,6 +46,13 @@ type valueState struct {
 // expressionType gives an argument expression the type of the conversion the
 // candidate under check asks for, or its contextual program field (D265).
 func expressionType(c *checker.Checker, node *ast.Node, t *checker.Type) *checker.Type {
+	// A keyword operand is a program by syntax, whatever its type (D322):
+	// decided before any position or type is read (keywords.go).
+	if t != nil && mayBeKeywordOperand(node) && !analyzerFor(c).valueTyping[node] {
+		if program, ok := analyzerFor(c).keywordOperandType(node, t); ok {
+			return program
+		}
+	}
 	if !mayConvert(c, node, t) || analyzerFor(c).valueTyping[node] || analyzerFor(c).classifying[node] {
 		return t
 	}
@@ -461,6 +468,9 @@ func (a *analyzer) isByName(node *ast.Node) bool {
 	if pipe := pipeOfLeft(node); pipe != nil {
 		return a.pipeIsByName(pipe)
 	}
+	if mayBeKeywordOperand(node) && a.keywordOperand(node) {
+		return true // a program by syntax (D322)
+	}
 	if a.conversions[node] == nil {
 		if !mayRunByName(node) {
 			return false
@@ -484,7 +494,7 @@ func (a *analyzer) isByName(node *ast.Node) bool {
 // node itself or an ancestor in the same function.
 func (a *analyzer) byNameOf(node *ast.Node) *ast.Node {
 	for n := node; n != nil && !isFunctionBoundary(n); n = n.Parent {
-		if a.conversions[n] != nil && a.finalConversion(n) == convertByName {
+		if a.conversions[n] != nil && a.finalConversion(n) == convertByName || mayBeKeywordOperand(n) && a.keywordOperand(n) {
 			return n
 		}
 		if pipe := pipeOfLeft(n); pipe != nil && a.pipeIsByName(pipe) {

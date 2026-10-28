@@ -244,6 +244,7 @@ type analyzer struct {
 	returnedPrograms map[*ast.Node]*checker.Type // structured programs at Effect return boundaries
 	valueTyping      map[*ast.Node]bool          // by-name arguments whose own type is being read (valueTypeOf)
 	classifying      map[*ast.Node]bool          // values whose position is being classified (expressionType)
+	keywordValues    map[*ast.Node]*checker.Type // keyword operands' values (keywords.go)
 
 	// Plain JavaScript functions (plain.go).
 	plain                 map[*ast.Node]plainState  // function declarations that compile to plain JavaScript
@@ -288,6 +289,7 @@ func analyzerFor(c *checker.Checker) *analyzer {
 			returnedPrograms: map[*ast.Node]*checker.Type{},
 			valueTyping:      map[*ast.Node]bool{},
 			classifying:      map[*ast.Node]bool{},
+			keywordValues:    map[*ast.Node]*checker.Type{},
 			plain:            map[*ast.Node]plainState{},
 			plainEdges:       map[*ast.Node][]plainEdge{},
 			plainCycles:      map[*ast.Node]bool{},

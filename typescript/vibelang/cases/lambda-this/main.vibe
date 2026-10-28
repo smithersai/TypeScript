@@ -25,7 +25,7 @@ class Counter {
 
   // A forked program.
   forked() {
-    const fiber = fork(() => this.bump())
+    const fiber = fork this.bump()
     return Fiber.join(fiber)
   }
 }

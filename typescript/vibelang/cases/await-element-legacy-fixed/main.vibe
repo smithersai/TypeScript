@@ -1,0 +1,24 @@
+// expect-result: {"values":[1,2,3,4,5],"raced":"block"}
+// await-element-legacy.fail repaired: vibelang --fix writes program(),
+// ready.await(), work(4), exited(), and the do { … } element, each keeping
+// its 0.0.10 meaning as a program by syntax (D394). It leaves join fiber,
+// the repair EK4609's note names, to the author: the operation no longer
+// interrupts a fiber it waits for when another element fails or wins.
+function work(n: number) {
+  sleep("1 millis")
+  return n
+}
+
+export function main() {
+  const program: number!! = Effect.succeed(1)
+  const fiber = fork work(2)
+  const ready = Deferred.make<number>()
+  Deferred.succeed(ready, 3)
+  const exited = Exit.succeed(5)
+  const values = await.all [program(), join fiber, ready.await(), work(4), exited()]
+  const raced = await.race [do {
+    sleep("1 millis")
+    "block"
+  }]
+  return { values, raced }
+}

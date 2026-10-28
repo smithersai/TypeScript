@@ -1,0 +1,32 @@
+module inputs {
+  import { Effect } from "effect"
+
+  export function counted(seen: string[]): Iterable<Effect.Effect<number>> {
+    return {
+      *[Symbol.iterator]() {
+        seen.push("iterate")
+        yield Effect.succeed(seen.length)
+      }
+    }
+  }
+}
+import { counted } from inputs
+
+// expect-result: {"made":[],"runs":[[1],[2],[3]],"settled":[1],"race":1,"any":1}
+// An await operation reads an operand that is not a literal when it runs,
+// on each run, as Effect.all does (Chapter 13, rule E7): building the
+// program reads nothing. Through 0.0.10 it drained the iterable where the
+// program was built and reused that reading on every run, so made held one
+// "iterate" and every run gave [1] (audit concurrency §5).
+export function main() {
+  const seen: string[] = []
+  const xs = sync((s: string[]) => counted(s), seen)
+  const held: number[]!! = await.all xs
+  const made = [...seen]
+  const runs = [held(), held(), held()]
+  const ys = sync((s: string[]) => counted(s), [] as string[])
+  const settled = await.allSettled ys
+  const race = await.race sync((s: string[]) => counted(s), [] as string[])
+  const any = await.any sync((s: string[]) => counted(s), [] as string[])
+  return { made, runs, settled: settled.map((r) => Result.getOrElse(r, () => 0)), race, any }
+}

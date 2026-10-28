@@ -1,0 +1,20 @@
+// expect-result: {"length":2,"again":4,"all":[5,"5 events"],"keyed":{"first":6,"count":6},"events":["after fork","fork operand","after fork(…)","fork(…) operand","element 1","field","after await.all"]}
+// fork's operand and every element of an await operation's literal are
+// programs by syntax, whatever their type (D322, D377). A plain call there,
+// events.push(…), runs on the new fiber, after the statement that forks it,
+// never where it is written. fork(e) with parentheses is the same keyword
+// while fork is the prelude's (D391). Each element runs on its own fiber,
+// in the order written, after the literal is built.
+export function main() {
+  const events: string[] = []
+  const forked = fork events.push("fork operand")
+  events.push("after fork")
+  const length = join forked
+  const parenthesized = fork(events.push("fork(…) operand"))
+  events.push("after fork(…)")
+  const again = join(parenthesized)
+  const all = await.all [events.push("element 1"), `${events.length} events`]
+  const keyed = await.all { first: events.push("field"), count: events.length }
+  events.push("after await.all")
+  return { length, again, all, keyed, events }
+}

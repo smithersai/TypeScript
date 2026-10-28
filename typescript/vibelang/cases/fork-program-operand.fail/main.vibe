@@ -1,0 +1,18 @@
+// expect: EK4613
+// A fork whose operand's type is a program, definitely an Effect or a
+// function with no required parameters, is EK4613: the new fiber would
+// succeed with that program unrun (D433). Through 0.0.10 each of these forks
+// ran the program; write fork job(), fork heartbeat(), or fork held().
+function heartbeat(): number!! {
+  sleep("1 millis")
+  return 7
+}
+
+export function main() {
+  const job = () => heartbeat()
+  const held: number!! = () => heartbeat()
+  const a = fork job
+  const b = fork(() => heartbeat())
+  const c = fork held
+  return [join a, join b, join c]
+}

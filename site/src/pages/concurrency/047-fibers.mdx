@@ -25,7 +25,7 @@ function buildDashboard() {
 
 `fork` starts a child fiber and returns its handle, here a `Fiber<string>`, without waiting for its result: unlike an ordinary call, the parent continues while the child waits. `join` waits for the child and returns its value or propagates its failure.
 
-`fork loadChart()`, or the call form `fork(loadChart())`, forks one call; `fork { ... }` forks a block. `join` takes a fiber, not a call: a call already runs and waits where it stands. `join(chart)` is `join chart`. A function you declare named `fork` or `join` makes the call form an ordinary call of it, and never changes `fork x` or `join x`. The prelude's `fork` and `join` are used only under those names: `const spawn = fork`, or an import that renames either, is EK4410. `await` means only the await operations below; `await chart` is EK4609, whose quick fix writes `join chart`.
+`fork loadChart()`, or the call form `fork(loadChart())`, forks one call; `fork { ... }` forks a block. The operand is a program by syntax: it runs on the new fiber, not where `fork` stands. An operand that is already a program, such as `job` after `const job = () => loadChart()`, is EK4613, since the fiber would give it back unrun: write `fork job()`. `join` takes a fiber, not a call: a call already runs and waits where it stands. `join(chart)` is `join chart`. A function you declare named `fork` or `join` makes the call form an ordinary call of it, and never changes `fork x` or `join x`. The prelude's `fork` and `join` are used only under those names: `const spawn = fork`, or an import that renames either, is EK4410. `await` means only the await operations below; `await chart` is EK4609, whose quick fix writes `join chart`.
 
 ## Awaiting completion as data
 
@@ -118,11 +118,11 @@ function combine() {
 // Output: Inventory: 18
 ```
 
-`await.all [...]`, like `Promise.all`, starts every element in its own fiber, waits for all, and keeps the array or object shape. An await operation's element is a program because of where it stands, so `rowCount()` starts in its fiber, not before the operation. If one fails, `await.all` interrupts the rest and propagates the failure, as `all` fails fast. For an expected-failure fallback, wrap it in `try` and recover in `catch`; defects and interruption still propagate.
+`await.all [...]`, like `Promise.all`, starts every element in its own fiber, waits for all, and keeps the array or object shape. An await operation's element is a program because of where it stands, so `rowCount()` starts in its fiber, not before the operation, and its result is the element's value. If one fails, `await.all` interrupts the rest and propagates the failure, as `all` fails fast. For an expected-failure fallback, wrap it in `try` and recover in `catch`; defects and interruption still propagate.
 
 `await.allSettled [...]` returns each success or typed failure as a `Result` and never fails with a typed error. Defects and interruption propagate exactly as in `Effect.all` with `mode: "result"`, and so does a typed failure beside a defect, as a defect; a cause with no typed failure still propagates. Wrap each program in `Effect.exit` to keep every outcome as data, mixed causes included.
 
-For fibers you already hold, use `join`: `const [name, count] = join [titleFiber, rowsFiber]`. An await operation also accepts a fiber or a `Deferred` as an element and waits for it without restarting it.
+For fibers you already hold, use `join`: `const [name, count] = join [titleFiber, rowsFiber]`. In an await operation, write `join fiber` or `ready.await()` as the element: an element that is a fiber or a `Deferred` is EK4609 or EK4610, and one that is already a program, such as `job` after `const job = () => rowCount()`, is EK4613. An operand that is not a literal, `await.all jobs`, runs each element by its type: an Effect runs, a function with no required parameters becomes a program, and any other element type, an `Exit` included, is EK4603.
 
 ## Racing events
 

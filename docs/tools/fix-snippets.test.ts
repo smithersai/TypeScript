@@ -86,3 +86,28 @@ test("moves a block after an Effect dual to its program parameter, idempotently"
     expect((await fixPage(result.markdown, join(temp, "second"), defaultCompiler())).changed).toBe(0)
   } finally { rmSync(temp, { recursive: true, force: true }) }
 }, 60000)
+
+test("migrates a fork of a function literal and checks its marked output, idempotently", async () => {
+  const temp = mkdtempSync(join(tmpdir(), "fix-snippets-fork-"))
+  try {
+    linkModules(temp)
+    const markdown = '```vibe\n// run: Console.log(value())\nfunction value() {\n  const f = fork(() => Effect.succeed(5))\n  return join f\n}\n// Output: 5\n```\n'
+    const result = await fixPage(markdown, join(temp, "first"), defaultCompiler())
+    expect(result.changed).toBe(1)
+    expect(result.markdown).toContain("const f = fork Effect.succeed(5)")
+    expect((await fixPage(result.markdown, join(temp, "second"), defaultCompiler())).changed).toBe(0)
+    await expect(fixPage(markdown.replace("Output: 5", "Output: 6"), join(temp, "wrong"), defaultCompiler())).rejects.toThrow("expected output changed")
+  } finally { rmSync(temp, { recursive: true, force: true }) }
+}, 60000)
+
+test("migrates a run marker's fork beside its block, on one line", async () => {
+  const temp = mkdtempSync(join(tmpdir(), "fix-snippets-run-"))
+  try {
+    linkModules(temp)
+    const markdown = '```vibe\n// run: const f = fork(() => value()); Console.log(join f)\nfunction value() { return 5 }\n// Output: 5\n```\n'
+    const result = await fixPage(markdown, join(temp, "first"), defaultCompiler())
+    expect(result.changed).toBe(1)
+    expect(result.markdown).toContain("// run: const f = fork value(); Console.log(join f)\n")
+    expect((await fixPage(result.markdown, join(temp, "second"), defaultCompiler())).changed).toBe(0)
+  } finally { rmSync(temp, { recursive: true, force: true }) }
+}, 60000)

@@ -73,10 +73,10 @@ function preview() {
 // run: provide TestClock.layer() { TestClock.setTime(Date.parse("2026-11-02T00:09:45Z")); const app = fork runApplication(); TestClock.adjust("31 seconds"); join app; Console.log("application stopped"); TestClock.adjust("10 minutes") }
 function runApplication() {
   const rule = Effect.fromResult(Cron.parse("*/10 * * * *", "UTC"))
-  const reports = fork(() => Effect.schedule(
+  const reports = fork Effect.schedule(
     () => Console.log("report tick"),
     Schedule.cron(rule)
-  ))
+  )
 
   sleep("30 seconds") // Stand-in for the application's active lifetime.
   reports.interrupt()

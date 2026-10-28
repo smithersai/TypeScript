@@ -36,7 +36,8 @@ func TestLegacySitesObserveCheckedDecisions(t *testing.T) {
 		{LegacyFactory, `export function uncalled(): number!! { const snapshot = 1; return () => snapshot }`, "export function uncalled(): number!! { const snapshot = 1; return () => snapshot }"},
 		{LegacyPipeLookAhead, `export function use() { return pipe(() => { sleep(1); return 1 }, Effect.retry({ times: 1 })) }`, "() => { sleep(1); return 1 }"},
 		{LegacyDualBlock, `export function use() { return withSpan("test") { sleep(1); return 1 } }`, "withSpan(\"test\") { sleep(1); return 1 }"},
-		{LegacyAwaitElement, `export function use() { return await.all [sleep(1)] }`, "sleep(1)"},
+		{LegacyAwaitElement, `export function use() { const held: number!! = Effect.succeed(1); return await.all [held] }`, "held"},
+		{LegacyForkOperand, `export function use() { const held: number!! = Effect.succeed(1); const f = fork held; return join f }`, "held"},
 		{LegacyOverloadRank, `declare function choose(x: number): number; declare function choose(x: number!!): number; function work(): number!! { sleep(1); return 1 }; export function use() { return choose(work()) }`, "choose(work())"},
 		{LegacyOverloadForm, `declare function choose(x: number!!): number; declare function choose(x: () => number): number; export function use() { return choose(() => 1) }`, "() => 1"},
 	} {
@@ -81,6 +82,20 @@ func TestLegacySitesObserveCheckedDecisions(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// S3: a keyword operand whose meaning syntax keeps, such as a call D147
+// passed by name, is a syntax-owned region now: neither a by-name decision
+// nor an awaitElement or forkOperand site.
+func TestLegacySitesSkipKeywordOperandsThatKeepTheirMeaning(t *testing.T) {
+	source := `function work(): number!! { sleep(1); return 1 }; export function use() { const f = fork work(); return [join f, await.all [work(), do { work() }], await.all { a: work() }] }`
+	p, file, _, _ := editorProgram(t, source)
+	p.GetSemanticDiagnostics(t.Context(), file)
+	c, done := p.GetTypeCheckerForFile(t.Context(), file)
+	defer done()
+	if sites := LegacySites(c, file); len(sites) != 0 {
+		t.Fatalf("recorded syntax-owned keyword operands: %+v", sites)
 	}
 }
 

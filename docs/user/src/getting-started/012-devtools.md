@@ -94,12 +94,14 @@ Each entry gives the condition and the repair. The examples and language-service
 | EK4501 | A module method is read as a value through an instance. | Call `value.method(…)`, or use the module's function explicitly when passing it as a value. |
 | EK4601 | `await` precedes a call that already runs and waits. | Remove `await`; for concurrency, fork the call and join its fiber. |
 | EK4602 | `await` tries to wait for a Promise in VibeLang code. | Adapt it in `try(async () => …)` or `sync(async () => …)`. |
-| EK4603 | Plain `await` has an unsupported operand. | Call a program to run it; use `join` for fibers or the `await.all`, `await.allSettled`, `await.race`, and `await.any` forms for groups. |
+| EK4603 | Plain `await` has an unsupported operand, or an await operation's operand that is not a literal holds elements that are not programs, such as `Exit` values. | Call a program to run it; use `join` for fibers or the `await.all`, `await.allSettled`, `await.race`, and `await.any` forms for groups. For an operand, give its elements a program type, or write an array literal. |
 | EK4604 | A hatch uses JavaScript `await` in a function that is not `async`. | Make the hatch's function `async`. |
-| EK4608 | `await.race` or `await.any` receives an object. | Pass an array of programs, fibers, or deferreds instead. |
-| EK4610 | Plain `await` receives a Deferred. | Wait with `deferred.await()`. |
+| EK4608 | `await.race` or `await.any` receives an object. | Pass an array instead. |
+| EK4609 | Plain `await` receives a fiber, or an await operation's element is a fiber. | Wait with `join fiber`, as the element too. |
+| EK4610 | Plain `await` receives a Deferred, or an await operation's element is a Deferred. | Wait with `deferred.await()`, as the element too. |
 | EK4611 | `join` receives something other than a Fiber or a collection of fibers. | Join fibers; call programs, use `deferred.await()`, or adapt Promises in a hatch. |
 | EK4612 | A TypeScript hatch contains VibeLang `join`. | Move the join outside the hatch. |
+| EK4613 | A `fork` operand or an await operation's element is already a program, an Effect or a function with no required parameters, so the new fiber or the element would give it back unrun. | Call it: `fork job()`, `await.all [job()]`. For a function literal, write its body: `fork heartbeat()`, `fork { … }`, or a `do { … }` element. |
 | EK4819 | Registered for `yield effect` in a TypeScript Effect generator; currently not emitted in `.ts` files. | In TypeScript use `yield* effect`; in VibeLang write ordinary calls instead of `Effect.gen`. |
 | EK4820 | Registered for a non-returning `yield* effect` whose success type is `never`; currently not emitted in `.ts` files. | In TypeScript write `return yield* effect` so control flow narrows; in VibeLang call the program directly. |
 | EK4838 | A fiber escapes the region that owns it: it is returned, stored outside the region or in a collection, passed to another call, or captured, and the region interrupts it on exit. An error no setting lowers. | Use `Effect.forkScoped(() => p())` for the caller's scope, `forkIn(scope, () => p())` for a scope the caller holds, or `detach(() => p())` with an explicit shutdown strategy ([fiber lifetimes](../concurrency/047-fibers.md)). |

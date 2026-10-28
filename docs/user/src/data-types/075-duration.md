@@ -81,7 +81,7 @@ Comparison uses the elapsed span, whatever the constructor. Compare durations di
 ## Adding and scaling durations
 
 ```vibe
-// run: provide TestClock.layer() { TestClock.setTime(0); const waiting = fork(() => waitBeforeRetry()); TestClock.adjust("9 seconds"); join waiting; Console.log(doubled.toMillis(), Clock.currentTimeMillis()) }
+// run: provide TestClock.layer() { TestClock.setTime(0); const waiting = fork waitBeforeRetry(); TestClock.adjust("9 seconds"); join waiting; Console.log(doubled.toMillis(), Clock.currentTimeMillis()) }
 const attempt = Duration.seconds(4)
 const overhead = Duration.millis(500)
 const total = attempt.sum(overhead)

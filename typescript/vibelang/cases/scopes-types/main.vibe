@@ -36,18 +36,18 @@ export function both() {
 
 // A block-owned fork adds its program's requirements, not Scope.
 export function audited() {
-  fork(() => Audit.record("start"))
+  fork Audit.record("start")
   return "audited"
 }
 
 // A forked program that acquires without using still needs the caller's Scope.
 export function forkedLease() {
-  fork(() => lease())
+  fork lease()
   return "forked"
 }
 
 // An arrow's expression body owns its fork too (D353): Scope leaves R.
-export const background = () => join fork(() => Audit.record("background"))
+export const background = () => join fork(Audit.record("background"))
 
 // Effect.forkScoped keeps Effect's contract inside a region too.
 export function scopedFork() {

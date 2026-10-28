@@ -336,6 +336,19 @@ func holdsProgram(c *checker.Checker, expr *ast.Node) bool {
 	if decl == nil || !ast.IsPropertyAssignment(decl) || decl.Initializer() != node {
 		return false
 	}
+	// An await operation's element is a program by syntax, never a held
+	// field (D377): its call runs inside that program.
+	if awaitLiteralOperation(node) != nil {
+		return false
+	}
+	return holdsField(c, node, decl)
+}
+
+// holdsField recognizes D265's contextual Effect field: node, the
+// initializer of decl, a property assignment, holds its program. The legacy
+// recorder also asks it about an await operation's fields, which held their
+// calls through VibeLang 0.0.10.
+func holdsField(c *checker.Checker, node, decl *ast.Node) bool {
 	// D265 fields keep both established context and the active generic candidate (crash fix).
 	if isEffectType(c, c.GetContextualTypeForObjectLiteralElement(decl, checker.ContextFlagsSignature)) {
 		return true

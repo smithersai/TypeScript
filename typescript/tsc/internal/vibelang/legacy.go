@@ -33,7 +33,7 @@ const (
 	LegacyDualBlock      LegacyKind = "dualBlock"
 	LegacyOverloadRank   LegacyKind = "overloadRank"
 	LegacyOverloadForm   LegacyKind = "overloadForm"
-	LegacyAwaitElement   LegacyKind = "awaitElement"
+	LegacyAwaitElement   LegacyKind = "awaitElement" // an await element whose meaning S3 changed (keyword_migration.go)
 )
 
 // LegacySite records a source range (UTF-8 byte offsets), the old evaluation
@@ -102,7 +102,9 @@ func LegacySites(c *checker.Checker, file *ast.SourceFile) []LegacySite {
 		if call, _ := ownerCall(n); call != nil {
 			sig = a.candidateOf(call)
 		}
-		if state := a.conversions[n]; state != nil {
+		// A keyword operand is a program by syntax (D322), not a D147
+		// decision; legacyKeywordSites records those whose meaning changed.
+		if state := a.conversions[n]; state != nil && a.keywordFormOf(n) == nil {
 			selected := a.finalConversion(n) == convertByName
 			anyByName := selected
 			for _, conv := range state.byCandidate {
@@ -143,21 +145,6 @@ func LegacySites(c *checker.Checker, file *ast.SourceFile) []LegacySite {
 				}
 				if site := a.legacyPipeSite(file, n); site != nil {
 					sites = append(sites, *site)
-				}
-				if awaitOperationNames[fiberHelper(n)] != "" {
-					legacyAwaitElements(a, n, func(element *ast.Node) {
-						boundary, repr := "eager-element", "value"
-						if a.finalConversion(ast.SkipParentheses(element)) == convertByName {
-							boundary, repr = "deferred-expression", "Effect"
-						} else if isLambda(ast.SkipParentheses(element)) {
-							boundary, repr = "function-body", "Effect"
-						} else if t := c.GetTypeAtLocation(element); isEffectType(c, t) {
-							repr = "Effect"
-						} else if isAwaitable(c, t, 0) {
-							repr = "awaitable"
-						}
-						add(element, LegacyAwaitElement, boundary, repr, own, true)
-					})
 				}
 				if ranks := legacyRanks(c)[n]; len(ranks) > 0 && slices.ContainsFunc(ranks, func(candidate legacyRank) bool { return candidate.rank < 0 || candidate.rank != ranks[0].rank }) {
 					site := add(n, LegacyOverloadRank, "by-name-ranked-call", "selected-overload", own, true)
@@ -220,6 +207,15 @@ func LegacySites(c *checker.Checker, file *ast.SourceFile) []LegacySite {
 		return false
 	}
 	file.AsNode().ForEachChild(visit)
+	// S3: an operand of fork or an await operation's literal is a program by
+	// syntax. Record each whose 0.0.10 reading differed (keyword_migration.go).
+	for _, site := range a.legacyKeywordSites(file) {
+		kind := LegacyAwaitElement
+		if awaitOperationNames[fiberHelper(site.call)] == "" {
+			kind = LegacyForkOperand
+		}
+		add(ast.SkipParentheses(site.operand), kind, site.reading.boundary, site.reading.representation, c.GetResolvedSignature(site.call), true)
+	}
 	slices.SortFunc(sites, func(x, y LegacySite) int {
 		if d := cmp.Compare(x.Span.Pos(), y.Span.Pos()); d != 0 {
 			return d
@@ -253,30 +249,6 @@ func legacyByNameKind(file *ast.SourceFile, n *ast.Node) LegacyKind {
 		}
 	}
 	return LegacyByNameArgument
-}
-
-func legacyAwaitElements(a *analyzer, call *ast.Node, cb func(*ast.Node)) {
-	if len(call.Arguments()) == 0 {
-		return
-	}
-	operand := ast.SkipParentheses(call.Arguments()[0])
-	switch operand.Kind {
-	case ast.KindArrayLiteralExpression:
-		for _, element := range operand.AsArrayLiteralExpression().Elements.Nodes {
-			if !ast.IsSpreadElement(element) && element.Kind != ast.KindOmittedExpression {
-				cb(element)
-			}
-		}
-	case ast.KindObjectLiteralExpression:
-		for _, property := range operand.AsObjectLiteralExpression().Properties.Nodes {
-			if ast.IsPropertyAssignment(property) {
-				cb(property.Initializer())
-			}
-			if ast.IsShorthandPropertyAssignment(property) {
-				cb(property.Name())
-			}
-		}
-	}
 }
 
 // legacyPipeSites is the pipe part of the recorder, for normal diagnostics

@@ -17,7 +17,7 @@ func TestProvideBlockKeepsProviderWhenScoped(t *testing.T) {
 	t.Parallel()
 	for _, body := range []string{
 		`using value = null; return 1`,
-		`const child = fork(() => Effect.succeed(1)); return 1`,
+		`const child = fork Effect.succeed(1); return 1`,
 	} {
 		t.Run(body, func(t *testing.T) {
 			t.Parallel()

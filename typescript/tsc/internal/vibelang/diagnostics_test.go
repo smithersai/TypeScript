@@ -91,12 +91,14 @@ func TestRegistryMatchesSpec(t *testing.T) {
 		}
 		want = append(want, EK1023.Code)
 	}
-	// D432 defines EK4410 in Chapter 28's revision bullets.
-	if !slices.Contains(want, EK4410.Code) {
-		if !strings.Contains(string(spec), "- **EK4410**:") {
-			t.Fatal("EK4410 has no Chapter 28 definition")
+	// D394, D432 and D433 define EK4613 and EK4410 in the same bullets.
+	for _, m := range []*Message{EK4410, EK4613} {
+		if !slices.Contains(want, m.Code) {
+			if !strings.Contains(string(spec), "- **"+m.String()+"**:") {
+				t.Fatalf("%s has no Chapter 28 definition", m)
+			}
+			want = append(want, m.Code)
 		}
-		want = append(want, EK4410.Code)
 	}
 	var got []int32
 	for code := range registry {

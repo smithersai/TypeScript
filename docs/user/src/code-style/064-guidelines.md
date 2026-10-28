@@ -5,7 +5,7 @@ Run a VibeLang application through its platform runtime, keep its lifetime in `m
 ## Running application entry points
 
 ```vibe
-// run: provide TestClock.layer() { const worker = fork(() => main()); TestClock.adjust("2 seconds"); worker.interrupt() }
+// run: provide TestClock.layer() { const worker = fork main(); TestClock.adjust("2 seconds"); worker.interrupt() }
 // main.vibe
 
 export function main() {

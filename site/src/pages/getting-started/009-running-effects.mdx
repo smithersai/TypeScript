@@ -109,7 +109,7 @@ Effect.runPromise {
 // Output: true
 ```
 
-The empty logger layer keeps this heartbeat quiet. `Effect.runFork` returns a running `Fiber` to join, observe, or interrupt; `Fiber.interrupt` waits for its cleanup. Here a second runner acts as an external owner; in application logic, use block-owned `fork(() => heartbeat())` and let the enclosing block bound its lifetime.
+The empty logger layer keeps this heartbeat quiet. `Effect.runFork` returns a running `Fiber` to join, observe, or interrupt; `Fiber.interrupt` waits for its cleanup. Here a second runner acts as an external owner; in application logic, use block-owned `fork heartbeat()` and let the enclosing block bound its lifetime.
 
 ## Select an application boundary
 

@@ -2,7 +2,8 @@ import { Deferred, Effect, Fiber, Scope } from "effect"
 
 // The fiber forms of a .vibe file (D166-D170). The parser writes `await x`
 // as $await(x), `select { ... }` as a call of $select, and `for concurrent`
-// as a call of $forConcurrent; `fork x` is the prelude's fork.
+// as a call of $forConcurrent; `fork x` is the prelude's fork, whose operand
+// the compiler passes as the program its syntax builds (D322, D391).
 
 /** What `await` waits for: a Fiber or a Deferred, or an array or object of them. */
 export type Awaitable = Fiber.Fiber<any, any> | Deferred.Deferred<any, any>
@@ -132,14 +133,22 @@ function joinParts(value: object, fibers: Array<Fiber.Fiber<unknown, unknown>>):
 }
 
 // ---------------------------------------------------------------------------
-// D196: the await operations. The parser writes `await.all x` as
-// $awaitAll(x), and likewise allSettled, race, and any. Each element is a
-// program passed by name (D147), started in its own fiber, or a Fiber or a
-// Deferred already running, which is waited for, not restarted. Each behaves
-// as the Promise method of the same name.
+// D196, D377, D394: the await operations. The parser writes `await.all x` as
+// $awaitAll(x), and likewise allSettled, race, and any. Every element is a
+// program: the compiler passes each element of an array or object literal as
+// the program its syntax builds, and an element of any other operand runs by
+// its static type, so an Effect runs and a function with no required
+// parameters becomes a program (D394). The operations adopt nothing at run
+// time: each element runs on its own fiber, and its success value is its
+// result, never run or waited for again. Each operation reads its operand
+// when it runs, afresh on each run, as Effect.all does (Chapter 13, rule E7).
+// Each behaves as the Promise method of the same name.
 
 /** An element of an await operation's operand. */
-// A Deferred is invariant in its error type, and any is not assignable to
+// The declaration admits a Fiber and a Deferred only so that the compiler's
+// EK4609 or EK4610 is the one error at such an element; no program that
+// compiles passes one, and the operations do not wait for one (D394). A
+// Deferred is invariant in its error type, and any is not assignable to
 // never, so a Deferred that cannot fail needs its own member.
 export type AwaitElement =
   | Effect.Effect<any, any, any>
@@ -147,7 +156,9 @@ export type AwaitElement =
   | Deferred.Deferred<any, any>
   | Deferred.Deferred<any, never>
 
-// The Effect that waits for an element.
+// The Effect an element's type stands for. A Fiber or a Deferred, which the
+// compiler rejects, keeps the type of waiting for it, so the operation's type
+// stays what the repair, join f or d.await(), gives it.
 type ElementEffect<T> =
   T extends Fiber.Fiber<infer A, infer E> ? Effect.Effect<A, E>
   : T extends Deferred.Deferred<infer A, infer E> ? Effect.Effect<A, E>
@@ -177,117 +188,88 @@ type RaceReturn<Arg> = Effect.Effect<
   Effect.Services<RaceElement<Arg>>
 >
 
+type Elements =
+  | ReadonlyArray<Effect.Effect<unknown, unknown, unknown>>
+  | Record<string, Effect.Effect<unknown, unknown, unknown>>
+
 const isIterable = (u: unknown): u is Iterable<unknown> =>
-  u !== null && (typeof u === "object" || typeof u === "function") && Symbol.iterator in u && !Effect.isEffect(u)
+  u !== null && (typeof u === "object" || typeof u === "function") && Symbol.iterator in u
 
-const elementEffect = (element: unknown): Effect.Effect<unknown, unknown, unknown> =>
-  Fiber.isFiber(element)
-    ? Fiber.join(element)
-    : Deferred.isDeferred(element)
-    ? Deferred.await(element)
-    : element as Effect.Effect<unknown, unknown, unknown>
-
-// The operand's elements, read once: an iterable may not be read twice.
-const operandOf = (operand: unknown): {
-  readonly effects: ReadonlyArray<Effect.Effect<unknown, unknown, unknown>> | Record<string, Effect.Effect<unknown, unknown, unknown>>
-  readonly held: ReadonlyArray<Fiber.Fiber<unknown, unknown> | undefined>
-} => {
-  if (Array.isArray(operand) || isIterable(operand)) {
-    const elements = Array.from(operand as Iterable<unknown>)
-    return { effects: elements.map(elementEffect), held: elements.map((e) => Fiber.isFiber(e) ? e : undefined) }
-  }
-  const entries = Object.entries(operand as Record<string, unknown>)
-  return {
-    effects: Object.fromEntries(entries.map(([key, e]) => [key, elementEffect(e)])),
-    held: entries.map(([, e]) => Fiber.isFiber(e) ? e : undefined)
-  }
-}
+// The operand's elements, read once by the run that calls this: an iterable
+// is drained once, and an object's own enumerable keys are read in order.
+const elementsOf = (operand: unknown): Elements =>
+  Array.isArray(operand) || isIterable(operand)
+    ? Array.from(operand as Iterable<Effect.Effect<unknown, unknown, unknown>>)
+    : Object.fromEntries(Object.entries(operand as Record<string, Effect.Effect<unknown, unknown, unknown>>))
 
 // Effect.all returns a record's keys in the order its effects finish; an
 // await operation keeps the order written, as await does (D167).
 const inOrderWritten = (
-  effects: ReadonlyArray<unknown> | Record<string, unknown>,
+  effects: Elements,
   all: Effect.Effect<any, any, any>
 ): Effect.Effect<any, any, any> =>
   Array.isArray(effects)
     ? all
     : Effect.map(all, (result: Record<string, unknown>) => Object.fromEntries(Object.keys(effects).map((key) => [key, result[key]])))
 
-// Interrupts the fibers the operand held, except the one at index keep.
-// Fiber.interruptAll signals every fiber before it waits for any to finish,
-// so one fiber's cleanup can wait for a sibling's (D167, D196). Interrupting
-// them one by one, each waited for in turn, never signals that sibling.
-const interruptHeld = (held: ReadonlyArray<Fiber.Fiber<unknown, unknown> | undefined>, keep = -1) =>
-  Fiber.interruptAll(held.filter((f, index): f is Fiber.Fiber<unknown, unknown> => f !== undefined && index !== keep))
-
 /**
- * `await.all x`: waits for every element, keeping the shape of an array,
- * tuple, or object (Effect.all with unbounded concurrency; for an object,
- * the Await Dictionary proposal's Promise.allKeyed). When one fails, the
- * rest are interrupted, fibers the operand held included, and the failure
- * propagates.
+ * `await.all x`: runs every element on its own fiber and waits for all of
+ * them, keeping the shape of an array, tuple, or object (Effect.all with
+ * unbounded concurrency; for an object, the Await Dictionary proposal's
+ * Promise.allKeyed). When one fails, the rest are interrupted and the
+ * failure propagates.
  */
-// Not a const type parameter: an element passed by name, such as a template
-// literal, would infer its literal type, which its program's type does not
+// Not a const type parameter: an element program, such as a template
+// literal's, would infer its literal type, which its program's type does not
 // match. The [] in the constraint keeps an array literal a tuple.
 export function $awaitAll<Arg extends Iterable<AwaitElement> | readonly [] | Record<string, AwaitElement>>(
   operand: Arg
 ): AllReturn<Arg, { readonly concurrency: "unbounded" }>
 export function $awaitAll(operand: unknown): any {
-  const { effects, held } = operandOf(operand)
-  return Effect.onError(inOrderWritten(effects, Effect.all(effects as any, { concurrency: "unbounded" })), () => interruptHeld(held))
+  return Effect.suspend(() => {
+    const effects = elementsOf(operand)
+    return inOrderWritten(effects, Effect.all(effects as any, { concurrency: "unbounded" }))
+  })
 }
 
 /**
- * `await.allSettled x`: waits for every element and returns each outcome as
- * a Result, keeping the shape (Effect.all with mode "result"). It never
- * fails.
+ * `await.allSettled x`: runs every element and returns each outcome as a
+ * Result, keeping the shape (Effect.all with mode "result"). It never fails
+ * with a typed error.
  */
 export function $awaitAllSettled<Arg extends Iterable<AwaitElement> | readonly [] | Record<string, AwaitElement>>(
   operand: Arg
 ): AllReturn<Arg, { readonly concurrency: "unbounded"; readonly mode: "result" }>
 export function $awaitAllSettled(operand: unknown): any {
-  const { effects, held } = operandOf(operand)
-  return Effect.onError(
-    inOrderWritten(effects, Effect.all(effects as any, { concurrency: "unbounded", mode: "result" })),
-    () => interruptHeld(held)
-  )
+  return Effect.suspend(() => {
+    const effects = elementsOf(operand)
+    return inOrderWritten(effects, Effect.all(effects as any, { concurrency: "unbounded", mode: "result" }))
+  })
 }
 
 /**
  * `await.race x`: the first element to finish wins, success or failure
- * (Effect.raceFirst over any number). The others are interrupted, fibers the
- * operand held included. Of elements that are ready at once, the first
- * written wins. An empty race never finishes, as Promise.race([]) does not.
+ * (Effect.raceFirst over any number). The others are interrupted. Of
+ * elements that are ready at once, the first written wins. An empty race
+ * never finishes, as Promise.race([]) does not.
  */
 export function $awaitRace<Arg extends Iterable<AwaitElement>>(operand: Arg): RaceReturn<Arg>
 export function $awaitRace(operand: unknown): any {
-  const { effects, held } = operandOf(operand)
-  const programs = (effects as ReadonlyArray<Effect.Effect<unknown, unknown, unknown>>).map((effect) => () => effect)
-  if (programs.length === 0) return Effect.never
-  return Effect.flatMap(
-    Effect.onExit($select(false, ...programs), (exit) => exit._tag === "Success" ? interruptHeld(held, exit.value.index) : interruptHeld(held)),
-    (selected) => Effect.succeed(selected.value)
-  )
+  return Effect.suspend(() => {
+    const effects = elementsOf(operand) as ReadonlyArray<Effect.Effect<unknown, unknown, unknown>>
+    if (effects.length === 0) return Effect.never
+    return Effect.map($select(false, ...effects.map((effect) => () => effect)), (selected) => selected.value)
+  })
 }
 
 /**
  * `await.any x`: the first element to succeed wins (Effect.raceAll); early
  * failures are ignored until one succeeds or every element has failed. The
- * others are interrupted, fibers the operand held included.
+ * others are interrupted.
  */
 export function $awaitAny<Arg extends Iterable<AwaitElement>>(operand: Arg): RaceReturn<Arg>
 export function $awaitAny(operand: unknown): any {
-  const { effects, held } = operandOf(operand)
-  let winner = -1
-  return Effect.onExit(
-    Effect.raceAll(effects as ReadonlyArray<Effect.Effect<unknown, unknown, unknown>>, {
-      onWinner: ({ index }) => {
-        winner = index
-      }
-    }),
-    (exit) => interruptHeld(held, exit._tag === "Success" ? winner : -1)
-  )
+  return Effect.suspend(() => Effect.raceAll(elementsOf(operand) as ReadonlyArray<Effect.Effect<unknown, unknown, unknown>>))
 }
 
 type Program = () => Effect.Effect<any, any, any>
@@ -315,7 +297,8 @@ export const $select = <const D extends boolean, const P extends ReadonlyArray<P
   Effect.uninterruptibleMask((restore) =>
     Effect.gen(function*() {
       const fibers: Array<Fiber.Fiber<unknown, unknown>> = []
-      // Every loser is signalled before any is waited for, as interruptHeld does.
+      // Every loser is signalled before any is waited for, so one loser's
+      // cleanup can wait for another's (D167, D196).
       const interruptOthers = (winner: number) => Fiber.interruptAll(fibers.filter((_, index) => index !== winner))
       for (let index = 0; index < programs.length; index++) {
         const fiber = yield* Effect.forkChild(Effect.suspend(programs[index]), { startImmediately: true })

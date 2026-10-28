@@ -88,7 +88,7 @@ function heartbeat() {
 
 function serve(port: number) {
   using server = Http.listen(port)
-  fork(() => heartbeat())          // stopped before the server closes
+  fork heartbeat()          // stopped before the server closes
   return server.awaitShutdown()
 }
 
@@ -104,7 +104,7 @@ function sendProgressEmail(id: string) {
 
 // NOTE: the proposal shows this as a fragment; it is wrapped in reportWithProgress.
 function reportWithProgress(id: string) {
-  const pending = fork(() => buildReport(id))
+  const pending = fork buildReport(id)
   sendProgressEmail(id)
   const report = Fiber.join(pending)      // waits for it; fails if it failed
   return report

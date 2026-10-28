@@ -17,6 +17,6 @@ export function main() {
   return {
     all: await.all [answered(1), answered(2)],
     keyed: await.all { first: answered(3), second: answered(4) },
-    held: await.all [running, answered(6)]
+    held: await.all [join running, answered(6)]
   }
 }

@@ -64,16 +64,18 @@ test("legacy await accepts Deferred leaves, including nested runtime collections
   }))
 })
 
-test("await.all starts programs concurrently and preserves mixed operand order", async () => {
+test("await.all runs every element program concurrently and keeps the order written", async () => {
   await Effect.runPromise(Effect.gen(function*() {
     const started = yield* Deferred.make<void>()
     const later = yield* Deferred.make<number>()
     const fiber = yield* Effect.forkChild(Effect.succeed("fiber"))
+    // The compiler passes each literal element as a program; a fiber element
+    // is EK4609, whose repair writes join f, which is Fiber.join (D394).
     const all = yield* Effect.forkChild($awaitAll({
       slow: Deferred.await(later),
       signal: Effect.andThen(Deferred.succeed(started, undefined), Effect.succeed("effect")),
-      fiber,
-      deferred: started
+      fiber: Fiber.join(fiber),
+      deferred: Deferred.await(started)
     }))
     yield* Deferred.await(started)
     yield* Deferred.succeed(later, 42)
@@ -83,20 +85,41 @@ test("await.all starts programs concurrently and preserves mixed operand order",
   }))
 })
 
-test("await.all reads a single-use iterable once and remains rerunnable", async () => {
+test("an element's success value is its result, never run again", async () => {
+  // D394: the operations adopt nothing, so a program whose value is an Exit or
+  // an Effect gives that value back as data.
+  const exit = Exit.fail("data")
+  const program = Effect.die("never run")
+  expect(await Effect.runPromise($awaitAll([Effect.succeed(exit), Effect.succeed(program)]))).toEqual([exit, program])
+  expect(await Effect.runPromise($awaitRace([Effect.succeed(exit)]))).toBe(exit)
+  expect(await Effect.runPromise($awaitAny([Effect.succeed(program)]))).toBe(program)
+})
+
+// Chapter 13, rule E7: an await operation reads an iterable operand when it
+// starts, on each run. Through 0.0.10 the operations drained the iterable
+// when the program was made and reused that one reading on every run, so a
+// held program ran a snapshot (audit concurrency §5). Effect.all, which
+// await.all is, traverses its iterable inside each run.
+test("await.all reads its operand on each run, never when the program is made", async () => {
   let iterations = 0
   let runs = 0
   const values = {
     *[Symbol.iterator]() {
-      expect(++iterations).toBe(1)
+      iterations++
       yield Effect.sync(() => ++runs)
-      yield Effect.succeed("second")
+      yield Effect.succeed(iterations)
     }
   }
   const all = $awaitAll(values)
-  expect(runs).toBe(0)
-  expect(await Effect.runPromise(all)).toEqual([1, "second"])
-  expect(await Effect.runPromise(all)).toEqual([2, "second"])
+  expect(iterations).toBe(0)
+  expect(await Effect.runPromise(all)).toEqual([1, 1])
+  expect(await Effect.runPromise(all)).toEqual([2, 2])
+  expect(iterations).toBe(2)
+  // A one-shot iterable is drained by the first run; a later run reads what
+  // is left, as a second Effect.all over the same iterator would.
+  const once = $awaitAll((function*() { yield Effect.succeed("first") })())
+  expect(await Effect.runPromise(once)).toEqual(["first"])
+  expect(await Effect.runPromise(once)).toEqual([])
 })
 
 for (const [name, wait, expected] of [
@@ -105,17 +128,18 @@ for (const [name, wait, expected] of [
   ["await.race", $awaitRace, 3],
   ["await.any", $awaitAny, 3]
 ] as const) {
-  test(`${name} accepts a callable iterable and reads it once`, async () => {
+  test(`${name} accepts a callable iterable and reads it once per run`, async () => {
     let iterations = 0
     let runs = 0
     const values = Object.assign(() => {}, {
       *[Symbol.iterator]() {
-        expect(++iterations).toBe(1)
+        iterations++
         yield Effect.sync(() => { runs++; return 3 })
         yield Effect.succeed(7)
       }
     })
     const waiting = wait(values)
+    expect(iterations).toBe(0)
     expect(runs).toBe(0)
     expect(await Effect.runPromise(waiting)).toEqual(expected)
     expect(iterations).toBe(1)
@@ -123,16 +147,16 @@ for (const [name, wait, expected] of [
   })
 }
 
-test("await.all failure closes held fibers before propagating", async () => {
+// An element that never finishes on its own, whose cleanup records closed.
+const pendingElement = (started: Deferred.Deferred<void>, closed: () => void) =>
+  Effect.ensuring(Effect.andThen(Deferred.succeed(started, undefined), Effect.never), Effect.sync(closed))
+
+test("await.all failure interrupts the other elements before propagating", async () => {
   await Effect.runPromise(Effect.gen(function*() {
     const started = yield* Deferred.make<void>()
     let closed = false
-    const held = yield* Effect.forkChild(Effect.ensuring(
-      Effect.andThen(Deferred.succeed(started, undefined), Effect.never),
-      Effect.sync(() => { closed = true })
-    ))
-    yield* Deferred.await(started)
-    expect(yield* Effect.exit($awaitAll([held, Effect.fail("failed")]))).toEqual(Exit.fail("failed"))
+    const failing = Effect.andThen(Deferred.await(started), Effect.fail("failed"))
+    expect(yield* Effect.exit($awaitAll([pendingElement(started, () => { closed = true }), failing]))).toEqual(Exit.fail("failed"))
     expect(closed).toBe(true)
   }))
 })
@@ -140,11 +164,11 @@ test("await.all failure closes held fibers before propagating", async () => {
 test("await.allSettled keeps success and expected failure Results in written order", async () => {
   await Effect.runPromise(Effect.gen(function*() {
     const ready = yield* Deferred.make<number>()
-    const held = yield* Effect.forkChild(Effect.fail("held failure"))
+    const failed = yield* Effect.forkChild(Effect.fail("joined failure"))
     yield* Deferred.succeed(ready, 3)
-    const values = yield* $awaitAllSettled({ ready, failed: Effect.fail("bad"), held, ok: Effect.succeed(4) })
-    expect(values).toEqual({ ready: Result.succeed(3), failed: Result.fail("bad"), held: Result.fail("held failure"), ok: Result.succeed(4) })
-    expect(Object.keys(values)).toEqual(["ready", "failed", "held", "ok"])
+    const values = yield* $awaitAllSettled({ ready: Deferred.await(ready), failed: Effect.fail("bad"), joined: Fiber.join(failed), ok: Effect.succeed(4) })
+    expect(values).toEqual({ ready: Result.succeed(3), failed: Result.fail("bad"), joined: Result.fail("joined failure"), ok: Result.succeed(4) })
+    expect(Object.keys(values)).toEqual(["ready", "failed", "joined", "ok"])
     expect(yield* $awaitAllSettled([])).toEqual([])
   }))
 })
@@ -158,17 +182,12 @@ test("await.race picks the first ready operand without starting later programs",
 })
 
 for (const success of [true, false]) {
-  test(`await.race waits for a delayed ${success ? "success" : "failure"} and closes held losers`, async () => {
+  test(`await.race waits for a delayed ${success ? "success" : "failure"} and interrupts the losers`, async () => {
     await Effect.runPromise(Effect.gen(function*() {
       const started = yield* Deferred.make<void>()
       let closed = false
-      const held = yield* Effect.forkChild(Effect.ensuring(
-        Effect.andThen(Deferred.succeed(started, undefined), Effect.never),
-        Effect.sync(() => { closed = true })
-      ))
-      yield* Deferred.await(started)
-      const winner = Effect.andThen(Effect.yieldNow, success ? Effect.succeed(42) : Effect.fail("bad"))
-      expect(yield* Effect.exit($awaitRace([held, winner]))).toEqual(success ? Exit.succeed(42) : Exit.fail("bad"))
+      const winner = Effect.andThen(Deferred.await(started), success ? Effect.succeed(42) : Effect.fail("bad"))
+      expect(yield* Effect.exit($awaitRace([pendingElement(started, () => { closed = true }), winner]))).toEqual(success ? Exit.succeed(42) : Exit.fail("bad"))
       expect(closed).toBe(true)
     }))
   })
@@ -183,18 +202,12 @@ test("an empty await.race stays pending until interrupted", async () => {
   }))
 })
 
-test("await.any ignores early failures, keeps the winning fiber, and closes held losers", async () => {
+test("await.any ignores early failures and interrupts the losers", async () => {
   await Effect.runPromise(Effect.gen(function*() {
     const started = yield* Deferred.make<void>()
     let closed = false
-    const loser = yield* Effect.forkChild(Effect.ensuring(
-      Effect.andThen(Deferred.succeed(started, undefined), Effect.never),
-      Effect.sync(() => { closed = true })
-    ))
-    yield* Deferred.await(started)
-    const winner = yield* Effect.forkChild(Effect.succeed(42))
-    expect(yield* $awaitAny([Effect.fail("early"), loser, winner])).toBe(42)
-    expect(winner.pollUnsafe()).toEqual(Exit.succeed(42))
+    const winner = Effect.andThen(Deferred.await(started), Effect.succeed(42))
+    expect(yield* $awaitAny([Effect.fail("early"), pendingElement(started, () => { closed = true }), winner])).toBe(42)
     expect(closed).toBe(true)
     const exit = yield* Effect.exit($awaitAny([Effect.fail("a"), Effect.fail("b")]))
     expect(Exit.isFailure(exit) && exit.cause.reasons.filter(Cause.isFailReason).map(r => r.error).sort()).toEqual(["a", "b"])
@@ -270,45 +283,53 @@ test("forkIn follows its supplied scope; detach survives the creating fiber", as
   }))
 })
 
+test("join: interruption waits for the joined fibers' cleanup", async () => {
+  const events: string[] = []
+  await Effect.runPromise(Effect.gen(function*() {
+    const started = yield* Deferred.make<void>()
+    const held = yield* Effect.forkChild(Effect.ensuring(
+      Effect.andThen(Deferred.succeed(started, undefined), Effect.never),
+      Effect.andThen(Effect.yieldNow, Effect.sync(() => { events.push("closed") }))
+    ))
+    yield* Deferred.await(started)
+    yield* Effect.ensuring(Effect.gen(function*() {
+      const waiting = yield* Effect.forkChild($join([held]), { startImmediately: true })
+      yield* Fiber.interrupt(waiting)
+      expect(events).toEqual(["closed"])
+      expect(held.pollUnsafe()).toBeDefined()
+    }), Fiber.interrupt(held))
+  }))
+})
+
 for (const [name, wait] of [
-  ["join", (fiber: Fiber.Fiber<never>) => $join([fiber])],
-  ["await.all", (fiber: Fiber.Fiber<never>) => $awaitAll([fiber])],
-  ["await.allSettled", (fiber: Fiber.Fiber<never>) => $awaitAllSettled([fiber])],
-  ["await.race", (fiber: Fiber.Fiber<never>) => $awaitRace([fiber])],
-  ["await.any", (fiber: Fiber.Fiber<never>) => $awaitAny([fiber])]
+  ["await.all", (element: Effect.Effect<never>) => $awaitAll([element])],
+  ["await.allSettled", (element: Effect.Effect<never>) => $awaitAllSettled([element])],
+  ["await.race", (element: Effect.Effect<never>) => $awaitRace([element])],
+  ["await.any", (element: Effect.Effect<never>) => $awaitAny([element])]
 ] as const) {
-  test(`${name}: interruption waits for held fiber cleanup`, async () => {
+  test(`${name}: interruption waits for each element's cleanup`, async () => {
     const events: string[] = []
     await Effect.runPromise(Effect.gen(function*() {
       const started = yield* Deferred.make<void>()
-      const held = yield* Effect.forkChild(Effect.ensuring(
+      const element = Effect.ensuring(
         Effect.andThen(Deferred.succeed(started, undefined), Effect.never),
         Effect.andThen(Effect.yieldNow, Effect.sync(() => { events.push("closed") }))
-      ))
+      )
+      const waiting = yield* Effect.forkChild(wait(element), { startImmediately: true })
       yield* Deferred.await(started)
-      yield* Effect.ensuring(Effect.gen(function*() {
-        const waiting = yield* Effect.forkChild(wait(held), { startImmediately: true })
-        yield* Fiber.interrupt(waiting)
-        expect(events).toEqual(["closed"])
-        expect(held.pollUnsafe()).toBeDefined()
-      }), Fiber.interrupt(held))
+      yield* Fiber.interrupt(waiting)
+      expect(events).toEqual(["closed"])
     }))
   })
 }
 
-test("await.allSettled: a defect interrupts held siblings and retains the defect", async () => {
+test("await.allSettled: a defect interrupts the other elements and retains the defect", async () => {
   const defect = new Error("broken task")
   await Effect.runPromise(Effect.gen(function*() {
     const started = yield* Deferred.make<void>()
     let closed = false
-    const held = yield* Effect.forkChild(Effect.ensuring(
-      Effect.andThen(Deferred.succeed(started, undefined), Effect.never),
-      Effect.sync(() => { closed = true })
-    ))
-    yield* Deferred.await(started)
-    yield* Effect.ensuring(Effect.gen(function*() {
-      expect(yield* Effect.exit($awaitAllSettled([held, Effect.die(defect)]))).toEqual(Exit.die(defect))
-      expect(closed).toBe(true)
-    }), Fiber.interrupt(held))
+    const dying = Effect.andThen(Deferred.await(started), Effect.die(defect))
+    expect(yield* Effect.exit($awaitAllSettled([pendingElement(started, () => { closed = true }), dying]))).toEqual(Exit.die(defect))
+    expect(closed).toBe(true)
   }))
 })

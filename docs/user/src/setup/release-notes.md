@@ -51,6 +51,9 @@ The fixes keep a rewrite only when it adds no compiler error.
 | `using n = count()` where the value has no disposal method and the initializer needs no `Scope` | TS2850. Bind it with `const`, or acquire it with `acquireRelease` so its release is recorded. |
 | `const spawn = fork`, `const run = sync`, an import that renames `fork`, `join`, `sync`, `try` or `callback`, or `R.fork(x)` through a namespace import of the runtime | EK4410: a call spelled otherwise read its first operand by a binding its reader cannot see, so `spawn(work())` deferred `work()`. Call each under its own name where it runs; to pass forking as a function, write `(job: () => A!E!R) => fork job()`. In a `module` block the runtime's functions stay ordinary values. |
 | A pause in a `using` initializer, such as a wait in the function that opens the resource | Cancellation now follows Effect. Every initializer runs with the interruptibility in force where the `using` stands, whether or not it requires `Scope`, so cancellation reaches its waits and `using` registers nothing. A `timeout` around `using db = openDb()` now ends at its deadline instead of waiting for `openDb`. To wait one out, write `using db = Effect.acquireDisposable(() => openDb())`: its acquisition holds cancellation off, and `using` adds no second release. |
+| `fork job`, `fork(() => work())` or `await.all [job]`, where `job` is an Effect or a function with no required parameters | EK4613: the operand is a program by syntax whose result is its value, so the new fiber or the element would give `job` back unrun; it previously ran it. Write `fork job()`, `fork work()` or `await.all [job()]`; `vibelang --fix` writes these. |
+| `await.all [fiber]` or `await.race [ready]`, an element that is a `Fiber` or a `Deferred` | EK4609 or EK4610: an element's result is its value, never waited for again. Write `join fiber` or `ready.await()` as the element. The operation no longer interrupts a fiber you hand it when another element fails or wins; the fiber's region interrupts it when the region ends. |
+| `await.all exits`, an operand that is not a literal whose element type is an `Exit`, a `Config`, or a union with a member that is not a program | EK4603: such an operand runs each element by its static type, and an `Exit` is data. It previously ran each `Exit` as an Effect. Give the elements a program type, or write an array literal, whose elements are programs by syntax. |
 
 Direct platform calls such as `console.log` and `process.env.NAME` were
 already EK4402 in 0.0.10; holding their values and importing Node values
@@ -250,6 +253,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - In a function that compiles to plain JavaScript, a `finally` block that crashed while another failure was in flight kept only the first: a TypeScript caller saw one exception, and an Effect caller one defect. The exception that leaves is now a `SuppressedError` whose `error` is the cleanup's and whose `suppressed` is the first, and an Effect caller sees both defects in order, as in a function that compiles to an Effect.
 - A `for...of` loop whose body or destructuring crashed over an iterator whose `return()` then threw too kept only the body's defect, as JavaScript's loop does, in plain code and in Effect functions alike. The loop now fails with both, in order.
 - A failed `join` or `await.all`, or a decided `await.race`, interrupted the other fibers one at a time and waited for each one's cleanup before interrupting the next, so it hung when one fiber's cleanup waited for a sibling's. It now interrupts them all at once, as `Fiber.interruptAll` does, then waits for their cleanup.
+- A program holding an await operation over an operand that is not a literal, such as `const p: number[]!! = await.all items`, read `items` once, when the program was built, and reused that reading on every run. Each run now reads the operand afresh, as `Effect.all` does.
 
 #### Editor and language server
 
@@ -458,11 +462,6 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   cleanup waits for another child's cleanup: children are interrupted one at
   a time. Avoid dependencies between sibling finalizers; when managing fibers
   explicitly, `Fiber.interruptAll` signals them together.
-- Holding `const p: number[]!! = await.all items` can iterate `items` while
-  constructing the program and reuse that snapshot on every run. The same
-  issue affects `await.allSettled`, `await.race` and `await.any`. Wrap the
-  whole await expression in a block program so it is constructed afresh per run
-  (see Known design issues).
 - `using` looks up `Symbol.dispose` or `Symbol.asyncDispose` again at cleanup
   time. Replacing the method, or using a getter that returns different methods,
   can run the wrong disposer. Keep the disposal method stable for the lifetime
@@ -850,12 +849,6 @@ listed with an upgrade step.
   function returns.** Today `sync(() => Promise.resolve(5))` succeeds with
   `5`; under the specification it succeeds with the promise itself. Write the
   function `async` when you mean to wait, which both treat the same way.
-
-- **The specification makes an await element of type `Fiber` or `Deferred` an
-  error; the compiler accepts it.** Today `await.all [f]` waits for a fiber
-  without restarting it, and a Deferred element waits for its value. The
-  specification makes these EK4609 and EK4610. Write `join f` and `d.await()`
-  as the elements, which both treat the same way.
 
 - **The specification rejects a `match` without `default` over an open subject
   at compile time; the compiler throws when it runs.** Over a non-literal
