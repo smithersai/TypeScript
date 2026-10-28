@@ -17,10 +17,10 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 
 | Load | Tokens |
 | --- | ---: |
-| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,327 |
-| The skill and the [cheat sheet](115-cheat-sheet.md) | 15,067 |
-| The skill and the user guide (134 pages) | 249,749 |
-| The user guide alone | 244,422 |
+| The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,350 |
+| The skill and the [cheat sheet](115-cheat-sheet.md) | 15,095 |
+| The skill and the user guide (134 pages) | 249,770 |
+| The user guide alone | 244,420 |
 | The specification (33 chapters) | 191,263 |
 | The decision log, `docs/design/DECISIONS.md` | 127,626 |
 
@@ -87,8 +87,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 
 | Page | Tokens |
 | --- | ---: |
-| **Start Here** | **2,255** |
-| [Welcome](../001-onboarding.md) | 1,655 |
+| **Start Here** | **2,257** |
+| [Welcome](../001-onboarding.md) | 1,657 |
 | [Why VibeLang?](../getting-started/002-why-effect.md) | 600 |
 | **Learning Path** | **9,664** |
 | [The Effect Type](../getting-started/003-the-effect-type.md) | 1,790 |
@@ -102,7 +102,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
 | [Devtools](../getting-started/012-devtools.md) | 10,637 |
-| **All 12 pages** | **29,931** |
+| **All 12 pages** | **29,933** |
 
 ### Setup
 
@@ -156,9 +156,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Resource Management** | **4,481** |
 | [Introduction](../resource-management/029-introduction.md) | 1,623 |
 | [Scope](../resource-management/030-scope.md) | 2,858 |
-| **Observability** | **6,480** |
-| [Logging](../observability/031-logging.md) | 1,940 |
-| [Metrics](../observability/032-metrics.md) | 1,322 |
+| **Observability** | **6,469** |
+| [Logging](../observability/031-logging.md) | 1,935 |
+| [Metrics](../observability/032-metrics.md) | 1,316 |
 | [Tracing](../observability/033-tracing.md) | 2,485 |
 | [Tracking Fibers](../observability/034-tracking-fibers.md) | 733 |
 | [Configuration](../035-configuration.md) | 2,689 |
@@ -252,7 +252,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Terminal](../platform/110-terminal.md) | 1,508 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 4,125 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **141,275** |
+| **All 100 pages** | **141,264** |
 
 ### VibeLang features
 
@@ -261,11 +261,11 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Control operations and handlers](111-control-operations-and-handlers.md) | 2,027 |
 | [Producers](112-producers.md) | 1,387 |
 | [Building an HTTP API](113-building-an-http-api.md) | 1,375 |
-| [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,843 |
-| [Cheat sheet](115-cheat-sheet.md) | 9,740 |
+| [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,845 |
+| [Cheat sheet](115-cheat-sheet.md) | 9,745 |
 | [Pattern matching with match and is](116-match-and-is.md) | 3,918 |
 | [Experimental platform APIs](118-experimental-platform-apis.md) | 3,219 |
-| **All 7 pages** | **26,509** |
+| **All 7 pages** | **26,516** |
 
 ### Specification
 

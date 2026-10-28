@@ -26,14 +26,14 @@ function reportProgress() {
 
 ```vibe
 function diagnostics() {
-  Effect.provideService(() => {
+  provide References.MinimumLogLevel = "Debug" {
     Effect.logTrace("entered parser")
     logDebug("parsed header")
     logInfo("input accepted")
     logWarning("using fallback settings")
     logError("destination unavailable")
     Effect.logFatal("application cannot start")
-  }, References.MinimumLogLevel, "Debug")
+  }
 }
 ```
 

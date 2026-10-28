@@ -214,7 +214,7 @@ Inside an Effect function, a plain function from your `.ts` code or a foreign pa
 
 Run emitted JavaScript with `node --enable-source-maps dist/main.js` and enable `"sourceMap": true` in `compilerOptions`. Source maps preserve `.vibe` locations. Function tracing defaults to `"none"`, so defects can show only one stack frame. Set `"vibelang": { "tracing": "exported" }` at the top level of `tsconfig.json` and rebuild to trace exported functions. Use `"all"` to trace local functions too.
 
-Use `withSpan("checkout") { ... }` for a named operation, as you would use `Effect.withSpan` in TypeScript. Function spans supply the logical caller context that source maps alone cannot add, and add runtime work. If the default Node runner prints only an error message, use the [TypeScript debugging entry](/getting-started/012-devtools#debug-stack-traces) to print the rejected error's `stack`.
+Use `withSpan(() => { ... }, "checkout")` for a named operation, as you would use `Effect.withSpan` in TypeScript. Function spans supply the logical caller context that source maps alone cannot add, and add runtime work. If the default Node runner prints only an error message, use the [TypeScript debugging entry](/getting-started/012-devtools#debug-stack-traces) to print the rejected error's `stack`.
 
 ## Runtime cost
 

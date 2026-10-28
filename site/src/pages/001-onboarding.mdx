@@ -101,7 +101,7 @@ VibeLang runs on Effect and its library modules; common operations have syntax:
 | Structured concurrency | `fork`, `join`, `await.all [a(), b()]`, `for concurrent(8) (const id of ids)` |
 | Retries and timeouts | `work() \|> retry(%, policy) \|> timeout(%, "1 second")` |
 | Resource safety | `using conn = connect()`, `finally` |
-| Tracing | `withSpan("checkout") { ... }` |
+| Tracing | `withSpan(() => { ... }, "checkout")` |
 | Schema validation | `schema User { id: string; role: "admin" \| "member" }` |
 | Pattern matching | `match (e) { when NotFound: ...; }` |
 

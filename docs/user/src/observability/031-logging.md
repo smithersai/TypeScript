@@ -23,14 +23,14 @@ function reportProgress() {
 ```vibe
 // run: const records: unknown[] = []; const capture = Logger.make(({ logLevel, message }) => { records.push([logLevel, message]) }); provide Logger.layer([capture]) { diagnostics() }; Console.log(JSON.stringify(records))
 function diagnostics() {
-  Effect.provideService(() => {
+  provide References.MinimumLogLevel = "Debug" {
     Effect.logTrace("entered parser")
     logDebug("parsed header")
     logInfo("input accepted")
     logWarning("using fallback settings")
     logError("destination unavailable")
     Effect.logFatal("application cannot start")
-  }, References.MinimumLogLevel, "Debug")
+  }
 }
 ```
 

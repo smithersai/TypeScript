@@ -285,7 +285,7 @@ function greetUser(id: string) {
 // Output: Ada
 ```
 
-`Effect.fn("name")(body)` adds a named tracing span; a bare function declaration uses `Effect.fnUntraced` by default and loses it. Keep the span with `function f(...) { return withSpan("name") { ... } }`, or `const f = (...) => withSpan("name") { ... }` for an object field or arrow. Put the function's work inside the `withSpan` block; its return value, failures, and requirements flow through.
+`Effect.fn("name")(body)` adds a named tracing span; a bare function declaration uses `Effect.fnUntraced` by default and loses it. Keep the span with `function f(...) { return withSpan(() => { ... }, "name") }`, or `const f = (...) => withSpan(() => { ... }, "name")` for an object field or arrow. Put the function's work inside the arrow `withSpan` takes; its return value, failures, and requirements flow through.
 
 **Programs as function literals**. A call runs where it stands; `() =>` makes a program to pass. Passing a call by name, `race(getUser("1"), getUser("2"))`, still compiles but is being retired.
 

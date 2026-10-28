@@ -42,8 +42,8 @@ Declarations export like TypeScript declarations: `export data Shape { Circle { 
 | `Effect.catchCause`, `Effect.failCause(c)` | `match (exit(p)) { when Exit.Success(let v): v; when Exit.Failure(let cause): ...; }`, `Effect.failCause(cause)`; `throw cause` is EK2140 |
 | `Effect.ensuring`, `Effect.onExit` | `try { } finally { }`, `try { } finally (exit) { }` |
 | `Effect.scoped` + `acquireRelease` | `using r = Effect.acquireRelease(() => open(), (r) => close(r))`, released at block exit; [pending-interruption limitation and safe Disposable holder](https://vibelang.sh/resource-management/030-scope#known-limitation-pending-interruption-and-javascript-disposables) |
-| `Effect.fn("name")(function* ...)` | `function f() { return withSpan("name") { ... } }` |
-| `Effect.withSpan(p, "n")`, `it.effect("n", () => ...)` | block params: `withSpan("n") { ... }`, `it.effect("n") { ... }` |
+| `Effect.fn("name")(function* ...)` | `function f() { return withSpan(() => { ... }, "name") }` |
+| `Effect.withSpan(p, "n")`, `it.effect("n", () => ...)` | `withSpan(() => p(), "n")`; a block param is always the call's last argument: `it.effect("n") { ... }`; a `{` that starts the next line is EK1022 |
 | `p.pipe(Effect.retry(s), Effect.timeout(t))` | `timeout(() => retry(() => p(), s), t)`; passing a `\|>` topic to `retry` is being retired |
 | `Match.value(x)...Match.exhaustive` | `match (x) { when "a": 1; when E and { let id }: id; default: 0; }` |
 | `Option.match`, `Exit.isFailure` | `when Option.Some(let v):`, `when Option.None:`, `if (o is Exit.Failure(let cause))` |

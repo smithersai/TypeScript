@@ -197,4 +197,4 @@ function productionReport() {
 
 ## Coming from Effect
 
-`withSpan` still adds tracing explicitly, but its program is an ordinary function. `Effect.withSpan(program, "name")` draws EK4836, whose quick fix writes `withSpan("name") { return program }`. Don't span every helper to reproduce function boundaries; instrument the operations you need to diagnose.
+`withSpan` still adds tracing explicitly, but its program is an ordinary function. `Effect.withSpan(program, "name")` draws EK4836, whose quick fix writes `withSpan(() => program, "name")`. Don't span every helper to reproduce function boundaries; instrument the operations you need to diagnose.
