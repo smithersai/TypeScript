@@ -53,6 +53,8 @@ import (
 // PreludeModule is the module every projected file imports its names from.
 const PreludeModule = "vibelang-ts-mapper/prelude"
 
+const inlineModuleProjectionMessage = "The TypeScript mapper cannot project inline modules with their ECMAScript module semantics; build with vibelang."
+
 // Diagnostic codes the projector reports, under the source EK.
 const (
 	// CodePlainContractEffect marks an Effect call, or a throw that can escape, under a plain contract (D282).
@@ -240,6 +242,11 @@ func (p *projector) visit(node *ast.Node, e env) {
 		p.visit(node.Expression(), e)
 		p.plan.replace(node.Expression().End(), p.tokenStart(stage), ").pipe(")
 		p.plan.replace(stage.End(), call.End(), ")")
+		return
+	case parser.IsVibeLangModuleDeclaration(node) || parser.IsVibeLangModuleReference(node):
+		// D364/D366: a text-only projection cannot preserve separate-module
+		// evaluation and live bindings. Refuse rather than guess a lowering.
+		p.awaitChoice(node, inlineModuleProjectionMessage)
 		return
 	case node.Kind == ast.KindImportDeclaration || node.Kind == ast.KindExportDeclaration:
 		p.relativeTypeScriptImport(node)

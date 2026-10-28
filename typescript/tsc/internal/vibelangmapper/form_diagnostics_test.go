@@ -46,6 +46,11 @@ func TestFormDiagnosticsMatchesProjection(t *testing.T) {
 			got := FormDiagnostics(file)
 			var want []Diagnostic
 			for _, d := range Project(tc.source, testContext).Diagnostics {
+				// Inline-module refusal belongs only to the text mapper; the
+				// native editor can preserve separate-module semantics.
+				if d.Code == CodeFormChoice && d.Message == inlineModuleProjectionMessage {
+					continue
+				}
 				if d.Code == CodeFormChoice || d.Code == CodeDataMethod {
 					want = append(want, d)
 				}

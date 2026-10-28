@@ -18,3 +18,5 @@ A hidden Effect can still be returned as an ordinary, unrun value. Keep the
 callee's callable type, such as `() => number!NotFound!`, instead of erasing it.
 
 The experimental TypeScript mapper keeps an exported function’s written Effect contract, such as `number!!`, even when its body is pure. Its projected type has no `$plain` member.
+
+Inline `module` declarations and imports from them require building with `vibelang`. The experimental TypeScript mapper reports `EK9100` because it cannot preserve their ECMAScript module evaluation and live bindings.
