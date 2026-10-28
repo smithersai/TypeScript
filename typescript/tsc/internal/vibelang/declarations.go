@@ -69,6 +69,20 @@ func recordTypeUse(state *preludeState, file *ast.SourceFile, identifier *ast.No
 	state.typeRefs[identifier] = true
 }
 
+// lockedCopy copies a map of the checker's state while its lock is held, for
+// a transform to read after the lock is released: other files' declaration
+// transforms write the state in parallel.
+func lockedCopy[K comparable, V any](m map[K]V) map[K]V {
+	if m == nil {
+		return nil
+	}
+	copied := make(map[K]V, len(m))
+	for k, v := range m {
+		copied[k] = v
+	}
+	return copied
+}
+
 // transformDeclarations returns the transform for the declaration file of a
 // .vibe file, or nil for any other file.
 func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.SourceFile) func(*ast.SourceFile) *ast.SourceFile {
@@ -167,9 +181,11 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 			for name := range state.typeUses[sourceFile] {
 				names = append(names, name)
 			}
-			refs = state.typeRefs
-			serviceTypes = moduleServiceStateOf(c).typeNames
-			moduleImports = moduleServiceStateOf(c).imports[sourceFile]
+			// The checker's maps grow while other files emit in parallel, so
+			// the transforms below read copies taken under the checker's lock.
+			refs = lockedCopy(state.typeRefs)
+			serviceTypes = lockedCopy(moduleServiceStateOf(c).typeNames)
+			moduleImports = lockedCopy(moduleServiceStateOf(c).imports[sourceFile])
 		})
 		// The type Option is written Option.Option (D311), and the type Prompt,
 		// which the file imports, keeps its import.

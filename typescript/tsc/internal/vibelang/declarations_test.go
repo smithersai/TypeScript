@@ -1,7 +1,9 @@
 package vibelang
 
 import (
+	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/microsoft/TypeScript/tsc/internal/bundled"
@@ -263,5 +265,49 @@ func TestDeclarationElidesPrivateJSDoc(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// The declaration transforms of a program's files run in parallel and record
+// prelude references in the checker's maps; each transform reads a copy taken
+// under the checker's lock, so a project of many files neither races nor
+// stops with "concurrent map read and map write" (run with -race).
+func TestDeclarationEmitInParallel(t *testing.T) {
+	t.Parallel()
+	files := computedKeyFiles(false)
+	config := "" // the tsconfig.json of computedKeyFiles' package, in its directory
+	for name := range files {
+		if strings.HasSuffix(name, "/tsconfig.json") {
+			config = name
+		}
+	}
+	src := strings.TrimSuffix(config, "tsconfig.json")
+	var names []string
+	for i := range 16 {
+		name := fmt.Sprintf("m%d.vibe", i)
+		names = append(names, `"`+name+`"`)
+		files[src+name] = fmt.Sprintf("export type T%d = Effect<number, never, never>\nexport function f%d(): Effect<number> { return %d }\n", i, i, i)
+	}
+	files[config] = `{"compilerOptions":{"strict":true,"target":"ESNext","module":"NodeNext","declaration":true},"files":[` + strings.Join(names, ",") + `]}`
+	for range 4 {
+		p := computedKeyProgram(t, files)
+		var declarations atomic.Int32 // the emitters of a program write in parallel
+		result := p.Emit(t.Context(), compiler.EmitOptions{WriteFile: func(name tspath.RootedFilePath, text string, _ *compiler.WriteFileData) error {
+			if strings.HasSuffix(string(name), ".d.ts") {
+				declarations.Add(1)
+				if !strings.Contains(text, "Effect.Effect<number, never, never>") {
+					t.Errorf("%s writes the prelude's Effect unqualified:\n%s", name, text)
+				}
+			}
+			return nil
+		}})
+		for _, d := range result.Diagnostics {
+			if d.Category() == diagnostics.CategoryError {
+				t.Fatalf("emit: %s", d.String())
+			}
+		}
+		if n := declarations.Load(); n != 16 {
+			t.Fatalf("emitted %d declaration files, want 16", n)
+		}
 	}
 }
