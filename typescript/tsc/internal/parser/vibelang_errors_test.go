@@ -76,6 +76,7 @@ func TestErrorDeclarationRootKeepsClassMembers(t *testing.T) {
 		"PropertyDeclaration #seen",
 		"Constructor",
 		"GetAccessor label",
+		"PropertyDeclaration #vibelang/error synthesized", // the brand that makes the class nominal (D407)
 	}, "\n")
 	if got != want {
 		t.Fatalf("members:\n%s\nwant:\n%s", got, want)
@@ -101,12 +102,13 @@ export const after = 1`)
 		"PropertyDeclaration extra ReadonlyKeyword DeclareKeyword",
 		"Constructor synthesized",
 		"MethodDeclaration describe",
+		"PropertyDeclaration #vibelang/error synthesized",
 	}, "\n")
 	if got != want {
 		t.Fatalf("members:\n%s\nwant:\n%s", got, want)
 	}
-	if got := strings.Join(classMembers(file.Statements.Nodes[1]), "\n"); got != "PropertyDeclaration _tag DeclareKeyword ReadonlyKeyword synthesized" {
-		t.Fatalf("a subclass without fields has only its tag: got\n%s", got)
+	if got := strings.Join(classMembers(file.Statements.Nodes[1]), "\n"); got != "PropertyDeclaration _tag DeclareKeyword ReadonlyKeyword synthesized\nPropertyDeclaration #vibelang/error synthesized" {
+		t.Fatalf("a subclass without fields has only its tag and its brand: got\n%s", got)
 	}
 }
 

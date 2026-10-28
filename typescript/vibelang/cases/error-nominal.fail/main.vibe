@@ -1,0 +1,18 @@
+// expect: TS2322 TS2741
+// An error declaration is nominal (D407): its class has a private member that
+// no code names, so neither another module's error declaration with the same
+// tag and fields nor a TypeScript class with them is assignable to it. Both
+// functions compiled before, and a match that counted NotFound's arm as
+// covering the other class failed its instanceof test at run time.
+import { NotFound as OtherNotFound } from "./other.vibe"
+import { NotFound as TsNotFound } from "./other-ts.ts"
+
+export error NotFound { id: string }
+
+export function fromVibe(e: OtherNotFound): NotFound {
+  return e
+}
+
+export function fromTs(e: TsNotFound): NotFound {
+  return e
+}

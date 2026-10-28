@@ -5,6 +5,7 @@ declare const Empty_base: new <A extends Record<string, any> = {}>(args: import(
     readonly _tag: "Empty";
 } & Readonly<A>;
 export declare class Empty extends Empty_base<{}> {
+    #private;
 }
 export declare const parse: (input: string) => Effect.Effect<Digest, Empty>;
 export declare const parseExpression: (input: string) => Effect.Effect<Digest, Empty>;

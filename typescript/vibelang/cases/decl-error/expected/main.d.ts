@@ -5,6 +5,7 @@ declare const NotFound_base: new <A extends Record<string, any> = {}>(args: impo
 export declare class NotFound extends NotFound_base<{
     readonly id: string;
 }> {
+    #private;
 }
 export declare function main(): Effect.Effect<{
     timeout: void | string;

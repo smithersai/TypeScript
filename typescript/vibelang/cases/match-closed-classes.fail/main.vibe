@@ -1,0 +1,37 @@
+// expect: EK4701
+// A class arm counts toward exhaustiveness only for a closed class (D407,
+// D428): an error declaration, or an error class of effect, that declares no
+// [Symbol.hasInstance] or [customMatcher] of its own. An arm over a class a
+// .ts file declares, over Error, or over a class with its own membership test
+// removes nothing, so each match needs a default arm. Each compiled before.
+import { Missing } from "./errors.ts"
+
+error Gone { id: string }
+
+error Picky {
+  id: string
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return false
+  }
+}
+
+export function viaTs(e: Missing | Gone) {
+  return match (e) {
+    when Missing: "missing";
+    when Gone: "gone";
+  }
+}
+
+export function viaHasInstance(e: Picky | Gone) {
+  return match (e) {
+    when Picky: "picky";
+    when Gone: "gone";
+  }
+}
+
+export function viaError(e: Gone) {
+  return match (e) {
+    when Error: "error";
+  }
+}

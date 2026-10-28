@@ -73,6 +73,12 @@ func GetTextOfNodeFromSourceText(sourceText string, node *ast.Node, includeTrivi
 	if ast.NodeIsMissing(node) {
 		return ""
 	}
+	if ast.IsPrivateIdentifier(node) && node.Flags&ast.NodeFlagsReparsed != 0 {
+		// A private name a language extension writes stands at a source
+		// range that holds other text, such as VibeLang's error brand at the
+		// error's name.
+		return node.Text()
+	}
 	pos := node.Pos()
 	if !includeTrivia {
 		pos = SkipTrivia(sourceText, pos)

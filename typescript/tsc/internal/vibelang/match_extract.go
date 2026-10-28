@@ -1,11 +1,13 @@
 package vibelang
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/parser"
 )
 
 func init() { checker.RegisterFlowNarrowingHook(narrowExtractedError) }
@@ -136,7 +138,7 @@ func extractionCall(c *checker.Checker, node *ast.Node) *ast.Node {
 // Only error declarations have D215's guaranteed extraction. A class may
 // override customMatcher, so extending TaggedError alone is not sufficient.
 func isExtractedErrorClass(decl *ast.Node) bool {
-	if decl == nil || !isTaggedErrorClass(decl) || len(decl.Members()) != 0 {
+	if decl == nil || !isTaggedErrorClass(decl) || slices.ContainsFunc(decl.Members(), func(member *ast.Node) bool { return !parser.IsErrorBrand(member) }) {
 		return false
 	}
 	base := ast.GetClassExtendsHeritageElement(decl)

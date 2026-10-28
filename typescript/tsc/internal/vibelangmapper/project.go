@@ -40,6 +40,7 @@
 package vibelangmapper
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -190,6 +191,7 @@ func Project(text string, ctx FileContext) Projection {
 // walk is set up, so the two renderings never see different plans.
 func lower(text string, ctx FileContext) *projector {
 	file := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: projectedFileName}, text, core.ScriptKindTS)
+	stripErrorBrands(file)
 	p := &projector{
 		file:            file,
 		text:            text,
@@ -956,4 +958,22 @@ func (p *projector) runTemplate(node *ast.Node, e env) {
 	p.plan.mark(editRun, partOpen, start, start, "")
 	p.visitChildren(node, e)
 	p.plan.mark(editRun, partClose, node.End(), node.End(), "")
+}
+
+// stripErrorBrands removes from file, which the projector parsed for itself,
+// the private member that the parser gives each error declaration's class
+// (D407). The projection writes a class's members from their source text,
+// and the brand has none; the text the projection writes for an error
+// declaration does not carry it.
+func stripErrorBrands(file *ast.SourceFile) {
+	var visit func(node *ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		if ast.IsClassDeclaration(node) {
+			if members := node.AsClassDeclaration().Members; members != nil && slices.ContainsFunc(members.Nodes, parser.IsErrorBrand) {
+				members.Nodes = slices.DeleteFunc(slices.Clone(members.Nodes), parser.IsErrorBrand)
+			}
+		}
+		return node.ForEachChild(visit)
+	}
+	file.AsNode().ForEachChild(visit)
 }

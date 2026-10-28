@@ -1,14 +1,14 @@
-// expect-result: {"sameName":["A a","timeout 5.0","B b"],"sameNameIs":["A a","timeout","B b"],"family":["app /p","other o"],"shape":["circle","square 2","No match arm matched [object Object]"],"parity":["even","odd 3","No match arm matched [object Object]"],"shapeOrCount":["circle","none","some 4","No match arm matched [object Object]"],"positions":[["square 2"],"No match arm matched [object Object]","square 2","No match arm matched [object Object]","logged","No match arm matched [object Object]"]}
+// expect-result: {"sameName":["A a","timeout 5.0","B b"],"sameNameIs":["A a","timeout","B b"],"family":["app /p","other o"],"shape":["circle","square 2","No match arm matched [object Object]"],"parity":["even","odd 3","neither"],"shapeOrCount":["circle","none","some 4","No match arm matched [object Object]"],"positions":[["square 2"],"No match arm matched [object Object]","square 2","No match arm matched [object Object]","logged","No match arm matched [object Object]"]}
 // A class pattern matches by class (D213, D215, D278), so D209's proof
 // follows the class, not the shape: two error classes that share a name and
 // fields stay distinct, a family's base covers its subclasses but not an
 // unrelated error with the same fields, and is narrows as instanceof does.
-// D294 keeps the last arm's tests of a match that tests a class or a custom
-// matcher, because a value's type does not prove what instanceof or a custom
-// matcher returns: a structural object of a class type, an instance that a
-// custom matcher refuses, and a structural object that passes a class arm to
-// reach an Option arm each throw the proposal's TypeError instead of taking
-// the last arm.
+// D294 keeps the last arm's tests of a match that tests a class, because a
+// value's type does not prove what instanceof returns: a value cast to a
+// class type, and one that passes a class arm to reach an Option arm, each
+// throw the proposal's TypeError instead of taking the last arm (D405). A
+// class with a custom matcher is not closed, so its arm covers nothing and
+// its match needs a default arm (D407, D428).
 import * as A from "./a.vibe"
 import * as B from "./b.vibe"
 
@@ -17,8 +17,8 @@ error AppError { _tag: string; code: string }
 error Missing extends AppError { path: string }
 error Other { code: string }
 
-class Circle { readonly _tag = "Circle"; readonly r = 1 }
-class Square { readonly _tag = "Square"; readonly side = 2 }
+error Circle { r: number }
+error Square { side: number }
 
 class Even {
   readonly _tag = "Even"
@@ -68,6 +68,7 @@ function parity(n: Even | Odd) {
   return match (n) {
     when Even: "even";
     when Odd: `odd ${n.n}`;
+    default: "neither";
   }
 }
 
@@ -114,18 +115,18 @@ function settle<A>(program: A!!) {
 }
 
 export function main() {
-  const circle: Circle = { _tag: "Circle", r: 1 }
+  const circle = { _tag: "Circle", r: 1 } as unknown as Circle
   return {
     sameName: [sameName(new A.NotFound({ id: "a" })), sameName(new Timeout({ ms: 5 })), sameName(new B.NotFound({ id: "b" }))],
     sameNameIs: [sameNameIs(new A.NotFound({ id: "a" })), sameNameIs(new Timeout({ ms: 5 })), sameNameIs(new B.NotFound({ id: "b" }))],
     family: [family(new Missing({ code: "m", path: "/p" })), family(new Other({ code: "o" }))],
-    shape: [shape(new Circle()), shape(new Square()), settle(shape(circle))],
+    shape: [shape(new Circle({ r: 1 })), shape(new Square({ side: 2 })), settle(shape(circle))],
     parity: [parity(new Even(2)), parity(new Odd(3)), settle(parity(new Odd(2)))],
-    shapeOrCount: [shapeOrCount(new Circle()), shapeOrCount(Option.none()), shapeOrCount(Option.some(4)), settle(shapeOrCount(circle))],
+    shapeOrCount: [shapeOrCount(new Circle({ r: 1 })), shapeOrCount(Option.none()), shapeOrCount(Option.some(4)), settle(shapeOrCount(circle))],
     positions: [
-      shapeStatement(new Square(), []), settle(shapeStatement(circle, [])),
-      shapeExpression(new Square()), settle(shapeExpression(circle)),
-      shapeEffect(new Square()), settle(shapeEffect(circle))
+      shapeStatement(new Square({ side: 2 }), []), settle(shapeStatement(circle, [])),
+      shapeExpression(new Square({ side: 2 })), settle(shapeExpression(circle)),
+      shapeEffect(new Square({ side: 2 })), settle(shapeEffect(circle))
     ]
   }
 }

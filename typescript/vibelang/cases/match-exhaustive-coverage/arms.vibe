@@ -1,24 +1,15 @@
 // Tests that reach every arm of a match D209 proves exhaustive cover every
 // branch: its last arm keeps its tests as a check that adds none (D405), and
-// an object pattern tests a function first. run.mjs runs
-// every arm under V8 block coverage and prints what no call reached.
+// an object pattern tests a function first. Only a closed class's arm counts
+// toward the proof (D407), so the classes are error declarations. run.mjs
+// runs every arm under V8 block coverage and prints what no call reached.
 export type Phase = "draft" | "published"
 
 export error NotFound { id: string }
 export error Denied { user: string }
 
-export class Even {
-  readonly _tag = "Even"
-  constructor(readonly n: number) {}
-}
-
-export class Odd {
-  readonly _tag = "Odd"
-  constructor(readonly n: number) {}
-  static [customMatcher](subject: unknown) {
-    return subject instanceof Odd && subject.n % 2 === 1
-  }
-}
+export error Even { n: number }
+export error Odd { n: number }
 
 export function phase(p: Phase) {
   return match (p) {

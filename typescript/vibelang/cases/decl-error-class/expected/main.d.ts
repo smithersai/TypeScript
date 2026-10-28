@@ -26,6 +26,7 @@ declare const Wrapped_base: new <A extends Record<string, any> = {}>(args: impor
 export declare class Wrapped<T extends string> extends Wrapped_base<{
     readonly value: T;
 }> {
+    #private;
 }
 export declare function main(): Effect.Effect<{
     code: string;

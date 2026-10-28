@@ -1,0 +1,22 @@
+// expect: EK4701
+// TypeScript gives two installed copies of one package version one type, but
+// the run time loads two classes, so a value from the other copy fails the
+// arm's instanceof test. A class arm therefore counts toward exhaustiveness
+// only when its package resolves to one installed copy (D427): here
+// same-error@1.0.0 is installed at the top and again inside wrapper, so the
+// arm removes nothing and EK4701 names the second copy. This compiled before.
+import { NotFound } from "same-error"
+import { WrappedNotFound } from "wrapper"
+
+error Gone { id: string }
+
+export function describe(e: NotFound | Gone): string {
+  return match (e) {
+    when NotFound: "missing";
+    when Gone: "gone";
+  }
+}
+
+export function wrapped(e: WrappedNotFound): NotFound {
+  return e
+}

@@ -1,0 +1,15 @@
+// VibeLang code compiled against the declarations alone: the error classes
+// are closed, so these matches need no default arm.
+import { Denied, NotFound, Timeout } from "../../out/main.js"
+
+function viaVibe(e: NotFound | Timeout | Denied) {
+  return match (e) {
+    when NotFound: `missing ${e.id}`;
+    when Timeout: `timeout ${e.ms}`;
+    when Denied: `denied ${e.user}`;
+  }
+}
+
+export function results() {
+  return [viaVibe(new NotFound({ id: "1" })), viaVibe(new Timeout({ ms: 5 })), viaVibe(new Denied({ code: "d", user: "ada" }))]
+}

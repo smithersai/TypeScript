@@ -3840,11 +3840,27 @@ func (p *Printer) emitClassDeclaration(node *ast.ClassDeclaration) {
 	p.writePunctuation("{")
 	p.pushNameGenerationScope(node.AsNode())
 	p.generateAllMemberNames(node.Members)
-	p.emitList((*Printer).emitClassElement, node.AsNode(), node.Members, LFClassMembers)
+	p.emitList((*Printer).emitClassElement, node.AsNode(), withoutSourcelessBrands(node.Members), LFClassMembers)
 	p.popNameGenerationScope(node.AsNode())
 	p.writePunctuation("}")
 	p.decreaseIndentIf(indented)
 	p.exitNode(node.AsNode(), state)
+}
+
+// withoutSourcelessBrands returns members without a brand that a language
+// extension's parser writes, such as a VibeLang error declaration's private
+// member (D407): an ambient field with a private name, flagged reparsed, that
+// has no source text and no JavaScript, so a printed class leaves it out.
+func withoutSourcelessBrands(members *ast.NodeList) *ast.NodeList {
+	if members == nil || !slices.ContainsFunc(members.Nodes, isSourcelessBrand) {
+		return members
+	}
+	return &ast.NodeList{Loc: members.Loc, Nodes: slices.DeleteFunc(slices.Clone(members.Nodes), isSourcelessBrand)}
+}
+
+func isSourcelessBrand(member *ast.Node) bool {
+	return ast.IsPropertyDeclaration(member) && member.Flags&ast.NodeFlagsReparsed != 0 && member.Flags&ast.NodeFlagsAmbient != 0 &&
+		member.Name() != nil && ast.IsPrivateIdentifier(member.Name())
 }
 
 func (p *Printer) emitInterfaceDeclaration(node *ast.InterfaceDeclaration) {

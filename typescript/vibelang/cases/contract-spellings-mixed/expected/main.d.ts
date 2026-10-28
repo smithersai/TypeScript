@@ -6,6 +6,7 @@ declare const NotFound_base: new <A extends Record<string, any> = {}>(args: impo
 declare class NotFound extends NotFound_base<{
     readonly id: string;
 }> {
+    #private;
 }
 interface Users extends Users.Shape, ServiceBrand<"contract-spellings-mixed/main#Users"> {
 }

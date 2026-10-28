@@ -90,6 +90,9 @@ func checkExhaustive(c *checker.Checker, file *ast.SourceFile, call *ast.Node) {
 		leftText = nested
 	}
 	d := reportAt(c, file, call.Expression().Loc, EK4701, declaredText, leftText)
+	for _, why := range uncountedArmNotes(c, file, call) {
+		note(d, why)
+	}
 	note(d, "Add an arm for each case that is left, or a default arm.")
 }
 

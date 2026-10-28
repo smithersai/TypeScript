@@ -1,6 +1,8 @@
 package checker
 
 import (
+	"strings"
+
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/diagnostics"
 )
@@ -190,4 +192,28 @@ func IsServiceBrandProperty(p *ast.Symbol) bool {
 		}
 	}
 	return false
+}
+
+// GetPropertyNameForKnownSymbolName returns the property name of the
+// well-known symbol Symbol.<name>, such as hasInstance.
+func (c *Checker) GetPropertyNameForKnownSymbolName(name string) string {
+	return c.getPropertyNameForKnownSymbolName(name)
+}
+
+// PropertyNameOfType returns the property name that a value of t, a unique
+// symbol or literal type, names in a computed property, and whether t can
+// name a property.
+func PropertyNameOfType(t *Type) (string, bool) {
+	if t == nil || !isTypeUsableAsPropertyName(t) {
+		return "", false
+	}
+	return getPropertyNameFromType(t), true
+}
+
+// IsErrorBrandProperty reports whether p is the private member that a
+// VibeLang error declaration's class has (D407), #vibelang/error, which makes
+// it nominal. It takes part in typing, but it is not a member that source
+// declares.
+func IsErrorBrandProperty(p *ast.Symbol) bool {
+	return IsPrivateIdentifierSymbol(p) && strings.HasSuffix(p.Name(), "@#vibelang/error")
 }

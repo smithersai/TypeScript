@@ -17,8 +17,8 @@ const results = [
   ...["draft", "published"].map((p) => arms.phase(p)),
   arms.failure(new arms.NotFound({ id: "7" })),
   arms.failure(new arms.Denied({ user: "Ada" })),
-  arms.parity(new arms.Even(2)),
-  arms.parity(new arms.Odd(3)),
+  arms.parity(new arms.Even({ n: 2 })),
+  arms.parity(new arms.Odd({ n: 3 })),
   arms.count(Option.none()),
   arms.count(Option.some(4)),
   arms.text("hi")

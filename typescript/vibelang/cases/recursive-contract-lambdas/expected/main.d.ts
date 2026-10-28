@@ -16,6 +16,7 @@ declare const Rejected_base: new <A extends Record<string, any> = {}>(args: impo
 declare class Rejected extends Rejected_base<{
     readonly message: string;
 }> {
+    #private;
 }
 export declare const validate: (depth: number) => Effect.Effect<void, Rejected, never>;
 export declare const processTrigger: (n: number) => Effect.Effect<number>;

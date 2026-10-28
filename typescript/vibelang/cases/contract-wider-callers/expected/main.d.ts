@@ -4,6 +4,7 @@ declare const Gone_base: new <A extends Record<string, any> = {}>(args: import("
     readonly _tag: "Gone";
 } & Readonly<A>;
 declare class Gone extends Gone_base<{}> {
+    #private;
 }
 interface Needed extends Needed.Shape, ServiceBrand<"contract-wider-callers/main#Needed"> {
 }

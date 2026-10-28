@@ -143,7 +143,7 @@ func (b *NodeBuilderImpl) expandClassDecl(symbol *ast.Symbol) *ast.Node {
 	allProps := b.ch.getPropertiesOfType(classType)
 	symbolProps := b.filterInheritedProperties(classType, baseTypes, allProps)
 	publicProps := core.Filter(symbolProps, func(s *ast.Symbol) bool { return !isHashPrivate(s) })
-	hasPrivate := core.Some(symbolProps, isHashPrivate)
+	hasPrivate := core.Some(symbolProps, func(s *ast.Symbol) bool { return isHashPrivate(s) && !IsErrorBrandProperty(s) })
 
 	var instanceMembers []*ast.Node
 	instanceMembers = b.serializePropertiesWithTruncation(publicProps, instanceMembers)
@@ -300,7 +300,7 @@ func (b *NodeBuilderImpl) hoverHeritageClauses(declarations []*ast.Node) []*ast.
 func (b *NodeBuilderImpl) serializePropertiesWithTruncation(properties []*ast.Symbol, elements []*ast.Node) []*ast.Node {
 	properties = core.Filter(properties, func(p *ast.Symbol) bool {
 		// The service brand participates in typing, but is not a source member.
-		return p.Flags()&ast.SymbolFlagsPrototype == 0 && !IsServiceBrandProperty(p)
+		return p.Flags()&ast.SymbolFlagsPrototype == 0 && !IsServiceBrandProperty(p) && !IsErrorBrandProperty(p)
 	})
 	for i, p := range properties {
 		if b.checkTruncationLengthIfExpanding() && (i+3 < len(properties)-1) {

@@ -1,0 +1,39 @@
+// A class arm over a closed class removes its class and every class below it
+// (D407, D428): an error declaration, a schema error, a family's base, and an
+// error class of effect cover a match with no default arm.
+error Gone { id: string }
+error AppError { _tag: string; code: string }
+error Missing extends AppError { path: string }
+error Expired extends AppError {}
+schema error Bad { reason: string }
+
+function closed(e: Gone | Missing | Expired | Bad) {
+  return match (e) {
+    when Gone: "gone";
+    when Missing: `missing ${e.path}`;
+    when Expired: "expired";
+    when Bad: "bad";
+  }
+}
+
+function family(e: Missing | Expired) {
+  return match (e) {
+    when AppError: e.code;
+  }
+}
+
+function effects(e: Cause.NoSuchElementError | Gone) {
+  return match (e) {
+    when Cause.NoSuchElementError: "none";
+    when Gone: "gone";
+  }
+}
+
+// expect-result: {"closed":["gone","missing /p","expired","bad"],"family":["m","x"],"effects":["none","gone"]}
+export function main() {
+  return {
+    closed: [closed(new Gone({ id: "1" })), closed(new Missing({ code: "m", path: "/p" })), closed(new Expired({ code: "x" })), closed(new Bad({ reason: "r" }))],
+    family: [family(new Missing({ code: "m", path: "/p" })), family(new Expired({ code: "x" }))],
+    effects: [effects(new Cause.NoSuchElementError()), effects(new Gone({ id: "2" }))]
+  }
+}

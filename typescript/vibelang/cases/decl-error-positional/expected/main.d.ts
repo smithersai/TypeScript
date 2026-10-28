@@ -7,17 +7,20 @@ export declare class Failure extends Failure_base<{
     readonly code: string;
     readonly summary: string;
 }> {
+    #private;
     constructor(code: string, summary: string);
     toJSON(): Record<string, unknown>;
 }
 declare const Integration_base: typeof Failure;
 export declare class Integration extends Integration_base {
+    #private;
     readonly _tag: "Integration";
     readonly reason: string;
     constructor(reason: string, summary: string);
 }
 declare const Plain_base: typeof Failure;
 export declare class Plain extends Plain_base {
+    #private;
     readonly _tag: "Plain";
 }
 export declare function main(): Effect.Effect<{

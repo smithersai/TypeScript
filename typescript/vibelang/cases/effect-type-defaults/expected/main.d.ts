@@ -6,6 +6,7 @@ declare const Gone_base: new <A extends Record<string, any> = {}>(args: import("
 declare class Gone extends Gone_base<{
     readonly id: string;
 }> {
+    #private;
 }
 interface Users extends Users.Shape, ServiceBrand<"effect-type-defaults/main#Users"> {
 }

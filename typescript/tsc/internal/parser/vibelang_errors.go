@@ -191,6 +191,7 @@ func (p *Parser) parseErrorDeclaration(pos int, jsdoc jsdocScannerInfo, modifier
 	if registration := p.vibelangSchemaErrorRegistration(d); registration != nil {
 		members = append([]*ast.Node{registration}, members...)
 	}
+	members = append(members, p.vibelangErrorBrand(d))
 	heritage = append(heritage, d.implements...)
 	membersLoc := core.NewTextRange(d.body.End(), d.body.End())
 	if d.hasBody {
@@ -200,6 +201,37 @@ func (p *Parser) parseErrorDeclaration(pos int, jsdoc jsdocScannerInfo, modifier
 	p.finishNode(result, pos)
 	p.withJSDoc(result, jsdoc)
 	return result
+}
+
+// ErrorBrandName is the name of the private member that makes an error
+// declaration's class nominal (D407). No code can write it: a private name
+// is an identifier, and this one is not.
+const ErrorBrandName = "#vibelang/error"
+
+// vibelangErrorBrand writes the member that makes an error declaration's
+// class nominal (D407), as TypeScript makes every class with a private member
+// nominal: a private field typed undefined, so another package's class with
+// the same tag and fields is not assignable to it. It is ambient, as a declare
+// field is, which a private name cannot be written: TypeScript erases it from
+// the JavaScript, needs no initializer for it, and does not report it unused.
+// A declaration file writes it as TypeScript writes any private name, #private.
+func (p *Parser) vibelangErrorBrand(d *errorDeclaration) *ast.Node {
+	at := d.name.Loc
+	modifiers := p.newModifierList(at, nil)
+	modifiers.ModifierFlags |= ast.ModifierFlagsAmbient
+	name := p.vibelangSynthesized(p.factory.NewPrivateIdentifier(ErrorBrandName), at)
+	brandType := p.vibelangSynthesized(p.factory.NewKeywordTypeNode(ast.KindUndefinedKeyword), at)
+	member := p.vibelangSynthesized(p.factory.NewPropertyDeclaration(modifiers, name, nil /*postfixToken*/, brandType, nil /*initializer*/), at)
+	member.Flags |= ast.NodeFlagsAmbient
+	p.overrideParentInImmediateChildren(member)
+	return member
+}
+
+// IsErrorBrand reports whether member is the private member that the parser
+// gives an error declaration's class (D407).
+func IsErrorBrand(member *ast.Node) bool {
+	return member != nil && ast.IsPropertyDeclaration(member) && member.Flags&ast.NodeFlagsReparsed != 0 &&
+		ast.IsPrivateIdentifier(member.Name()) && member.Name().Text() == ErrorBrandName
 }
 
 // parseVibeLangErrorHeritage parses an error's extends and implements

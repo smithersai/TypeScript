@@ -18,6 +18,8 @@ function describe(id: string) {
   return find(id) catch (e) => match (e) {
     when NotFound: `missing ${e.id}`;
     when Timeout: "slow";
+    // Only an error declaration's arm proves that a match covers e (D428).
+    default: "other";
   }
 }
 

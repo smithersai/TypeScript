@@ -1,0 +1,16 @@
+// An error declaration's declaration file writes its private member, #private
+// (D407), so stock TypeScript sees the class as nominal too, and a VibeLang
+// consumer of the declarations counts its arms toward exhaustiveness, as a
+// consumer of the source does. consumer/src does both; run.mjs compiles and
+// runs it.
+export error NotFound { id: string }
+export error Timeout { ms: number }
+export error AppError { _tag: string; code: string }
+export error Denied extends AppError { user: string }
+
+export function describe(e: NotFound | Timeout): string {
+  return match (e) {
+    when NotFound: `missing ${e.id}`;
+    when Timeout: `timeout ${e.ms}`;
+  }
+}

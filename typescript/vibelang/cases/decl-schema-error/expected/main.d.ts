@@ -5,6 +5,7 @@ declare const FsError_base: Schema.Class<FsError, Schema.TaggedStruct<string, {
 }>, import("effect/Cause").YieldableError>;
 /** The base of a family of file system failures. */
 export declare class FsError extends FsError_base {
+    #private;
 }
 declare const NotFound_base: Schema.Class<NotFound, Schema.Struct<{
     readonly method: Schema.String;
@@ -13,11 +14,13 @@ declare const NotFound_base: Schema.Class<NotFound, Schema.Struct<{
     attempts: Schema.Number;
 }>, FsError> & Pick<{}, never>;
 export declare class NotFound extends NotFound_base {
+    #private;
 }
 declare const Locked_base: Schema.Class<Locked, Schema.TaggedStruct<"Locked", {
     readonly holder: Schema.String;
 }>, import("effect/Cause").YieldableError>;
 export declare class Locked extends Locked_base {
+    #private;
     describe(): string;
 }
 export declare function main(): Effect.Effect<{
