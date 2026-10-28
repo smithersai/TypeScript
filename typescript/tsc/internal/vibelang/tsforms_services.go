@@ -21,13 +21,12 @@ import (
 // the ! form of that type (D127), since a member without a body must write
 // its contract (EK2101). The class must be named, exported or not, without
 // type parameters, an implements clause, members of its own, or the make
-// option. The declaration's key is derived from the package, the module,
-// and the name (D93), so the written key string is gone: lookups through the
-// class are unchanged, because providing and requiring both use the class,
-// but the key appears in "Service not found" messages, and a Context.Service
-// elsewhere with the same string would no longer share the slot. The note
-// says what the key becomes. Effect's own deterministicKeys rule rewrites
-// keys the same way. A class whose shape is a named type draws the warning
+// option. The declaration keeps the written key string as static readonly
+// key = "<key>" in its body (D501) unless it is the key the declaration
+// derives from the package, the module, and the name (D93), so its key, which
+// "Service not found" messages show and a Context.Service elsewhere with the
+// same string shares, and its declaration file stay what they were. A class
+// whose shape is a named type draws the warning
 // without a fix: the declaration needs the members written out. A shape that
 // is not an object type, such as Context.Service<Port, number>, draws
 // nothing. D281's service Name: Type writes both, once the parser accepts it.
@@ -117,9 +116,13 @@ func serviceClassRewrite(c *checker.Checker, file *ast.SourceFile, class *ast.No
 		return &formRewrite{why: "No quick fix: evaluating its dynamic service key must be preserved."}
 	}
 	name := class.Name().Text()
+	keyText := ""
+	if key.Text() != servicesFor(c).key(class) {
+		keyText = sourceText(file, key)
+	}
 	keyNote := ""
-	if ast.IsStringLiteralLike(key) {
-		keyNote = " Its key would become \"" + servicesFor(c).key(class) + "\" instead of \"" + key.Text() + "\"."
+	if keyText != "" {
+		keyNote = " Keep its key in the declaration: static readonly key = " + keyText + "."
 	}
 	if !ast.IsTypeLiteralNode(shape) {
 		return &formRewrite{why: "No quick fix: its members come from " + expressionText(file, shape) + "; write them in the declaration." + keyNote}
@@ -130,6 +133,9 @@ func serviceClassRewrite(c *checker.Checker, file *ast.SourceFile, class *ast.No
 	body, why := serviceBodyText(c, file, shape)
 	if why != "" {
 		return &formRewrite{why: "No quick fix: " + why + "." + keyNote}
+	}
+	if keyText != "" {
+		body = withServiceKey(body, keyText)
 	}
 	text := file.Text()
 	start := nodeStart(file, class)
@@ -151,8 +157,24 @@ func serviceClassRewrite(c *checker.Checker, file *ast.SourceFile, class *ast.No
 		edits:       []sourceEdit{{start, class.End(), declaration}},
 		description: shortText(declaration, "service "+name+" { … }"),
 	})
-	rewrite.why = strings.TrimSpace(keyNote)
 	return rewrite
+}
+
+// withServiceKey returns body, a service declaration's body, with
+// static readonly key = <key> as its first member, on a line of its own at
+// the first member's indentation when the body spans lines (D501).
+func withServiceKey(body, key string) string {
+	member := "static readonly key = " + key
+	rest, ok := strings.CutPrefix(body, "{")
+	if !ok {
+		return body
+	}
+	if i := strings.IndexByte(rest, '\n'); i >= 0 && strings.TrimSpace(rest[:i]) == "" {
+		line := rest[i+1:]
+		indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+		return "{\n" + indent + member + rest[i:]
+	}
+	return "{ " + member + ";" + rest
 }
 
 // serviceBodyText returns literal, a Context.Service shape, as a service
