@@ -1,7 +1,8 @@
 // expect-result: 2
-// The file's local name for effect/Effect and a module declaration's hoisted
-// import of effect/Effect are both generated names; they must differ, or the
-// file declares the name twice.
+// The file and its module declaration both import effect/Effect. The module
+// is a JavaScript module of its own (D403), so the two imports never share a
+// scope; inlined, both took the generated name Effect_1 and the file declared
+// it twice.
 module bridge {
   import * as Effect from "effect/Effect"
 

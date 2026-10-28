@@ -1,0 +1,25 @@
+// A file re-exports its module declarations' exports, and every re-export
+// is a live binding (D403): run.mjs bumps the counter and adds to the total
+// through this file, then reads both through its re-exports. This file's
+// JavaScript and declarations re-export from main.vibe.counter.js and
+// main.vibe.extras.js, which hold the modules.
+module counter {
+  export let count = 0
+
+  export function bump(): number {
+    return ++count
+  }
+}
+
+module extras {
+  export let total = 10
+
+  export function add(amount: number): number {
+    total += amount
+    return total
+  }
+}
+
+export { count as current, bump } from counter
+export * as counterModule from counter
+export * from extras

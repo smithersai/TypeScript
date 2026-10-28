@@ -200,8 +200,21 @@ func (e *emitter) emitJSFile(emitResolver printer.EmitResolver, sourceFile *ast.
 		return
 	}
 
+	// A module declaration's body runs only where its file imports it.
+	if sourceFile.EmbeddedModule() != nil && !embeddedModuleEmitsScript(emitResolver, options, sourceFile) {
+		return
+	}
+
 	if e.tr != nil {
 		defer e.tr.Push(tracing.PhaseEmit, "emitJsFileOrBundle", map[string]any{"jsFilePath": jsFilePath}, true)()
+	}
+
+	printHandlers := printer.PrintHandlers{}
+	if sourceFile.EmbeddedModule() != nil {
+		// A module declaration's body has its .vibe file's positions, so its
+		// source map names that file and its text.
+		original := newOriginalMapSource(sourceFile)
+		printHandlers.SourceMapSource = func(*ast.SourceFile) sourcemap.Source { return original }
 	}
 
 	sourceFile = e.runScriptTransformers(emitResolver, sourceFile)
@@ -218,9 +231,7 @@ func (e *emitter) emitJSFile(emitResolver printer.EmitResolver, sourceFile *ast.
 	}
 
 	// create a printer to print the nodes
-	printer := printer.NewPrinter(printerOptions, printer.PrintHandlers{
-		// !!!
-	}, emitContext)
+	printer := printer.NewPrinter(printerOptions, printHandlers, emitContext)
 
 	e.printSourceFile(emitContext, jsFilePath, sourceMapFilePath, sourceFile, printer, options, shouldEmitSourceMaps(options, sourceFile))
 }
@@ -275,7 +286,7 @@ func (e *emitter) emitDeclarationFile(emitResolver printer.EmitResolver, sourceF
 	// create a printer to print the nodes
 	printHandlers := printer.PrintHandlers{}
 	if spanMap := contentMappedSource.SpanMap(); emitDeclarationMap && spanMap != nil {
-		originalSource := newDeclarationMapSource(contentMappedSource)
+		originalSource := newOriginalMapSource(contentMappedSource)
 		printHandlers.MapSourcePosition = func(source sourcemap.Source, pos int) (sourcemap.Source, int, bool) {
 			if source.FileName() != contentMappedSource.FileName() {
 				return source, pos, true
@@ -298,24 +309,26 @@ func (e *emitter) emitDeclarationFile(emitResolver printer.EmitResolver, sourceF
 	e.printSourceFile(emitContext, declarationFilePath, declarationMapPath, sourceFile, printer, declarationMapOptions, shouldEmitSourceMaps(declarationMapOptions, sourceFile))
 }
 
-type declarationMapSource struct {
+// originalMapSource is the source a content-mapped file's source maps name:
+// the original file and its untransformed text.
+type originalMapSource struct {
 	fileName tspath.RootedFilePath
 	text     string
 	lineMap  []core.TextPos
 }
 
-func newDeclarationMapSource(sourceFile *ast.SourceFile) *declarationMapSource {
+func newOriginalMapSource(sourceFile *ast.SourceFile) *originalMapSource {
 	text := sourceFile.OriginalText()
-	return &declarationMapSource{
+	return &originalMapSource{
 		fileName: sourceFile.OriginalFileName(),
 		text:     text,
 		lineMap:  []core.TextPos(core.ComputeECMALineStarts(text)),
 	}
 }
 
-func (s *declarationMapSource) FileName() tspath.RootedFilePath { return s.fileName }
-func (s *declarationMapSource) Text() string                    { return s.text }
-func (s *declarationMapSource) ECMALineMap() []core.TextPos     { return s.lineMap }
+func (s *originalMapSource) FileName() tspath.RootedFilePath { return s.fileName }
+func (s *originalMapSource) Text() string                    { return s.text }
+func (s *originalMapSource) ECMALineMap() []core.TextPos     { return s.lineMap }
 
 func (e *emitter) printSourceFile(emitContext *printer.EmitContext, jsFilePath tspath.RootedFilePath, sourceMapFilePath tspath.RootedFilePath, sourceFile *ast.SourceFile, printer_ *printer.Printer, mapOptions *core.CompilerOptions, shouldEmitSourceMaps bool) {
 	// !!! sourceMapGenerator
@@ -492,8 +505,9 @@ func sourceFileMayBeEmitted(sourceFile *ast.SourceFile, host SourceFileMayBeEmit
 	}
 
 	// Runtime output for content-mapped files is owned by the external content mapper or build tool. Only
-	// include them in the emit set when their transformed TypeScript can produce declarations.
-	if sourceFile.ContentMapper() != "" && !forceDtsEmit && !options.GetEmitDeclarations() {
+	// include them in the emit set when their transformed TypeScript can produce declarations. A VibeLang
+	// module declaration's body is the exception: it emits JavaScript of its own (D403).
+	if sourceFile.ContentMapper() != "" && sourceFile.EmbeddedModule() == nil && !forceDtsEmit && !options.GetEmitDeclarations() {
 		return false
 	}
 

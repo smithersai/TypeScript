@@ -13,7 +13,11 @@ export interface Output {
 }
 
 export interface Result {
-  /** Each .vibe source, by listed and real path, to its JavaScript and source map. */
+  /**
+   * Each .vibe source, by listed and real path, to its JavaScript and source
+   * map, and each output of its module declarations, such as main.vibe.text.js
+   * beside main.vibe, to that module's.
+   */
   readonly outputs: Map<string, Output>
   /** Project source files the result depends on. */
   readonly inputs: Array<string>
@@ -68,6 +72,11 @@ export interface Imports {
 export type CacheOption = false | { readonly directory: string }
 
 export function findCompiler(root: string, compiler?: string): string
+/**
+ * The .vibe file whose module declaration compiles to `path`, as main.vibe's
+ * `module text` compiles to main.vibe.text.js, or undefined.
+ */
+export function moduleDeclarationSource(path: string): string | undefined
 export function parseOutput(output: string, root: string): { files: Array<string>; diagnostics: Array<Diagnostic> }
 export function parseExplainFiles(output: string, root: string): { files: Array<string>; imports: Array<Import>; diagnostics: Array<Diagnostic> }
 export function projectImports(options: { project: string; root?: string; compiler?: string }): Imports

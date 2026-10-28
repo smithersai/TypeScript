@@ -88,6 +88,41 @@ test("bun runs .vibe modules imported from TypeScript, with one compile per proj
   assert.equal(compilations(), 1, "every .vibe module of a project comes from one compile")
 })
 
+test("bun runs a .vibe module's module declaration as a module of its own (D403)", { skip }, (t) => {
+  const { bun, compilations } = project(t, {
+    ...greeting,
+    "src/text.vibe": [
+      "module tools {",
+      "  import { shout } from \"./shout.vibe\"",
+      "  import { suffix } from \"./suffix.ts\"",
+      "  import { String as Str } from \"effect\"",
+      "  export let cleaned = 0",
+      "  export function clean(value: string): string {",
+      "    cleaned++",
+      "    return Str.capitalize(shout(value.trim()).toLowerCase()) + suffix",
+      "  }",
+      "}",
+      "import { clean } from tools",
+      "export { cleaned } from tools",
+      "export function tidy(value: string) {",
+      "  return sync((value) => clean(value), value)",
+      "}",
+      ""
+    ].join("\n"),
+    "main.ts": [
+      "import { Effect } from \"effect\"",
+      "import { cleaned, tidy } from \"./src/text.vibe\"",
+      "const text = Effect.runSync(tidy(\"  ab  \"))",
+      "console.log(JSON.stringify({ text, cleaned }))",
+      ""
+    ].join("\n")
+  })
+  const result = bun(["--preload", preload, "main.ts"])
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), { text: "Ab!", cleaned: 1 }, "the module's export is a live binding")
+  assert.equal(compilations(), 1, "the module comes from its file's compile")
+})
+
 test("bun test loads .vibe modules through a bunfig.toml preload of vibelang/bun", { skip }, async (t) => {
   const { bun, compilations } = project(t, {
     ...greeting,

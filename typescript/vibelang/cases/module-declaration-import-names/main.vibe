@@ -1,6 +1,7 @@
 // expect-result: [1, 2]
 // A module declaration's imports and the names the file's own lowering imports
-// never collide: both import effect/Effect and effect/Option here (D303).
+// never collide: both import effect/Effect and effect/Option here, each in its
+// own JavaScript module (D403).
 module hosts {
   import * as Effect from "effect/Effect"
   import * as Option from "effect/Option"

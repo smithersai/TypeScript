@@ -115,62 +115,87 @@ func hoverText(t *testing.T, service *ls.LanguageService, uri lsproto.DocumentUr
 	return response.Hover.Contents.MarkupContent.Value
 }
 
-// A module declaration's body is emitted inline (D303) with source map
-// entries that point into the .vibe file at the body's own lines.
+// A module declaration's body is a JavaScript module of its own (D403),
+// main.vibe.text.js, whose source map names main.vibe alone and points into
+// it at the body's own lines; main.js imports it. A module the file imports
+// only types from, and one it never imports, emit no JavaScript.
 func TestModuleDeclarationSourceMap(t *testing.T) {
 	root, err := filepath.Abs("../../../..")
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := copyCompilerFixture(t, filepath.Join(root, "typescript/vibelang/cases/module-declaration"), root)
-	fileSystem := bundled.WrapFS(osvfs.FS())
-	config, errors := tsoptions.GetParsedCommandLineOfConfigFile(tspath.RootedFilePathFromAbsolute(filepath.ToSlash(filepath.Join(dir, "tsconfig.json"))), &core.CompilerOptions{SourceMap: core.TSTrue}, nil, fileSystem, nil)
-	if len(errors) != 0 {
-		t.Fatalf("config: %v", errors)
-	}
-	program := compiler.NewProgram(compiler.ProgramOptions{Config: config, Host: compiler.NewCompilerHost(fileSystem, bundled.LibPath(), nil, nil, nil)})
-	outputs := map[string]string{}
-	result := program.Emit(t.Context(), compiler.EmitOptions{WriteFile: func(name tspath.RootedFilePath, text string, _ *compiler.WriteFileData) error {
-		outputs[filepath.Base(string(name))] = text
-		return nil
-	}})
-	if result.EmitSkipped {
-		t.Fatalf("emit skipped: %v", result.Diagnostics)
-	}
-	if _, ok := outputs["main.vibe.text.js"]; ok {
-		t.Fatal("the module declaration has a JavaScript file of its own")
-	}
-	var sourceMap struct {
-		Sources  []string `json:"sources"`
-		Mappings string   `json:"mappings"`
-	}
-	if err := json.Unmarshal([]byte(outputs["main.js.map"]), &sourceMap); err != nil {
-		t.Fatalf("main.js.map: %v", err)
-	}
-	if len(sourceMap.Sources) != 1 || !strings.HasSuffix(sourceMap.Sources[0], "main.vibe") {
-		t.Fatalf("sources = %v, want only main.vibe", sourceMap.Sources)
-	}
-	source, err := os.ReadFile(filepath.Join(dir, "main.vibe"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	lineOf := func(text, needle string) int {
-		index := strings.Index(text, needle)
-		if index < 0 {
-			t.Fatalf("missing %q", needle)
+	outputs := func(name string) map[string]string {
+		dir := copyCompilerFixture(t, filepath.Join(root, "typescript/vibelang/cases", name), root)
+		fileSystem := bundled.WrapFS(osvfs.FS())
+		config, errors := tsoptions.GetParsedCommandLineOfConfigFile(tspath.RootedFilePathFromAbsolute(filepath.ToSlash(filepath.Join(dir, "tsconfig.json"))), &core.CompilerOptions{SourceMap: core.TSTrue}, nil, fileSystem, nil)
+		if len(errors) != 0 {
+			t.Fatalf("config: %v", errors)
 		}
-		return strings.Count(text[:index], "\n")
+		program := compiler.NewProgram(compiler.ProgramOptions{Config: config, Host: compiler.NewCompilerHost(fileSystem, bundled.LibPath(), nil, nil, nil)})
+		outputs := map[string]string{}
+		result := program.Emit(t.Context(), compiler.EmitOptions{WriteFile: func(name tspath.RootedFilePath, text string, _ *compiler.WriteFileData) error {
+			outputs[filepath.Base(string(name))] = text
+			return nil
+		}})
+		if result.EmitSkipped {
+			t.Fatalf("emit skipped: %v", result.Diagnostics)
+		}
+		source, err := os.ReadFile(filepath.Join(dir, "main.vibe"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		outputs["main.vibe"] = string(source)
+		return outputs
 	}
-	// The throw in clean, inside module text's body.
-	want := lineOf(string(source), `if (trimmed === "") throw new Error("empty")`)
-	generated := lineOf(outputs["main.js"], `if (trimmed === "")`)
-	for mapping := range sourcemap.DecodeMappings(sourceMap.Mappings).Values() {
-		if mapping.GeneratedLine == generated && mapping.IsSourceMapping() {
-			if mapping.SourceLine != want {
-				t.Fatalf("main.js line %d maps to main.vibe line %d, want %d", generated+1, mapping.SourceLine+1, want+1)
+
+	t.Run("the body maps into the .vibe file", func(t *testing.T) {
+		outputs := outputs("module-declaration")
+		if !strings.Contains(outputs["main.js"], `from "./main.vibe.text.js"`) {
+			t.Fatalf("main.js does not import its module declaration:\n%s", outputs["main.js"])
+		}
+		if strings.Contains(outputs["main.js"], `throw new Error("empty")`) {
+			t.Fatal("main.js holds the module declaration's body")
+		}
+		var sourceMap struct {
+			Sources  []string `json:"sources"`
+			Mappings string   `json:"mappings"`
+		}
+		if err := json.Unmarshal([]byte(outputs["main.vibe.text.js.map"]), &sourceMap); err != nil {
+			t.Fatalf("main.vibe.text.js.map: %v", err)
+		}
+		if len(sourceMap.Sources) != 1 || !strings.HasSuffix(sourceMap.Sources[0], "/main.vibe") {
+			t.Fatalf("sources = %v, want only main.vibe", sourceMap.Sources)
+		}
+		lineOf := func(text, needle string) int {
+			index := strings.Index(text, needle)
+			if index < 0 {
+				t.Fatalf("missing %q", needle)
 			}
-			return
+			return strings.Count(text[:index], "\n")
 		}
-	}
-	t.Fatalf("main.js line %d has no source mapping", generated+1)
+		// The throw in clean, inside module text's body.
+		want := lineOf(outputs["main.vibe"], `if (trimmed === "") throw new Error("empty")`)
+		generated := lineOf(outputs["main.vibe.text.js"], `if (trimmed === "")`)
+		for mapping := range sourcemap.DecodeMappings(sourceMap.Mappings).Values() {
+			if mapping.GeneratedLine == generated && mapping.IsSourceMapping() {
+				if mapping.SourceLine != want {
+					t.Fatalf("main.vibe.text.js line %d maps to main.vibe line %d, want %d", generated+1, mapping.SourceLine+1, want+1)
+				}
+				return
+			}
+		}
+		t.Fatalf("main.vibe.text.js line %d has no source mapping", generated+1)
+	})
+
+	t.Run("only imported modules emit JavaScript", func(t *testing.T) {
+		outputs := outputs("module-declaration-emit")
+		for name, emitted := range map[string]bool{
+			"main.vibe.text.js": true, "main.vibe.config.js": true, "main.vibe.setup.js": true, "main.vibe.extras.js": true,
+			"main.vibe.shapes.js": false, "main.vibe.unused.js": false,
+		} {
+			if _, ok := outputs[name]; ok != emitted {
+				t.Errorf("%s emitted: %v, want %v", name, ok, emitted)
+			}
+		}
+	})
 }

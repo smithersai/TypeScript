@@ -84,16 +84,24 @@ test("runs .vibe modules imported from TypeScript, with one compile and one copy
   assert.equal(compilations(), 1, "every .vibe module of a project comes from one compile")
 })
 
-test("loads a .vibe module whose module declaration holds TypeScript, with stack frames inside it (D283)", { skip }, (t) => {
+test("loads a .vibe module's module declaration as a module of its own, with stack frames inside it (D283, D403)", { skip }, (t) => {
   const { run, compilations } = project(t, {
+    "src/suffix.ts": "export const suffix = \"!\"\n",
+    "src/shout.vibe": "export function shout(text: string): string { return text.toUpperCase() }\n",
     "src/text.vibe": [
       "module tools {",
       "  export function clean(value: string): string {",
       "    if (value.trim() === \"\") throw new Error(\"empty\")",
-      "    return value.trim()",
+      "    cleaned++",
+      "    return shout(value.trim()) + suffix",
       "  }",
+      "  export let cleaned = 0",
+      "  export const url = import.meta.url",
+      "  import { suffix } from \"./suffix.ts\"",
+      "  import { shout } from \"./shout.vibe\"",
       "}",
       "import { clean } from tools",
+      "export { cleaned, url } from tools",
       "export function tidy(value: string) {",
       "  return sync((value) => clean(value), value)",
       "}",
@@ -101,17 +109,18 @@ test("loads a .vibe module whose module declaration holds TypeScript, with stack
     ].join("\n"),
     "src/main.ts": [
       "import { Cause, Effect, Exit } from \"effect\"",
-      "import { tidy } from \"./text.vibe\"",
+      "import { cleaned, tidy, url } from \"./text.vibe\"",
       "const exit = Effect.runSyncExit(tidy(\"  \"))",
       "const defect = Exit.isFailure(exit) ? Cause.squash(exit.cause) as Error : undefined",
-      "console.log(JSON.stringify({ text: Effect.runSync(tidy(\"  a  \")), defect: defect?.message, mapped: /text\\.vibe:3:/.test(String(defect?.stack)) }))",
+      "const text = Effect.runSync(tidy(\"  a  \"))",
+      "console.log(JSON.stringify({ text, cleaned, url: url.endsWith(\"/src/text.vibe.tools.js\"), defect: defect?.message, mapped: /text\\.vibe:3:/.test(String(defect?.stack)) }))",
       ""
     ].join("\n")
   })
   const result = run("src/main.ts")
   assert.equal(result.stderr, "")
   assert.equal(result.status, 0)
-  assert.deepEqual(JSON.parse(result.stdout), { text: "a", defect: "empty", mapped: true })
+  assert.deepEqual(JSON.parse(result.stdout), { text: "A!", cleaned: 1, url: true, defect: "empty", mapped: true })
   assert.equal(compilations(), 1)
 })
 

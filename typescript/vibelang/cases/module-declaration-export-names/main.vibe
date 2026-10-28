@@ -1,4 +1,5 @@
-// expect-result: [42, 42, 42, 42, 7, true, true]
+// A namespace import of a module declaration is its module namespace object (D403).
+// expect-result: [42, 42, 42, 42, 7, "[object Module]", true]
 module impl {
   const value = 42
   export { value as "__proto__", value as constructor, value as "two words", value as "quote\"name" }
@@ -8,5 +9,5 @@ import * as ns from impl
 export { "__proto__" as protoValue, "two words" as "two words" } from impl
 export function main() {
   return [ns["__proto__"], ns.constructor, ns["two words"], ns['quote"name'], ns["re-export"],
-    sync(() => Object.isFrozen(ns)), sync(() => Object.getPrototypeOf(ns) === null)]
+    sync(() => Object.prototype.toString.call(ns)), sync(() => Object.getPrototypeOf(ns) === null)]
 }

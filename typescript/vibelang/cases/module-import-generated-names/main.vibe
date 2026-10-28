@@ -1,7 +1,7 @@
-// A module declaration's import moves to the file's top level under a
-// generated name, effect/Effect's as Effect_1 when the file uses Effect. The
-// names the lowering generates for its own imports differ from it: the
-// lowering's Effect import was named Effect_1 too, and loading the file
+// A module declaration's import of effect/Effect stays in the module's own
+// JavaScript (D403), apart from the Effect import the file's lowering adds.
+// When the module was inlined, its import moved to the file's top level as
+// Effect_1, the lowering's import was named Effect_1 too, and loading the file
 // failed with "Identifier 'Effect_1' has already been declared".
 module helpers {
   import * as Effect from "effect/Effect"

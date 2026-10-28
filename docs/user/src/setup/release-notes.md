@@ -38,6 +38,7 @@ The fixes keep a rewrite only when it adds no compiler error.
 | A member access, element access or call after a parenthesized await operation, as in `await.all(batch).jobs` | It now applies to the operation's value, as after any call: `await.all([a(), b()]).length` counts the results. It previously applied inside the operand, running `batch.jobs`; write `await.all(batch.jobs)` for that. |
 | `error Sub extends Base { path: string }` when Base's constructor takes a primitive or list | EK2118 at the declaration; before, construction usually failed later with TS2345. Write a constructor that calls `super` with the arguments Base expects. |
 | `module { export const value = 1 }` | EK4408 replaces misleading platform/call errors. Name it: `module helpers { export const value = 1 }`. |
+| A `module` declaration whose code relies on running before the file's other imports, or an importer that relies on an exported `let` keeping its first value | Each module declaration the file imports is now a JavaScript module of its own, `main.vibe.text.js` beside `main.js`. It runs in its place among the file's imports, after its own imports, and imports of its exports are live bindings; before, every module's imports ran first and an import kept the value the export had when the module ran. Its `import.meta` is its own file's. Order the imports as the code needs them, and ship the `main.vibe.*.js` files with `main.js`. |
 | A method with a plain return annotation whose body runs an Effect, such as `count(): number { sleep("1 millis"); return 42 }` | EK2003, as for a function. It previously compiled, declared `count(): number`, and returned an unrun Effect to callers that reached it through an interface or from TypeScript. Write its contract, `count(): number!!`, or remove the annotation. A method implementing a plain member such as `[Equal.symbol]` keeps EK4301. |
 | An `await` binding such as `const await = 1` | Rejected in a VibeLang module; rename the binding. It previously compiled despite the reserved word. JavaScript `await` remains available inside TypeScript escapes. |
 | A plain object or default typed with a service's name, such as `const impl: Users = { … }`, or a TypeScript class that `implements Users` | TS2741 or TS2420: a service's name is now its identifier, which only the service carries, so another service with the same members or a structural type no longer stands for it. Type the implementation `Users.Shape`: `const impl: Users.Shape = { … }`, `static readonly default: Flags.Shape = { … }`, `implements Users.Shape`. `Users()` still has the type `Users`. |
@@ -84,6 +85,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 ### Bugs fixed since 0.0.10
 
+- A `module` declaration's exports were copies: after `bump()` changed an exported `let count`, the file and its re-exports still read `0`, and the module's imports ran before the file's earlier imports. Each module declaration the file imports now compiles to a JavaScript module of its own, `main.vibe.text.js` beside `main.js`, so its exports are live bindings and it runs in import order; `vibelang/register`, `vibelang/bun`, `vibelang-vite` and `vibelang-unplugin` load it from the file's compile.
 - Quick fixes dropped the comments inside what they rewrote: a comment in an error's field list or before an `Effect.succeed` argument disappeared. Fixes now keep those comments, and a rewrite that cannot keep its comments is not offered.
 - `vibelang --fix` stopped after 16 rounds, so a file with more than 16 nested `Effect.Effect<…>` types was only partly rewritten and a second run changed it again. It now continues until nothing is left to fix, and reports a rewrite that repeats a source state instead of writing a partial result.
 - The editor's error-declaration quick fix cut a generic parameter list at the first `extends` inside it, turning `class Bad<T extends string>` into `error Bad<T { n: T }` and leaving `TS1005: '>' expected`. The fix now copies the whole type-parameter list from the parsed class.
@@ -453,10 +455,6 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
 
 #### Modules and declarations
 
-- Mutable exports from an inline `module` are snapshots: named imports,
-  namespace imports and re-exports can keep the initial value after updates.
-  Export a getter function, or move the module to a separate TypeScript module
-  (see Known design issues).
 - A dynamic import of a VibeLang source can keep the source extension when
   extension rewriting is disabled, or fail to escape URL characters such as
   `#` when it is enabled, so the emitted module cannot be loaded. Use a static
@@ -588,20 +586,10 @@ listed with an upgrade step.
     (r) => sync((value) => value[Symbol.dispose](), r)) // two disposals
   ```
 
-- **Inline `module` imports are snapshots.** Named imports, namespace imports
-  and re-exports can keep an exported `let`'s initial value after it changes,
-  unlike ordinary TypeScript live imports. Inline-module initialization order
-  and case-insensitive module names also depart from ordinary module rules.
-  Today, export a getter for mutable state, use distinct names that differ by
-  more than case, and move initialization with ordering dependencies to
-  separate `.ts` modules.
-
-  ```vibe
-  // fragment
-  module state { export let count = 0; export function bump() { count++ } }
-  import { count, bump } from state
-  bump() // count can still be 0
-  ```
+- **Module names that differ only in letter case are one module.** A
+  module declaration compiles to a file named for it in lower case,
+  `main.vibe.state.js`, so `module State` and `module state` in one file are
+  EK4408, unlike two bindings. Today, use names that differ by more than case.
 
 - **An open error family does not get exhaustive matching.** Covering the
   subclasses you know does not close a base family; a match without `default`

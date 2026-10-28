@@ -7,10 +7,12 @@
 // module, or VIBELANG_PROJECT for the modules in its directory (a module of
 // another workspace package compiles with its own tsconfig.json). A compile's result is cached on disk
 // (vibelang/project), so a later process reuses it while the project's inputs
-// are unchanged.
+// are unchanged. A module declaration of a .vibe module is a module of its
+// own, main.vibe.text.js beside main.vibe for module text (D403), which is not
+// on disk; its JavaScript comes from the same compile.
 import { existsSync } from "node:fs"
 import { dirname, resolve } from "node:path"
-import { compileProjectSync, formatDiagnostic, nearestProject, workspaceProject } from "./project.mjs"
+import { compileProjectSync, formatDiagnostic, moduleDeclarationSource, nearestProject, workspaceProject } from "./project.mjs"
 
 if (typeof Bun === "undefined") {
   throw new Error("vibelang/bun is a Bun preload; under Node, use node --import vibelang/register")
@@ -45,20 +47,39 @@ function emitted(file) {
   return output
 }
 
+// A module declaration's output that is not on disk: the compile serves it.
+function isModuleOutput(path) {
+  const source = path === undefined ? undefined : moduleDeclarationSource(path)
+  return source !== undefined && !existsSync(path) && existsSync(source)
+}
+
+// Bun loads a file that is not on disk only from a namespace of the plugin's
+// own; an importer in it names it before its path.
+const moduleNamespace = "vibelang-module"
+const pathOf = (importer) => importer?.startsWith(`${moduleNamespace}:`) ? importer.slice(moduleNamespace.length + 1) : importer
+
 Bun.plugin({
   name: "vibelang",
   setup(build) {
     // vibelang rewrites a .vibe module's relative imports to the emitted .js
-    // names. From source, a missing ./x.js is the .vibe file beside it; Bun
-    // maps a missing .js to its .ts or .tsx file itself.
+    // names. From source, a missing ./x.js is the .vibe file beside it, or a
+    // module declaration's output. Bun maps a missing .js to its .ts or .tsx
+    // file itself, except from a module declaration's output.
     build.onResolve({ filter: /^\.\.?\/.*\.js$/ }, ({ path, importer }) => {
-      if (!importer?.endsWith(".vibe")) return undefined
+      const fromModule = importer?.startsWith(`${moduleNamespace}:`)
+      importer = pathOf(importer)
+      if (!importer?.endsWith(".vibe") && !fromModule) return undefined
       const target = resolve(dirname(importer), path)
-      if (existsSync(target)) return undefined
-      const source = target.slice(0, -".js".length) + ".vibe"
-      return existsSync(source) ? { path: source } : undefined
+      if (existsSync(target)) return fromModule ? { path: target } : undefined
+      if (isModuleOutput(target)) return { path: target, namespace: moduleNamespace }
+      for (const extension of fromModule ? [".vibe", ".ts", ".tsx"] : [".vibe"]) {
+        const source = target.slice(0, -".js".length) + extension
+        if (existsSync(source)) return { path: source }
+      }
+      return undefined
     })
     // Bun 1.4.2 ignores a plugin's source maps, so the module is its JavaScript alone.
     build.onLoad({ filter: /\.vibe$/ }, ({ path }) => ({ contents: emitted(path).code, loader: "js" }))
+    build.onLoad({ filter: /\.js$/, namespace: moduleNamespace }, ({ path }) => ({ contents: emitted(path).code, loader: "js" }))
   }
 })

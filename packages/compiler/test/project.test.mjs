@@ -5,7 +5,7 @@ import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { test } from "node:test"
 import { fileURLToPath } from "node:url"
-import { findCompiler, formatDiagnostic, nearestProject, parseExplainFiles, parseOutput, projectBackend, projectImports, projects } from "../project.mjs"
+import { findCompiler, formatDiagnostic, moduleDeclarationSource, nearestProject, parseExplainFiles, parseOutput, projectBackend, projectImports, projects } from "../project.mjs"
 
 const repo = fileURLToPath(new URL("../../../", import.meta.url))
 const native = process.env.VIBELANG_BINARY || join(repo, "typescript/built/local/tsc")
@@ -89,6 +89,14 @@ test("a missing compiler reports the command that failed to spawn", async (t) =>
     assert.match(error.message, /ENOENT/)
     return true
   })
+})
+
+test("a module declaration's output names its .vibe file; other paths name none (D403)", () => {
+  assert.equal(moduleDeclarationSource("/app/src/main.vibe.text.js"), "/app/src/main.vibe")
+  assert.equal(moduleDeclarationSource("C:\\app\\main.vibe.tools.js"), "C:\\app\\main.vibe")
+  for (const path of ["/app/src/main.vibe", "/app/src/main.js", "/app/src/main.vibe.js", "/app/src/main.vibe.a.b.js", "/app/main.vibe/text.js", "/app/src/main.vibe.text.ts"]) {
+    assert.equal(moduleDeclarationSource(path), undefined, path)
+  }
 })
 
 test("the nearest project is the closest tsconfig.json above a file, or none", (t) => {
@@ -244,7 +252,7 @@ test("a check-only project that imports .ts files compiles, without TS5096", { s
   assert.match(main.code, /from "\.\/helper\.js"/)
 })
 
-test("a module declaration compiles into its file's output, and its body is no input file (D283)", { skip }, async (t) => {
+test("a module declaration compiles to an output of its own from its file's compile, and its body is no input file (D403)", { skip }, async (t) => {
   const { app, compiler, compiles } = workspace(t)
   const main = join(app, "src/main.vibe")
   writeFileSync(main, [
@@ -261,7 +269,12 @@ test("a module declaration compiles into its file's output, and its body is no i
   const modules = projects({ root: app, project: join(app, "tsconfig.json"), compiler })
   const loaded = await modules.load(main)
   assert.deepEqual([loaded.errors, loaded.error], [[], false])
-  assert.match(loaded.code, /const tools_1 = \(\(\) => \{/)
+  assert.match(loaded.code, /import \{ shout \} from "\.\/main\.vibe\.tools\.js"/)
+  assert.doesNotMatch(loaded.code, /toUpperCase/, "the file's output does not hold the module")
+  const tools = await modules.load(join(app, "src/main.vibe.tools.js"))
+  assert.deepEqual([tools.errors, tools.error], [[], false])
+  assert.match(tools.code, /export function shout\(text\) \{ return text\.toUpperCase\(\); \}/)
+  assert.deepEqual(tools.map.sources, [main], "the module's source map names its .vibe file")
   assert.ok(loaded.inputs.includes(main))
   assert.deepEqual(loaded.inputs.filter((input) => !existsSync(input)), [], "every input is a file on disk")
   await modules.load(main)

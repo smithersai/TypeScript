@@ -33,7 +33,9 @@ export default defineConfig({ plugins: [vibelang()] })
 Keep your normal `tsconfig.json` with the `.vibe` sources included; the plugin
 uses the same compiler options and diagnostics as `vibelang -p tsconfig.json`.
 Import local sources as `./welcome.vibe`; imports `vibelang` rewrites to
-`./welcome.js` resolve back to `welcome.vibe` in Vite's module graph.
+`./welcome.js` resolve back to `welcome.vibe` in Vite's module graph. A
+`module` declaration of `welcome.vibe` is a module of its own,
+`welcome.vibe.text.js`, which the plugin serves from the same compile.
 
 A `.vibe` module of another workspace package, such as one that your app or
 test imports by name, compiles with the nearest `tsconfig.json` above it: its

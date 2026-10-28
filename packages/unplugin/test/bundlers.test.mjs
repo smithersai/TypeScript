@@ -208,6 +208,12 @@ describe("vibelang-unplugin", { concurrency }, () => {
       }
       assert.ok(payload.sourcesContent[source].includes("service Inventory"), "the map embeds the .vibe source")
       assert.deepEqual([entry.originalLine + 1, entry.originalColumn + 1], [32, 19])
+      // format.vibe's module declaration is a module of its own; its map names format.vibe (D403).
+      const joined = lines.findIndex((text) => text.includes("String(quantity)"))
+      assert.ok(joined >= 0, "the bundle holds format.vibe's module declaration")
+      const body = new SourceMap(payload).findEntry(joined, lines[joined].indexOf("String(quantity)"))
+      assert.match(body.originalSource, /src\/format\.vibe$/)
+      assert.equal(body.originalLine + 1, 9)
     })
 
     if (bundler === "bun") {

@@ -1,5 +1,5 @@
-// A module declaration in a CommonJS package (D283, D303): the module and its
-// imports lower with the file to require calls. A module declaration escapes
+// A module declaration in a CommonJS package (D283, D403): the file requires
+// the module's own CommonJS output, main.vibe.text.js. A module declaration escapes
 // to TypeScript (D283). Its body is checked and
 // compiled as a .ts file would be: throw and catch, async and await, and
 // platform APIs keep their TypeScript meaning. It imports what it needs

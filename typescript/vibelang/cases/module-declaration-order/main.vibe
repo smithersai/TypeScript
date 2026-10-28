@@ -1,0 +1,31 @@
+// Module declarations and their imports evaluate in ECMAScript's order
+// (D403): each module runs after its own imports, in its place among the
+// file's imports. Module first runs before module second's import of
+// dependency.ts, as two .ts files would; module unused never runs.
+import { order } from "./order.ts"
+import first
+import second
+
+module first {
+  import { order } from "./order.ts"
+
+  order.push("first")
+}
+
+module second {
+  import { order } from "./order.ts"
+  import "./dependency.ts"
+
+  order.push("second")
+}
+
+module unused {
+  import { order } from "./order.ts"
+
+  order.push("unused")
+}
+
+// expect-result: ["first","dependency","second"]
+export function main() {
+  return order
+}

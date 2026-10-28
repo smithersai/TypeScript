@@ -72,7 +72,9 @@ choose another project, such as `tsconfig.test.json` for an example beside a
 library; it compiles the modules in its directory, and a module of another
 workspace package, such as a dependency linked to its source, still compiles
 with that package's own `tsconfig.json`. A module keeps its source URL, so a `.ts` file imported
-by both a TypeScript and a `.vibe` module loads once. Diagnostics that stop the
+by both a TypeScript and a `.vibe` module loads once. A `module` declaration in
+`main.vibe` is a module of its own, `main.vibe.text.js` beside it, which is not
+on disk; the hook serves it from the same compile. Diagnostics that stop the
 compile are thrown at the import. The hook turns on Node's source-map support,
 so a stack trace names `.vibe` lines. It needs Node 26 or later, for
 `module.registerHooks`. `VIBELANG_REGISTER_DEBUG=1` prints each project's
@@ -143,7 +145,10 @@ tsconfig: a module inside `root` belongs to `project`; one of another workspace
 package, such as a package another package imports, belongs to the nearest
 `tsconfig.json` above it. Another package is one outside `root`, or one nested
 inside it with its own `package.json` and `tsconfig.json`. `load(file)` returns
-the module's JavaScript, its source map, and its project's diagnostics;
+the module's JavaScript, its source map, and its project's diagnostics, for a
+`.vibe` file or for the output of one of its `module` declarations,
+`main.vibe.text.js` beside `main.vibe`, which `moduleDeclarationSource(path)`
+recognizes;
 `invalidate()` makes every project compile again on its next load, or load from
 the cache when nothing changed. `compileProjectSync`, `projectBackend`, and
 `projects` take `cache: false` to turn the cache off, or `cache: { directory }`

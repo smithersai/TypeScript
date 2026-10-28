@@ -1,9 +1,12 @@
 // The compiler rewrites shop.vibe's import of this module to ./format.js.
-// Its module declaration (D283) is TypeScript, which the emitted JavaScript
-// holds inline, so every bundler loads it with the file.
+// Its module declaration (D283) is TypeScript, compiled to a module of its
+// own, format.vibe.text.js, which is not on disk: every bundler loads it from
+// the project's compile (D403). Its import of ./stock.ts resolves from here.
 module text {
+  import { separator } from "./stock.ts"
+
   export function line(verb: string, quantity: number, item: string): string {
-    return [verb, String(quantity), item].join(" ")
+    return [verb, String(quantity), item].join(separator)
   }
 }
 

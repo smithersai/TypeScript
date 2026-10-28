@@ -1,9 +1,8 @@
-// Module declarations lower inline (D303): each module the file imports
-// becomes a function, called once before the file's own code, whose result
-// holds the module's exports. Its imports move to the file's top level as
-// namespace imports. A module the file imports only types from, and one it
-// never imports, emit nothing; each module's declarations are a declaration
-// file of their own, main.vibe.<name>.d.ts.
+// Each module declaration the file imports compiles to a JavaScript module of
+// its own (D403), main.vibe.<name>.js beside main.js, which main.js imports
+// where the source wrote the module's name. A module the file imports only
+// types from, and one it never imports, emit no JavaScript; each module's
+// declarations are a declaration file of their own, main.vibe.<name>.d.ts.
 import Counter, { clean, Mode } from text
 import * as tools from text
 import { level } from config

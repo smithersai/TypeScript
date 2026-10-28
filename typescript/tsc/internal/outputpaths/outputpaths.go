@@ -60,7 +60,11 @@ func GetOutputPathsFor(sourceFile *ast.SourceFile, options *core.CompilerOptions
 	if sourceFile.ContentMapper() != "" {
 		paths.externalOutputFilePath = GetExternalOutputFileName(sourceFile.FileName(), options, host)
 	}
-	if sourceFile.ContentMapper() == "" && (force.Js || options.EmitDeclarationOnly != core.TSTrue) && !isJsonEmittedToSameLocation {
+	// A content mapper or build tool owns a mapped file's runtime output, except
+	// a VibeLang module declaration's body: it is a JavaScript module of its own,
+	// beside its file's (D403).
+	ownsScript := sourceFile.ContentMapper() == "" || sourceFile.EmbeddedModule() != nil
+	if ownsScript && (force.Js || options.EmitDeclarationOnly != core.TSTrue) && !isJsonEmittedToSameLocation {
 		paths.jsFilePath = ownOutputFilePath
 		if !ast.IsJsonSourceFile(sourceFile) {
 			paths.sourceMapFilePath = GetSourceMapFilePath(paths.jsFilePath, options)

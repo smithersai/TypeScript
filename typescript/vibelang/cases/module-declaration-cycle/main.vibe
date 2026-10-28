@@ -1,0 +1,41 @@
+// A file and its module declaration import each other, and ECMAScript
+// evaluates the cycle (D403). The module runs in its place among the file's
+// imports, after before.ts and before after.ts, and before the file's own
+// body: it calls the file's hoisted function there, and finds the file's
+// const in its temporal dead zone. Once the file has run, the module reads it.
+import "./before.ts"
+import { early, late } from cycle
+import "./after.ts"
+import { order } from "./order.ts"
+
+export const limit = 3
+
+export function label(name: string): string {
+  return `<${name}>`
+}
+
+module cycle {
+  import { label, limit } from "./main.vibe"
+  import { order } from "./order.ts"
+
+  order.push("cycle")
+
+  function read(): string {
+    try {
+      return String(limit)
+    } catch (error) {
+      return (error as Error).name
+    }
+  }
+
+  export const early = `${label("early")} ${read()}`
+
+  export function late(): string {
+    return `${label("late")} ${read()}`
+  }
+}
+
+// expect-result: {"order":["before","cycle","after"],"early":"<early> ReferenceError","late":"<late> 3"}
+export function main() {
+  return { order, early, late: sync(() => late()) }
+}

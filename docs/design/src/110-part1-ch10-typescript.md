@@ -118,7 +118,7 @@ A declaration must be named, unexported, and at the file's top level. Module nam
 
 The checker gives each body its own source file. For `main.vibe`, `module text` is checked as `main.vibe.text.ts`. A module declaration is an ECMAScript module (D364): it runs once, where its first import stands among the file's imports, and an import of its export is a live binding, so the containing file sees a later assignment to an exported `let`. JavaScript output gives it a module of its own, `main.vibe.text.js` beside `main.js`, which `main.js` imports with that specifier where the source wrote `from text`, so ECMAScript's own module evaluation runs it, after its own imports, in its place among the file's imports (D403). A module never imported, or imported only for types, emits no JavaScript. A top-level `await` in a used module makes the containing file await its initialization, as any imported module's does.
 
-Declaration output writes each body's declarations to its own file, such as `main.vibe.text.d.ts`. The containing declaration file refers to it through `./main.vibe.text.js`. Cases `module-declaration-emit` and `module-declaration-cjs` cover the output.
+Declaration output writes each body's declarations to its own file, such as `main.vibe.text.d.ts`. The containing declaration file refers to it through `./main.vibe.text.js`. Cases `module-declaration-emit`, `module-declaration-cjs`, `module-declaration-order`, `module-declaration-live-bindings`, `module-declaration-cycle` and `module-declaration-reexport` cover the output.
 
 Hatches and inline modules are the explicit TypeScript escapes. Chapter 11 shows a live binding, and Chapter 26 states the module rule.
 

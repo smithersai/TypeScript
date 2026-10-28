@@ -46,8 +46,10 @@ await Bun.build({ entrypoints: ["src/main.ts"], outdir: "out", plugins: [vibelan
 
 Import local sources as `./welcome.vibe` and `./config.ts`. The compiler
 rewrites those imports to `./welcome.js` and `./config.js`; the plugin resolves
-them back to `welcome.vibe` and `config.ts`. The plugin compiles only `.vibe`
-modules; `.ts` files go through your bundler's usual TypeScript support.
+them back to `welcome.vibe` and `config.ts`. A `module` declaration of
+`welcome.vibe` is a module of its own, `welcome.vibe.text.js`, which the plugin
+serves from the same compile. The plugin compiles only `.vibe` modules; `.ts`
+files go through your bundler's usual TypeScript support.
 
 A `.vibe` module of another workspace package, such as one that your app
 imports by name, compiles with the nearest `tsconfig.json` above it: its own
@@ -124,7 +126,8 @@ as `file:line:column - error TS2322: text`.
   `files` once a plugin's resolve hook matches their names, and crashes on a
   `with { type: "file" }` import once a plugin's load hook matches every file,
   so under Bun the plugin registers its own hooks: resolve for `.vibe` and
-  relative `.js` specifiers, load for `.vibe` modules.
+  relative `.js` specifiers, load for `.vibe` modules and their module
+  declarations' outputs.
 - **webpack and Rspack:** the error carries its position in the message only;
   unplugin doesn't pass a location to webpack. webpack before 5.112.0 can miss
   a save made as a watch build finishes

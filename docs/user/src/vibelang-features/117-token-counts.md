@@ -19,10 +19,10 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,213 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,813 |
-| The skill and the user guide (134 pages) | 248,885 |
-| The user guide alone | 243,672 |
-| The specification (33 chapters) | 180,392 |
-| The decision log, `docs/design/DECISIONS.md` | 117,622 |
+| The skill and the user guide (134 pages) | 249,108 |
+| The user guide alone | 243,895 |
+| The specification (33 chapters) | 180,419 |
+| The decision log, `docs/design/DECISIONS.md` | 117,650 |
 
 ## Effect TypeScript beside VibeLang
 
@@ -90,10 +90,10 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Start Here** | **2,255** |
 | [Welcome](../001-onboarding.md) | 1,655 |
 | [Why VibeLang?](../getting-started/002-why-effect.md) | 600 |
-| **Learning Path** | **9,582** |
+| **Learning Path** | **9,664** |
 | [The Effect Type](../getting-started/003-the-effect-type.md) | 1,790 |
 | [Installation](../getting-started/004-installation.md) | 2,402 |
-| [Creating Effects](../getting-started/005-creating-effects.md) | 3,267 |
+| [Creating Effects](../getting-started/005-creating-effects.md) | 3,349 |
 | [Two Types of Errors](../error-management/006-two-error-types.md) | 642 |
 | [Basic Concurrency](../concurrency/007-basic-concurrency.md) | 1,481 |
 | **Core Concepts** | **18,012** |
@@ -102,7 +102,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
 | [Devtools](../getting-started/012-devtools.md) | 10,637 |
-| **All 12 pages** | **29,849** |
+| **All 12 pages** | **29,931** |
 
 ### Setup
 
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **27,068** |
-| [Release notes](../setup/release-notes.md) | 27,068 |
-| **All 15 pages** | **46,267** |
+| **Upgrade** | **27,209** |
+| [Release notes](../setup/release-notes.md) | 27,209 |
+| **All 15 pages** | **46,408** |
 
 ### Guides
 
@@ -272,7 +272,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | Page | Tokens |
 | --- | ---: |
 | [Introduction](../../../design/src/000-intro.md) | 1,791 |
-| **Part I. The language by example** | **49,036** |
+| **Part I. The language by example** | **49,063** |
 | [1. A first look](../../../design/src/101-part1-ch01-first-look.md) | 2,165 |
 | [2. Functions and calls](../../../design/src/102-part1-ch02-functions.md) | 1,952 |
 | [3. Errors: the E channel](../../../design/src/103-part1-ch03-errors.md) | 5,292 |
@@ -282,7 +282,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [7. Concurrency](../../../design/src/107-part1-ch07-concurrency.md) | 4,608 |
 | [8. Producers: streams of values](../../../design/src/108-part1-ch08-producers.md) | 1,874 |
 | [9. Handlers: defining your own effects](../../../design/src/109-part1-ch09-handlers.md) | 3,355 |
-| [10. Working with TypeScript](../../../design/src/110-part1-ch10-typescript.md) | 7,058 |
+| [10. Working with TypeScript](../../../design/src/110-part1-ch10-typescript.md) | 7,085 |
 | [11. The standard library](../../../design/src/111-part1-ch11-stdlib.md) | 5,442 |
 | [12. Questions Effect users ask](../../../design/src/112-part1-ch12-faq.md) | 3,522 |
 | **Part II. The rules** | **33,590** |
@@ -310,6 +310,6 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Appendices** | **19,586** |
 | [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 10,941 |
 | [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,645 |
-| **All 33 pages** | **180,392** |
+| **All 33 pages** | **180,419** |
 
 <!-- token-counts: end -->

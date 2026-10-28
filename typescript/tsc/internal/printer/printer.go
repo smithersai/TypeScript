@@ -59,6 +59,9 @@ type PrintHandlers struct {
 	// MapSourcePosition composes source-map positions before they reach the generator.
 	// Returning ok=false emits a generated-only mapping.
 	MapSourcePosition func(source sourcemap.Source, pos int) (mappedSource sourcemap.Source, mappedPos int, ok bool)
+	// SourceMapSource returns the source that a printed file's source map names
+	// in place of the file itself, at the file's own positions.
+	SourceMapSource func(sourceFile *ast.SourceFile) sourcemap.Source
 
 	// !!!
 	////// A hook used by the Printer to provide notifications prior to emitting a node. A
@@ -1120,10 +1123,7 @@ func (p *Printer) emitTabStop(node *ast.Node, snippetElement *SnippetElement) {
 
 func (p *Printer) emitIdentifierText(node *ast.Identifier) {
 	f := ast.GetSourceFileOfNode(node.AsNode())
-	// A VibeLang file's module declarations are emitted with it, from the
-	// supplemental files that hold their bodies at the file's own positions.
-	debug.Assert(f == nil || p.currentSourceFile == nil || f.FileName() == p.currentSourceFile.FileName() ||
-		f.EmbeddedModule() != nil && f.CanonicalSourceFile().FileName() == p.currentSourceFile.FileName())
+	debug.Assert(f == nil || p.currentSourceFile == nil || f.FileName() == p.currentSourceFile.FileName())
 	text := p.getTextOfNode(node.AsNode(), false /*includeTrivia*/)
 
 	if p.IdToSymbol != nil {
@@ -5153,7 +5153,11 @@ func (p *Printer) setSourceFile(sourceFile *ast.SourceFile) {
 			p.uniqueHelperNames = make(map[string]*ast.IdentifierNode)
 		}
 		p.externalHelpersModuleName = p.emitContext.GetExternalHelpersModuleName(sourceFile)
-		p.setSourceMapSource(sourceFile)
+		var source sourcemap.Source = sourceFile
+		if p.SourceMapSource != nil {
+			source = p.SourceMapSource(sourceFile)
+		}
+		p.setSourceMapSource(source)
 	}
 
 	// !!!

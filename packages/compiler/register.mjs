@@ -10,14 +10,17 @@
 // a later process reuses it while the project's inputs are unchanged. A failed
 // compile throws an Error with code ERR_VIBELANG_COMPILE and the diagnostics;
 // a module the project does not include, ERR_VIBELANG_PROJECT. Source maps are
-// turned on, so a stack frame names the .vibe line.
+// turned on, so a stack frame names the .vibe line. A module declaration of a
+// .vibe module is a module of its own, main.vibe.text.js beside main.vibe for
+// module text (D403); its URL names that file, which is not on disk, and its
+// JavaScript comes from the same compile.
 // VIBELANG_REGISTER_DEBUG=1 reports each project's compile or cache hit.
 import { existsSync, realpathSync, statSync } from "node:fs"
 import * as Module from "node:module"
 import { registerHooks } from "node:module"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
-import { compileProjectSync, formatDiagnostic, nearestProject, workspaceProject } from "./project.mjs"
+import { compileProjectSync, formatDiagnostic, moduleDeclarationSource, nearestProject, workspaceProject } from "./project.mjs"
 
 if (typeof registerHooks !== "function") {
   throw new Error(`vibelang/register needs module.registerHooks, in Node 22.15 or later; this is Node ${process.version}`)
@@ -58,7 +61,8 @@ function changedSince(file, time) {
 function emitted(file) {
   const project = projectOf(file)
   let compiled = results.get(project)
-  if (compiled !== undefined && changedSince(file, compiled.started)) compiled = undefined
+  // A module declaration's output is as new as its .vibe file.
+  if (compiled !== undefined && changedSince(moduleDeclarationSource(file) ?? file, compiled.started)) compiled = undefined
   if (compiled !== undefined && !compiled.result.errors.length && !compiled.result.outputs.has(file) && !compiled.missing.has(file)) {
     compiled = undefined
   }
@@ -87,6 +91,17 @@ function emitted(file) {
 const sources = { ".js": [".vibe", ".ts", ".tsx"], ".mjs": [".mts"], ".cjs": [".cts"] }
 const clean = (url) => url.replace(/[?#].*$/, "")
 
+// A module declaration's output that is not on disk: the compile serves it.
+function moduleOutput(url) {
+  if (!url.startsWith("file:")) return undefined
+  const path = fileURLToPath(clean(url))
+  const source = moduleDeclarationSource(path)
+  return source !== undefined && !existsSync(path) && existsSync(source) ? path : undefined
+}
+
+// A module whose imports vibelang rewrote: a .vibe module or a module declaration's.
+const compiled = (url) => url.startsWith("file:") && (clean(url).endsWith(".vibe") || moduleOutput(url) !== undefined)
+
 registerHooks({
   resolve(specifier, context, nextResolve) {
     try {
@@ -95,9 +110,10 @@ registerHooks({
       const parent = context.parentURL
       if (
         error?.code !== "ERR_MODULE_NOT_FOUND" || !/^\.\.?\//.test(specifier) ||
-        parent === undefined || !parent.startsWith("file:") || !clean(parent).endsWith(".vibe")
+        parent === undefined || !compiled(parent)
       ) throw error
       const target = new URL(specifier, parent)
+      if (moduleOutput(target.href) !== undefined) return { url: target.href, format: "module", shortCircuit: true }
       const path = fileURLToPath(clean(target.href))
       const extension = Object.keys(sources).find((name) => path.endsWith(name))
       for (const replacement of extension === undefined ? [] : sources[extension]) {
@@ -108,8 +124,9 @@ registerHooks({
     }
   },
   load(url, context, nextLoad) {
-    if (!url.startsWith("file:") || !clean(url).endsWith(".vibe")) return nextLoad(url, context)
-    const { code, map } = emitted(fileURLToPath(clean(url)))
+    const path = moduleOutput(url) ?? (url.startsWith("file:") && clean(url).endsWith(".vibe") ? fileURLToPath(clean(url)) : undefined)
+    if (path === undefined) return nextLoad(url, context)
+    const { code, map } = emitted(path)
     const inline = Buffer.from(JSON.stringify(map)).toString("base64")
     return {
       format: "module",

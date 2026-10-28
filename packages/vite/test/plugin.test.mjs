@@ -3,7 +3,7 @@ import { spawn } from "node:child_process"
 import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { dirname, join } from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import test from "node:test"
 import { build, createServer } from "vite"
 import vibelang from "../src/index.js"
@@ -206,6 +206,55 @@ test("Vite serves JS and maps, invalidates importers, reports diagnostics and re
     return recovered.status === 200 && /double(\$direct)?\(23\)/.test(await recovered.text())
   })
   console.log("PASS HTTP: JS, .vibe source map, importer invalidation, TS2322 terminal/overlay, recovery")
+})
+
+test("Vite serves and builds a module declaration as a module of its own (D403)", async (t) => {
+  const root = await fixture(t)
+  await writeFile(join(root, "step.ts"), "export const step = 2\n")
+  await writeFile(join(root, "counter.vibe"), [
+    "module counter {",
+    "  import { step } from \"./step.ts\"",
+    "",
+    "  export let count = 0",
+    "",
+    "  export function bump(): number {",
+    "    count += step",
+    "    return count",
+    "  }",
+    "}",
+    "",
+    "export { bump, count } from counter",
+    ""
+  ].join("\n"))
+  const server = await createServer({
+    root, configFile: false, plugins: [vibelang({ compiler })], logLevel: "silent",
+    server: { host: "127.0.0.1", port: 0 }
+  })
+  t.after(() => server.close())
+  await server.listen()
+  const base = `http://127.0.0.1:${server.httpServer.address().port}`
+  let response = await fetch(`${base}/counter.vibe`)
+  assert.equal(response.status, 200)
+  assert.match(await response.text(), /from "\/counter\.vibe\.counter\.js"/)
+  response = await fetch(`${base}/counter.vibe.counter.js`)
+  assert.equal(response.status, 200)
+  const module = await response.text()
+  assert.match(module, /export let count = 0/)
+  assert.match(module, /from "\/step\.ts"/)
+  const map = JSON.parse(Buffer.from(module.match(/sourceMappingURL=data:application\/json;base64,(\S+)/)[1], "base64"))
+  assert.deepEqual(map.sources.map((source) => source.split("/").at(-1)), ["counter.vibe"])
+
+  const result = await build({
+    root, configFile: false, plugins: [vibelang({ compiler })], logLevel: "silent",
+    build: { write: false, lib: { entry: join(root, "counter.vibe"), formats: ["es"], fileName: "counter" } }
+  })
+  const chunk = (result.output || result[0].output).find((file) => file.type === "chunk")
+  const bundle = join(root, "counter.bundle.mjs")
+  await writeFile(bundle, chunk.code)
+  const counter = await import(pathToFileURL(bundle).href)
+  assert.equal(counter.count, 0)
+  assert.equal(counter.bump(), 2)
+  assert.equal(counter.count, 2, "the re-export is a live binding")
 })
 
 test("Vite production builds accept .vibe entry modules", async (t) => {

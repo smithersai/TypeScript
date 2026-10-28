@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 	"github.com/microsoft/TypeScript/tsc/internal/transformers"
 )
@@ -101,3 +102,22 @@ func (t hookDeclarationTransformer) TransformSourceFile(declarations *ast.Source
 }
 
 func (t hookDeclarationTransformer) GetDiagnostics() []*ast.Diagnostic { return nil }
+
+// EmbeddedModuleScriptHook reports whether module, the body of a VibeLang
+// module declaration (ast.EmbeddedModule), emits JavaScript of its own: its
+// file's JavaScript imports it.
+type EmbeddedModuleScriptHook func(resolver printer.EmitResolver, options *core.CompilerOptions, module *ast.SourceFile) bool
+
+var embeddedModuleScriptHook EmbeddedModuleScriptHook
+
+// RegisterEmbeddedModuleScriptHook sets the hook that decides which module
+// declaration bodies emit JavaScript. Call it only from the init function of
+// an in-tree package that tsc/cmd/tsc imports; registration is not
+// synchronized.
+func RegisterEmbeddedModuleScriptHook(hook EmbeddedModuleScriptHook) {
+	embeddedModuleScriptHook = hook
+}
+
+func embeddedModuleEmitsScript(resolver printer.EmitResolver, options *core.CompilerOptions, module *ast.SourceFile) bool {
+	return embeddedModuleScriptHook == nil || embeddedModuleScriptHook(resolver, options, module)
+}

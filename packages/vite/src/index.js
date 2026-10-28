@@ -6,6 +6,16 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 const cleanId = (id) => id.split("?")[0]
 const slash = (path) => path.replaceAll("\\", "/")
 
+// A module declaration of main.vibe compiles to main.vibe.text.js beside it
+// (D403), which is not on disk: the project's compile serves it. The pattern
+// is vibelang/project's moduleDeclarationSource.
+function isModuleOutput(path) {
+  const source = /^(.+\.vibe)\.[^./\\]+\.js$/.exec(path)?.[1]
+  return source !== undefined && !existsSync(path) && existsSync(source)
+}
+// A module whose JavaScript the plugin compiles: a .vibe module or one of its module declarations.
+const isCompiled = (path) => path.endsWith(".vibe") || isModuleOutput(path)
+
 // The compile backend is the vibelang package's own: the project's install
 // first, so it matches the compiler that runs, else the one beside this plugin.
 async function loadBackend(root) {
@@ -78,7 +88,7 @@ export default function vibelang(options = {}) {
     // cache (vibelang/cache), keyed by every input.
     configureVitest(context) {
       const define = context.defineCacheKeyGenerator ?? context.experimental_defineCacheKeyGenerator
-      define?.(({ id }) => cleanId(id).endsWith(".vibe") ? false : undefined)
+      define?.(({ id }) => isCompiled(cleanId(id)) ? false : undefined)
     },
     configResolved(config) {
       root = config.root
@@ -101,8 +111,20 @@ export default function vibelang(options = {}) {
       if (!importer || !source.startsWith(".") || !cleanId(source).endsWith(".js")) return
       const target = resolve(dirname(cleanId(importer)), cleanId(source))
       if (existsSync(target)) return
+      const query = source.slice(cleanId(source).length)
+      if (isModuleOutput(target)) return slash(target) + query
       const es = target.slice(0, -3) + ".vibe"
-      if (existsSync(es)) return slash(es) + source.slice(cleanId(source).length)
+      if (existsSync(es)) return slash(es) + query
+    },
+    // A module declaration's JavaScript comes from its .vibe file's compile.
+    async load(id) {
+      const file = cleanId(id)
+      if (!isModuleOutput(file) || /[?&](?:raw|url)(?:&|=|$)/.test(id)) return
+      const { project, code, map, errors, error } = await (await loaded()).load(file)
+      this.addWatchFile(project)
+      if (errors.length) this.error(diagnostics(errors, file))
+      if (error) this.error(error)
+      return { code, map }
     },
     async transform(_source, id) {
       const file = cleanId(id)
@@ -131,7 +153,7 @@ export default function vibelang(options = {}) {
       }
       for (const module of context.modules) visit(module)
       for (const module of context.server.moduleGraph.idToModuleMap.values()) {
-        if (module.file?.endsWith(".vibe")) visit(module)
+        if (module.file && isCompiled(module.file)) visit(module)
       }
       for (const module of affected) context.server.moduleGraph.invalidateModule(module)
       // Compile the edited file's project now, so the overlay shows its diagnostics.

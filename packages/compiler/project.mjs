@@ -8,11 +8,11 @@
 // result is kept in a persistent cache (cache.mjs) that later processes reuse
 // while the project's inputs are unchanged.
 import { spawn, spawnSync } from "node:child_process"
-import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, realpathSync, rmSync, statSync } from "node:fs"
+import { closeSync, existsSync, mkdtempSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { performance } from "node:perf_hooks"
-import { dirname, isAbsolute, join, parse, relative, resolve } from "node:path"
+import { basename, dirname, isAbsolute, join, parse, relative, resolve } from "node:path"
 import { projectCache } from "./cache.mjs"
 
 const slash = (path) => path.replaceAll("\\", "/")
@@ -186,8 +186,20 @@ const realpath = (path) => {
   }
 }
 
+/**
+ * Returns the .vibe file whose module declaration compiles to `path`, as
+ * main.vibe's `module text` compiles to main.vibe.text.js beside main.js
+ * (D403), or undefined when `path` names no such output. The output is not
+ * on disk: a loader serves it from the project's compile.
+ */
+export function moduleDeclarationSource(path) {
+  return /^(.+\.vibe)\.[^./\\]+\.js$/.exec(path)?.[1]
+}
+
 // Turns one compiler run into its result:
-//   outputs      Map from each .vibe source, by listed and real path, to its { code, map }
+//   outputs      Map from each .vibe source, by listed and real path, to its
+//                { code, map }, and from each output of its module
+//                declarations, such as main.vibe.text.js beside it, to that
 //   inputs       project source files the result depends on
 //   errors       diagnostics that blocked emission; outputs is then empty
 //   warnings     diagnostics of a successful compile
@@ -203,6 +215,16 @@ function collect({ status, signal, output }, root, out) {
     errors.push({ category: "error", code: "vibelang", text: output.trim() || `exited with ${signal || status}` })
   }
   const outputs = new Map()
+  // Bundlers ask by the listed path; Node asks by the real path.
+  const record = (source, emitted, name = basename(source)) => {
+    const map = JSON.parse(readFileSync(emitted + ".map", "utf8"))
+    map.sources = map.sources.map((entry) => slash(resolve(dirname(emitted), map.sourceRoot || "", entry)))
+    map.sourceRoot = ""
+    const result = { code: readFileSync(emitted, "utf8").replace(/\/\/# sourceMappingURL=.*$/m, ""), map }
+    outputs.set(join(dirname(source), name), result)
+    outputs.set(join(dirname(realpath(source)), name), result)
+  }
+  const listings = new Map() // each output directory's file names
   for (const source of errors.length ? [] : inputs) {
     if (!source.endsWith(".vibe")) continue
     const path = relative(root, source)
@@ -211,13 +233,14 @@ function collect({ status, signal, output }, root, out) {
     // The compile emits nothing for a module it reached through node_modules,
     // such as a nested workspace package's: that one compiles with its own project.
     if (!existsSync(emitted)) continue
-    const map = JSON.parse(readFileSync(emitted + ".map", "utf8"))
-    map.sources = map.sources.map((entry) => slash(resolve(dirname(emitted), map.sourceRoot || "", entry)))
-    map.sourceRoot = ""
-    const result = { code: readFileSync(emitted, "utf8").replace(/\/\/# sourceMappingURL=.*$/m, ""), map }
-    // Bundlers ask by the listed path; Node asks by the real path.
-    outputs.set(source, result)
-    outputs.set(realpath(source), result)
+    record(source, emitted)
+    // Each module declaration the file imports is a JavaScript module beside
+    // the file's, main.vibe.text.js for module text (D403).
+    const directory = dirname(emitted)
+    if (!listings.has(directory)) listings.set(directory, readdirSync(directory))
+    for (const name of listings.get(directory)) {
+      if (moduleDeclarationSource(name) === basename(source)) record(source, join(directory, name), name)
+    }
   }
   return { result: { outputs, inputs, files, errors, warnings }, files }
 }

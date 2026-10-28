@@ -1,0 +1,32 @@
+// A module declaration is a JavaScript module of its own (D403), so its
+// imports are live bindings in both directions (D364): this file reads the
+// module's exported let after the module changes it, and the module, which
+// imports this file, reads this file's exported let after the file changes it.
+export let stage = "start"
+
+module counter {
+  import { stage } from "./main.vibe"
+
+  export let count = 0
+
+  export function bump(): void {
+    count++
+  }
+
+  export function seen(): string {
+    return stage
+  }
+}
+
+import { bump, count, seen } from counter
+
+// expect-result: {"before":0,"after":1,"first":"start","second":"changed"}
+export function main() {
+  const before = count
+  sync(() => bump())
+  const after = count
+  const first = sync(() => seen())
+  stage = "changed"
+  const second = sync(() => seen())
+  return { before, after, first, second }
+}
