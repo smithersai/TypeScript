@@ -1,0 +1,51 @@
+// expect-result: {"ticks":4,"saved":["doc"],"n":0,"got":["object","object","object"],"kept":"function"}
+// Plain functions and members satisfy plain function types (D430, D485): the
+// annotated forms of the plain-targets.fail witnesses run as written.
+import { runAll, register, resetAll } from "./helpers.ts"
+
+let ticks = 0
+function tick(): void {
+  ticks++
+}
+interface Resettable {
+  reset(): void
+}
+class Counter implements Resettable {
+  n = 5
+  reset() {
+    this.n = 0
+  }
+}
+interface Getter<T> {
+  get(): T
+}
+class Box<T> {
+  constructor(readonly value: T) {}
+  get(): T {
+    return this.value
+  }
+}
+function work() {
+  Console.log("work")
+}
+const both: () => number | Effect<void> = work
+
+export function main() {
+  const fs = [tick, tick]
+  runAll(fs)
+  runAll([...fs])
+  const saved: string[] = []
+  register({ onSave(doc: string): void { saved.push(doc) } })
+  const c = new Counter()
+  const r: Resettable = c
+  resetAll([r])
+  // A member declared to return its container's type parameter is plain,
+  // whatever the type argument (D485).
+  const program: number!! = () => 1
+  const b: Getter<unknown> = new Box(program)
+  const g: { get(): unknown } = new Box(program)
+  const a: Box<unknown> = new Box(program)
+  const got = [b.get(), g.get(), a.get()].map((x): string => typeof x)
+  const kept: () => number | Effect<void> = both
+  return { ticks, saved, n: c.n, got, kept: typeof kept }
+}

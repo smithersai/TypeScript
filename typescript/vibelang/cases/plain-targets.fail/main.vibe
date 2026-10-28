@@ -1,0 +1,53 @@
+// expect: EK4301
+// An Effect never satisfies a plain function type (D430, D512): a function
+// value, an object, or a class instance whose function returns an Effect, or
+// may, is EK4301 wherever a declared type makes that function plain, since
+// the caller of the plain type drops the program unrun.
+import { runAll, register, resetAll } from "./helpers.ts"
+
+function tick() {
+  Console.log("tick")
+}
+function logged(n: number) {
+  Console.log(n)
+}
+interface Resettable {
+  reset(): void
+}
+class Counter {
+  n = 5
+  reset() {
+    Console.log("reset")
+    this.n = 0
+  }
+}
+const both: () => number | Effect<void> = tick
+
+// Held aggregates.
+export function held() {
+  const fs = [tick, tick]
+  runAll(fs)
+  runAll([...fs])
+}
+export function handlers() {
+  const handlers = { onSave(doc: string) { Console.log(doc) } }
+  register(handlers)
+  register({ ...handlers })
+}
+
+// Interface members.
+export function members() {
+  const r: Resettable = new Counter()
+  resetAll([new Counter()])
+  const o = { run() { Console.log("run") } }
+  const p: { run(): void } = o
+  return [r, p]
+}
+
+// Void callbacks and erased possible Effects.
+export function callbacks() {
+  const cb: (n: number) => void = logged
+  const erased: () => unknown = tick
+  const alsoErased: () => unknown = both
+  return [cb, erased, alsoErased]
+}
