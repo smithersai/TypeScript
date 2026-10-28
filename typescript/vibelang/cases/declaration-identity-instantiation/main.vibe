@@ -1,0 +1,8 @@
+// An instantiation expression's inferred type names the prelude's Effect and
+// Scope, which the checker reaches through the runtime's aliases of them. The
+// declaration file writes them as effect declares them, Effect.Effect and
+// Scope.Scope, imported from effect, as typescript/main.ts, the Effect
+// TypeScript this file rewrites, declares them; it wrote
+// import("vibelang-runtime").Effect<number, never, never>.
+export const idE = identity<Effect<number>>
+export const idS = identity<Scope>

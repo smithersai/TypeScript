@@ -120,6 +120,12 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 		})
 		rewriter.NewTransformer(rewriter.visit, resolver.EmitContext())
 		declarations = rewriter.TransformSourceFile(declarations)
+		r.WithChecker(func(c *checker.Checker) {
+			state := preludeStateOf(c)
+			aliases := &runtimeAliasTypes{record: func(identifier *ast.Node) { recordTypeUse(state, sourceFile, identifier) }}
+			aliases.NewTransformer(aliases.visit, resolver.EmitContext())
+			declarations = aliases.TransformSourceFile(declarations)
+		})
 		var readonlyRefs map[*ast.Node]bool
 		r.WithChecker(func(c *checker.Checker) { readonlyRefs = readonlyReferences(c, sourceFile) })
 		if len(readonlyRefs) > 0 {
@@ -839,6 +845,34 @@ func (tx *preludeAliasTypes) visit(node *ast.Node) *ast.Node {
 		}
 	}
 	return node
+}
+
+// runtimeAliasTypes writes a type that the checker inferred through the
+// runtime's alias of an effect type, such as identity<Effect<number>>'s,
+// import("vibelang-runtime").Effect<number, never, never>, as the prelude's
+// Effect<number, never, never>, which preludeAliasTypes then writes
+// Effect.Effect and transformDeclarations imports from effect, so the
+// declaration names no runtime alias (Chapter 27, declaration rule 4).
+type runtimeAliasTypes struct {
+	transformers.Transformer
+	record func(identifier *ast.Node) // records a prelude name the declaration file writes
+}
+
+func (tx *runtimeAliasTypes) visit(node *ast.Node) *ast.Node {
+	node = tx.Visitor().VisitEachChild(node)
+	if node.Kind != ast.KindImportType {
+		return node
+	}
+	t := node.AsImportTypeNode()
+	if t.IsTypeOf || t.Argument == nil || !ast.IsLiteralTypeNode(t.Argument) || t.Qualifier == nil || !ast.IsIdentifier(t.Qualifier) || !preludeTypeAliases[t.Qualifier.Text()] {
+		return node
+	}
+	if literal := t.Argument.AsLiteralTypeNode().Literal; !ast.IsStringLiteral(literal) || literal.Text() != runtimeModule {
+		return node
+	}
+	name := tx.Factory().NewIdentifier(t.Qualifier.Text())
+	tx.record(name)
+	return tx.Factory().NewTypeReferenceNode(name, t.TypeArguments)
 }
 
 // preludeRenamer gives the identifiers that write a prelude name the alias
