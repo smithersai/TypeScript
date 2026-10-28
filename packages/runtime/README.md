@@ -145,7 +145,8 @@ JavaScript value. Decisions are in [`docs/design/DECISIONS.md`](../../docs/desig
 | `$expected` | Mark a typed failure thrown in a function that compiles to plain JavaScript | D54, D282 |
 | `$caught` | Return the expected failure a plain function's catch received, and rethrow a defect | D54, D282 |
 | `$finallyFailure` | Join a failure a plain function's finally block raises to the failure in flight; two failures with a defect leave as a `SuppressedError` that stands for their joined cause | D15, D54, D340 |
-| `$joinedSync` | Run a plain function's plain form as its Effect form, failing with the cause a `SuppressedError` the runtime made stands for | D340 |
+| `$plainSync` | A plain function's Effect form: run the plain form, failing with the cause a `SuppressedError` the runtime made stands for, and record the plain form on the program | D340, D446 |
+| `$plainOf` | A plain function's plain form from another module, before its module has attached `f[$direct]` too | D268, D446 |
 | `$joinedFrame` | Internal compiler adapter: fail a generated frame with the cause a `SuppressedError` the runtime made stands for, where Effect would make it one defect | D340, D341 |
 | `$region` | Create a block-owned scope without adding it to the body's Context | D14, D47 |
 | `$using` | Run an acquisition with a block's scope, keeping its own interruptibility, and register disposal for objects and functions with interruption masked; await `Symbol.asyncDispose` when no acquisition release exists and no `Symbol.dispose` is present | D14, D25, D94 |

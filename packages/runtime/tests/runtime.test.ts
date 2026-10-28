@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test"
 import { Cause, Context, Deferred, Fiber, Stream } from "effect"
 import {
-  $bind, $catch, $caught, $control, $expected, $finally, $finallyFailure, $joinedFrame, $joinedSync, $fork, $forOf, $normal,
+  $bind, $catch, $caught, $control, $expected, $finally, $finallyFailure, $joinedFrame, $plainOf, $plainSync, $fork, $forOf, $normal,
   $produce, $program, $programs, $reference, $region, $service, $tailResume,
   $tailResumeWith, $trusted, $trustedPlain, $using, $yield, $yieldAll, abandon, Control,
-  Effect, Exit, fork, handle, handoff, Layer, pipe, resume,
+  $direct, Effect, Exit, fork, handle, handoff, Layer, pipe, resume,
   resumeWith, runMain, Schema, Scope, suspend, TaggedError, wire
 } from "vibelang-runtime"
 
@@ -48,6 +48,33 @@ test("regions: a plain-JavaScript catch receives expected failures and rethrows 
   expect(plain("expected")).toBe("expected")
   const defect = new TypeError("defect")
   expect(() => plain(defect)).toThrow(defect)
+})
+
+// D446: a plain function's Effect form records its plain form, which
+// $plainOf calls before the function's module has attached f[$direct], as
+// in a module cycle, and f[$direct] after.
+test("fastcalls: $plainOf reaches a plain form before and after its attachment", () => {
+  const calls: Array<unknown> = []
+  const double$direct = function(this: unknown, n: number) {
+    calls.push(this)
+    return n * 2
+  }
+  const double = function(this: unknown, ...args: Array<number>) {
+    return $plainSync(double$direct, this, args)
+  } as ((n: number) => Effect.Effect<number>) & { [$direct]?: unknown }
+  const early = $plainOf(double) as (this: unknown, n: number) => number
+  const receiver = { early }
+  expect(receiver.early(3)).toBe(6)
+  expect(calls).toEqual([receiver])
+  expect([1, 2].map($plainOf(double) as (n: number) => number)).toEqual([2, 4])
+  double[$direct] = double$direct
+  expect($plainOf(double)).toBe(double$direct)
+  expect(early.call(undefined, 4)).toBe(8)
+  expect(Effect.runSync(double(5))).toBe(10)
+  // An Effect function records no plain form: its program comes back.
+  const effectful = () => Effect.succeed(1)
+  expect(Effect.isEffect(($plainOf(effectful) as () => unknown)())).toBe(true)
+  expect($plainOf(7)).toBe(7)
 })
 
 // D15: a plain finally block's failure joins the one in flight, that one
@@ -106,15 +133,15 @@ test("regions: a plain-JavaScript finally joins its failure to the one in flight
   // An Effect frame sees every reason, in order, as Effect.onExit joins them.
   const dies = (exit: Exit.Exit<unknown, unknown>) =>
     Exit.isFailure(exit) ? exit.cause.reasons.map((reason) => Cause.isDieReason(reason) ? reason.defect : reason._tag) : "success"
-  expect(dies(Effect.runSyncExit($joinedSync(() => plain(fail("first"), crash))))).toEqual(["first", defect])
-  expect(dies(Effect.runSyncExit($joinedSync(() => plain(() => plain(fail("first"), crash), () => { throw third }))))).toEqual(["first", defect, third])
+  expect(dies(Effect.runSyncExit($plainSync(plain, undefined, [fail("first"), crash])))).toEqual(["first", defect])
+  expect(dies(Effect.runSyncExit($plainSync(plain, undefined, [() => plain(fail("first"), crash), () => { throw third }])))).toEqual(["first", defect, third])
   expect(dies(Effect.runSyncExit(Effect.gen($joinedFrame(function*() {
     yield* Effect.void
     return plain(crash, fail("cleanup"))
   }))))).toEqual([defect, "cleanup"])
   // Any other exception stays one defect, and a value passes through.
-  expect(dies(Effect.runSyncExit($joinedSync(crash)))).toEqual([defect])
-  expect(Effect.runSync($joinedSync(() => 7))).toBe(7)
+  expect(dies(Effect.runSyncExit($plainSync(crash, undefined, [])))).toEqual([defect])
+  expect(Effect.runSync($plainSync(() => 7, undefined, []))).toBe(7)
   expect(dies(Effect.runSyncExit(Effect.gen($joinedFrame(function*() {
     yield* Effect.void
     return crash()

@@ -77,7 +77,7 @@ import * as runtime from "vibelang-runtime";
 export function describe$direct(shape) {
     return `${shape.width}x${shape.height}`;
 }
-export function describe(...args) { return Effect_1.sync(() => describe$direct.call(this, ...args)); }
+export function describe(...args) { return runtime.$plainSync(describe$direct, this, args); }
 describe[runtime.$direct] = describe$direct;
 export function main() {
     return Effect_1.fnUntraced(function* main() {

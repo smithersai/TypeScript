@@ -263,13 +263,12 @@ var emitCases = []struct {
 		name:   "a pure function splits into f$direct and its Effect wrapper (D10)",
 		source: "export function double(n: number) {\n  return n * 2\n}\n",
 		contains: []string{
-			"export function double(...$args) { return $sync(() => double$direct(...$args)); }",
+			"export function double(...$args) { return $plainSync(double$direct, this, $args); }",
 			"double[$direct] = double$direct;",
 			"function double$direct(n) {\n    return n * 2;\n}",
-			`import { $direct } from "vibelang-runtime";`,
-			`import { sync as $sync } from "effect/Effect";`,
+			`import { $direct, $plainSync } from "vibelang-runtime";`,
 		},
-		absent: []string{"export function double$direct", "$isRun"},
+		absent: []string{"export function double$direct", "$isRun", "sync as $sync"},
 	},
 	{
 		name:   "a same-file pure call is direct, and pure groups recurse on the JavaScript stack",

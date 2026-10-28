@@ -1,5 +1,6 @@
 import { Cause, Effect, Exit, Scope } from "effect"
 import * as K from "./kernel/kernel.js"
+import { $direct } from "./fastcalls.js"
 
 export const $normal = { kind: "normal" } as const
 
@@ -167,14 +168,21 @@ const causeOf = (thrown: unknown): Cause.Cause<unknown> =>
 const joinedCause = (thrown: unknown): Cause.Cause<unknown> | undefined =>
   typeof thrown === "object" && thrown !== null ? joined.get(thrown) : undefined
 
+// D446: the plain form that a plain function's Effect form records on the
+// program it returns, bound to the call's receiver and arguments.
+const plainForm: unique symbol = Symbol.for("vibelang/plainForm")
+
 /**
- * D340: the Effect form of a plain function that can throw a
- * SuppressedError the runtime made. It runs the plain form as `Effect.sync`
- * does, and fails with the cause that SuppressedError stands for, so the
- * caller sees what the frame lowering of the same code gives.
+ * The Effect form of a function that compiles to plain JavaScript,
+ * `function f(...args) { return $plainSync(f$direct, this, args) }`. Its
+ * program runs the plain form as `Effect.sync` does, and fails with the
+ * cause a SuppressedError the runtime made stands for, so the caller sees
+ * what the frame lowering of the same code gives (D340). It records the
+ * plain form where `$plainOf` reads it (D446).
  */
-export const $joinedSync = <A>(plain: () => A): Effect.Effect<A> =>
-  Effect.suspend(() => {
+export const $plainSync = <A>(direct: (...args: Array<any>) => A, self: unknown, args: ArrayLike<unknown>): Effect.Effect<A> => {
+  const plain = (): A => Reflect.apply(direct, self, args)
+  const program = Effect.suspend(() => {
     try {
       return Exit.succeed(plain())
     } catch (thrown) {
@@ -183,6 +191,32 @@ export const $joinedSync = <A>(plain: () => A): Effect.Effect<A> =>
       return Exit.failCause(cause) as unknown as Exit.Exit<A>
     }
   })
+  Object.defineProperty(program, plainForm, { value: plain })
+  return program
+}
+
+/**
+ * D446: a plain function's plain form, for a call or a value from another
+ * module: `f[$direct]` once f's module has attached it. Before that, as in
+ * a module cycle, a function that calls the hoisted f, which builds a cold
+ * program and runs none of it, and then calls the plain form the program
+ * recorded once, synchronously, in plain code and Effect code alike: no
+ * fiber starts, no runner runs, and no module's body evaluates early. A
+ * function that records no plain form, an Effect function, gives its program
+ * back, which an Effect caller runs on its own fiber.
+ */
+export const $plainOf = (f: unknown): unknown => {
+  if (typeof f !== "function") return f
+  const attached = (f as { [$direct]?: unknown })[$direct]
+  if (attached !== undefined) return attached
+  return function(this: unknown, ...args: Array<unknown>) {
+    const direct = (f as { [$direct]?: (...args: Array<unknown>) => unknown })[$direct]
+    if (direct !== undefined) return Reflect.apply(direct, this, args)
+    const program = Reflect.apply(f, this, args) as { [plainForm]?: () => unknown } | undefined
+    const plain = program?.[plainForm]
+    return plain === undefined ? program : plain()
+  }
+}
 
 /**
  * D340: a generated frame that calls plain code which can throw a

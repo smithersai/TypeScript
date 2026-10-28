@@ -174,7 +174,7 @@ func TestMapperFollowupRuntimeCases(t *testing.T) {
 		t.Fatal(err)
 	}
 	scope := mapperTestScope(t, root)
-	for _, name := range []string{"plain-export-lists", "plain-imports", "retry-effectful-predicate", "stream-pull-using", "pipe-generic-stages", "contextual-effect-fields", "program-values", "effect-subtype-returns", "pipe-asserted-program", "discarded-effect-call"} {
+	for _, name := range []string{"plain-export-lists", "plain-imports", "retry-effectful-predicate", "stream-pull-using", "pipe-generic-stages", "contextual-effect-fields", "program-values", "effect-subtype-returns", "pipe-asserted-program", "discarded-effect-call", "module-cycle-callback"} {
 		t.Run(name, func(t *testing.T) {
 			dir, err := os.MkdirTemp(scope, "mapper-followup-")
 			if err != nil {

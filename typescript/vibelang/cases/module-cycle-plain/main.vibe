@@ -1,0 +1,17 @@
+// In a module cycle, an importer's top-level call of a plain function and
+// its use as a callback, evaluated before the exporter's body, give the plain
+// form's values (D446): no runner runs, no fiber starts, and the exporter's
+// body runs in its turn.
+import { mapped, tripled } from "./user.vibe"
+import { log } from "./log.vibe"
+
+export function double(n: number) {
+  return n * 2
+}
+
+log.push("main")
+
+// expect-result: {"tripled":6,"mapped":[2,4],"log":["user","main"]}
+export function main() {
+  return { tripled, mapped, log }
+}

@@ -12,11 +12,11 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // stands for and turns it back into that cause where it reaches an Effect
 // frame, so the Exit is the frame lowering's (D341):
 //
-//	function both(...args) { return runtime.$joinedSync(() => both$direct.call(this, ...args)) }
+//	function both(...args) { return runtime.$plainSync(both$direct, this, args) }
 //	function main() { return Effect.fnUntraced(runtime.$joinedFrame(function* main() { … both$direct() … })) }
 //
-// The Effect form of a function whose call can throw one runs its plain form
-// under $joinedSync, and a generated frame that calls one, or holds plain
+// The Effect form of every plain function runs its plain form under
+// $plainSync, and a generated frame that calls one that can throw it, or holds plain
 // code with a finally block, is wrapped in $joinedFrame (joinFrames). A
 // TypeScript caller of a plain function sees the SuppressedError itself.
 
@@ -62,24 +62,20 @@ func (a *analyzer) joinsFailures(fn *ast.Node) bool {
 // joinsKey keys the checker's memo of joinsFailures.
 type joinsKey struct{}
 
-// joinPlan records the plain calls and functions of one file whose
-// SuppressedError an Effect frame turns back into a cause.
+// joinPlan records the calls of one file whose SuppressedError an Effect
+// frame turns back into a cause.
 type joinPlan struct {
 	joinedCalls map[*ast.Node]bool // calls of .vibe functions that compile to plain JavaScript and can throw one
-	joinedSyncs map[*ast.Node]bool // plain functions whose Effect form runs the plain form under $joinedSync
 }
 
-// planJoins records node in p when it is a call or a plain function that
-// joinsFailures says can throw a SuppressedError the runtime made.
+// planJoins records node in p when it is a call that joinsFailures says can
+// throw a SuppressedError the runtime made.
 func (p *joinPlan) planJoins(a *analyzer, node *ast.Node) {
 	if p.joinedCalls == nil {
-		p.joinedCalls, p.joinedSyncs = map[*ast.Node]bool{}, map[*ast.Node]bool{}
+		p.joinedCalls = map[*ast.Node]bool{}
 	}
 	if a.callJoinsFailures(node) {
 		p.joinedCalls[node] = true
-	}
-	if a.isSplittable(node) && a.isPlainFunction(node) && a.joinsFailures(node) {
-		p.joinedSyncs[node] = true
 	}
 }
 

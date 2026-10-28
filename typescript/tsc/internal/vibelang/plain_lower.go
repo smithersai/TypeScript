@@ -15,7 +15,7 @@ import (
 // becomes
 //
 //	function double$direct(n) { return n * 2 }
-//	function double(...args) { return Effect.sync(() => double$direct.call(this, ...args)) }
+//	function double(...args) { return runtime.$plainSync(double$direct, this, args) }
 //
 // The variant is exported when the function is, so other .vibe modules can
 // import it. The Effect form keeps the declaration's modifiers and stays a
@@ -45,20 +45,14 @@ func (tx *lowering) visitPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 	ec.SetSourceMapRange(direct, node.Loc)
 	ec.SetSourceMapRange(directName, node.Name().Loc)
 
-	// Keep the receiver in the arrow's lexical scope and forward every
-	// argument. The direct body, including parameter defaults, stays lazy.
-	// function double(...args) { return Effect.sync(() => double$direct.call(this, ...args)) }
+	// Forward the receiver and every argument. The direct body, including
+	// parameter defaults, stays lazy. The program records the plain form,
+	// which $plainOf reads before the variant is attached (D446), and fails
+	// with the cause a SuppressedError the plain form throws stands for (D340).
+	// function double(...args) { return runtime.$plainSync(double$direct, this, args) }
 	args := f.NewIdentifier("args")
 	rest := f.NewParameterDeclaration(nil /*modifiers*/, f.NewToken(ast.KindDotDotDotToken), args, nil /*questionToken*/, nil /*type*/, nil /*initializer*/)
-	call := tx.generated(f.NewFunctionCallCall(f.NewIdentifier(directText), f.NewThisExpression(), []*ast.Node{f.NewSpreadElement(args)}))
-	thunk := tx.generated(f.NewArrowFunction(nil /*modifiers*/, nil /*typeParameters*/, f.NewNodeList(nil), nil /*type*/, nil /*fullSignature*/, f.NewToken(ast.KindEqualsGreaterThanToken), call))
-	var sync *ast.Node
-	if tx.plan.joinedSyncs[node] {
-		// A SuppressedError its plain form throws fails with its cause (D340, joined.go).
-		sync = tx.runtimeCall("$joinedSync", thunk)
-	} else {
-		sync = f.NewCallExpression(f.NewPropertyAccessExpression(tx.effectName(), nil /*questionDotToken*/, f.NewIdentifier("sync"), ast.NodeFlagsNone), nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList([]*ast.Node{thunk}), ast.NodeFlagsNone)
-	}
+	sync := tx.generated(tx.runtimeCall("$plainSync", f.NewIdentifier(directText), f.NewThisExpression(), f.NewIdentifier("args")))
 	wrapperBody := f.NewBlock(f.NewNodeList([]*ast.Node{tx.generated(f.NewReturnStatement(sync))}), false /*multiLine*/)
 	wrapper := f.UpdateFunctionDeclaration(node.AsFunctionDeclaration(), node.Modifiers(), nil /*asteriskToken*/, node.Name(), nil /*typeParameters*/, f.NewNodeList([]*ast.Node{rest}), nil /*type*/, nil /*fullSignature*/, wrapperBody)
 	ec.SetOriginal(wrapper, node)
@@ -156,10 +150,7 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 	eagerState := tx.runtimeMember("$eager")
 	eagerDepth := f.NewPropertyAccessExpression(eagerState, nil, f.NewIdentifier("depth"), ast.NodeFlagsNone)
 	eagerLimit := f.NewPropertyAccessExpression(eagerState, nil, f.NewIdentifier("limit"), ast.NodeFlagsNone)
-	eagerCall := f.NewCallExpression(f.NewPropertyAccessExpression(f.NewIdentifier(directText), nil, f.NewIdentifier("apply"), ast.NodeFlagsNone), nil, nil,
-		f.NewNodeList([]*ast.Node{f.NewThisExpression(), f.NewIdentifier("arguments")}), ast.NodeFlagsNone)
-	thunk := f.NewArrowFunction(nil, nil, f.NewNodeList(nil), nil, nil, f.NewToken(ast.KindEqualsGreaterThanToken), eagerCall)
-	sync := f.NewCallExpression(f.NewPropertyAccessExpression(tx.effectName(), nil, f.NewIdentifier("sync"), ast.NodeFlagsNone), nil, nil, f.NewNodeList([]*ast.Node{thunk}), ast.NodeFlagsNone)
+	sync := tx.runtimeCall("$plainSync", f.NewIdentifier(directText), f.NewThisExpression(), f.NewIdentifier("arguments"))
 	eagerGuard := f.NewIfStatement(f.NewBinaryExpression(nil, eagerDepth, nil, f.NewToken(ast.KindLessThanToken), eagerLimit), f.NewReturnStatement(sync), nil)
 	effectStatements := effect.Body().Statements()
 	prologue := 0

@@ -287,6 +287,8 @@ var execHelpers = map[string]execSource{
 
 	"$gen":          {"effect/Effect", "gen"},
 	"$fail":         {"effect/Effect", "fail"},
+	"$adapt":        {"vibelang-runtime", "$plainOf"},
+	"$plain":        {"vibelang-runtime", "$plainOf"},
 	"$hatchTry":     {"vibelang-runtime", "try"},
 	"$promise":      {"effect/Effect", "promise"},
 	"$tryPromise":   {"effect/Effect", "tryPromise"},
@@ -312,7 +314,7 @@ var execHelpers = map[string]execSource{
 // (execRendering.prologue); temporaries are declared there too.
 var prologueHelpers = map[string]bool{
 	"$end": true, "$Jump": true, "$jump": true, "$returned": true, "$jumped": true, "$value": true, "$acquire": true,
-	"$returnRun": true, "$adapt": true, "$plain": true, "$member": true, "$dual": true, "$asProgram": true, "$programs": true, "$each": true,
+	"$returnRun": true, "$member": true, "$dual": true, "$asProgram": true, "$programs": true, "$each": true,
 	"$t": true, "$s": true, "$scope": true, "$iterate": true, "$producerGen": true,
 }
 
@@ -439,12 +441,6 @@ func (r *execRendering) prologue() string {
 		r.local("$value")
 	}
 	var parts []string
-	if r.used["$adapt"] {
-		parts = append(parts, "const "+r.local("$adapt")+" = (f) => f["+r.local("$direct")+"] ?? f;")
-	}
-	if r.used["$plain"] {
-		parts = append(parts, "const "+r.local("$plain")+" = (f) => f["+r.local("$direct")+"] ?? f;")
-	}
 	var temps []string
 	for _, temp := range []string{"$t", "$s"} {
 		if r.used[temp] {
@@ -897,7 +893,7 @@ func (l *execLowering) fastParameters(f *execFunction) (string, string) {
 // splitFunction rewrites f's declaration. A pure function:
 //
 //	export function add(a, b) { return a + b }
-//	export function add(...$args) { return $sync(() => add$direct(...$args)) } add[$direct] = add$direct;
+//	export function add(...$args) { return $plainSync(add$direct, this, $args) } add[$direct] = add$direct;
 //	function add$direct(a, b) { return a + b }
 //
 // Any other:
@@ -930,7 +926,7 @@ func (l *execLowering) splitFunction(f *execFunction) {
 	var wrapper string
 	if f.pure {
 		f.direct = l.p.freshWord(f.name + "$direct")
-		wrapper = head + "(..." + args + ") { return " + helperRef("$sync") + "(() => " + f.direct + "(..." + args + ")) } " +
+		wrapper = head + "(..." + args + ") { return " + helperRef("$plainSync") + "(" + f.direct + ", this, " + args + ") } " +
 			f.name + "[" + helperRef("$direct") + "] = " + f.direct + ";\n"
 		l.insert(node.Name().End(), strings.TrimPrefix(f.direct, f.name))
 	} else {

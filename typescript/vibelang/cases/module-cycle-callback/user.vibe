@@ -1,0 +1,6 @@
+// Evaluated first, inside the cycle, before main.vibe's body has run.
+import { double } from "./main.vibe"
+import { log } from "./log.vibe"
+
+log.push("user")
+export const mapped = [1, 2].map(double)

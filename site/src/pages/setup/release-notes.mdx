@@ -202,6 +202,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Tooling and bundlers
 
+- In JavaScript that the experimental TypeScript content mapper emits, a module in an import cycle that called a plain VibeLang function, or passed one as a callback, before the exporting module had run got programs that never ran instead of values. It now gets the values, and no fiber or runner starts.
 - Release docs checks could fail to load a runtime platform entry with ERR_MODULE_NOT_FOUND. The extracted runtime now resolves its pinned platform peers and Node's shared platform package.
 - A running call followed by .pipe(Effect.catchTag(...)) had no catch quick fix. The compiler now offers a VibeLang catch rewrite for a single catch operator.
 - `--fix` could leave an unnecessary `Effect.succeed` in a rewritten catch arm. It now simplifies that handler.

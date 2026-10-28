@@ -1,0 +1,16 @@
+// In a module cycle, an importer that passes a plain function as a callback
+// before the exporter's body has run passes its plain form (D446), here
+// through the text projector's $plainOf as well as the compiler's variant.
+import { mapped } from "./user.vibe"
+import { log } from "./log.vibe"
+
+export function double(n: number) {
+  return n * 2
+}
+
+log.push("main")
+
+// expect-result: {"mapped":[2,4],"log":["user","main"]}
+export function main() {
+  return { mapped, log }
+}

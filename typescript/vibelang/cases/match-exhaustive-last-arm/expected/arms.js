@@ -34,7 +34,7 @@ export function phaseLabel$direct(phase) {
     }
 }
 // After return.
-export function phaseLabel(...args) { return Effect_1.sync(() => phaseLabel$direct.call(this, ...args)); }
+export function phaseLabel(...args) { return runtime.$plainSync(phaseLabel$direct, this, args); }
 phaseLabel[runtime.$direct] = phaseLabel$direct;
 export function width$direct(phase) {
     const label = (() => {
@@ -62,7 +62,7 @@ export function width$direct(phase) {
     return label;
 }
 // Inside an expression, where the match runs in its own function.
-export function width(...args) { return Effect_1.sync(() => width$direct.call(this, ...args)); }
+export function width(...args) { return runtime.$plainSync(width$direct, this, args); }
 width[runtime.$direct] = width$direct;
 export function record$direct(phase, log) {
     $match5: {
@@ -92,7 +92,7 @@ export function record$direct(phase, log) {
     }
 }
 // As a statement.
-export function record(...args) { return Effect_1.sync(() => record$direct.call(this, ...args)); }
+export function record(...args) { return runtime.$plainSync(record$direct, this, args); }
 record[runtime.$direct] = record$direct;
 export function describe$direct(failure) {
     {
@@ -122,7 +122,7 @@ export function describe$direct(failure) {
     }
 }
 // The last arm still binds user and n.
-export function describe(...args) { return Effect_1.sync(() => describe$direct.call(this, ...args)); }
+export function describe(...args) { return runtime.$plainSync(describe$direct, this, args); }
 describe[runtime.$direct] = describe$direct;
 export function greeting$direct(name) {
     {
@@ -141,7 +141,7 @@ export function greeting$direct(name) {
         }
     }
 }
-export function greeting(...args) { return Effect_1.sync(() => greeting$direct.call(this, ...args)); }
+export function greeting(...args) { return runtime.$plainSync(greeting$direct, this, args); }
 greeting[runtime.$direct] = greeting$direct;
 // In an Effect function, whose arms run Effects.
 export function announce(arg_1) {
