@@ -285,7 +285,7 @@ function describe(failure: Missing | Other) {
 error EK4701: This match does not handle every case of Missing | Other: Other is left.
 ```
 
-A match that handles every case needs no `default`, and tests that reach every arm cover every branch. Its last arm is still tested like every other arm, with the same reads, without adding a branch: a value outside the declared type, which only an unsound cast or `any` can produce, or a structural object of a class type, which is no instance, fails the test and throws a `TypeError`.
+An arm that only binds the value, `when let other:`, matches every value, as `default` does, so a match that ends in one handles every case. A match that handles every case needs no `default`, and tests that reach every arm cover every branch. Its last arm is still tested like every other arm, with the same reads, without adding a branch: a value outside the declared type, which only an unsound cast or `any` can produce, or a structural object of a class type, which is no instance, fails the test and throws a `TypeError`.
 
 For any other type, a match without `default` that no arm fits throws a `TypeError` when it runs, as the proposal specifies.
 

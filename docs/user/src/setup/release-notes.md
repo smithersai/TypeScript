@@ -105,6 +105,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Compiler and diagnostics
 
+- A match whose last arm only binds the value, `when let other: …`, reported EK4701 over a union of literals or tags as if that arm handled no case. Such an arm now handles every case, as `default` does.
 - A structural type could stand for a service or an `error` class. A requirement for one service could be relabeled as another and fail at run time with `Service not found`, and a same-shaped object or class could reach a match proven exhaustive and fail every arm. Services and `error` classes are now nominal; see [Upgrade from 0.0.10](#upgrade-from-0010).
 - A non-tail `resume` could receive a value outside its type and crash after only EK2119 warned. EK2119 is now an error; write a success type covering the handler's answers.
 - Providers now remove only services supplied on every path. Invalid providers report EK3207; unions, optional tuple elements and array spreads keep requirements they cannot guarantee, and service defaults are checked against their shape and member contracts.

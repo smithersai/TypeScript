@@ -1,0 +1,31 @@
+// expect-result: ["Idle","Other busy",4,"circle 2"]
+// An arm that only binds the value, when let other:, matches every value, so
+// a match ending in one handles every case of a finite union; EK4701 used to
+// report every case left after it.
+type Status = "idle" | "busy"
+
+function label(status: Status) {
+  return match (status) {
+    when "idle": "Idle";
+    when let other: "Other " + other;
+  }
+}
+
+function size(status: Status) {
+  return match (status) {
+    when let s: s.length;
+  }
+}
+
+type Shape = { readonly _tag: "Circle"; readonly radius: number } | { readonly _tag: "Square"; readonly side: number }
+
+function describe(shape: Shape) {
+  return match (shape) {
+    when { _tag: "Circle", let radius }: `circle ${radius}`;
+    when let other: `other ${other._tag}`;
+  }
+}
+
+export function main() {
+  return [label("idle"), label("busy"), size("busy"), describe({ _tag: "Circle", radius: 2 })]
+}

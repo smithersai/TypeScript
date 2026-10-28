@@ -1,0 +1,10 @@
+// expect: EK4701
+// A binding with a guard tests the value, so it does not handle every case.
+type Status = "idle" | "busy"
+
+export function label(status: Status) {
+  return match (status) {
+    when "idle": "Idle";
+    when let other and if (other.length > 3): "Other " + other;
+  }
+}

@@ -70,6 +70,9 @@ func checkPatterns(c *checker.Checker, file *ast.SourceFile) {
 // checkExhaustive reports a match whose subject, a finite union, still has
 // cases at the $noMatch call that ends its arms.
 func checkExhaustive(c *checker.Checker, file *ast.SourceFile, call *ast.Node) {
+	if afterIrrefutableArm(call) {
+		return
+	}
 	declared, left := matchRemainder(c, call)
 	// Flow analysis already reported its complexity limit. Its error sentinel
 	// is neither evidence of a missing case nor a proof of exhaustiveness.
@@ -100,8 +103,39 @@ func checkExhaustive(c *checker.Checker, file *ast.SourceFile, call *ast.Node) {
 // that ends a match without a default arm, never runs: the subject's
 // declared type is a finite union and no case of it is left there (D294).
 func provenExhaustive(c *checker.Checker, call *ast.Node) bool {
+	if afterIrrefutableArm(call) {
+		return true
+	}
 	declared, left := matchRemainder(c, call)
 	return declared != nil && left.Flags()&checker.TypeFlagsNever != 0
+}
+
+// afterIrrefutableArm reports whether call, the $noMatch call that ends a
+// match, follows an arm that tests nothing, such as when let other:, which
+// matches every value. The parser writes such an arm as a block with no if,
+// so the call is unreachable, and the subject's type there is its declared
+// type, not never, though no case is left.
+func afterIrrefutableArm(call *ast.Node) bool {
+	statement := call.Parent
+	if statement == nil || statement.Parent == nil || !ast.IsBlock(statement.Parent) {
+		return false
+	}
+	statements := statement.Parent.Statements()
+	for i, s := range statements {
+		if s != statement {
+			continue
+		}
+		if i == 0 || !ast.IsBlock(statements[i-1]) {
+			return false
+		}
+		for _, inner := range statements[i-1].Statements() {
+			if ast.IsIfStatement(inner) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // matchRemainder returns the declared type of the subject of call, the
