@@ -1,4 +1,4 @@
-// expect-result: {"plainOnce":"number","effectOnce":"effect","count":1,"stored":[[2,4],[2,4]],"held":105,"picked":42,"built":0,"ran":7,"runs":3}
+// expect-result: {"plainOnce":"number","effectOnce":"effect","count":1,"stored":[[2,4],[2,4]],"held":105,"picked":42,"built":0,"ran":7,"runs":3,"unions":[-4,-4]}
 // Conformance probes of written forms (D500, Chapter 30): each compiles with
 // the meaning its text gives, and no effect runs more or fewer times than
 // its source says.
@@ -11,6 +11,9 @@ function double(n: number): number {
 }
 function unannotatedDouble(n: number) {
   return n * 2
+}
+function triple(n: number) {
+  return n * 3
 }
 function logged(n: number) {
   runs++
@@ -53,5 +56,7 @@ export function main() {
   const p = () => work()
   const built = runs - before
   const ran = p()
-  return { plainOnce, effectOnce, count, stored: [[1, 2].map(twin), [1, 2].map(api.double)], held, picked, built, ran, runs }
+  // A union of functions of one form calls the one chosen, in that form.
+  const unions = [(ran > 0 ? unannotatedDouble : triple)(-2), (ran > 0 ? double : Math.abs)(-2)]
+  return { plainOnce, effectOnce, count, stored: [[1, 2].map(twin), [1, 2].map(api.double)], held, picked, built, ran, runs, unions }
 }

@@ -44,6 +44,36 @@ func (a *analyzer) noteReturnTypeFix(d *ast.Diagnostic, helper *ast.Node) {
 	note(d, "{0} has no return annotation, so it is an Effect function. Its quick fix writes its return type, {1}, which makes it plain; vibelang --fix applies every such fix in the project.", functionDisplayName(helper), ": "+a.returnTypeText(helper))
 }
 
+// mixedFormCallee is EK4301's text for a call of a union of functions some of
+// which return a definitely-Effect type and some another (D454, D500).
+var mixedFormCallee = EK4301.With("{0} is a plain function or an Effect function, so this call would build the Effect function's program and never run it.")
+
+// hasMixedFormCallee reports whether call's callee is a union of function
+// types whose members differ in form: some declared to return a
+// definitely-Effect type and some another type (D500). Its plain call would
+// build the Effect members' programs unrun, so it is EK4301.
+func (a *analyzer) hasMixedFormCallee(call *ast.Node) bool {
+	c := a.checker
+	if !isVibeLangFile(ast.GetSourceFileOfNode(call)) || inHatch(call) {
+		return false
+	}
+	t := c.GetTypeAtLocation(call.Expression())
+	if t == nil || t.Flags()&checker.TypeFlagsUnion == 0 {
+		return false
+	}
+	effect, plain := false, false
+	for _, member := range t.Types() {
+		for _, signature := range c.GetSignaturesOfType(member, checker.SignatureKindCall) {
+			if isEffectType(c, c.GetReturnTypeOfSignature(signature)) {
+				effect = true
+			} else {
+				plain = true
+			}
+		}
+	}
+	return effect && plain
+}
+
 // effectAnnotatedCallback is EK4301's text for a literal whose Effect
 // annotation makes it an Effect function where only a plain function fits
 // (D500).
@@ -124,6 +154,8 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 					a.reportFailingMethod(file, node, owner) // D282 (plain_failures.go)
 				}
 			}
+		case ast.IsCallExpression(node) && a.hasMixedFormCallee(node):
+			report(c, node.Expression(), mixedFormCallee, nodeText(file, node.Expression()))
 		case node.Kind == ast.KindIdentifier:
 			if a.finalConversion(node) == convertRejected {
 				call, _ := ownerCall(node)
