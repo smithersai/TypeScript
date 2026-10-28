@@ -1,0 +1,23 @@
+// using adds no mask (D490): an initializer that waits and returns a
+// Disposable without requiring Scope runs with the interruptibility in force
+// where the using stands, so an interruption that arrives while it waits
+// ends the wait, and using registers and disposes nothing.
+// expect-result: []
+export function main() {
+  const events: string[] = []
+  const entered = Deferred.make<void>()
+  const gate = Deferred.make<void>()
+  function open() {
+    Deferred.succeed(entered, undefined)
+    Deferred.await(gate)
+    events.push("acquired")
+    return { [Symbol.dispose](): void { events.push("disposed") } }
+  }
+  function work() { using resource = open() }
+  const child = Effect.forkChild(() => work())
+  Deferred.await(entered)
+  child.interruptUnsafe(98765)
+  Deferred.succeed(gate, undefined)
+  Fiber.await(child)
+  return events
+}

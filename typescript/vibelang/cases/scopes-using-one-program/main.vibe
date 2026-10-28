@@ -1,0 +1,127 @@
+// using is one Effect program for every initializer (D490):
+// Effect.acquireRelease(e, release, { interruptible: true }) in the block's
+// Scope, which runs e with the interruptibility in force where the using
+// stands, as yield* runs it, whatever e's type. Under
+// timeout(…, "100 millis") a pause in e is cut short and using registers
+// nothing: a Lease-typed and an object-typed lease that waits before it makes
+// its lease ("scoped", "object"), an openDb() that waits and returns a
+// Disposable without requiring Scope ("plain"), and waitLease(): Lease!! and
+// waitLeaseWide(): Lease!!Scope with one body ("narrow", "wide"). A lease
+// made through acquireRelease before the wait is disposed once
+// ("acquiredFirst"). Effect.acquireDisposable masks its acquire, so written
+// using db = Effect.acquireDisposable(() => openDb(…)), the initializer
+// waits out the pause, then its value is disposed once ("acquireDisposable").
+// Each list ends with how the deadline ended, after every release ran.
+// expect-result: {"scoped":["TimeoutError"],"object":["TimeoutError"],"acquiredFirst":["dispose first","TimeoutError"],"plain":["TimeoutError"],"narrow":["TimeoutError"],"wide":["TimeoutError"],"acquireDisposable":["opened","disposed","TimeoutError"]}
+export function main() {
+  return {
+    scoped: deadline((seen) => holdScoped(seen)),
+    object: deadline((seen) => holdObject(seen)),
+    acquiredFirst: deadline((seen) => holdAcquiredFirst(seen)),
+    plain: deadline((seen) => holdPlain(seen)),
+    narrow: deadline((seen) => holdNarrow(seen)),
+    wide: deadline((seen) => holdWide(seen)),
+    acquireDisposable: deadline((seen) => holdMasked(seen))
+  }
+}
+
+// A pause the deadline cuts short, and one a masked acquire waits out.
+const long = "2 seconds"
+const short = "300 millis"
+
+class Lease {
+  seen: string[]
+  name: string
+  constructor(seen: string[], name: string) {
+    this.seen = seen
+    this.name = name
+  }
+  [Symbol.dispose](): void {
+    this.seen.push(`dispose ${this.name}`)
+  }
+}
+
+// Runs work under a 100 ms deadline and returns what it recorded, then how
+// the deadline ended.
+function deadline(work: (seen: string[]) => void!!) {
+  const seen: string[] = []
+  try {
+    Effect.timeout(() => work(seen), "100 millis")
+    seen.push("finished")
+  } catch (e) {
+    seen.push(e._tag)
+  }
+  return seen
+}
+
+function lease(seen: string[]): Lease!!Scope {
+  sleep(long)
+  seen.push("leased")
+  return new Lease(seen, "scoped")
+}
+
+function leaseObject(seen: string[]): object!!Scope {
+  sleep(long)
+  seen.push("leased")
+  return {}
+}
+
+function leaseFirst(seen: string[]): Lease!!Scope {
+  const made = Effect.acquireRelease(() => new Lease(seen, "first"), (l) => l[Symbol.dispose]())
+  sleep(long)
+  seen.push("waited")
+  return made
+}
+
+function openDb(seen: string[], pause: Duration.Input) {
+  sleep(pause)
+  seen.push("opened")
+  return { [Symbol.dispose](): void { seen.push("disposed") } }
+}
+
+function waitLease(seen: string[], name: string): Lease!! {
+  sleep(long)
+  seen.push("leased")
+  return new Lease(seen, name)
+}
+
+function waitLeaseWide(seen: string[], name: string): Lease!!Scope {
+  sleep(long)
+  seen.push("leased")
+  return new Lease(seen, name)
+}
+
+function holdScoped(seen: string[]) {
+  using held = lease(seen)
+  seen.push("body")
+}
+
+function holdObject(seen: string[]) {
+  using held = leaseObject(seen)
+  seen.push("body")
+}
+
+function holdAcquiredFirst(seen: string[]) {
+  using held = leaseFirst(seen)
+  seen.push("body")
+}
+
+function holdPlain(seen: string[]) {
+  using db = openDb(seen, long)
+  seen.push("body")
+}
+
+function holdNarrow(seen: string[]) {
+  using held = waitLease(seen, "narrow")
+  seen.push("body")
+}
+
+function holdWide(seen: string[]) {
+  using held = waitLeaseWide(seen, "wide")
+  seen.push("body")
+}
+
+function holdMasked(seen: string[]) {
+  using db = Effect.acquireDisposable(() => openDb(seen, short))
+  seen.push("body")
+}

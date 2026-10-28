@@ -43,23 +43,24 @@ export const $region = <A, E, R>(body: (scope: Scope.Scope) => Effect.Effect<A, 
   Effect.scopedWith(body)
 
 /**
- * `using x = e` (D342, D401, D481) is the Effect program a TypeScript
- * developer would write, `Effect.acquireRelease(e, release, options)` with
- * the block's Scope, and adds no mask or interruptibility of its own. Where
- * `e`'s requirements include Scope (`requiresScope`, which the compiler
- * passes), `e` is a scoped acquisition, which Effect code runs with `yield*`:
- * the acquisition is `{ interruptible: true }`, so `e` runs with the
- * interruptibility in force where the `using` stands, and each acquisition in
- * it keeps its own policy. Otherwise `e` gives a disposable, which Effect
- * code binds with `Effect.acquireDisposable(e)`: the acquire step is masked,
- * an interruptible acquisition inside it included, and an interruption that
- * arrives meanwhile lands once the release is registered
- * (scopes-using-pending-interrupt). The content mapper, which reads no types,
- * passes no options, which is the scoped form.
+ * `using x = e` (D342, D401, D490) is one Effect program for every
+ * initializer, whatever `e`'s type: `Effect.acquireRelease(e, release,
+ * { interruptible: true })` with the block's Scope. Its `restore` runs `e`
+ * with the interruptibility in force where the `using` stands, as `yield* e`
+ * runs it, so an interruption reaches a pause in `e` exactly where it would
+ * reach the same pause in a statement before the `using`, and `using`
+ * registers nothing. Each acquisition inside `e` keeps its own policy:
+ * Effect's default `acquireRelease` and `acquireDisposable` mask their
+ * acquire, and `{ interruptible: true }` does not. `using` adds no mask of its
+ * own.
  *
  * `release` is the value's one disposal (releaseOf), chosen once, when the
  * acquire ends and before Effect registers it in the uninterruptible step
- * that ends the acquisition, so no interruption separates the value from it.
+ * that ends the acquisition, so no interruption separates the value from it
+ * (scopes-using-pending-interrupt). `requiresScope`, which the compiler
+ * passes, decides only releaseOf's last case: whether a value with no
+ * disposal method is bound as it is or is a TypeError. The content mapper,
+ * which reads no types, passes no options, and so binds such a value.
  */
 export const $using = <A, E, R>(
   scope: Scope.Scope,
@@ -68,7 +69,7 @@ export const $using = <A, E, R>(
 ): Effect.Effect<A, E, Exclude<R, Scope.Scope>> => {
   const requiresScope = options?.requiresScope ?? true
   const owned = Effect.map(acquire, (value) => ({ value, release: releaseOf(scope, value, requiresScope) }))
-  const acquisition = Effect.acquireRelease(owned, (held) => held.release, requiresScope ? { interruptible: true } : undefined)
+  const acquisition = Effect.acquireRelease(owned, (held) => held.release, { interruptible: true })
   return Effect.map(Scope.provide(acquisition, scope), (held) => held.value)
 }
 

@@ -47,12 +47,11 @@ import (
 // runtime gives them), and otherwise using, which disposes a value with a
 // disposal method once. TypeScript checks that the value is a Disposable,
 // null, or undefined unless the initializer requires Scope (TS2850). using
-// is Effect.acquireRelease of its initializer and adds no mask of its own
-// (D481): a scoped acquisition, one whose requirements include Scope, runs
-// with the interruptibility in force where the using stands, each
-// acquisition in it keeping its own policy (D25), and any other initializer
-// runs masked, as Effect.acquireDisposable runs it. for (using x of values)
-// takes each
+// is one Effect program for every initializer, whatever its type (D490):
+// Effect.acquireRelease(e, release, { interruptible: true }), which runs e
+// with the interruptibility in force where the using stands, as yield* runs
+// it, each acquisition in e keeping its own policy (D25), and adds no mask
+// of its own. for (using x of values) takes each
 // value with using in a Scope region around that iteration's body, so the
 // value is released when the iteration ends, by any path; over an iterator,
 // a producer, or a Stream, $forOf runs those iterations and closes what it
@@ -207,7 +206,9 @@ func (a *analyzer) isAcquisition(call *ast.Node) bool {
 // requiresScope reports whether initializer, a using declaration's, is an
 // acquisition whose requirements include Scope. Then using may bind a value
 // it cannot dispose, which the acquisition releases (D401). Scope never
-// decides who releases a value using can dispose: the run-time record does.
+// decides who releases a value using can dispose, which the run-time record
+// does, or how the initializer runs, which is the same for every initializer
+// (D490).
 func (a *analyzer) requiresScope(initializer *ast.Node) bool {
 	if initializer.Kind != ast.KindCallExpression || !a.isAcquisition(initializer) {
 		return false

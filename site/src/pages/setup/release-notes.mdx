@@ -54,7 +54,7 @@ The fixes keep a rewrite only when it adds no compiler error.
 | `() => fork p()`, or a `fork` in an `if` branch or a bare block | A fiber belongs to its innermost named region: a function body (an arrow's expression body included), one loop iteration, a `try`, `catch` or `finally` block, a block that declares `using`, or a `provide` or mask block. `if` branches, bare blocks, `do` blocks and `match` own nothing. Passing an owned fiber out of its region (returning, storing, assigning outside it, or capturing it) is now the error EK4838. Use `Effect.forkScoped(() => p())` for a child the caller's scope owns, or `detach(() => p())`. |
 | `using h = Effect.acquireRelease(() => openDisposable(), release)` with a plain-holder workaround | The acquisition's release is now the only release, so `using` no longer also calls `[Symbol.dispose]()`. Bind the Disposable directly and drop the holder. |
 | `using n = count()` where the value has no disposal method and the initializer needs no `Scope` | TS2850. Bind it with `const`, or acquire it with `acquireRelease` so its release is recorded. |
-| A pause in a `using` initializer, such as a wait in the function that opens the resource | Cancellation now follows Effect. An initializer whose requirements include `Scope`, such as an `acquireRelease` or a function that returns one, runs with the interruptibility in force where the `using` stands, so cancellation reaches its waits. Any other initializer runs masked until its value's release is registered, an interruptible acquisition inside it included. To keep a wait cancellable, acquire the resource with `acquireRelease(…, { interruptible: true })`, which puts `Scope` in the initializer's requirements. |
+| A pause in a `using` initializer, such as a wait in the function that opens the resource | Cancellation now follows Effect. Every initializer runs with the interruptibility in force where the `using` stands, whether or not it requires `Scope`, so cancellation reaches its waits and `using` registers nothing. A `timeout` around `using db = openDb()` now ends at its deadline instead of waiting for `openDb`. To wait one out, write `using db = Effect.acquireDisposable(() => openDb())`: its acquisition holds cancellation off, and `using` adds no second release. |
 
 Direct platform calls such as `console.log` and `process.env.NAME` were
 already EK4402 in 0.0.10; holding their values and importing Node values
@@ -228,7 +228,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Runtime
 
-- A `using` resource could leak when an interruption was pending as its acquisition finished. Its release is now registered before the interruption can land.
+- A `using` whose initializer did not require `Scope`, such as `using db = openDb()` where `openDb` waits and returns a Disposable, held cancellation off until `openDb` finished, so a `timeout` around it waited for the whole wait. Every initializer now runs with the interruptibility around the `using`, as `yield*` runs it, so the deadline ends the wait and nothing is disposed.
 - A Disposable acquired by an Effect with its own release was disposed twice by `using`. It is now released once.
 - A fiber returned from a block-bodied arrow was already interrupted, with only a warning. A fiber that escapes the region that owns it is now an error.
 - Experimental platform layers had the same names as Effect's layers and were easy to confuse. Their exports now start with Experimental; see the import repair in [Upgrade from 0.0.10](#upgrade-from-0010).
@@ -884,6 +884,12 @@ listed with an upgrade step.
 ### Known limitations
 
 
+- An interruption that arrives while a `using` initializer runs in a mask
+  of its own, as in `using r = Effect.uninterruptible(() => open())`, is
+  delivered as that mask ends, before `using` receives the value, as Effect
+  delivers it. A Disposable made there is not released. Acquire it with
+  `using r = Effect.acquireDisposable(() => open())`, which registers its
+  disposal inside the mask.
 - Platform checks are static, lint-strength checks, not a sandbox. Aliases
   such as `const g = globalThis; g.process.pid`, calls through `as any`,
   and `Reflect.get` can bypass them. See [the scope of platform checks](/platform/platform-globals#limits-of-static-checks).

@@ -1,18 +1,23 @@
-// using is Effect's acquireRelease of its initializer, with Effect's own
-// interruptibility (D481). An initializer that does not require Scope runs
-// masked, as Effect.acquireDisposable's acquire does, so an interruption that
-// arrives while it runs lands once the value's release is registered, and the
-// value is released: one that ends in its own mask ("ending"), one that waits
-// ("waiting"), and one whose helper acquires an interruptible lock with a
-// using of its own, which stays masked too ("nested"). An initializer that
-// requires Scope is a scoped acquisition, which runs with the
-// interruptibility in force where the using stands, as yield* runs it, so
-// the interruption reaches its wait and nothing is acquired: a pause in it
-// ("scoped") and an acquireRelease with { interruptible: true } behind a
-// wrapper ("interruptible").
-// expect-result: {"ending":["acquired","disposed"],"waiting":["acquired","disposed"],"nested":["locked","acquired","unlocked","disposed"],"scoped":[],"interruptible":[]}
+// using is one Effect program for every initializer (D490):
+// Effect.acquireRelease(e, release, { interruptible: true }), whose restore
+// runs e with the interruptibility in force where the using stands, as
+// yield* runs it, and which registers the value's release in the
+// uninterruptible step that ends the acquire. An interruption that arrives
+// at a wait in the initializer ends the wait, and nothing is acquired,
+// whether the initializer requires Scope or not: a wait in a helper that
+// returns a Disposable ("waiting"), a helper whose own using acquires an
+// interruptible lock ("nested"), a pause in a helper whose contract names
+// Scope ("scoped"), and an acquireRelease with { interruptible: true } behind
+// a wrapper ("interruptible"). One that arrives while the initializer runs
+// in a mask of its own is delivered as that mask ends, as Effect delivers
+// it, inside the initializer: the initializer gives no value, so using
+// registers nothing, and a Disposable it made is its own to release
+// ("ending"). Effect.acquireDisposable registers the Disposable's release
+// inside its mask, so the same interruption lands after that, and the value
+// is disposed once ("acquireDisposable").
+// expect-result: {"ending":["acquired"],"acquireDisposable":["acquired","disposed"],"waiting":[],"nested":[],"scoped":[],"interruptible":[]}
 export function main() {
-  return { ending: endingInMask(), waiting: waiting(), nested: nested(), scoped: scoped(), interruptible: interruptible() }
+  return { ending: endingInMask(), acquireDisposable: acquireDisposable(), waiting: waiting(), nested: nested(), scoped: scoped(), interruptible: interruptible() }
 }
 
 function endingInMask() {
@@ -22,6 +27,29 @@ function endingInMask() {
 
   function work() {
     using resource = Effect.uninterruptible(() => {
+      Deferred.succeed(entered, undefined)
+      Deferred.await(gate)
+      events.push("acquired")
+      return { [Symbol.dispose](): void { events.push("disposed") } }
+    })
+    events.push("body")
+  }
+
+  const child = Effect.forkChild(work())
+  Deferred.await(entered)
+  child.interruptUnsafe(98765)
+  Deferred.succeed(gate, undefined)
+  Fiber.await(child)
+  return events
+}
+
+function acquireDisposable() {
+  const events: string[] = []
+  const entered = Deferred.make<void>()
+  const gate = Deferred.make<void>()
+
+  function work() {
+    using resource = Effect.acquireDisposable(() => {
       Deferred.succeed(entered, undefined)
       Deferred.await(gate)
       events.push("acquired")

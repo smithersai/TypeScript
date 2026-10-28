@@ -130,7 +130,8 @@ func (tx *lowering) visitAcquisitionReference(node *ast.Node) *ast.Node {
 }
 
 // planUsingDeclarations records, for each declaration of list, a using
-// declaration list, whether its initializer requires Scope (D401, D481).
+// declaration list, whether its initializer requires Scope, which decides
+// only whether $using may bind a value it cannot dispose (D401, D490).
 func (p *scopePlan) planUsingDeclarations(a *analyzer, list *ast.Node) {
 	for _, declaration := range list.AsVariableDeclarationList().Declarations.Nodes {
 		if initializer := declaration.Initializer(); initializer != nil && a.requiresScope(ast.SkipParentheses(initializer)) {
@@ -141,11 +142,11 @@ func (p *scopePlan) planUsingDeclarations(a *analyzer, list *ast.Node) {
 
 // usingCall returns the runtime's $using of initializer, the initializer of
 // declaration, with the region's scope: Effect.acquireRelease of the
-// initializer, and its one release (D481). When the initializer requires
-// Scope, it is a scoped acquisition, which runs with the interruptibility in
-// force where the using stands, and a value that $using cannot dispose is
-// bound as it is (D401); otherwise its acquire step is masked, as
-// Effect.acquireDisposable's is.
+// initializer with { interruptible: true }, and its one release, for every
+// initializer, so the initializer runs with the interruptibility in force
+// where the using stands (D490). When the initializer requires Scope, a
+// value that $using cannot dispose is bound as it is; otherwise it is a
+// TypeError (D401).
 func (tx *lowering) usingCall(scope *ast.Node, declaration *ast.Node, initializer *ast.Node) *ast.Node {
 	f := tx.Factory()
 	requiresScope := f.NewKeywordExpression(ast.KindFalseKeyword)

@@ -20,7 +20,7 @@ test("the shipped skill demonstrates Effect 4 config and scoped file IO", () => 
   assert.match(skill, /import "vibelang\/platform\/node"/)
 })
 
-test("the current release discloses static platform limits, and no fixed using leak", () => {
+test("the current release discloses static platform limits and the mask-end using leak", () => {
   const notes = read("docs/user/src/setup/release-notes.md").split("## 0.0.11")[1]?.split(/^## /m)[0] ?? ""
   const limits = notes.split("### Known limitations")[1]?.split(/^### /m)[0] ?? ""
   for (const text of ["not a sandbox", "globalThis; g.process.pid", "as any", "Reflect.get", "Intl.DateTimeFormat().format()", "without EK4403"]) {
@@ -29,9 +29,12 @@ test("the current release discloses static platform limits, and no fixed using l
   for (const path of ["../platform/platform-globals.md#limits-of-static-checks"]) {
     assert.ok(limits.includes(path), path)
   }
-  // The pending-interruption leak is fixed: using registers its release before an
-  // interruption can land, so the release no longer lists it as a limitation.
-  assert.ok(!limits.includes("scopes-using-pending-interrupt"), "fixed using leak still listed")
+  // using is one Effect program for every initializer (D490), so an interruption
+  // pending in an initializer's own mask is delivered as that mask ends, as Effect
+  // delivers it, and a Disposable made there is lost. The release discloses it with
+  // the acquisition that registers the disposal inside the mask.
+  assert.ok(limits.includes("Effect.uninterruptible(() => open())"), "mask-end using leak not disclosed")
+  assert.ok(limits.includes("Effect.acquireDisposable(() => open())"), "mask-end using leak has no repair")
   assert.match(read("docs/user/src/platform/platform-globals.md"), /## Limits of static checks/)
 })
 

@@ -159,9 +159,9 @@ function example() {
 
 Only `using` acquisitions belong to the lexical block. An acquisition without `using` keeps `Scope` in `R` and belongs to the caller, even when the same function also uses a local resource.
 
-`Scope` is in the prelude, as the module and as the type alias for `Scope.Scope`, so these contracts need no import. `using` adds no masking policy: `acquireRelease` masks acquisition by default, and its third argument `{ interruptible: true }` lets cancellation reach an acquisition that waits on the outside world. An adapter that receives a resource after cancellation must release it; the spec's resource adapter detects that race with the runtime's TypeScript `suspend` helper.
+`Scope` is in the prelude, as the module and as the type alias for `Scope.Scope`, so these contracts need no import. `using` adds no masking policy: it runs its initializer with the interruptibility around it, whatever the initializer's type. `acquireRelease` masks acquisition by default, and its third argument `{ interruptible: true }` lets cancellation reach an acquisition that waits on the outside world. An adapter that receives a resource after cancellation must release it; the spec's resource adapter detects that race with the runtime's TypeScript `suspend` helper.
 
-`using` releases a JavaScript Disposable or AsyncDisposable exactly once, even when an interruption is pending as acquisition ends, and a value acquired with `Effect.acquireRelease` is released only by its release ([Releasing JavaScript Disposables](030-scope.md#releasing-javascript-disposables)).
+`using` releases a JavaScript Disposable or AsyncDisposable exactly once, even when an interruption is pending as the initializer gives its value, and a value acquired with `Effect.acquireRelease` is released only by its release ([Releasing JavaScript Disposables](030-scope.md#releasing-javascript-disposables)).
 
 ## Coming from Effect
 

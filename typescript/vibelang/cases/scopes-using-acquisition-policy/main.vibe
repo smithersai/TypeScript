@@ -1,0 +1,195 @@
+// An acquisition decides whether its acquire step can be interrupted, inside
+// using as outside it, since using adds no mask: using is one Effect program
+// for every initializer, which runs it with the interruptibility in force
+// where the using stands (D490). Under timeout(…, "100 millis"):
+// - using socket = connect(…), whose acquireRelease(…, { interruptible: true })
+//   waits, is cut at the wait ("interruptible"); with the acquisition inside
+//   an uninterruptible { } block of a helper the initializer calls
+//   ("helperMask"), or with the initializer
+//   Effect.uninterruptible(() => connect(…)) ("effectMask"), it waits.
+// - A nested using keeps its acquisition's policy: openDb binds using lock =
+//   acquireLock(…), an interruptible acquisition that waits, so
+//   using db = openDb(…) is cut at the lock's wait and the lock's acquisition
+//   registers nothing, whether openDb returns a Disposable without requiring
+//   Scope ("nestedPlain") or returns its database through acquireRelease, so
+//   that it requires Scope ("nestedScoped"). Written
+//   using db = Effect.acquireDisposable(() => openDb(…)), the lock's wait runs
+//   under acquireDisposable's mask, which the lock's restore gives back, and
+//   each resource is released once ("nestedMasked").
+// - Effect.acquireDisposable masks its acquire, but interruptible { } and
+//   Effect.interruptibleMask set the fiber interruptible under any mask, as
+//   Effect's do, so a wait inside either is cut and nothing is disposed
+//   ("interruptibleBlock", "interruptibleMask"). With the wait outside them
+//   ("outside"), or inside an inner acquireRelease(…, { interruptible: true })
+//   ("inner"), it waits, and each resource is released once.
+// Each list ends with how the deadline ended, after every release ran.
+// expect-result: {"interruptible":["TimeoutError"],"helperMask":["connected","released","TimeoutError"],"effectMask":["connected","released","TimeoutError"],"nestedPlain":["TimeoutError"],"nestedScoped":["TimeoutError"],"nestedMasked":["locked","opened","unlocked","disposed","TimeoutError"],"interruptibleBlock":["TimeoutError"],"interruptibleMask":["TimeoutError"],"outside":["opened","disposed","TimeoutError"],"inner":["ticketed","opened","disposed","ticket released","TimeoutError"]}
+export function main() {
+  return {
+    interruptible: deadline((seen) => holdSocket(seen)),
+    helperMask: deadline((seen) => holdHelperMask(seen)),
+    effectMask: deadline((seen) => holdEffectMask(seen)),
+    nestedPlain: deadline((seen) => holdNestedPlain(seen)),
+    nestedScoped: deadline((seen) => holdNestedScoped(seen)),
+    nestedMasked: deadline((seen) => holdNestedMasked(seen)),
+    interruptibleBlock: deadline((seen) => holdInterruptibleBlock(seen)),
+    interruptibleMask: deadline((seen) => holdInterruptibleMask(seen)),
+    outside: deadline((seen) => holdOutside(seen)),
+    inner: deadline((seen) => holdInner(seen))
+  }
+}
+
+// A pause the deadline cuts short, and one a masked acquire waits out.
+const long = "2 seconds"
+const short = "300 millis"
+
+// Runs work under a 100 ms deadline and returns what it recorded, then how
+// the deadline ended.
+function deadline(work: (seen: string[]) => void!!) {
+  const seen: string[] = []
+  try {
+    Effect.timeout(() => work(seen), "100 millis")
+    seen.push("finished")
+  } catch (e) {
+    seen.push(e._tag)
+  }
+  return seen
+}
+
+function connect(seen: string[], pause: Duration.Input) {
+  return Effect.acquireRelease(
+    () => {
+      sleep(pause)
+      seen.push("connected")
+      return { socket: "open" }
+    },
+    () => {
+      seen.push("released")
+    },
+    { interruptible: true }
+  )
+}
+
+function connectMasked(seen: string[], pause: Duration.Input) {
+  uninterruptible {
+    return connect(seen, pause)
+  }
+}
+
+function acquireLock(seen: string[], pause: Duration.Input) {
+  return Effect.acquireRelease(
+    () => {
+      sleep(pause)
+      seen.push("locked")
+      return { held: true }
+    },
+    () => {
+      seen.push("unlocked")
+    },
+    { interruptible: true }
+  )
+}
+
+function disposable(seen: string[]) {
+  seen.push("opened")
+  return { [Symbol.dispose](): void { seen.push("disposed") } }
+}
+
+// Its using supplies the lock's Scope, so openLocked requires no Scope.
+function openLocked(seen: string[], pause: Duration.Input) {
+  using lock = acquireLock(seen, pause)
+  return disposable(seen)
+}
+
+// It returns its database through acquireRelease, so it requires Scope.
+function openLockedScoped(seen: string[], pause: Duration.Input) {
+  using lock = acquireLock(seen, pause)
+  seen.push("opened")
+  return Effect.acquireRelease(() => ({ name: "db" }), () => {
+    seen.push("closed")
+  })
+}
+
+function openInterruptible(seen: string[], pause: Duration.Input) {
+  interruptible {
+    sleep(pause)
+  }
+  return disposable(seen)
+}
+
+function openInterruptibleMask(seen: string[], pause: Duration.Input) {
+  Effect.interruptibleMask(() => {
+    sleep(pause)
+  })
+  return disposable(seen)
+}
+
+function openDb(seen: string[], pause: Duration.Input) {
+  sleep(pause)
+  return disposable(seen)
+}
+
+function openInner(seen: string[], pause: Duration.Input) {
+  const ticket = Effect.acquireRelease(
+    () => {
+      sleep(pause)
+      seen.push("ticketed")
+      return "ticket"
+    },
+    () => {
+      seen.push("ticket released")
+    },
+    { interruptible: true }
+  )
+  return disposable(seen)
+}
+
+function holdSocket(seen: string[]) {
+  using socket = connect(seen, long)
+  seen.push("body")
+}
+
+function holdHelperMask(seen: string[]) {
+  using socket = connectMasked(seen, short)
+  seen.push("body")
+}
+
+function holdEffectMask(seen: string[]) {
+  using socket = Effect.uninterruptible(() => connect(seen, short))
+  seen.push("body")
+}
+
+function holdNestedPlain(seen: string[]) {
+  using db = openLocked(seen, long)
+  seen.push("body")
+}
+
+function holdNestedScoped(seen: string[]) {
+  using db = openLockedScoped(seen, long)
+  seen.push("body")
+}
+
+function holdNestedMasked(seen: string[]) {
+  using db = Effect.acquireDisposable(() => openLocked(seen, short))
+  seen.push("body")
+}
+
+function holdInterruptibleBlock(seen: string[]) {
+  using db = Effect.acquireDisposable(() => openInterruptible(seen, long))
+  seen.push("body")
+}
+
+function holdInterruptibleMask(seen: string[]) {
+  using db = Effect.acquireDisposable(() => openInterruptibleMask(seen, long))
+  seen.push("body")
+}
+
+function holdOutside(seen: string[]) {
+  using db = Effect.acquireDisposable(() => openDb(seen, short))
+  seen.push("body")
+}
+
+function holdInner(seen: string[]) {
+  using db = Effect.acquireDisposable(() => openInner(seen, short))
+  seen.push("body")
+}
