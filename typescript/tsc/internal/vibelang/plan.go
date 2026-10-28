@@ -319,7 +319,14 @@ func (a *analyzer) isEffect(fn *ast.Node) bool {
 		return !a.isPlainFunction(fn)
 	}
 	switch a.states[fn] {
-	case stateVisiting, stateEffect:
+	case stateVisiting:
+		// A call that reaches fn again while its body is read, as a recursive
+		// size(): number method's this.next.size() does, is plain when fn has
+		// a plain return annotation: the annotation names its form (rule F),
+		// as D56's fixpoint counts a plain candidate's own cycle, and a body
+		// that runs an Effect is EK2003 at the annotation.
+		return !a.hasPlainContract(fn)
+	case stateEffect:
 		return true
 	case statePure:
 		return false

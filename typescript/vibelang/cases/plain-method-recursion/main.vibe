@@ -1,0 +1,40 @@
+// A method with a plain return annotation is plain (rule F), its own call
+// cycle included: a recursive size(): number, toString(): string or
+// static depth(n: number): number compiles to a plain method, and a
+// synchronous callback can call it. Each was EK2003, as if the method's call
+// of itself ran an Effect.
+// expect-result: {"size":3,"text":"1,2,3","depth":5,"even":true,"sizes":[3,2]}
+class Chain {
+  constructor(readonly value: number, readonly next?: Chain) {}
+
+  size(): number {
+    return 1 + (this.next ? this.next.size() : 0)
+  }
+
+  toString(): string {
+    return `${this.value}${this.next ? "," + this.next.toString() : ""}`
+  }
+
+  isEven(n: number): boolean {
+    return n === 0 ? true : this.isOdd(n - 1)
+  }
+
+  isOdd(n: number): boolean {
+    return n === 0 ? false : this.isEven(n - 1)
+  }
+
+  static depth(n: number): number {
+    return n === 0 ? 0 : 1 + Chain.depth(n - 1)
+  }
+}
+
+export function main() {
+  const chain = new Chain(1, new Chain(2, new Chain(3)))
+  return {
+    size: chain.size(),
+    text: chain.toString(),
+    depth: Chain.depth(5),
+    even: chain.isEven(10),
+    sizes: [chain, chain.next!].map((c) => c.size()),
+  }
+}
