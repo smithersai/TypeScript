@@ -20,5 +20,17 @@
   "replay": "FC_PROPERTY=scaffold-builds-checkout-npm-00-new node --test test/create.property.test.mjs",
   "errorPattern": "Cannot find module '/src/greeting[.]test[.]vibe'",
   "error": "Vitest exits 1 before collecting tests: Cannot find module '/src/greeting.test.vibe'. Vite warns that the project root contains #. The CLI accepts the directory and --noEmit succeeds.",
-  "note": "Discovery shrank app#; the saved input removes the remaining app prefix. Replay this input before discovery; the seed/path describe the original generator. A successful test run is XPASS."
+  "note": "This is Vite's own handling of project paths containing #, reproduced without any VibeLang packages. Use a directory path without #. Discovery shrank app#; the saved input removes the remaining app prefix. Replay this input before discovery; the seed/path describe the original generator. A successful test run is XPASS.",
+  "plainReproduction": {
+    "versions": { "node": "26.10.0", "vite": "8.3.5", "vitest": "5.0.5" },
+    "steps": [
+      "repro=$(mktemp -d); cd \"$repro\"; mkdir '#'; cd '#'",
+      "printf '%s\\n' '{\"private\":true,\"type\":\"module\",\"scripts\":{\"test\":\"vitest run\"}}' > package.json",
+      "npm install --save-dev --save-exact vite@8.3.5 vitest@5.0.5",
+      "printf '%s\\n' 'import { expect, test } from \"vitest\"; test(\"plain\", () => expect(1 + 1).toBe(2))' > plain.test.js",
+      "npm test",
+      "cd ..; mv '#' plain; cd plain; npm test"
+    ],
+    "result": "Under #, Vite warns about the project root and Vitest exits 1 with Cannot find module '/plain.test.js' before collecting any tests. Renaming the same directory to plain makes its one test pass."
+  }
 }

@@ -97,6 +97,8 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 - Tree-sitter highlighting could misread `catch`, `??`, statement starts, `!T`, empty type parameters and bare `await`; these forms now parse as the compiler parses them.
 
+- The starter's tests could not find Vite after a Yarn Classic install. The starter now installs Vite explicitly.
+
 - Importing both `vibelang-runtime` and `vibelang-runtime/kernel` in Bun no longer fails at startup, in either import order.
 
 - A `var` declaration inside a `do` expression previously compiled with the wrong scope; it now reports `EK1019` and offers `let` instead. Jumps that leave a `do` expression now report `EK1019`.
@@ -304,6 +306,8 @@ Effect 4.0.6 defect-precedence and interruption migration.
 ### Known bugs
 
 These bugs were found and confirmed and are being fixed; please don't re-report them, and each entry moves to the fixed list when its fix lands.
+
+- Vite cannot load tests when the project's path contains `#`, even in a plain project without VibeLang. Use a directory path without `#`.
 
 #### Generated names
 
