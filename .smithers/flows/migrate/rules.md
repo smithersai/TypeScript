@@ -25,6 +25,7 @@ A call runs where it stands; only a function literal defers it. Write `retry(() 
 
 - A hatch (`sync`, `try`, `callback`) or a `module` block is for a real Promise or callback library, or a TypeScript-only construct, and nothing else. Comment its body as plain TypeScript, as the docs do: `// try's first argument is plain TypeScript, not VibeLang.`
 - A file whose code is mostly a Promise or callback library, DOM code, or a JavaScript generator protocol stays `.ts`. So does a file with no Effect code.
+- VibeLang has no JavaScript `throw` (the owner's rule): `throw` in a `.vibe` file is a typed failure, and a plain function never fails. A TypeScript function that throws a programmer error (an invariant check, an invalid schema definition) migrates one of three ways: as Effect code that ends in `die(new Error(...))` when its callers are Effect code; as a typed failure with `throw` and an `error` declaration when callers should recover; or it stays in a `.ts` file when its callers need a plain synchronous function, such as a schema factory evaluated at a module's top level. Never ask for a language change for this, and never record it as a VibeLang issue.
 - Calling a plain function of a `.ts` file or a package from code a fiber runs needs a hatch, `trusted(...)`, or the package in `"vibelang": { "trustedPackages": [...] }` (EK4401). Trust a package whose functions throw only programmer errors; wrap the rest.
 
 ## Keep the contract
