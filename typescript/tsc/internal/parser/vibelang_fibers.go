@@ -198,9 +198,11 @@ func (p *Parser) nextTokensStartAwaitOperation() bool {
 
 // parseVibeLangAwaitOperation parses `await.all operand` as $awaitAll(operand),
 // and likewise allSettled, race, and any (D196). The operand binds as await's
-// does. The helper's callee stands on the await keyword alone: a synthesized
-// node spans one token, and the dot and the operation's name belong to no
-// child.
+// does. With a parenthesized operand the form is a call in shape (D452):
+// what follows the `)` applies to the form's value, so
+// `await.all([a(), b()]).length` counts the results. The helper's callee
+// stands on the await keyword alone: a synthesized node spans one token, and
+// the dot and the operation's name belong to no child.
 func (p *Parser) parseVibeLangAwaitOperation() *ast.Node {
 	pos := p.nodePos()
 	anchor := p.tokenRange()
@@ -209,10 +211,20 @@ func (p *Parser) parseVibeLangAwaitOperation() *ast.Node {
 	helper := awaitOperations[p.scanner.TokenValue()]
 	p.nextToken() // the operation
 	word := core.NewTextRange(anchor.Pos(), p.nodePos())
-	operand := p.parseSimpleUnaryExpression()
+	parenthesized := p.token == ast.KindOpenParenToken
+	var operand *ast.Node
+	if parenthesized {
+		operand = p.parseParenthesizedExpression()
+	} else {
+		operand = p.parseSimpleUnaryExpression()
+	}
 	p.recordVibeSyntax(VibeSyntax{Kind: VibeSyntaxPrefix, Word: word, Range: core.NewTextRange(anchor.Pos(), operand.End())})
 	callee := p.vibelangIntrinsic(helper, anchor)
-	return p.finishNode(p.factory.NewCallExpression(callee, nil, nil, p.newNodeList(operand.Loc, []*ast.Node{operand}), ast.NodeFlagsNone), pos)
+	call := p.finishNode(p.factory.NewCallExpression(callee, nil, nil, p.newNodeList(operand.Loc, []*ast.Node{operand}), ast.NodeFlagsNone), pos)
+	if parenthesized {
+		return p.parseCallExpressionRest(pos, call)
+	}
+	return call
 }
 
 // isStartOfVibeLangSelect reports whether the current token starts a select
