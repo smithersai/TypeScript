@@ -341,7 +341,7 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK4809 | Warning: a service whose every Effect member needs the same service | Read it where the layer is built, or mark it `@vibelang leakable` | 4 |
 | EK4810 | Warning: an assertion from one Effect type to another that drops failures or services | Remove the assertion (quick fix) | 14 |
 | EK4811 | Off by default: a throw of `any` or `unknown`, or a call that adds one to E or R | Throw an error declaration's instance; give the callee a contract | 3 |
-| EK4812 | Warning: `new Promise` in VibeLang code | `callback((resume) => …)`, or an `async` hatch function that waits for it, `try(async () => promise, (cause) => …)` (D439, D456) | 10 |
+| EK4812 | Warning: `new Promise` in VibeLang code | `callback((resume) => …)`, or an `async` hatch function that waits for it, given the promise as an input, `try(async (p) => p, (cause) => …, promise)` (D439, D456, D468) | 10 |
 | EK4813 | An Effect 3 name of the Effect module, such as `Effect.catchAll`; it replaces TypeScript's TS2339 | Write the Effect 4 name, `Effect.catch` (quick fix, also for TS2339 in `.ts` files) | 11 |
 | EK4814 | Warning: a constructor in a class that extends a Schema class, which decoding does not call | Add a static function that makes an instance | 11 |
 | EK4815 | Warning: a throw of an Effect value | Run it: `program()` | 3 |

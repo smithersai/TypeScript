@@ -126,9 +126,10 @@ The hooks check each argument against the picked signature in the form Chapter
 argument's form or when an expression is evaluated. A return in a
 program is checked against the Effect's success type. Function values, and
 the elements of array and object literals, convert to Effects where a
-parameter expects them (D7, D49, D423); the conversion changes a function's
-representation, never when its body runs, and traverses no collection that an
-argument only names. D10 eligibility is a greatest fixpoint over the callee group. D12
+parameter expects them (D7, D49, D423). Conversion runs no body when it
+happens; it decides whether the receiver's call of the function runs the body
+or builds a cold program whose runs do, as rule F specifies (D447), and it
+traverses no collection that an argument only names. D10 eligibility is a greatest fixpoint over the callee group. D12
 callback parameters carry inferred E and R type parameters. An intrinsic call such as
 Effect's `pipe` or the runtime's `wire` is recognized by the declaration its
 callee resolves to, through import aliases and namespace members, never by
@@ -155,7 +156,7 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 | --- | --- |
 | `$programs` | Convert the functions a spread supplies to an array or object literal where programs are expected, as the spread reads them (D423) |
 | `$catch`, `$finally` | Expected-failure handling and cleanup |
-| `$expected`, `$caught`, `$finallyFailure` | A plain function's typed throw, its catch's filter that rethrows defects, and its finally block's failure joined to the one in flight (D15, D54, D282); with them the combining form that a failing `finally` or iterator close uses in plain code, which carries two defects across a JavaScript frame as a `SuppressedError` (D340, D341); `$finallyFailure` is also the close helper of every native `for...of`, in plain code and frames, whose body and head failures leave the loop by `break` so that a failing `return()` reaches it (D404, D424) |
+| `$expected`, `$caught`, `$finallyFailure` | A plain function's throw, which wraps its operand as an expected failure whatever the operand is (D406), its catch's filter that rethrows defects, and its finally block's failure joined to the one in flight (D15, D54, D282); with them the combining form that a failing `finally` or iterator close uses in plain code, which carries two defects across a JavaScript frame as a `SuppressedError` (D340, D341); `$finallyFailure` is also the close helper of every native `for...of`, in plain code and frames, whose body and head failures leave the loop by `break` so that a failing `return()` reaches it (D404, D424) |
 | `$region`, `$using`, `$fork` | Block-owned scopes, resources, and children |
 | `$service`, `$reference`, `$control` | Service keys, defaults, and control operations |
 | `$trusted`, `$trustedPlain` | Classify listed foreign exceptions |

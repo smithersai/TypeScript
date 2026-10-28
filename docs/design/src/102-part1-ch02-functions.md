@@ -144,7 +144,7 @@ function profileCard(id: string) {
 // { title: string; avatar: Avatar }!UserNotFound | AvatarError!Users | Storage
 ```
 
-A TypeScript function whose declared return type is an `Effect` behaves exactly like a VibeLang function: calling it runs it. One that returns anything else is foreign code: nothing says what its exceptions mean, so the compiler asks you to say it once, and reports every call until you do, in plain functions too. `formatName` is a `trusted(impl, [Errors])` value exported beside its TypeScript implementation, so it returns an `Effect`, and the call runs it (D249, Chapter 10). Without one, the call is an error that offers the fixes:
+A TypeScript function whose declared return type is an `Effect` behaves exactly like a VibeLang function: calling it runs it. One that returns anything else is foreign code: nothing says what its exceptions mean, so the compiler asks you to say it once, and reports every call until you do, in plain functions too. `formatName` is a `trusted(impl, [Errors])` value exported beside its TypeScript implementation, so the call is a plain call of its plain form, which classifies the exceptions it lists, in plain functions too, while TypeScript code receives a function that returns an `Effect` (D249, D445, Chapter 10). Without one, the call is an error that offers the fixes:
 
 ```text
 error EK4401: formatName is a plain TypeScript function, and nothing says what its exceptions mean.

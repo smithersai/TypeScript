@@ -147,7 +147,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | `runMain` options | Changed | The same options, with a program |
 | One-shot runners and `run*With(context)` | Changed | Programs as functions, only where no fiber runs the code (D38) |
 | `ManagedRuntime` | Unchanged | `ManagedRuntime.make(AppLive)`; `runtime.runPromise(() => handle(req))` in a framework callback, or from TypeScript |
-| Top-level `await` | Changed | No `await`; the top level builds values, calls plain functions (D445), and calls runners (EK1001) |
+| Top-level `await` | Changed | No `await`; the top level builds values, calls plain functions (D445), and calls runners; a call that runs a program there is EK1001 |
 | Scheduling and fairness | Unchanged | 2048 operations per slice; a plain JavaScript region is atomic |
 | `ErrorReporter`, `Effect.withErrorReporting` | Changed | `Effect.withErrorReporting(() => program())()`: the arrow stays a function, and the declared return type is a conditional with a function branch, so the call returns the wrapped function, and `()` runs it (D321, D324) |
 

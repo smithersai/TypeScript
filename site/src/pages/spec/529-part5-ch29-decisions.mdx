@@ -8,7 +8,7 @@ title: "29. Decisions"
 
 ```text
 settled before this document      1-7        the original design decisions
-decisions                         D1-D456    every decision since; a number without a row is unassigned
+decisions                         D1-D468    every decision since; a number without a row is unassigned
 rules of the runtime and compiler P1-P22     adopted by D29, revised by verified counterexamples
 ```
 
@@ -429,6 +429,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D465 | An `error` declaration's declaration carries `#private` and a merged-namespace `$error` marker; `effect`'s error classes are those extending `YieldableError` | A declaration consumer could not tell a closed `error` from an open class |  | 3, 14, 26, 27, 30, Appendices |
 | D466 | A service's emitted declaration imports `ServiceBrand` and uses `ServiceKey` or `ReferenceKey`; "only identifiers in R" is assignability | The emitted shape and the R rule's diagnostic were unstated |  | 4, 27, 30 |
 | D467 | A handler's answer type adds `undefined` only for a completion other than by returning | "Ends another way" was loose |  | 9 |
+| D468 | Statements that contradicted rules or facts | Chapters 2, 5, 6, 10, 13, 15, 27, 28, 30 and the appendices kept text the rules had replaced |  | 2, 5, 6, 10, 13, 15, 27, 28, 30, Intro, Appendices |
 
 #### Rules of the runtime and compiler
 
