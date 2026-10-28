@@ -1,0 +1,8 @@
+// Calling a program value runs it when its type extends Effect (D437),
+// an intersection with an Effect member included.
+import { labelled } from "./values.ts"
+
+// expect-result: {"value":42,"label":"answer"}
+export function main() {
+  return { value: labelled() + 1, label: labelled.label }
+}

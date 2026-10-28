@@ -382,6 +382,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - The Vue and Svelte guides said an excluded VibeLang test fails with ENOENT. They now show the project-include error and the glob that repairs it.
 - The Vue build guide omitted unresolved imports alongside vue-tsc's rewrite errors. It now identifies TS2307 for ./todos.vibe in runtime.ts and TodoBoard.vue.
 - The late diagnostic reference omitted statement, escaping-fiber and mapper guidance. It now explains EK1017, EK4838 and the editor-only EK9101 with their repairs.
+- Calling a program value whose type is an Effect intersected with other members, such as an Alchemy Worker (`Effect<Worker> & Named<...>`), reported `TS2349`. The call now runs the program, as it does for a plain `Effect`.
 - Compiling a project of several `.vibe` files with declarations on could stop with "fatal error: concurrent map read and map write", because the declaration files of different files were written in parallel over shared state. Each file now works from its own copy, and the compiler finishes.
 - An unfinished top-level `await` statement in a module, such as `export {}; await + f(const 0 await !x`, parsed its last tokens twice, into two overlapping statements. The parser now keeps one.
 - Formatting a file twice could indent a line again when the first format moved a statement onto a line of its own and the statement continued on the next line: a call's arguments, as in `{{0!\n("")}}`, a binary operator, as in `{{x\n+ y}}`, or a `%` operand. The first format now gives the final indentation.

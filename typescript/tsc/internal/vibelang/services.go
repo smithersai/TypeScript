@@ -1,6 +1,7 @@
 package vibelang
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -631,7 +632,8 @@ func effectOfValue(c *checker.Checker, t *checker.Type) *checker.Type {
 }
 
 // isEffectValueType reports whether every value of t is an Effect: t is an
-// object type with the ~effect/Effect variance, or a union of such types.
+// object type with the ~effect/Effect variance, an intersection with such a
+// member (Alchemy's Worker is Effect<Worker> & Named<...>), or a union of these.
 func isEffectValueType(c *checker.Checker, t *checker.Type) bool {
 	if t.Flags()&checker.TypeFlagsUnion != 0 {
 		for _, member := range t.Types() {
@@ -640,6 +642,9 @@ func isEffectValueType(c *checker.Checker, t *checker.Type) bool {
 			}
 		}
 		return len(t.Types()) > 0
+	}
+	if t.Flags()&checker.TypeFlagsIntersection != 0 {
+		return slices.ContainsFunc(t.Types(), func(member *checker.Type) bool { return isEffectValueType(c, member) })
 	}
 	return t.Flags()&checker.TypeFlagsObject != 0 && c.GetPropertyOfType(t, effectTypeID) != nil
 }
