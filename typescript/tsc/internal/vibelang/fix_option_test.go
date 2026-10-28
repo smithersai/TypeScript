@@ -18,6 +18,9 @@ func TestOptionPipeQuickFixes(t *testing.T) {
 			"export const next = (o: Option.Option<number>) => o.map((n) => n + 1)\n"},
 		{"a value that is not an Option", "export const size = (id: string | null) => pipe(id, Option.fromNullishOr, Option.map((s) => s.length))\n",
 			"export const size = (id: string | null) => Option.fromNullishOr(id).map((s) => s.length)\n"},
+		// The foldkit run's pipeline, which its agent rewrote by hand.
+		{"a predicate", "const isTagged = (x: unknown): x is { _tag: string } => typeof x === \"object\" && x !== null && \"_tag\" in x\nexport const tagOf = (current: unknown) =>\n  pipe(\n    current,\n    Option.liftPredicate(isTagged),\n    Option.map(({ _tag }) => _tag),\n  )\n",
+			"const isTagged = (x: unknown): x is { _tag: string } => typeof x === \"object\" && x !== null && \"_tag\" in x\nexport const tagOf = (current: unknown) =>\n  Option.liftPredicate(current, isTagged)\n    .map(({ _tag }) => _tag)\n"},
 		{"a function stage", "export const value = (o: Option.Option<number>) => pipe(o, Option.getOrNull)\n",
 			"export const value = (o: Option.Option<number>) => o.getOrNull()\n"},
 		{"two names of one import", "import { Array as Arr, Option, pipe } from \"effect\"\nexport const first = (xs: ReadonlyArray<number>) => pipe(Arr.get(xs, 0), Option.map((n) => n + 1), Option.getOrNull)\n",
