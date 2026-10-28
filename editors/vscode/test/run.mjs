@@ -20,8 +20,8 @@
 //
 // On Linux, run it under xvfb-run. On macOS it opens a VS Code window for
 // about a minute.
-import { spawnSync } from "node:child_process"
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -41,6 +41,10 @@ const effectModules = path.resolve(
 )
 const fixture = path.join(repo, "typescript", "vibelang", "lsp-fixture")
 const runtime = path.resolve(process.env.VIBELANG_RUNTIME ?? path.join(repo, "packages", "runtime"))
+
+// Keep lifecycle mocks in the package's normal test command too.
+const unit = spawnSync("bun", ["test", "--timeout", "60000", "test/unit.test.ts"], { cwd: extensionRoot, stdio: "inherit", timeout: 300000 })
+if (unit.error || unit.status !== 0) throw new Error(`unit suite failed: ${unit.error ?? unit.signal ?? unit.status}`)
 
 for (const [what, file] of [
   ["the packaged extension; run bun run package", vsix],
@@ -95,13 +99,35 @@ try {
       extensionDevelopmentPath: path.join(here, "harness"),
       extensionTestsPath: path.join(here, "harness", "index.js"),
       launchArgs: [project, `--extensions-dir=${extensionsDir}`, `--user-data-dir=${userDataDir}`, "--disable-telemetry", ...args],
-      extensionTestsEnv: { VIBELANG_TEST_WORKSPACE: project, VIBELANG_TEST_EXTENSIONS: extensionsDir, VIBELANG_TEST_PASS: name }
+      extensionTestsEnv: { VIBELANG_TEST_WORKSPACE: project, VIBELANG_TEST_EXTENSIONS: extensionsDir, VIBELANG_TEST_PASS: name,
+        VIBELANG_TEST_COMPILER: vibelang, FC_ARTIFACT_DIR: path.resolve(process.env.FC_ARTIFACT_DIR ?? path.join(extensionRoot, ".cache/property-failures")) }
     })
   // First with VS Code's TypeScript features on, as a new install has them.
   await pass("default")
   // Then with the built-in TypeScript extension disabled, so VibeLang
   // serves .ts files too.
   await pass("typescript-off", "--disable-extension=vscode.typescript-language-features")
+  // @vscode/test-electron always adds --disable-workspace-trust. Launch this
+  // pass directly so VS Code's real trust service gates the installed extension.
+  const untrusted = path.join(scratch, "untrusted"), trustProfile = path.join(scratch, "trust-profile")
+  mkdirSync(path.join(untrusted, "node_modules/.bin"), { recursive: true })
+  writeFileSync(path.join(untrusted, "main.vibe"), "export const value = 1\n")
+  const marker = path.join(untrusted, "node_modules/.bin/invoked")
+  writeFileSync(path.join(untrusted, "node_modules/.bin/vibelang"), '#!/bin/sh\n: > "$(dirname "$0")/invoked"\nexit 99\n', { mode: 0o755 })
+  mkdirSync(path.join(trustProfile, "User"), { recursive: true })
+  writeFileSync(path.join(trustProfile, "User/settings.json"), JSON.stringify({
+    "security.workspace.trust.enabled": true, "security.workspace.trust.startupPrompt": "never"
+  }))
+  await new Promise((resolve, reject) => {
+    const child = spawn(vscodeExecutablePath, [untrusted, `--extensions-dir=${extensionsDir}`, `--user-data-dir=${trustProfile}`,
+      `--extensionDevelopmentPath=${path.join(here, "harness")}`, `--extensionTestsPath=${path.join(here, "harness/index.js")}`,
+      "--no-sandbox", "--disable-gpu-sandbox", "--skip-welcome", "--skip-release-notes", "--disable-telemetry"],
+    { stdio: "inherit", env: { ...process.env, VIBELANG_TEST_PASS: "untrusted", VIBELANG_TEST_WORKSPACE: untrusted,
+      VIBELANG_TEST_SERVER_MARKER: marker } })
+    const timer = setTimeout(() => { child.kill("SIGKILL"); reject(new Error("untrusted editor pass timed out")) }, 120000)
+    child.on("error", error => { clearTimeout(timer); reject(error) })
+    child.on("exit", (code, signal) => { clearTimeout(timer); code === 0 ? resolve() : reject(new Error(`untrusted editor: ${code ?? signal}`)) })
+  })
   console.log("test: the packaged extension passed")
 } catch (error) {
   console.error(`test: ${error instanceof Error ? error.message : String(error)}`)

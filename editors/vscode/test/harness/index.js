@@ -4,6 +4,8 @@
 // is the compiler under test. run() throws when any check fails.
 const fs = require("node:fs")
 const path = require("node:path")
+const { spawnSync } = require("node:child_process")
+const { pathToFileURL } = require("node:url")
 const vscode = require("vscode")
 
 const workspace = process.env.VIBELANG_TEST_WORKSPACE
@@ -14,8 +16,8 @@ function assert(condition, message) {
   if (!condition) throw new Error(message)
 }
 
-async function waitFor(what, probe) {
-  const deadline = Date.now() + timeoutMs
+async function waitFor(what, probe, limit = timeoutMs) {
+  const deadline = Date.now() + limit
   for (;;) {
     const value = await probe()
     if (value) return value
@@ -63,7 +65,139 @@ function codeOf(diagnostic) {
   return typeof diagnostic.code === "object" ? diagnostic.code.value : diagnostic.code
 }
 
+async function editProperties(typescript) {
+  const fc = require("fast-check")
+  const shared = name => pathToFileURL(path.resolve(__dirname, "../../../../scripts/testing", name)).href
+  const { checkProperty } = await import(shared("property.mjs"))
+  const { projectArbitrary, projectFiles } = await import(shared("projects.mjs"))
+  const extension = typescript ? "ts" : "vibe"
+  const name = `editor-edits-${extension}`
+  let trace = "", failureTrace = "", sample = 0
+  const edits = input => [...input.edits, { broken: true, padding: 0 }, { broken: false, padding: 1 }]
+  const sourceFor = (input, edit, version) => {
+    let source = "\n".repeat(version * 8 + edit.padding) + `/* 😀 ${input.project.modules[0].text} */ export const revision = __E1_version_${version}\n`
+    source += `export const count: number = ${edit.broken ? '"wrong"' : "1"}\nexport { result } from "./n0.vibe"\n`
+    if (edit.syntax === "incomplete") source += "export const unfinished = (\n"
+    if (edit.syntax === "async") source += "export async function pending() { return 1 }\n"
+    return input.crlf ? source.replaceAll("\n", "\r\n") : source
+  }
+  // D32/D61, Chapter 28 The editor/Diagnostics: the editor uses the compiler
+  // and reports its codes at source positions. Fresh CLI output is the oracle;
+  // edit/repair equivalence is metamorphic. Astral text and CRLF exercise UTF-16.
+  await checkProperty(fc, { name, numRuns: 2, generatorVersion: 2,
+    rule: "docs/design/src/428-part4-ch28-tooling.md: The editor (D32), Diagnostics (D61); metamorphic edit/repair equivalence",
+    command: "bun run test", regressions: pathToFileURL(path.resolve(__dirname, "../property-regressions") + path.sep),
+    arbitrary: fc.record({ project: projectArbitrary(fc), crlf: fc.boolean(),
+      edits: fc.array(fc.record({ broken: fc.boolean(), syntax: fc.constantFrom("complete", "incomplete", "async"), padding: fc.integer({ min: 0, max: 3 }),
+        dependency: fc.boolean() }), { minLength: 1, maxLength: 4 }) }),
+    diagnostics: () => failureTrace,
+    artifacts: input => ({ ...projectFiles(input.project).files,
+      ...Object.fromEntries(Object.entries(projectFiles(input.project, true).files).map(([file, source]) => [`edited/${file}`, source])),
+      ...Object.fromEntries(edits(input).map((edit, step) => [`revisions/${step}/editor.${extension}`, sourceFor(input, edit, step + 2)])) }),
+    check: async (input) => {
+      const root = path.join(workspace, `property-${extension}-${sample++}`)
+      const generated = projectFiles(input.project)
+      trace = `E1 ${name}: setup\n`
+      for (const [file, source] of Object.entries(generated.files)) {
+        fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+        fs.writeFileSync(path.join(root, file), source)
+      }
+      const target = `${input.project.directory}/editor.${extension}`
+      fs.writeFileSync(path.join(root, target), "export {}\n")
+      const document = await open(path.relative(workspace, path.join(root, target)))
+      try {
+        // Always check an invalid revision followed by a repair, in addition to
+        // the generated edits; an empty old diagnostic collection cannot pass.
+        for (const [step, edit] of edits(input).entries()) {
+          if (edit.dependency) {
+            for (const [file, source] of Object.entries(projectFiles(input.project, step % 2 === 0).files)) {
+              if (!file.endsWith(".vibe") && !file.endsWith(".ts")) continue
+              const dependency = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(root, file)))
+              const change = new vscode.WorkspaceEdit()
+              change.replace(dependency.uri, new vscode.Range(dependency.positionAt(0), dependency.positionAt(dependency.getText().length)), source)
+              assert(await vscode.workspace.applyEdit(change), `dependency edit ${file} rejected`)
+              await dependency.save()
+            }
+          }
+          const version = document.version + 1, marker = `__E1_version_${version}`
+          console.log(`E1 ${name}: step=${step} version=${version} broken=${edit.broken}`)
+          const source = sourceFor(input, edit, version)
+          const change = new vscode.WorkspaceEdit()
+          change.replace(document.uri, new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)), source)
+          assert(await vscode.workspace.applyEdit(change), "document edit rejected")
+          assert(document.version === version, `version barrier: expected ${version}, got ${document.version}`)
+          await document.save()
+          const cli = spawnSync(process.env.VIBELANG_TEST_COMPILER, ["--project", root, "--noEmit", "--pretty", "false", "--incremental", "false"],
+            { cwd: root, encoding: "utf8", timeout: 30000, maxBuffer: 2 << 20 })
+          assert(!cli.error && cli.signal === null && [0, 1, 2].includes(cli.status), `CLI: ${cli.error ?? cli.signal ?? cli.status}`)
+          const output = cli.stdout + cli.stderr
+          trace = `E1 ${name} step=${step} version=${version}\nCLI:\n${output}`
+          const expected = []
+          let previous
+          for (const line of output.split(/\r?\n/)) {
+            const match = line.match(/^(.+?)\((\d+),(\d+)\):\s+(error|warning)\s+((?:TS|EK)\d+):\s?(.*)$/)
+            if (match) {
+              previous = path.resolve(root, match[1]) === document.uri.fsPath
+                ? { line: +match[2] - 1, character: +match[3] - 1, severity: match[4] === "error" ? 0 : 1,
+                  code: match[5], message: match[6] } : undefined
+              if (previous) expected.push(previous)
+            } else if (/^\s/.test(line) && previous) previous.message += "\n" + line
+          }
+          // Specification gap: Chapter 28 does not require CLI and LSP to run
+          // the same semantic phases after syntax errors. Compare syntax codes
+          // and positions here, then full sets after repair; do not prescribe
+          // whether the editor additionally reports semantic errors.
+          const syntaxOnly = edit.syntax === "incomplete" || !typescript && edit.syntax === "async"
+          assert(syntaxOnly ? expected.length > 0 : expected.some(d => d.message.includes(marker)), `CLI omitted revision diagnostics: ${output}`)
+          const sort = items => items.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+          sort(expected)
+          // getDiagnostics carries no version. Each document.version has a
+          // unique unresolved name and disjoint source lines, so stale semantic
+          // or syntax results cannot satisfy this publication barrier.
+          let lastObserved = ""
+          await waitFor(`${name} step=${step} version=${version}`, () => {
+            const actual = sort(vscode.languages.getDiagnostics(document.uri).map(d => ({
+              line: d.range.start.line, character: d.range.start.character, severity: d.severity,
+              code: `${d.source === "EK" ? "EK" : "TS"}${codeOf(d)}`, message: d.message
+            })))
+            trace = `E1 ${name} step=${step} expectedVersion=${version} documentVersion=${document.version}\nCLI:\n${output}\nexpected=${JSON.stringify(expected)}\npublished=${JSON.stringify(actual)}`
+            const observed = JSON.stringify(actual)
+            const matches = document.version === version && (syntaxOnly
+              ? expected.every(want => actual.some(found => JSON.stringify(found) === JSON.stringify(want)))
+              : actual.some(d => d.message.includes(marker)) && observed === JSON.stringify(expected))
+            if (!matches && observed !== lastObserved) {
+              console.log(`E1 ${name}: waiting step=${step} version=${version} published=${JSON.stringify(actual.map(({ code, line, character }) => ({ code, line, character })))}`)
+              lastObserved = observed
+            }
+            return matches
+          }, Math.min(timeoutMs, 15000))
+        }
+      } catch (error) {
+        failureTrace = trace
+        throw error
+      } finally {
+        // Closed documents must not leak across generated samples or shrinking.
+        await vscode.commands.executeCommand("workbench.action.closeAllEditors")
+        fs.rmSync(root, { recursive: true, force: true })
+      }
+    }
+  })
+}
+
 async function run() {
+  if (process.env.VIBELANG_TEST_PASS === "untrusted") {
+    // D79; docs/user/src/setup/vscode.md §3. Let VS Code gate activation;
+    // calling activate() on a mock cannot test this security boundary.
+    assert(!vscode.workspace.isTrusted, "VS Code did not enter Restricted Mode")
+    const document = await open("main.vibe")
+    await vscode.commands.executeCommand("vscode.executeHoverProvider", document.uri, document.positionAt(0))
+    const extension = vscode.extensions.getExtension("vibelang.vibelang")
+    assert(!extension?.isActive, "VibeLang activated in an untrusted workspace")
+    assert(!(await vscode.commands.getCommands(true)).includes("vibelang.restartServer"), "server command registered in Restricted Mode")
+    assert(!fs.existsSync(process.env.VIBELANG_TEST_SERVER_MARKER), "untrusted workspace executed its compiler")
+    console.log("ok   trust: Restricted Mode prevents activation and compiler execution")
+    return
+  }
   let failures = 0
   const check = async (name, body) => {
     try {
@@ -91,6 +225,7 @@ async function run() {
       const typed = await open("src/typed.ts")
       await waitFor("TS2322 in typed.ts", () => vscode.languages.getDiagnostics(typed.uri).find((d) => codeOf(d) === 2322))
     })
+    await check("property: TypeScript document edits agree with fresh CLI diagnostics", () => editProperties(true))
     if (failures > 0) throw new Error(`${failures} check(s) failed`)
     return
   }
@@ -232,6 +367,8 @@ async function run() {
     const items = vscode.languages.getDiagnostics(main.uri)
     assert(items.length === 0, JSON.stringify(items.map((d) => d.message)))
   })
+
+  await check("property: VibeLang document edits agree with fresh CLI diagnostics", () => editProperties(false))
 
   if (failures > 0) throw new Error(`${failures} check(s) failed`)
 }
