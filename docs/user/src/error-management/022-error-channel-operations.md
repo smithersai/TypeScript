@@ -84,12 +84,11 @@ The statement form is an `if` followed by `throw`. Neither form changes the sour
 ```vibe
 // run: Console.log(observeQuantity(2)); Console.log(Effect.flip(() => observeQuantity(0))._tag); Console.log(Effect.matchCause(() => observeDefect(), { onFailure: (cause) => cause.hasDies(), onSuccess: () => false }))
 function observeQuantity(value: number) {
-  return quantity(value)
-    |> Effect.tapError(%, (error) => Console.log(`Rejected quantity ${error.value}`))
-    |> Effect.tapErrorTag(%, "InvalidQuantity", () => Console.log("Quantity validation failed"))
-    |> Effect.tapCause(%, (cause) => {
-      Console.log("Failure kinds", JSON.stringify(cause.reasons.map((reason) => reason._tag)))
-    })
+  const logged = () => Effect.tapError(() => quantity(value), (error) => Console.log(`Rejected quantity ${error.value}`))
+  const tagged = () => Effect.tapErrorTag(() => logged(), "InvalidQuantity", () => Console.log("Quantity validation failed"))
+  return Effect.tapCause(() => tagged(), (cause) => {
+    Console.log("Failure kinds", JSON.stringify(cause.reasons.map((reason) => reason._tag)))
+  })
 }
 
 function observeDefect() {

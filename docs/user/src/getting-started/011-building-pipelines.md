@@ -1,6 +1,6 @@
 # Building Pipelines
 
-Use statements for dependent steps and the pipe operator, `|>`, for a series of operators. In `x |> f(%)`, the topic `%` stands for `x`: the body after `|>` says where the value goes, so a stage can take it in any argument position.
+Use statements for dependent steps and the pipe operator, `|>`, for a series of transformations of a value. In `x |> f(%)`, the topic `%` stands for `x`: the body after `|>` says where the value goes, so a stage can take it in any argument position.
 
 ## Compose reusable functions
 
@@ -18,19 +18,19 @@ function priceLabel() {
 
 Each body reads the previous stage's result through `%`. Here `%` stands for a value, so the expression before `|>` runs once and the body receives its result. Standalone functions stay reusable without adding methods to a value's prototype, and bundlers can remove the Effect functions a program never calls.
 
-For program operators, start with the work to run:
+Program operators take the work to run as an arrow, so nest them:
 
 ```vibe
 // run: Console.log(preparedPrice())
 function preparedPrice() {
-  return priceLabel() |> timeout(%, "1 second") |> withSpan(%, "price-label")
+  return withSpan(() => timeout(() => priceLabel(), "1 second"), "price-label")
 }
 // Output: Price: 24
 ```
 
-Here each `%` stands where `timeout` and `withSpan` expect a program, so the expression before `|>` is passed by name: `priceLabel()` runs when `timeout` runs it, and the span covers the timed work. The pipe returns the final success value. To keep the pipeline as reusable work, wrap it in a function: `const prepared = () => priceLabel() |> timeout(%, "1 second")`.
+`timeout` runs `priceLabel()` under its deadline, and the span covers the timed work; the call returns the final success value. To keep the work as a reusable program, bind it to a function: `const prepared = () => timeout(() => priceLabel(), "1 second")`.
 
-A pipe passes its left side by name or uses it as a value, not both, and its body must use `%`. Hover over a `%` to see which it does.
+A pipe's `%` is always the value of the expression before its `|>`, and its body must use `%`. Passing `%` to a program operator, as in `priceLabel() |> timeout(%, "1 second")`, still compiles but is being retired.
 
 ## Map or replace a success
 
@@ -147,15 +147,15 @@ The local variable stays available after logging, as with `Effect.tap`. An obser
 // run: Console.log(summary())
 function summary() {
   const details = all({
-    price: total(),
-    label: priceLabel()
+    price: () => total(),
+    label: () => priceLabel()
   }, { concurrency: 2 })
   return `${details.label}, total=${details.price}`
 }
 // Output: Price: 24, total=27.52
 ```
 
-`Effect.all` preserves the input's tuple or object shape. It runs sequentially by default; this example explicitly starts up to two computations at once. If a branch fails, the combined computation fails and concurrent siblings are interrupted and cleaned up.
+`Effect.all` takes each computation as a program and preserves the input's tuple or object shape. It runs sequentially by default; this example explicitly starts up to two computations at once. If a branch fails, the combined computation fails and concurrent siblings are interrupted and cleaned up.
 
 For a dynamic collection, use `Effect.forEach(values, (value) => work(value), { concurrency: 4 })`, or build a collection of programs first, `const jobs = values.map((value) => () => work(value))`, then call `Effect.all(jobs, { concurrency: 4 })`. Iterables and records of zero-argument programs convert to Effects where the combinator expects them. A synchronous array callback cannot call work that pauses or has expected failures; returning a program delays that work.
 
@@ -176,6 +176,6 @@ A call statement runs even when its success value is ignored. A function value s
 
 ## Coming from Effect
 
-Statements replace `map`, `flatMap`, `andThen`, and `tap` in most functions. Use `|>` for retry, timeout, provisioning, and tracing: `work() |> retry(%, policy) |> timeout(%, "1 second")` replaces `work().pipe(Effect.retry(policy), Effect.timeout("1 second"))`. Call a data type's functions as methods, `maybe.map(f).getOrElse(() => 0)`, instead of `pipe(maybe, Option.map(f), Option.getOrElse(() => 0))`. The global `pipe` still works and suits data-last functions with no data-first form, such as `Match.when`.
+Statements replace `map`, `flatMap`, `andThen`, and `tap` in most functions. Retry, timeout and tracing take the program as an arrow: `timeout(() => retry(() => work(), policy), "1 second")` replaces `work().pipe(Effect.retry(policy), Effect.timeout("1 second"))`. Call a data type's functions as methods, `maybe.map(f).getOrElse(() => 0)`, instead of `pipe(maybe, Option.map(f), Option.getOrElse(() => 0))`. The global `pipe` still works and suits data-last functions with no data-first form, such as `Match.when`.
 
 [Upstream Effect page](https://effect.website/docs/v4/getting-started/building-pipelines)

@@ -55,15 +55,15 @@ Services carry dependencies in the same contract as errors and successes. Layers
 
 ```vibe
 function resilientReceipt(sku: string) {
-  return receipt(sku)
-    |> retry(%, { times: 2 })
-    |> timeout(%, "800 millis")
-    |> withSpan(%, "receipt")
+  return withSpan(
+    () => timeout(() => retry(() => receipt(sku), { times: 2 }), "800 millis"),
+    "receipt"
+  )
 }
 // Output: Total: 18
 ```
 
-These operators share Effect's execution and cleanup rules. Retry repeats the program from the beginning, timeout interrupts work past its deadline, and the span describes the whole operation. Retry only failures worth repeating, and make repeated writes safe first.
+These operators share Effect's execution and cleanup rules. Each takes the program it wraps as an arrow, `() => receipt(sku)`. Retry repeats the program from the beginning, timeout interrupts work past its deadline, and the span describes the whole operation. Retry only failures worth repeating, and make repeated writes safe first.
 
 The same foundation serves streams, caches, validated input, configuration, and observability; introduce those modules as concrete problems arise.
 

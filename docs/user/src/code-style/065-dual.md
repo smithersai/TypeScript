@@ -56,10 +56,10 @@ A value of one of Effect's data types takes its module's data-first functions as
 
 Only the data-first overloads are methods: `stream.zipLeft(other)` calls `Stream.zipLeft(stream, other)`, and `Stream.zipLeft(other)`, the data-last form, stays a function. Runners such as `Effect.runPromise` and constructors such as `Effect.acquireRelease` take an Effect first but do not operate on it, so they are not methods.
 
-## Direct calls and program pipelines
+## Direct calls and nested programs
 
 ```vibe
-// run: Console.log(directLookup(), pipedLookup())
+// run: Console.log(directLookup(), nestedLookup())
 function lookup() {
   sleep("10 millis")
   return "found"
@@ -69,8 +69,8 @@ function directLookup() {
   return timeout(() => lookup(), "1 second")
 }
 
-function pipedLookup() {
-  return lookup() |> retry(%, { times: 2 }) |> timeout(%, "1 second")
+function nestedLookup() {
+  return timeout(() => retry(() => lookup(), { times: 2 }), "1 second")
 }
 ```
 
@@ -78,7 +78,7 @@ function pipedLookup() {
 found found
 ```
 
-Each `%` stands for the expression before its `|>`. Where `%` is an argument that expects a program, such as the first argument of `retry` and `timeout`, the expression is passed by name: retry reruns `lookup()` on each attempt, and timeout limits the whole retried computation. Where `%` is an argument that expects a value, the expression runs once and `%` is its result.
+`retry` and `timeout` take a program first, so nest them, each around an arrow: `retry` reruns `lookup()` on each attempt, and `timeout` limits the whole retried computation. A pipe's `%` is the value of the expression before its `|>`, so use `|>` to transform a result. Passing `%` to `retry` or `timeout`, as in `lookup() |> retry(%, policy)`, still compiles but is being retired.
 
 ## Choosing a form
 
@@ -88,11 +88,11 @@ function boundedLookup() {
   return retry(() => lookup(), { times: 2 })
 }
 
-const reusableLookup = () => lookup() |> retry(%, { times: 2 }) |> timeout(%, "1 second")
+const reusableLookup = () => timeout(() => retry(() => lookup(), { times: 2 }), "1 second")
 ```
 
 ```output
 found found
 ```
 
-A direct call suits one operator; a pipe keeps several readable. Wrap the whole pipe in a function for a reusable program instead of its result. To transform a completed value, ordinary statements are usually clearer than `Effect.map` or `Effect.flatMap`.
+A direct call suits one operator; nest calls for several. Bind the program to a function, as `reusableLookup` does, to reuse it instead of its result. To transform a completed value, ordinary statements are usually clearer than `Effect.map` or `Effect.flatMap`.
