@@ -25,7 +25,7 @@ function buildDashboard() {
 
 `fork` starts a child fiber and returns its handle, here a `Fiber<string>`, without waiting for its result: unlike an ordinary call, the parent continues while the child waits. `join` waits for the child and returns its value or propagates its failure.
 
-`fork loadChart()`, or the call form `fork(loadChart())`, forks one call; `fork { ... }` forks a block. `join` takes a fiber, not a call: a call already runs and waits where it stands. `await` means only the await operations below; `await chart` is EK4609, whose quick fix writes `join chart`.
+`fork loadChart()`, or the call form `fork(loadChart())`, forks one call; `fork { ... }` forks a block. A function you declare named `fork` makes the call form an ordinary call of it, and never changes `fork x`. `join` takes a fiber, not a call: a call already runs and waits where it stands. `await` means only the await operations below; `await chart` is EK4609, whose quick fix writes `join chart`.
 
 ## Awaiting completion as data
 

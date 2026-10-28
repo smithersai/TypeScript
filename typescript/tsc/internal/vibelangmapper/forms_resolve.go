@@ -1582,6 +1582,9 @@ func formsModuleSpecifier(decl *ast.Node) string {
 // import, a variable, a function, a class, or a parameter, or nil when no
 // scope in the file binds it.
 func (r *Resolver) binding(id *ast.Node, name string) *ast.Node {
+	if id.Flags&ast.NodeFlagsVibeLangIntrinsic != 0 {
+		return nil // an intrinsic, such as the keyword fork's callee, names the prelude's export (rule H5)
+	}
 	for n := id.Parent; n != nil; n = n.Parent {
 		if d := formsDeclaredIn(n, name, id); d != nil {
 			return d

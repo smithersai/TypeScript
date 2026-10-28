@@ -33,7 +33,8 @@ func (p *Parser) tokenRange() core.TextRange {
 // keyword fork: in a .vibe file, fork followed on the same line by an
 // operand. An identifier followed by another identifier, this, new, {, or
 // await is a TypeScript syntax error, so the form takes no code that parses
-// today. fork( stays a call of the prelude's fork, which means the same.
+// today. fork( stays a call: the keyword while fork resolves to the
+// prelude's binding, and an ordinary call otherwise (D391, D452).
 func (p *Parser) isStartOfVibeLangFork() bool {
 	return p.token == ast.KindIdentifier && p.scanner.TokenValue() == "fork" && p.isVibeLangFile() && p.lookAhead((*Parser).nextTokenStartsForkOperand)
 }
@@ -55,10 +56,14 @@ func (p *Parser) nextTokenStartsForkOperand() bool {
 // parseVibeLangFork parses `fork operand` as fork(operand) and `fork { ... }` as
 // fork(() => { ... }) (D166). The operand binds as await's does: fork
 // getUser(id).name forks getUser(id).name, and fork a + b adds b to a fiber.
+// The keyword form is syntax (rule H5, D391): its callee is an intrinsic, the
+// prelude's fork whatever a scope declares, so a local function named fork
+// changes what fork(x) means and never what fork x means.
 func (p *Parser) parseVibeLangFork() *ast.Node {
 	pos := p.nodePos()
 	keyword := p.tokenRange()
 	callee := p.parseIdentifier()
+	callee.Flags |= ast.NodeFlagsVibeLangIntrinsic
 	p.rejectVibeLangBlockDo("fork")
 	var program *ast.Node
 	if p.token == ast.KindOpenBraceToken {

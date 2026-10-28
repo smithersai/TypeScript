@@ -750,7 +750,14 @@ func (p *projector) runCall(call *ast.Node, e env) {
 		p.plan.witness(p.tokenStart(call.Expression()), helperRef("$scoped")+"(")
 		p.plan.witness(call.Expression().End(), ")")
 	}
-	p.callee(call, e)
+	if isKeywordFork(call) && (p.names.declared["fork"] || p.names.topLevel["fork"]) {
+		// The keyword's callee is the prelude's fork whatever the file
+		// declares (rule H5): reach it through the prelude's own import.
+		callee := call.Expression()
+		p.plan.replace(p.tokenStart(callee), callee.End(), p.names.prelude("fork"))
+	} else {
+		p.callee(call, e)
+	}
 	// The parser represents `fork program` as a call without source
 	// parentheses. Supply them before lowering its by-name operand, so a
 	// fiber held by an await operation is started once at its declaration.
@@ -778,11 +785,22 @@ func (p *projector) runCall(call *ast.Node, e env) {
 // the region around it owns the fiber, so the fork's Scope leaves R (D19,
 // D408). A lambda's expression body is such a region too (D353).
 func (p *projector) isBlockFork(call *ast.Node, e env) bool {
+	return e.frame != nil && p.isPreludeForkCall(call)
+}
+
+// isKeywordFork reports whether call is the keyword fork x or fork { … },
+// whose callee the parser marks an intrinsic: the prelude's fork whatever a
+// scope declares (rule H5, D391).
+func isKeywordFork(call *ast.Node) bool {
 	callee := call.Expression()
-	if e.frame == nil || !ast.IsIdentifier(callee) || callee.Text() != "fork" {
-		return false
-	}
-	return p.isPreludeFork()
+	return ast.IsIdentifier(callee) && callee.Text() == "fork" && callee.Flags&ast.NodeFlagsVibeLangIntrinsic != 0
+}
+
+// isPreludeForkCall reports whether call calls the prelude's fork: the
+// keyword form always, and fork(x) where the name means the prelude's.
+func (p *projector) isPreludeForkCall(call *ast.Node) bool {
+	callee := call.Expression()
+	return ast.IsIdentifier(callee) && callee.Text() == "fork" && (isKeywordFork(call) || p.isPreludeFork())
 }
 
 // isPreludeFork reports whether the name fork means the prelude's fork in

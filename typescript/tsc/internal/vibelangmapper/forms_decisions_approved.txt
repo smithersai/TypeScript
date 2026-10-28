@@ -175,3 +175,6 @@ typescript/vibelang/cases/wire-resolved-callee/main.vibe:13:28 block: applied/pr
 typescript/vibelang/cases/wire-self-input.fail/main.vibe:7:35 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
 typescript/vibelang/cases/wire-spread-unlisted.fail/main.vibe:9:28 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
 typescript/vibelang/cases/service-identity/main.vibe:62:41 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+
+# rules 9 (H5, D391): an intrinsic, the callee the parser writes for a keyword form such as fork x or for concurrent, names the prelude's export whatever the file declares; the resolver no longer binds it to a function of the file spelled the same.
+typescript/vibelang/cases/hygiene-concurrency-helpers/main.vibe:16:28 lambda: effectFn annotation -> effectFn table # for concurrent's $forConcurrent is the runtime's, never the file's function of that name

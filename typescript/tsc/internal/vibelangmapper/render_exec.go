@@ -999,7 +999,9 @@ func (l *execLowering) lowerCalls() {
 			continue
 		}
 		callee := call.Expression()
-		if callee.Kind != ast.KindIdentifier || call.QuestionDotToken() != nil || callee.Flags&ast.NodeFlagsReparsed != 0 {
+		// An intrinsic, such as the keyword fork's callee, is the prelude's
+		// export, never a function of the file (rule H5).
+		if callee.Kind != ast.KindIdentifier || call.QuestionDotToken() != nil || callee.Flags&(ast.NodeFlagsReparsed|ast.NodeFlagsVibeLangIntrinsic) != 0 {
 			continue
 		}
 		name := callee.Text()

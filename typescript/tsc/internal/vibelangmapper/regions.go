@@ -1124,7 +1124,7 @@ func (p *projector) holdsScopeFrom(node *ast.Node, root *ast.Node) bool {
 			return true
 		case ast.IsFunctionLike(node) && !isRegionTransparent(node), ast.IsClassLike(node), node != root && ownsForks(node):
 			return false
-		case node.Kind == ast.KindCallExpression && ast.IsIdentifier(node.Expression()) && node.Expression().Text() == "fork" && p.isPreludeFork():
+		case node.Kind == ast.KindCallExpression && p.isPreludeForkCall(node):
 			found = true
 			return true
 		}
