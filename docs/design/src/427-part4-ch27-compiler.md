@@ -118,8 +118,10 @@ only when no candidate accepts it as it is, with a candidate that takes it as a
 function preferred to one that converts it to a program (rule F, D380, D392).
 The hooks check each argument against the picked signature in the form Chapter
 13 gives the argument, so a function argument's form follows the signature
-TypeScript picks, and the order of overloads never decides when an
-expression is evaluated. A return in a
+TypeScript picks. The order of overloads never decides when an argument
+other than a function is evaluated; where it decides a function literal's
+typing, and with it the literal's form, rule F states the rough edge (D482,
+D494). A return in a
 program is checked against the Effect's success type. Function values, and
 the elements of array and object literals, convert to Effects where a
 parameter expects them (D7, D49, D423). Conversion runs no body when it
