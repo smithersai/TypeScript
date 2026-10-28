@@ -53,9 +53,16 @@ var effectTypedValue = EK4301.With("{0} returns an Effect, so as a value it is a
 // type is a union with an Effect member (D512).
 var mayReturnEffectValue = EK4301.With("{0} may return an Effect, but {1} calls it synchronously and would drop the program.")
 
+// listedFailuresValue is EK4301's text for a trusted value that lists
+// failures where only a plain function fits (D514).
+var listedFailuresValue = EK4301.With("{0} is trusted to throw expected failures, but {1} calls it synchronously, where a listed failure would be a defect.")
+
 // rejectedValueMessage chooses EK4301's text for node, a function value that
 // conversion rejected where only a plain function fits.
 func (a *analyzer) rejectedValueMessage(node *ast.Node) *Message {
+	if failures, ok := trustedValueFailures(a.checker, node); ok && len(failures) > 0 {
+		return listedFailuresValue
+	}
 	if fn := esFunctionOf(a.checker, node); fn != nil && (a.isEffect(fn) || a.isFactory(fn) || a.isSplittable(fn)) {
 		return effectFunctionCallback
 	}

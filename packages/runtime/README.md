@@ -96,6 +96,7 @@ JavaScript value. Decisions are in [`docs/design/DECISIONS.md`](../../docs/desig
 | `$defineProperty` | Captured Object.defineProperty intrinsic | — |
 | `$eager` | Track eager-call depth and its shared limit | — |
 | `$errorSubclass` | Construct a tagged error subclass | — |
+| `$errors` | The key under which a `trusted` value carries its failure classes | D514 |
 | `$extract` | Extract pattern bindings | — |
 | `$failureOf` | Find the first expected failure in a recoverable Cause | — |
 | `$finallyExit` | Run cleanup with the try block exit | — |
@@ -179,7 +180,7 @@ JavaScript value. Decisions are in [`docs/design/DECISIONS.md`](../../docs/desig
 | `$forOf` | Iterate a producer under a `Yield` handler, pull a Stream, or iterate a JavaScript iterable with IteratorClose, and lower loop completion records | D18, D26 |
 | `$iteratorFrame` | Internal compiler adapter: unwind the native loops and array destructuring of an abandoned generator so JavaScript runs IteratorClose; a throwing `return()` is a defect beside the original cause | D26, D305 |
 | `$forStream`, `$toStream` | Kept for the prototype compiler's output: `$forOf`, and the identity | D26 |
-| `trusted` | Wrap a synchronous implementation with a value-level expected-failure contract | D249 |
+| `trusted` | Wrap a synchronous implementation as one plain function that carries its expected-failure classes | D249, D514 |
 | `$trusted` | Run a trusted call: an instance of a listed class is an expected failure, any other exception a defect | D5, D23 |
 | `$trustedPlain` | Run a trusted call inside a plain function's own try: a listed exception becomes an expected failure its catch receives | D54, D282 |
 | `Effect` | Supply the prelude Effect namespace | D4 |

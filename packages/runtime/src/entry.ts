@@ -25,6 +25,7 @@ export const {
   $eager,
   $entry,
   $errorSubclass,
+  $errors,
   $expected,
   $extract,
   $failureOf,

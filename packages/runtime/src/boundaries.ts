@@ -35,11 +35,31 @@ export const $trustedPlain = <A>(thunk: () => A, classes: ReadonlyArray<FailureC
 }
 
 /**
- * D249: keep a synchronous foreign function's failure contract in its value,
- * so callers and the per-file projector need no declaration metadata.
+ * D249, D514: the key under which a `trusted` value carries the classes its
+ * calls throw as expected failures.
  */
-export const trusted = <Args extends unknown[], A, const Classes extends ReadonlyArray<FailureClass<unknown>>>(
-  impl: ((...args: Args) => A) & (Extract<A, PromiseLike<unknown> | Effect.Effect<any, any, any>> extends never ? unknown : never),
+export const $errors: unique symbol = Symbol.for("vibelang/errors")
+
+/**
+ * D514: the type of `trusted(impl, [Errors])`: impl's own type, which a
+ * TypeScript caller calls as it calls impl, with the listed classes.
+ */
+export type Trusted<F, Errors extends ReadonlyArray<FailureClass<unknown>>> = F & { readonly [$errors]: Errors }
+
+/**
+ * D249, D514: keep a synchronous foreign function's failure contract in its
+ * value. The value is one plain function that calls impl with its arguments
+ * and returns what impl returns, so a TypeScript caller receives a function
+ * of impl's type that throws what impl throws. A VibeLang call of it is a
+ * trusted call: an instance of a listed class is an expected failure where
+ * the call stands, and any other exception is a defect.
+ */
+export const trusted = <F extends (...args: any[]) => any, const Classes extends ReadonlyArray<FailureClass<unknown>>>(
+  impl: F & (Extract<ReturnType<F>, PromiseLike<unknown> | Effect.Effect<any, any, any>> extends never ? unknown : never),
   classes: Classes
-): ((...args: Args) => Effect.Effect<A, InstanceType<Classes[number]>>) =>
-  (...args) => $trusted(() => impl(...args), classes as ReadonlyArray<FailureClass<InstanceType<Classes[number]>>>)
+): Trusted<F, Classes> => {
+  const call = function (this: unknown, ...args: Array<unknown>) {
+    return impl.apply(undefined, args)
+  }
+  return Object.defineProperty(call, $errors, { value: classes }) as unknown as Trusted<F, Classes>
+}

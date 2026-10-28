@@ -1,5 +1,5 @@
 // Compile a consumer against the installed package export and emitted .d.ts files.
-import { trusted, $bind, $direct, $done, $fast, $isRun, $program, $settle, $produce, $region, $using, $yield, Effect, Layer, Scope, suspend, type Producer } from "vibelang-runtime"
+import { trusted, $errors, $bind, $direct, $done, $fast, $isRun, $program, $settle, $produce, $region, $using, $yield, Effect, Layer, Scope, suspend, type Producer } from "vibelang-runtime"
 
 const bound: Effect.Effect<number> = $bind(42)
 const program: Effect.Effect<number> = $program(() => bound)
@@ -20,16 +20,17 @@ void [program, producer, region, callback, layer, runs, key, step, settled]
 class PortError extends Error { readonly kind = "port" }
 class HostError extends Error { readonly kind = "host" }
 const parse = trusted((text: string, ...suffix: string[]) => text.length + suffix.length, [PortError, HostError])
-const parsed: Effect.Effect<number, PortError | HostError> = parse("80", "a", "b")
-// @ts-expect-error Listed failures remain in E.
-const noFailure: Effect.Effect<number, never> = parsed
+const parsed: number = parse("80", "a", "b")
+const listed: readonly [typeof PortError, typeof HostError] = parse[$errors]
+// @ts-expect-error A trusted value is a plain function, not an Effect (D514).
+const notProgram: Effect.Effect<number, PortError | HostError> = parse("80")
 // @ts-expect-error The implementation's parameters are preserved.
 parse(80)
-const pure: Effect.Effect<string, never> = trusted((n: number) => String(n), [])(1)
+const pure: string = trusted((n: number) => String(n), [])(1)
 // @ts-expect-error Promise implementations need an asynchronous boundary.
 trusted(async () => 1, [])
 // @ts-expect-error Effect implementations already carry their own contract.
 trusted(() => Effect.succeed(1), [])
 // @ts-expect-error A union cannot hide a Promise return.
 trusted((n: boolean) => n ? 1 : Promise.resolve(1), [])
-void [parsed, pure]
+void [parsed, listed, notProgram, pure]

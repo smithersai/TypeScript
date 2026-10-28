@@ -220,6 +220,11 @@ func (a *analyzer) convert(node *ast.Node, t *checker.Type, position valuePositi
 			if mayReturnEffect(a.checker, t) {
 				return convertRejected, t
 			}
+			// A trusted value that lists failures: its receiver would get a
+			// listed failure as an exception, a defect (D514).
+			if failures, ok := trustedValueFailures(a.checker, node); ok && len(failures) > 0 {
+				return convertRejected, t
+			}
 		case a.isFactory(fn):
 			return convertRejected, t
 		case isProducer(fn):

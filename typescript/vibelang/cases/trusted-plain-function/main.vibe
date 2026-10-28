@@ -1,0 +1,23 @@
+// expect-result: {"ts":"number","slugs":["hello-world","a-b"],"parsed":7,"failure":"BadNumber"}
+// A trusted value is one plain function (D514): a TypeScript caller gets the
+// value impl returns, a value with an empty list passes where a plain
+// function fits, and a VibeLang call turns a listed exception into an
+// expected failure.
+import { fromTypeScript, parse, slugify } from "./helpers.ts"
+
+function attempt(text: string) {
+  try {
+    return parse(text)
+  } catch (e) {
+    return e._tag
+  }
+}
+
+export function main() {
+  return {
+    ts: fromTypeScript(),
+    slugs: [" Hello World", "A B"].map(slugify),
+    parsed: attempt("7"),
+    failure: attempt("x")
+  }
+}

@@ -97,7 +97,7 @@ import { trusted } from "vibelang-runtime"
 import { InvalidQuantity, parseQuantity } from "./quantity.ts"
 
 const quantity = trusted(parseQuantity, [InvalidQuantity])
-// (text: string) => number!InvalidQuantity!
+// Trusted<(text: string) => number, readonly [typeof InvalidQuantity]>
 ```
 
 ```output

@@ -42,6 +42,7 @@ type trust struct {
 	failures    []failure // the exceptions that are expected failures, which join E
 	promise     bool      // the call returns a Promise
 	unreachable string    // a @throws type that names no class, as written
+	value       bool      // the callee is a trusted(impl, [Errors]) value, which lists its failures in its type (D514)
 }
 
 // failure is a class whose instances a call throws as expected failures.
@@ -78,6 +79,9 @@ func callTrust(c *checker.Checker, call *ast.Node) *trust {
 }
 
 func computeTrust(c *checker.Checker, call *ast.Node) *trust {
+	if failures, ok := trustedValueFailures(c, ast.GetInvokedExpression(call)); ok {
+		return &trust{kind: trustTagged, failures: failures, value: true}
+	}
 	if isParameterCall(c, call) {
 		return &trust{kind: trustES}
 	}
@@ -115,6 +119,107 @@ func computeTrust(c *checker.Checker, call *ast.Node) *trust {
 		return &trust{kind: trustEffect}
 	}
 	return t
+}
+
+// trustedValueFailures returns the classes that callee, a value of the
+// runtime's Trusted<F, Errors>, lists as its expected failures, and false
+// when callee is not such a value (D514). trusted(impl, [Errors]) returns one
+// plain function, which carries the classes as [$errors]; its type says
+// which. Only a name, or a module's member, bound by a const whose type is
+// written or whose initializer calls trusted is read, so asking never checks
+// an arbitrary expression while its call's trust is being computed.
+func trustedValueFailures(c *checker.Checker, callee *ast.Node) ([]failure, bool) {
+	symbol := trustedValueSymbol(c, callee)
+	if symbol == nil {
+		return nil, false
+	}
+	errors := trustedErrorsProperty(c, c.GetTypeOfSymbol(symbol))
+	if errors == nil {
+		return nil, false
+	}
+	list := c.GetTypeOfSymbol(errors)
+	if list == nil || !checker.IsTupleType(list) {
+		return nil, true
+	}
+	var failures []failure
+	for _, element := range c.GetTypeArguments(list) {
+		// A class's static side, or a built-in's constructor interface such
+		// as SyntaxErrorConstructor: the instances' type names the class.
+		symbol := element.Symbol()
+		if constructors := c.GetConstructSignatures(element); len(constructors) > 0 {
+			if instance := c.GetReturnTypeOfSignature(constructors[0]).Symbol(); instance != nil {
+				symbol = instance
+			}
+		}
+		if symbol == nil {
+			continue
+		}
+		if f, ok := classFailure(c, symbol.Name(), symbol); ok {
+			failures = append(failures, f)
+		}
+	}
+	return failures, true
+}
+
+// trustedValueSymbol returns the variable that callee names when it may hold
+// a trusted value: a const or let declared with a type, as a declaration file
+// declares one, or initialized with a call of trusted.
+func trustedValueSymbol(c *checker.Checker, callee *ast.Node) *ast.Symbol {
+	if callee == nil {
+		return nil
+	}
+	callee = ast.SkipParentheses(callee)
+	switch {
+	case ast.IsIdentifier(callee):
+	case ast.IsPropertyAccessExpression(callee) && ast.IsIdentifier(callee.Expression()) && ast.IsIdentifier(callee.Name()):
+		owner := c.GetSymbolAtLocation(callee.Expression())
+		if owner == nil || owner.Flags()&(ast.SymbolFlagsAlias|ast.SymbolFlagsModule) == 0 {
+			return nil // a member of a value, which this does not read
+		}
+	default:
+		return nil
+	}
+	symbol := c.GetSymbolAtLocation(callee)
+	if symbol != nil && symbol.Flags()&ast.SymbolFlagsAlias != 0 {
+		symbol = c.GetAliasedSymbol(symbol)
+	}
+	if symbol == nil || symbol.Flags()&ast.SymbolFlagsVariable == 0 {
+		return nil
+	}
+	d := symbol.ValueDeclaration()
+	if d == nil || !ast.IsVariableDeclaration(d) {
+		return nil
+	}
+	if d.Type() != nil {
+		return symbol
+	}
+	if init := d.Initializer(); init != nil {
+		init = ast.SkipParentheses(init)
+		if ast.IsCallExpression(init) && ast.IsIdentifier(init.Expression()) && init.Expression().Text() == "trusted" {
+			return symbol
+		}
+	}
+	return nil
+}
+
+// trustedErrorsProperty returns t's [$errors] property, which the runtime's
+// Trusted<F, Errors> declares, or nil.
+func trustedErrorsProperty(c *checker.Checker, t *checker.Type) *ast.Symbol {
+	if t == nil || t.Flags()&(checker.TypeFlagsObject|checker.TypeFlagsIntersection) == 0 {
+		return nil
+	}
+	for _, property := range c.GetPropertiesOfType(t) {
+		for _, d := range property.Declarations() {
+			name := d.Name()
+			if name == nil || !ast.IsComputedPropertyName(name) || !ast.IsIdentifier(name.Expression()) || name.Expression().Text() != "$errors" {
+				continue
+			}
+			if packageOf(c, ast.GetSourceFileOfNode(d)) == "vibelang-runtime" {
+				return property
+			}
+		}
+	}
+	return nil
 }
 
 // reachedThroughTrustedPackage reports whether call's callee is an export of one of
@@ -506,7 +611,7 @@ func checkCall(c *checker.Checker, a *analyzer, file *ast.SourceFile, call *ast.
 	t := callTrust(c, call)
 	callee := call.Expression()
 	name := nodeText(file, callee)
-	if t.kind == trustTagged && len(t.failures) > 0 && a.legacyTrustUsesTag(call) {
+	if t.kind == trustTagged && !t.value && len(t.failures) > 0 && a.legacyTrustUsesTag(call) {
 		reportLegacyTrust(c, callee, t)
 	}
 	switch {
