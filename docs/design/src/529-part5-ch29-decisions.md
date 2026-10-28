@@ -8,7 +8,7 @@ decisions                         D1-D489    every decision since; a number with
 rules of the runtime and compiler P1-P22     adopted by D29, revised by verified counterexamples
 ```
 
-This chapter indexes the decisions. The rules they adopt are stated in the chapters, which are normative (D360); `docs/design/DECISIONS.md` gives each decision's reason, evidence, and history. A decision's status is blank while it is in force as written; **Amended by** names the later decisions that changed its rule, and the chapters state the rule as amended; **Superseded by** marks a decision that is history only. Unassigned numbers: D84-D89, D114-D119, D136-D145, D157-D165, D181-D185, D189-D195, D198-D205, D224, D233-D235, D300-D302, D314-D319, D337-D339, and D357-D359.
+This chapter indexes the decisions. The rules they adopt are stated in the chapters, which are normative (D360); `docs/design/DECISIONS.md` gives each decision's reason, evidence, and history. A decision's status is blank while it is in force as written; **Amended by** names the later decisions that changed its rule, and the chapters state the rule as amended; **Superseded by** marks a decision that is history only. Unassigned numbers: D84-D89, D114-D119, D136-D145, D157-D165, D181-D185, D189-D195, D198-D205, D224, D233-D235, D300-D302, D314-D319, D337-D339, D357-D359, and D470-D479.
 
 #### Settled before this document
 
@@ -443,6 +443,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D493 | D430 reads what an existing object or array holds: a member, element, or type argument of type `Plain<F, C>` is `C`, EK4301 where TypeScript would call it as plain | `runAll(fs)` over a `const` array of a pure helper ticked 0 times |  | 10, 13, 14, 28, 30 |
 | D494 | A function argument is typed as TypeScript types it, from the overload it picks and, through inference, the call's contextual type; the rough edge covers both; D488's reading of a result-context type parameter as not an Effect is withdrawn | An annotation on the receiving binding changed a callback's form through `keep<T>`'s inferred parameter type, against the principle's wording |  | 2, 13, 27, 30 |
 | D495 | An inferred plain form is part of a package's public type; `$plainOf` reaches it through a bound or wrapping function, and fails with a defect where there is none; a union of plain members is a plain call | A patch release that added a log line left dependents' `$plainOf` undefined; `bind` and `once` kept `Plain` with no `[$direct]` |  | 13, 15, 26, 27, 30 |
+| D496 | Statements that lagged D480 to D482 | Tables and registry rows called every plain-function call plain; a nested cold form was said to observe alike; EK4802's returned-function exemption was ambiguous |  | Intro, 10, 12, 13, 15, 27, 28, 29, 30, Appendices |
 
 #### Rules of the runtime and compiler
 
@@ -469,7 +470,7 @@ Proposed in the first draft as P1-P22; adopted by D29. A row marked **revised** 
 | P17 | A declaration without a body states its full contract; a bare return type there is an error, never `never` | Settled decision 2 | 14 |
 | P18 | **Revised** as D17: `resumeWith` may raise only the operation's declared E, and its R is `never` | Settled decision 3; `tests/runtime-boundaries.test.ts` | 9 |
 | P19 | A finalizer's control operations must be handled inside the finalizer | I06, I11 | 17, 23 |
-| P20 | Programs start only at runners; calls never create fibers; a module's top level cannot run a program (EK1001), and a call of a plain function there calls its plain form, which runs none, unless that form returns a program, which the call would run, EK1001 (D445, D480). **Revised**: runners are called only where no fiber runs the code (EK1005, D38) | Runner regression tests | 13, 23 |
+| P20 | Programs start only at runners; calls never create fibers; a module's top level cannot run a program (EK1001), and a call of a plain function there calls its plain form, which runs none, unless that form's return type is definitely an Effect, whose call would run it, EK1001 (D445, D480). **Revised**: runners are called only where no fiber runs the code (EK1005, D38) | Runner regression tests | 13, 23 |
 | P21 | `for...of` over a producer is internal iteration; pulling from outside uses `transfer` | T10, T16 | 8, 26 |
 | P22 | **Revised** as D18: a clause whose last action is `resume`, outside any region of the clause, compiles to `return tailResume(k, v)` and iterates in constant stack. The first draft's evidence, T17, covered only a `flatMap`-shaped clause | K11a-K11d; `tests/runtime-boundaries.test.ts` | 20, 26 |
 

@@ -242,7 +242,7 @@ export function title(id: string) {
 }
 ```
 
-Yes, in one program: `vibelang` checks both and the editor serves both (Chapter 28). A TypeScript function declared to return an `Effect` is called like a VibeLang function, and TypeScript sees a VibeLang function as one that returns a cold `Effect`, except a function with a plain return annotation, which is plain, and a producer, which returns a `Stream` (Chapter 10).
+Yes, in one program: `vibelang` checks both and the editor serves both (Chapter 28). A TypeScript function declared to return an `Effect` is called like a VibeLang function, and TypeScript sees a VibeLang function as one that returns a cold `Effect`, except a function with a plain return annotation, a protocol method, a method that implements a plain member, and an object literal's protocol member, which are plain (D397, D484), and a producer, which returns a `Stream` (Chapter 10).
 
 #### Is there anything from Effect I cannot use?
 

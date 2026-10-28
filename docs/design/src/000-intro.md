@@ -1,6 +1,6 @@
 # VibeLang
 
-A language for writing Effect programs. Specification, revised 2026-10-27. Runtime: `effect@4.0.6`.
+A language for writing Effect programs. Specification, revised 2026-10-28. Runtime: `effect@4.0.6`.
 
 VibeLang is TypeScript syntax in which every function is an Effect. Seen from TypeScript, every VibeLang function is a function that returns a cold `Effect`, so calling it runs nothing; the exceptions are a function or method with a plain return annotation, which is an ordinary JavaScript function; a method that implements a plain member of an interface or base class its class declares, or a JavaScript protocol method such as `toString`, which is plain too (Chapter 10); and a producer, `function*`, which returns a `Stream`. Inside VibeLang, a call of a function declared to return an Effect runs it where the call stands, and an arrow, `() => f(x)`, delays it (Chapter 13). You call functions normally, `throw` and `catch` typed errors, and ask for services by name. The compiler infers each function's `Effect<A, E, R>` and emits the Effect code you would write by hand, so TypeScript uses it like any other Effect library.
 

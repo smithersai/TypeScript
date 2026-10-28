@@ -200,8 +200,9 @@ against it may rely on [Rule] (D366).
    EK4202) where a consumer of the source would not, except a function whose
    type carries a plain form or a method its class's marker names (rule 3),
    which it calls through its
-   plain form, in plain code too, as a consumer of the source does
-   (Chapter 13, D445): an exception of a class the marker lists, which only a
+   plain form, in plain code too unless that form's return type is
+   definitely an Effect, as a consumer of the source does (Chapter 13,
+   D445, D480): an exception of a class the marker lists, which only a
    `trusted` value's marker does, is an expected failure (D399, D400), and
    any other is a defect (D431). It never runs or types a call differently.
 3. **The plain form.** A function whose own form is plain (Chapter 13, rule
@@ -221,7 +222,8 @@ against it may rely on [Rule] (D366).
    an anonymous `export default` of one under a fresh name (rule H6), and
    declaration emit writes the same type wherever such a function appears
    in a type it writes out: a field or method of an exported object, of a
-   function's inferred return type, or of an element, at any depth, written
+   function's inferred return type, or of an element, and a class's
+   property, at any depth, written
    as a property, since a method signature cannot carry it. A consumer of
    the declaration reads the plain form from the type wherever the type
    goes, as a consumer of the source does, and calls and passes that form,
@@ -237,8 +239,12 @@ against it may rely on [Rule] (D366).
    whose type carries no plain form is an Effect function to its consumers,
    and passing it where a plain function is expected is EK4301. A VibeLang
    call of a function whose type carries a plain form calls that form, in
-   plain code too, and Effect code may run its Effect form instead: both
-   produce the same observations (D445). A class, whose method declarations
+   plain code too unless the form's return type is definitely an Effect,
+   and runs the Effect that form returns where it is (D480). Effect code may
+   run the Effect form instead, followed, where `F`'s return type is
+   definitely an Effect, by a run of the program the first run gives, since
+   the cold form's program returns the plain form's value unrun: both
+   produce the same observations (rule E11, D445). A class, whose method declarations
    cannot carry such a type, names its plain methods in one marker instead:
    a type-only `$plain` member of the namespace merged with the class, whose
    type is the union of those methods' names, `type $plain = "format" |
