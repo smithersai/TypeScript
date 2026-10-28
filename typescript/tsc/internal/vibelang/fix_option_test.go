@@ -20,6 +20,10 @@ func TestOptionPipeQuickFixes(t *testing.T) {
 			"export const size = (id: string | null) => Option.fromNullishOr(id).map((s) => s.length)\n"},
 		{"a function stage", "export const value = (o: Option.Option<number>) => pipe(o, Option.getOrNull)\n",
 			"export const value = (o: Option.Option<number>) => o.getOrNull()\n"},
+		{"two names of one import", "import { Array as Arr, Option, pipe } from \"effect\"\nexport const first = (xs: ReadonlyArray<number>) => pipe(Arr.get(xs, 0), Option.map((n) => n + 1), Option.getOrNull)\n",
+			"import { Array as Arr } from \"effect\"\nexport const first = (xs: ReadonlyArray<number>) => Arr.get(xs, 0).map((n) => n + 1).getOrNull()\n"},
+		{"two names of a list on lines", "import {\n  Array as Arr,\n  Option,\n  pipe,\n} from \"effect\"\nexport const first = (xs: ReadonlyArray<number>) => pipe(Arr.get(xs, 0), Option.getOrNull)\n",
+			"import {\n  Array as Arr,\n} from \"effect\"\nexport const first = (xs: ReadonlyArray<number>) => Arr.get(xs, 0).getOrNull()\n"},
 		{"lines without comments", "export const label = (o: Option.Option<string>) =>\n  pipe(\n    o,\n    Option.map((s) => s.toUpperCase()),\n    Option.getOrElse(() => \"\"),\n  )\n",
 			"export const label = (o: Option.Option<string>) =>\n  o\n    .map((s) => s.toUpperCase())\n    .getOrElse(() => \"\")\n"},
 	} {

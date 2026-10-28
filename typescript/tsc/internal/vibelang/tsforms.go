@@ -406,11 +406,51 @@ func importRemovalEdits(c *checker.Checker, file *ast.SourceFile, replaced []cor
 			// of binding elision; ESM initializes duplicate imports only once.
 			edits = append(edits, sourceEdit{start, start, bare + "\n" + lineIndent(text, start)})
 		}
+		edits = append(edits, bindingRemovals(file, statement, gone)...)
+	}
+	return edits, ""
+}
+
+// bindingRemovals returns the edits that remove gone, bindings of the import
+// declaration statement that keeps others. Removing two names of one braced
+// list one at a time would overlap at the comma between them, so a list that
+// loses more than one name is written again with the names it keeps, in their
+// order and with the separator it had.
+func bindingRemovals(file *ast.SourceFile, statement *ast.Node, gone []*ast.Node) []sourceEdit {
+	named := statement.ImportClause().AsImportClause().NamedBindings
+	var removed []*ast.Node
+	for _, node := range gone {
+		if named != nil && ast.IsNamedImports(named) && node.Parent == named {
+			removed = append(removed, node)
+		}
+	}
+	if len(removed) < 2 {
+		var edits []sourceEdit
 		for _, node := range gone {
 			edits = append(edits, bindingRemoval(file, node))
 		}
+		return edits
 	}
-	return edits, ""
+	elements := named.Elements()
+	var kept []string
+	for _, element := range elements {
+		if !slices.Contains(removed, element) {
+			kept = append(kept, nodeText(file, element))
+		}
+	}
+	text := file.Text()
+	first, last := nodeStart(file, elements[0]), elements[len(elements)-1].End()
+	separator := ", "
+	if strings.ContainsAny(text[first:last], "\n") {
+		separator = ",\n" + lineIndent(text, first)
+	}
+	edits := []sourceEdit{{first, last, strings.Join(kept, separator)}}
+	for _, node := range gone {
+		if !slices.Contains(removed, node) {
+			edits = append(edits, bindingRemoval(file, node))
+		}
+	}
+	return edits
 }
 
 // containsWord reports whether text holds word as a whole identifier.
