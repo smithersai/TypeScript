@@ -912,6 +912,8 @@ typescript/vibelang/cases/diag-any-contracted.fail/main.vibe:21:18 lambda dual f
 typescript/vibelang/cases/diag-any-contracted.fail/main.vibe:25:18 lambda plain fallback
 typescript/vibelang/cases/diag-any-contracted.fail/main.vibe:4:18 lambda dual fallback
 typescript/vibelang/cases/diag-call-pipe.fail/main.vibe:7:29 lambda plain fallback
+typescript/vibelang/cases/diag-default-parameter.fail/main.vibe:7:36 lambda dual fallback
+typescript/vibelang/cases/diag-default-parameter.fail/main.vibe:8:46 lambda dual fallback
 typescript/vibelang/cases/diag-platform-spelling.fail/main.vibe:12:15 lambda plain table
 typescript/vibelang/cases/diag-service-key-names.fail/main.vibe:63:43 lambda plain table
 typescript/vibelang/cases/diag-shared-subpath-name.fail/main.vibe:4:23 lambda plain fallback
@@ -2166,6 +2168,10 @@ typescript/vibelang/cases/plain-catch-result-try/main.vibe:6:18 lambda plain ann
 typescript/vibelang/cases/plain-catch-result-try/main.vibe:7:14 lambda plain table
 typescript/vibelang/cases/plain-catch-result-try/main.vibe:7:76 lambda plain table
 typescript/vibelang/cases/plain-catch-result-try/main.vibe:9:17 lambda plain annotation
+typescript/vibelang/cases/plain-code-holds-program/main.vibe:12:36 lambda dual fallback
+typescript/vibelang/cases/plain-code-holds-program/main.vibe:19:15 lambda dual fallback
+typescript/vibelang/cases/plain-code-holds-program/main.vibe:5:23 lambda dual fallback
+typescript/vibelang/cases/plain-code-holds-program/main.vibe:8:26 lambda dual fallback
 typescript/vibelang/cases/plain-code-throw-caught/main.vibe:41:106 lambda effectFn table
 typescript/vibelang/cases/plain-code-throw-caught/main.vibe:41:16 lambda effectFn table
 typescript/vibelang/cases/plain-code-throw-caught/main.vibe:41:20 lambda plain table
