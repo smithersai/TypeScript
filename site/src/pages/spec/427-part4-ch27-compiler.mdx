@@ -116,9 +116,9 @@ With `--ignoreConfig` or files named on the command line, the program has no pac
 #### One checker pass
 
 Overload resolution is TypeScript's, from the arguments' own types: a
-function literal's unannotated parameters are typed once, as TypeScript types
-them (D450), and a
-function argument is tried first in its own form, plain or Effect, and lifted
+function literal is typed once, as TypeScript types it, and the candidates that
+accept the other arguments must agree on that typing, or the call is EK1021
+(D450, D457); a function argument is tried first in its own form, plain or Effect, and lifted
 only when no candidate accepts it as it is, with a candidate that takes it as a
 function preferred to one that converts it to a program (rule F, D380, D392).
 The hooks check each argument against the picked signature in the form Chapter
