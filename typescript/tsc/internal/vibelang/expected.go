@@ -205,6 +205,12 @@ func (a *analyzer) classify(types []*checker.Type) expectation {
 			}
 			return
 		}
+		if t == a.checker.GetGlobalFunctionType() {
+			// Function, as React's useCallback<T extends Function> declares:
+			// TypeScript types a literal there as a plain function (D513).
+			e.plainFn = true
+			return
+		}
 		signatures := a.checker.GetSignaturesOfType(t, checker.SignatureKindCall)
 		if len(signatures) == 0 {
 			if a.isExpectedEffect(t) {

@@ -632,6 +632,10 @@ typescript/vibelang/cases/config-fallbacks/main.vibe:12:45 lambda plain table
 typescript/vibelang/cases/config-fallbacks/main.vibe:21:25 lambda program table
 typescript/vibelang/cases/config-fallbacks/main.vibe:21:60 byname program table
 typescript/vibelang/cases/config-fallbacks/main.vibe:8:3 lambda plain table
+typescript/vibelang/cases/constrained-destinations.fail/main.vibe:12:22 lambda choice fallback
+typescript/vibelang/cases/constrained-destinations/main.vibe:12:21 lambda choice fallback
+typescript/vibelang/cases/constrained-destinations/main.vibe:17:21 lambda choice fallback
+typescript/vibelang/cases/constrained-destinations/main.vibe:23:26 lambda choice fallback
 typescript/vibelang/cases/contextual-effect-fields/main.vibe:11:37 byname program annotation
 typescript/vibelang/cases/contextual-effect-fields/main.vibe:11:49 lambda plain table
 typescript/vibelang/cases/contextual-effect-fields/main.vibe:16:31 byname program annotation
@@ -1052,7 +1056,7 @@ typescript/vibelang/cases/ek1005-runners.fail/main.vibe:62:16 lambda program tab
 typescript/vibelang/cases/ek1005-runners.fail/main.vibe:63:21 lambda program table
 typescript/vibelang/cases/ek1005-runners.fail/main.vibe:64:11 lambda choice fallback
 typescript/vibelang/cases/ek1005-runners.fail/main.vibe:65:18 lambda program table
-typescript/vibelang/cases/ek1005-runners.fail/main.vibe:67:19 lambda plain table
+typescript/vibelang/cases/ek1005-runners.fail/main.vibe:67:19 lambda choice fallback
 typescript/vibelang/cases/ek1005-runners.fail/main.vibe:68:22 lambda effectFn table
 typescript/vibelang/cases/ek1005-runners.fail/main.vibe:69:34 lambda choice fallback
 typescript/vibelang/cases/ek1005-runners.fail/main.vibe:71:36 lambda plain fallback

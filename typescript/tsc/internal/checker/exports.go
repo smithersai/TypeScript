@@ -9,6 +9,11 @@ func (c *Checker) GetStringType() *Type {
 	return c.stringType
 }
 
+// GetGlobalFunctionType returns the global Function interface type.
+func (c *Checker) GetGlobalFunctionType() *Type {
+	return c.globalFunctionType
+}
+
 func (c *Checker) GetNumberType() *Type {
 	return c.numberType
 }

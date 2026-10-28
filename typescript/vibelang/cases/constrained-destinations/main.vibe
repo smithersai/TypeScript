@@ -1,0 +1,29 @@
+// expect-result: {"once":1,"memo":1,"callback":2,"returned":"number"}
+// A literal at Function, or at a type parameter whose constraint is a plain
+// function type, is plain (D513), as TypeScript types it: once caches its
+// result, and a TypeScript caller of useCallback's result runs its body.
+import { once, useCallback, callTwice } from "./helpers.ts"
+
+let n = 0
+let m = 0
+let k = 0
+
+export function main() {
+  const init = once(() => {
+    n++
+  })
+  init()
+  init()
+  const memo = once((x: number) => {
+    m++
+    return x
+  })
+  memo(1)
+  memo(2)
+  const cb = useCallback(() => {
+    k++
+    return k
+  }, [])
+  const returned = callTwice(cb)
+  return { once: n, memo: m, callback: k, returned }
+}
