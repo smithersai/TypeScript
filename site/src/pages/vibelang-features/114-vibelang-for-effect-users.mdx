@@ -208,7 +208,7 @@ export function main() {
 // Output: started
 ```
 
-Declare functions, services, schemas, and layers at module scope, but run no program there: `const answer = Effect.succeed(1)` is EK1001. An explicitly Effect-typed const, such as `const answer: Effect.Effect<number, never, never> = Effect.succeed(1)`, stores a cold program and runs nothing at import. Export a parameterless `main` instead: the module runs it with `NodeRuntime.runMain` when node starts the module, and importing it runs nothing. To provide layers or runner options, call the runner at the top level yourself, `NodeRuntime.runMain(() => Effect.provide(() => main(), AppLive))`; the module then runs only that.
+Declare functions, services, schemas, and layers at module scope, but run no program there: `const answer = Effect.succeed(1)` is EK1001. An explicitly Effect-typed const, such as `const answer: Effect.Effect<number, never, never> = Effect.succeed(1)`, stores a cold program and runs nothing at import. Export a parameterless function declaration, `export function main() { ... }`, instead: the module runs it with `NodeRuntime.runMain` when node starts the module, and importing it runs nothing. To provide layers or runner options, call the runner at the top level yourself, `NodeRuntime.runMain(() => Effect.provide(() => main(), AppLive))`; the module then runs only that.
 
 Every export of Effect's root, including `Console`, `Clock`, `Option`, `Schedule`, and `Stream`, is in scope without an import, along with VibeLang's runtime helpers. JavaScript globals such as `Array` keep their meaning; import Effect's conflicting modules under another name. So are the modules of Effect's subpaths, such as `HttpClient` from `effect/http`.
 

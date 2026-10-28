@@ -81,6 +81,16 @@ The output is:
 VibeLang 0.0.11 (TypeScript 7.1.0-dev)
 ```
 
+## 4. Port Effect TypeScript files
+
+Rename a `.ts` file that uses Effect to `.vibe`, then let the compiler rewrite it:
+
+```sh
+npx vibelang -p tsconfig.json --fix --noEmit
+```
+
+`--fix` applies each rewrite that keeps the program's meaning: Effect error and service classes become `error` and `service` declarations, `Effect.succeed` and `Effect.fail` become values and `throw`, catch combinators become `catch`, `Match` chains become `match`, Option pipes become Option's methods, prelude imports go, and an `Effect.gen` that is a function's whole body is written in direct style ([TypeScript-style Effect code](../getting-started/012-devtools.md#typescript-style-effect-code)). It refuses a rewrite that would change what other code receives, and prints why. An `Effect.gen` that the file pipes, such as `Effect.gen(...).pipe(Effect.provide(AppLive))`, stays EK1002 for now: write its body by hand inside `export function main() { provide AppLive { ... } }`, without `Effect.gen`, `function*` or `yield*`, reading a service as `Users()`.
+
 ## Next
 
 Set up the build: [React](react.md), [Vue](vue.md), or [Svelte](svelte.md) with Vite; [Vite and Vitest](vite.md) for other Vite or Vitest projects; [Build with the vibelang CLI](vibelang-cli.md) without a bundler. For another bundler, see step 3 of [Set up VibeLang](../setup.md).

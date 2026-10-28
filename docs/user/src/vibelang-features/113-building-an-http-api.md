@@ -93,7 +93,7 @@ export function main() {
 
 A `.vibe` file imports no Node.js value directly, so the `module` block, whose body is TypeScript, brings in Node's `createServer`. `NodeHttpServer.layer` runs it and owns its lifetime. `HttpRouter.serve` builds the serving layer, and `Layer.launch` keeps it alive until shutdown.
 
-The module top level constructs schemas, routes, and layers. `node server.js` starts the application: a module that exports a parameterless `main` runs it with `NodeRuntime.runMain` when the host starts that module, or a bundle whose entry module it is, so importing it from a test or another module starts nothing.
+The module top level constructs schemas, routes, and layers. `node server.js` starts the application: a module that exports a parameterless `function main` runs it with `NodeRuntime.runMain` when the host starts that module, or a bundle whose entry module it is, so importing it from a test or another module starts nothing.
 
 ## Test a route without a socket
 
