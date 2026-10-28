@@ -112,14 +112,15 @@ With `--ignoreConfig` or files named on the command line, the program has no pac
 #### One checker pass
 
 Overload resolution is TypeScript's, from the arguments' own types: a
-function literal is typed once, as TypeScript types it, and the candidates that
-accept the other arguments must agree on that typing, or the call is EK1021
-(D450, D457); a function argument is tried first in its own form, plain or Effect, and lifted
+function literal is typed once, as TypeScript types it, by the first candidate
+TypeScript checks it against, and no other candidate's typing is compared
+(D450, D482); a function argument is tried first in its own form, plain or Effect, and lifted
 only when no candidate accepts it as it is, with a candidate that takes it as a
 function preferred to one that converts it to a program (rule F, D380, D392).
 The hooks check each argument against the picked signature in the form Chapter
-13 gives the argument, so the order of overloads never decides a function
-argument's form or when an expression is evaluated. A return in a
+13 gives the argument, so a function argument's form follows the signature
+TypeScript picks, and the order of overloads never decides when an
+expression is evaluated. A return in a
 program is checked against the Effect's success type. Function values, and
 the elements of array and object literals, convert to Effects where a
 parameter expects them (D7, D49, D423). Conversion runs no body when it

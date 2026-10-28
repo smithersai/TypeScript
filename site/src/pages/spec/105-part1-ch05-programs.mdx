@@ -17,7 +17,7 @@ job()                                   // runs it
 job()                                   // runs it again, from scratch
 ```
 
-This is what a TypeScript developer expects from a call: `syncInventory(store)` does its work, and `() => syncInventory(store)` does not. No parameter type, annotation, or order of overloads changes that (Chapter 13). An `Effect` value from TypeScript is a program too, and calling it runs it (`Clock.currentTimeMillis()`). A value whose type extends `Effect`, such as a `Config` or an `Exit`, is data until you call it.
+This is what a TypeScript developer expects from a call: `syncInventory(store)` does its work, and `() => syncInventory(store)` does not. No parameter type or annotation changes that, and the overload a call resolves to is the one TypeScript picks (Chapter 13). An `Effect` value from TypeScript is a program too, and calling it runs it (`Clock.currentTimeMillis()`). A value whose type extends `Effect`, such as a `Config` or an `Exit`, is data until you call it.
 
 Effect's combinators take programs, so pass them a function:
 
