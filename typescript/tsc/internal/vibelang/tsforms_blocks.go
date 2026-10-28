@@ -26,13 +26,18 @@ import (
 // is called. Refused: options arguments, the data-last forms inside pipe, a
 // provide or provideService anywhere a block cannot stand, a key that is not
 // a name or a dotted name, a file where a local withSpan shadows the
-// prelude's, and anything outside a VibeLang function body. The prelude's
-// own withSpan, and an Effect.withSpan whose program is already a function
-// literal, are the VibeLang form already.
+// prelude's, and anything outside a VibeLang function body; the warning
+// stands without a fix where a provide block cannot. An Effect.withSpan whose
+// program is already a function literal becomes the prelude's withSpan with
+// the same arguments. The prelude's own withSpan is the VibeLang form.
 
 // withSpanArrowForm is EK4836's text for Effect.withSpan, which has no
 // block form: its program becomes an arrow.
 var withSpanArrowForm = EK4836.With("{0} wraps a program in a call; write the program as an arrow: {1}.")
+
+// withSpanPreludeForm is EK4836's text for Effect.withSpan of a function
+// literal, which the prelude's withSpan takes as it is.
+var withSpanPreludeForm = EK4836.With("{0} is the prelude's withSpan written through Effect; write {1}.")
 
 func init() {
 	tsFormRules[EK4836.Code] = &tsFormRule{
@@ -59,7 +64,7 @@ func blockFormOf(c *checker.Checker, call *ast.Node) string {
 	_, name := effectMember(c, call.Expression())
 	switch {
 	case name == "withSpan" && len(call.Arguments()) == 2:
-		if ast.IsPropertyAccessExpression(call.Expression()) && !isLambda(ast.SkipParentheses(call.Arguments()[0])) {
+		if ast.IsPropertyAccessExpression(call.Expression()) {
 			return name
 		}
 	case name == "provide" && len(call.Arguments()) == 2, name == "provideService" && len(call.Arguments()) == 3:
@@ -105,6 +110,16 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 	// evaluated eagerly, in source order, and stays in its call: the
 	// warning then offers no fix.
 	operand := ast.SkipParentheses(arguments[0])
+	if name == "withSpan" && isLambda(operand) {
+		// Effect.withSpan(() => load(id), "load"): the program is an arrow
+		// already, so the prelude's withSpan takes the same arguments.
+		if shadowed(call, "withSpan") {
+			return nil
+		}
+		callee := call.Expression()
+		result := "withSpan" + file.Text()[callee.End():call.End()]
+		return withImportRemovals(c, file, &formRewrite{edits: []sourceEdit{{nodeStart(file, callee), callee.End(), "withSpan"}}, description: shortText(result, "the prelude's withSpan"), message: withSpanPreludeForm})
+	}
 	eager := !(isInvocation(operand) && analyzerFor(c).isByName(arguments[0])) &&
 		!ast.IsArrowFunction(operand) && !ast.IsFunctionExpression(operand) &&
 		!stableBindingRead(c, file, operand)
@@ -130,10 +145,10 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 		statement := call.Parent
 		returns := ast.IsReturnStatement(statement)
 		if !returns && !ast.IsExpressionStatement(statement) {
-			return nil
+			return &formRewrite{why: blockPositionNote}
 		}
 		if !analyzerFor(c).runs(call) {
-			return nil
+			return &formRewrite{why: blockPositionNote}
 		}
 		if eager {
 			return &formRewrite{why: eagerProgramNote}
@@ -166,6 +181,10 @@ func blockFormRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node) 
 	}
 	return withImportRemovals(c, file, &formRewrite{edits: []sourceEdit{{start, end, result}}, description: shortText(result, "the block form")})
 }
+
+// blockPositionNote explains why a provide or provideService call that does
+// not stand as a statement or a return keeps its call.
+const blockPositionNote = "No quick fix: a provide block stands only as a statement or a return; run the call in one, such as a function that returns it."
 
 // eagerProgramNote explains why an eagerly evaluated program expression keeps
 // its call.
