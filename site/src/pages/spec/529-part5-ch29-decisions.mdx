@@ -56,7 +56,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D22 | Effect's own packages are trusted, with the functions and values they return | D6; `Option` and `Result` are data in Effect 4 |  | 10 |
 | D23 | A trusted contract is the `@vibelang trusted` JSDoc tag, with `@throws` | TypeScript syntax only; the compiler's metadata channel | Amended by D249, D389 | 10, 27 |
 | D24 | A call runs only `Effect` itself; subtypes are data until called; `new` never runs | `Config`, `Exit`, keys, and errors extend `Effect` | Amended by D90, D109, D320, D321, D323 | 13 |
-| D25 | `using` adds no masking policy | K15a-K15c | Amended by D342, D401 | 6, 21 |
+| D25 | `using` adds no masking policy | K15a-K15c | Amended by D342, D401, D481 | 6, 21 |
 | D26 | Producers: `for...of` by type; a producer is a `Stream` to TypeScript; the adapter runs it on its own fiber behind a zero-capacity handoff | Stream operators pull on other fibers; continuations are fiber-affine; a one-element buffer runs ahead | Amended by D82, D371, D402 | 8, 26 |
 | D27 | `wire` is an intrinsic with a bounded contract (EK3201-EK3204) | Layer types carry outputs and inputs | Amended by D326, D363 | 4 |
 | D28 | A `catch` over several expected failures receives the first | K14a |  | 3, 17 |
@@ -306,7 +306,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D336 | Data-type methods come from a table pinned with Effect | A parameter's name is not part of a type |  | 11, 13 |
 | D340 | Cleanup combines failures the same way on every path | A plain `finally` replaced the failure in flight |  | 3, 15, 17 |
 | D341 | Every lowering produces the frame lowering's Exit | Optimizations changed failures |  | 15, 17, 26 |
-| D342 | `using` releases exactly once, through one owner | D94 disposed twice; D25 leaked a masked acquisition | Amended by D401 | 6, 21 |
+| D342 | `using` releases exactly once, through one owner | D94 disposed twice; D25 leaked a masked acquisition | Amended by D401, D481 | 6, 21 |
 | D343 | `using` reads its disposal method once, `Symbol.asyncDispose` first | The disposal method was read again at release |  | 6 |
 | D344 | A `using` in a layer's setup belongs to the setup's block | D222 contradicted D14, D47, and Chapter 4 |  | 4, 6 |
 | D345 | Error classes keep full class semantics; a family whose base has a `_tag` typed `string`, or is an `abstract error`, is open | Sealing a family to its file was rejected to keep D278; exhaustiveness comes from the subject's declared type (D346) |  | 3 |
@@ -362,7 +362,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D398 | A contract-less function type carries channels only as a parameter's type | No function carried an interface member's channels | Amended by D434, D454 | 13, 16 |
 | D399 | A trusted call's listed failures are expected failures in every function | A plain annotation turned a recoverable failure into a defect |  | 8, 10, 13, 15, 28 |
 | D400 | A `trusted` value is a plain trusted call in plain code | The recommended repair for EK4401 did not compile | Amended by D431, D445 | 10, 13, 28 |
-| D401 | `using` adopts a release only from an acquisition's record, never from `Scope` in a contract | A wider contract made `using` dispose nothing | Amended by D425, D451 | 6, 13, 21, 24, 26, 27 |
+| D401 | `using` adopts a release only from an acquisition's record, never from `Scope` in a contract | A wider contract made `using` dispose nothing | Amended by D425, D451, D481 | 6, 13, 21, 24, 26, 27 |
 | D402 | A producer is one value, a `Stream`; `for...of` runs it on its fiber, other consumers through the adapter | An annotation inserted a fiber |  | 8, 16, 26, 27, 30 |
 | D403 | A module declaration compiles to a JavaScript module of its own | The inline lowering ran dependencies out of import order |  | 10, 26, 30 |
 | D404 | JavaScript's own `for...of` is emitted only where its iterator close keeps both failures | `IteratorClose` drops a second failure | Amended by D424 | 8, 13, 17, 26 |
@@ -386,7 +386,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D422 | A function literal's own form is read with its parameter types; candidates that give it different own forms are EK1021 | "Before any destination is read" left `(x) => x.find(id)` without one | Amended by D450 | 13, 28 |
 | D423 | Only a literal converts element by element; a spread writes the traversal | A parameter type made a call drain an iterable | Amended by D453 | 5, 13, 27, Appendices |
 | D424 | JavaScript's own `for...of` needs the combining close helper; no entry check | A late `return()` and an extra lookup escaped the check |  | 8, 17, 26 |
-| D425 | `using` holds interruption off unless its value can only be a primitive | A `Disposable` typed `object` was unmasked | Amended by D451 | 6, 13, 26 |
+| D425 | `using` holds interruption off unless its value can only be a primitive | A `Disposable` typed `object` was unmasked | Superseded by D481 | 6, 13, 26 |
 | D426 | Declaration emit keeps a call's data provenance with `AsData<T>` | An exported `compose` result ran from declarations | Superseded by D458 | 10, 13, 26, 27, Appendices |
 | D427 | Two installed copies of one package version are one type and two classes; a class arm needs one copy | A private brand did not separate copies |  | 3, 14, 26, 28 |
 | D428 | A class arm covers only what its test is guaranteed to accept | An arm over an open class counted as total |  | 3, 28 |
@@ -412,7 +412,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D448 | A `const` or import alias that names a function keeps its own form; any other function value takes its type's form, read as rule R reads a call of it | `const g = double` had one form from source and another from declarations | Amended by D460 | 13, 14, Appendices |
 | D449 | Rule R reads a type parameter by who declares it: a class's, an interface's, or an alias's uninstantiated, a function's as the completed call that returned the signature bound it | `Effect.fn(name)(body, pipeline)` functions returned their Effect as data | Amended by D458 | 10, 13, 26, 30, Appendices |
 | D450 | A literal's own form is read once, with the parameter types TypeScript assigns; EK1021 where candidates would type it differently and take different forms | TypeScript never types a literal per candidate | Amended by D457 | 13, 27, 28, 30, Appendices |
-| D451 | `using`'s mask records the interruptibility it replaced, and the runtime's interruptible acquisitions run with it | Effect's `restore` is the identity under an outer mask | Amended by D459 | 6, 21, 24, 26, 30 |
+| D451 | `using`'s mask records the interruptibility it replaced, and the runtime's interruptible acquisitions run with it | Effect's `restore` is the identity under an outer mask | Superseded by D481 | 6, 21, 24, 26, 30 |
 | D452 | `fork(x)`, `join(x)`, and `await.all(x)` are calls in shape; a runtime namespace member of a keyword or hatch is EK4410 | `fork(x).y` had two parse trees | Amended by D462 | 7, 10, 13, 28, 30, Appendices |
 | D453 | Rule F's destinations: Effect-returning plain functions unlifted, derived element types, contextual propagation, per-element spreads, D430 in a candidate's acceptance | Five cases rule F left wrong or unstated | Amended by D461, D463 | 13, 14, 30 |
 | D454 | Rule R covers union callees and contract-less callback parameters | Neither had a stated reading |  | 13, 30 |
@@ -420,7 +420,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D456 | Statements that contradicted rules or facts | Appendix C and Chapters 3, 10, 12, 13, 15, 24, 27, 28, and 30 |  | 3, 10, 12, 13, 15, 24, 27, 28, 30, Appendices |
 | D457 | Candidates that accept a call's other arguments must type each function literal they reach alike; EK1021 otherwise, whatever forms their destinations accept | Destinations that accept both forms let overload order pick a callback's form |  | 13, 27, 28, 30 |
 | D458 | Rule R reads a type parameter as TypeScript shows it for the call, except one the callee's own signature declares; `AsData<T>` is withdrawn | An alias, an interface, or a class ran differently from the same type written inline |  | 10, 13, 26, 27, 28, 30, Appendices |
-| D459 | While a `using` mask is in force, the runtime keeps the interruptibility the fiber would have without it; VibeLang's masks keep it, and a nested `using` inherits it | A nested `using` recorded the outer mask and kept an interruptible acquisition masked |  | 6, 17, 21, 24, 26, 27, 30, Appendices |
+| D459 | While a `using` mask is in force, the runtime keeps the interruptibility the fiber would have without it; VibeLang's masks keep it, and a nested `using` inherits it | A nested `using` recorded the outer mask and kept an interruptible acquisition masked | Superseded by D481 | 6, 17, 21, 24, 26, 27, 30, Appendices |
 | D460 | An object literal's methods take a function literal's own form and carry their plain form as `m[$direct]`; a namespace import's member and an anonymous default export keep a function's own form; a `let` does not | Chapters 10, 14 and the function-kinds table called object methods Effect methods; no plain form or signature was stated for them |  | 10, 13, 14, 27, 30, Appendices |
 | D461 | A destination reaches both operands of `??` and `\|\|` and the right operand of `&&` | TypeScript types the left operand of `\|\|` and `??` by the destination too |  | 13, 30 |
 | D462 | A parenthesized await operation's literal operand is deferred; `join`'s operand is evaluated, never deferred | The grammar note evaluated `await.all([a(), b()])`'s elements; rule H called `join`'s operand deferred |  | 13, 30, Appendices |
@@ -432,6 +432,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D468 | Statements that contradicted rules or facts | Chapters 2, 5, 6, 10, 13, 15, 27, 28, 30 and the appendices kept text the rules had replaced |  | 2, 5, 6, 10, 13, 15, 27, 28, 30, Intro, Appendices |
 | D469 | A fiber may sit in a literal its region holds only to join it | D409's "a collection" rejected `Fiber.joinAll(fibers)` |  | 7, 28 |
 | D480 | A call whose type is an Effect runs, whatever its callee compiles to; an Effect-form function that returns an Effect value is EK4802 wherever it stands; a program is held by a function written where an Effect type is declared | A plain function returning a program ran by one rule and returned data by four others |  | 13, 15, 28, 30, Appendices |
+| D481 | `using` is the Effect program a TypeScript developer would write: `Effect.acquireRelease` of the initializer, interruptible for a scoped acquisition and masked otherwise, with no mask or interruptibility record of VibeLang's own; D401's ownership record stays | A release inside an initializer lost its mask; an escaping acquisition left earlier resources unregistered |  | 6, 13, 17, 20, 21, 24, 26, 27, 30, Appendices |
 
 #### Rules of the runtime and compiler
 

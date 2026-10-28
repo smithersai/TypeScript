@@ -88,7 +88,7 @@ Every `.vibe` file has this prelude in scope, so the program above needs no impo
 | `sync`, `try`, `callback` | Boundary hatches: their first argument is self-contained TypeScript, and values reach it as inputs (D148, D229) |
 | `Resume<A, E>` | The callback hatch's resume parameter type (Chapter 10, D230) |
 | `runPromise`, `runFork`, `runSync`, `runCallback` | Effect's runners, the way back in from TypeScript (D150) |
-| `sleep`, `log`, `logDebug`, `logInfo`, `logWarning`, `logError`, `retry`, `repeat`, `timeout`, `all`, `forEach`, `race`, `withSpan`, `die`, `exit`, `interrupt`, `yieldNow` | The Effect module's functions without the `Effect.` prefix (D151, D179) |
+| `sleep`, `log`, `logDebug`, `logInfo`, `logWarning`, `logError`, `retry`, `repeat`, `timeout`, `all`, `forEach`, `race`, `withSpan`, `die`, `exit`, `interrupt`, `yieldNow`, `uninterruptible`, `uninterruptibleMask`, `interruptible`, `interruptibleMask` | The Effect module's functions without the `Effect.` prefix, the masks among them those the mask blocks call (D151, D179, D180) |
 | Every other export of `effect`'s root | `Console`, `Option`, `Stream`, `Schedule`, `Duration`, and the rest, plus `flow` and `identity` (D146) |
 | Every module of `effect`'s subpath packages | `HttpRouter`, `ChildProcess`, `TestClock`, `Hex`, and the rest, from `effect/http`, `effect/process`, `effect/testing`, `effect/encoding`, and the other subpaths (D310) |
 

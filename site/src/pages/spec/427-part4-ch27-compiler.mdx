@@ -163,8 +163,7 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 | `$plainOf` | A plain function's plain form from another module: `f[$direct]` once its module has attached it, and before that the plain form recorded on the program its hoisted Effect form returns (D268, D446); an object literal's plain method carries its plain form as `m[$direct]` (D460) |
 | `handle`, `resume`, `$tailResume` | Continuation handling |
 | `$produce`, `$yield`, `$forOf`, `$forStream` | Producers: a producer value is a `Stream` whose channel is the adapter and whose `$produce` property is its program (D402) |
-| `acquireRelease`, `acquireDisposable` | Effect's acquisitions, which also record the value whose release they registered, so `using` adds no second release (D401), and run an interruptible acquire step with the interruptibility recorded while a `using` mask is in force (D451); a `.vibe` reference to Effect's own denotes these |
-| `uninterruptible`, `uninterruptibleMask`, `interruptible`, `interruptibleMask` | Effect's masks, which also keep, while a `using` mask is in force, the interruptibility the fiber would have without it (D459); a `.vibe` reference to Effect's own, and each mask block, denotes these |
+| `acquireRelease`, `acquireDisposable` | Effect's acquisitions, which also record the value whose release they registered, so `using` adds no second release (D401); a `.vibe` reference to Effect's own denotes these |
 | `$iteratorFrame` | Effect ownership of native iterator cleanup across suspension: the runtime loop's adapter, which unwinds a frame Effect abandons (D356) |
 | `$plainSync`, `$joinedFrame` | The Effect form of a plain function, which records its plain form for `$plainOf` (D446), and a generated frame, both turning a `SuppressedError` the runtime made back into the cause it stands for where it reaches an Effect frame (D340, D341) |
 
