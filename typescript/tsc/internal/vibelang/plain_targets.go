@@ -195,7 +195,7 @@ func (a *analyzer) erasure(source, target *checker.Type, depth int) erased {
 		if held == nil || held == property || held.ValueDeclaration() != nil && held.ValueDeclaration() == property.ValueDeclaration() {
 			continue
 		}
-		declared := a.declaredMemberType(property)
+		declared := a.declaredPropertyType(property)
 		if declared == nil {
 			continue
 		}
@@ -219,10 +219,10 @@ func (a *analyzer) isPlainFunctionType(t *checker.Type) bool {
 	return e.plainFn && !e.effectFn && !e.program
 }
 
-// declaredMemberType returns the type of property as its declaration in a
+// declaredPropertyType returns the type of property as its declaration in a
 // class, an interface, or a type literal gives it, with that declaration's
 // type parameters uninstantiated (D485), else its type.
-func (a *analyzer) declaredMemberType(property *ast.Symbol) *checker.Type {
+func (a *analyzer) declaredPropertyType(property *ast.Symbol) *checker.Type {
 	c := a.checker
 	if d := property.ValueDeclaration(); d != nil && d.Parent != nil && d.Symbol() != nil {
 		switch d.Parent.Kind {
@@ -248,5 +248,5 @@ func (a *analyzer) memberMayReturnEffect(held *ast.Symbol) bool {
 			return a.isEffect(d)
 		}
 	}
-	return mayReturnEffect(a.checker, a.declaredMemberType(held))
+	return mayReturnEffect(a.checker, a.declaredPropertyType(held))
 }
