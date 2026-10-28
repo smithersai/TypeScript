@@ -1,0 +1,38 @@
+// expect: TS2850
+// "e requires Scope" reads a type parameter in e's R by its constraint, and
+// any and unknown are not Scope (D490). With R extends Scope, or a
+// constraint that has Scope as a member, the initializer requires Scope, so
+// using may bind a value it cannot dispose. With R unconstrained, R extends
+// unknown, or R any or unknown, it does not, so its value must be a
+// Disposable, as TypeScript's TS2850 requires.
+service Users { name: string }
+
+export function scoped<A, R extends Scope>(open: () => A!!R) {
+  using r = open()
+  return "scoped"
+}
+
+export function scopedUnion<A, R extends Scope | Users>(open: () => A!!R) {
+  using r = open()
+  return "scoped union"
+}
+
+export function bare<A, R>(open: () => A!!R) {
+  using r = open()
+  return "bare"
+}
+
+export function unknownBound<A, R extends unknown>(open: () => A!!R) {
+  using r = open()
+  return "unknown bound"
+}
+
+export function anyR<A>(open: () => A!!any) {
+  using r = open()
+  return "any"
+}
+
+export function unknownR<A>(open: () => A!!unknown) {
+  using r = open()
+  return "unknown"
+}

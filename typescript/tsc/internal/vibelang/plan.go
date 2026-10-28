@@ -252,6 +252,10 @@ type analyzer struct {
 	programEffect         *checker.Type             // effect's Effect interface, found in the program's files
 	programEffectSearched bool
 
+	// Scope regions (scopes.go).
+	programScopeType     *checker.Type // effect's Scope interface, found in the program's files
+	programScopeSearched bool
+
 	callbacks map[*ast.Node]*callbackContracts // functions with uncontracted callback parameters (callbackcontracts.go)
 }
 

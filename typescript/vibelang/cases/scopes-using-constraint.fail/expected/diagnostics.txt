@@ -1,0 +1,4 @@
+main.vibe(21,13): error TS2850
+main.vibe(26,13): error TS2850
+main.vibe(31,13): error TS2850
+main.vibe(36,13): error TS2850

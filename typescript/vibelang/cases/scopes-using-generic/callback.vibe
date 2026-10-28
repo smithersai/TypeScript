@@ -1,0 +1,6 @@
+// A contract-less callback's channel is a type parameter too (D68), so a
+// using of its call leaves Exclude<R, Scope> in R (D490).
+export function withAnyResource(open: () => Disposable) {
+  using r = open()
+  return "used"
+}

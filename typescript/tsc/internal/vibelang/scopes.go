@@ -52,7 +52,8 @@ import (
 // with the interruptibility in force where the using stands, as yield* runs
 // it, each acquisition in e keeping its own policy (D25), and adds no mask
 // of its own. The block supplies Scope to the whole initializer, each
-// operand it evaluates included. for (using x of values) takes each
+// operand it evaluates included, so a generic R in its requirements leaves
+// as Exclude<R, Scope>. for (using x of values) takes each
 // value with using in a Scope region around that iteration's body, so the
 // value is released when the iteration ends, by any path; over an iterator,
 // a producer, or a Stream, $forOf runs those iterations and closes what it
@@ -229,10 +230,11 @@ func (a *analyzer) isAcquisition(call *ast.Node) bool {
 
 // requiresScope reports whether initializer, a using declaration's, requires
 // Scope: Scope is a member of the R of a call it runs, the initializer or an
-// operand it evaluates (D490). Then using may bind a value it cannot
-// dispose, which an acquisition releases (D401). Scope never decides who
-// releases a value using can dispose, which the run-time record does, or how
-// the initializer runs, which is the same for every initializer (D490).
+// operand it evaluates, with a type parameter there read by its constraint
+// (isScopeRequirement, D490). Then using may bind a value it cannot dispose,
+// which an acquisition releases (D401). Scope never decides who releases a
+// value using can dispose, which the run-time record does, or how the
+// initializer runs, which is the same for every initializer (D490).
 func (a *analyzer) requiresScope(initializer *ast.Node) bool {
 	if usingDeclarationOf(initializer) == nil {
 		return false
@@ -247,7 +249,7 @@ func (a *analyzer) requiresScope(initializer *ast.Node) bool {
 			acquisition := &effectInfo{}
 			a.addCall(acquisition, n)
 			for _, r := range acquisition.requirements {
-				if slices.ContainsFunc(unionMembers(r), isScopeType) {
+				if slices.ContainsFunc(unionMembers(r), a.isScopeRequirement) {
 					found = true
 					return true
 				}
@@ -257,6 +259,24 @@ func (a *analyzer) requiresScope(initializer *ast.Node) bool {
 	}
 	visit(initializer)
 	return found
+}
+
+// isScopeRequirement reports whether t, a member of a requirements union, is
+// effect's Scope, reading a generic member, such as a type parameter R, by
+// its constraint: R extends Scope is Scope, and so is a constraint that has
+// Scope as a member. An unconstrained R, any, and unknown are not (D490).
+func (a *analyzer) isScopeRequirement(t *checker.Type) bool {
+	if isScopeType(t) {
+		return true
+	}
+	if t.Flags()&checker.TypeFlagsInstantiable == 0 {
+		return false
+	}
+	constraint := a.checker.GetBaseConstraintOfType(t)
+	if constraint == nil || constraint == t || constraint.Flags()&checker.TypeFlagsAnyOrUnknown != 0 {
+		return false
+	}
+	return slices.ContainsFunc(unionMembers(constraint), isScopeType)
 }
 
 // usingInitializer is the checker's using initializer hook. In a .vibe
@@ -337,7 +357,7 @@ func (a *analyzer) addScoped(info *effectInfo, call *ast.Node) {
 		}
 		forked := &effectInfo{}
 		a.addCall(forked, call)
-		forked = withoutScope(forked)
+		forked = a.withoutScope(forked, nil /*scope*/)
 		info.addRequirements(forked)
 		if info.effect == nil {
 			info.effect = forked.effect
@@ -347,13 +367,19 @@ func (a *analyzer) addScoped(info *effectInfo, call *ast.Node) {
 	a.addServiceLookup(info, call)
 	acquisition := &effectInfo{}
 	a.addCall(acquisition, call)
-	info.add(withoutScope(acquisition))
+	info.add(a.withoutScope(acquisition, a.programScope()))
 }
 
 // withoutScope returns info without effect's Scope among its requirements,
 // splitting unions and keeping each requirement's source: a Scope region
-// supplies the Scope that its acquisitions and forks ask for.
-func withoutScope(info *effectInfo) *effectInfo {
+// supplies the Scope that its acquisitions and forks ask for. Given scope,
+// effect's Scope type, a generic member, such as a type parameter R, keeps
+// what the region does not supply, Exclude<R, Scope>, as $using's own type
+// and Effect.scoped leave it: a using supplies Scope to its whole
+// initializer, a contract-less callback's channel included (D68, D490). A
+// fork passes nil, since forkIn supplies no Scope to the program it starts,
+// and its generic members stay as they are.
+func (a *analyzer) withoutScope(info *effectInfo, scope *checker.Type) *effectInfo {
 	out := &effectInfo{effect: info.effect}
 	out.addErrors(info)
 	for i, r := range info.requirements {
@@ -366,12 +392,39 @@ func withoutScope(info *effectInfo) *effectInfo {
 			members = r.Types()
 		}
 		for _, member := range members {
-			if !isScopeType(member) {
+			switch {
+			case isScopeType(member):
+			case scope != nil && member.Flags()&checker.TypeFlagsInstantiable != 0:
+				out.addRequirement(a.checker.ExcludeType(member, scope), source)
+			default:
 				out.addRequirement(member, source)
 			}
 		}
 	}
 	return out
+}
+
+// programScope returns effect's Scope interface, from the Scope module among
+// the program's files, or nil when the program does not include it. Like
+// programEffectInterface, it does not depend on the order in which the
+// checker checks things.
+func (a *analyzer) programScope() *checker.Type {
+	if a.programScopeSearched {
+		return a.programScopeType
+	}
+	a.programScopeSearched = true
+	for _, file := range a.checker.Program().SourceFiles() {
+		if !isEffectModuleFile(file, "Scope") || file.Symbol == nil {
+			continue
+		}
+		for _, export := range a.checker.GetExportsOfModule(file.Symbol) {
+			if export.Name() == "Scope" && export.Flags()&ast.SymbolFlagsInterface != 0 {
+				a.programScopeType = a.checker.GetDeclaredTypeOfSymbol(export)
+				return a.programScopeType
+			}
+		}
+	}
+	return nil
 }
 
 // isScopeType reports whether t is effect's Scope.Scope.

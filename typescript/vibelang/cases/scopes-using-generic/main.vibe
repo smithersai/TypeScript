@@ -1,0 +1,85 @@
+// A generic using is the same one program as the using written inline
+// (D490): under timeout(…, "100 millis"), withResource(() => connect(…)) and
+// withResource(() => openDb(…)) each end when the same using written inline
+// ends, and so does a contract-less callback's. withResource's R is
+// Exclude<R, Scope> (expected/generic.d.ts), so its caller needs no Scope,
+// and withScoped, whose R extends Scope, binds a value with no disposal
+// method.
+// expect-result: {"socket":{"inline":["TimeoutError"],"generic":["TimeoutError"],"typed":["TimeoutError"]},"db":{"inline":["TimeoutError"],"generic":["TimeoutError"],"callback":["TimeoutError"]},"scoped":"scoped"}
+import { withAnyResource } from "./callback.vibe"
+import { withResource, withResourceTyped, withScoped } from "./generic.vibe"
+
+/** Fails to compile unless T is never. */
+type Never<T extends never> = T
+
+type Left = Never<Effect.Services<ReturnType<typeof withResource<Socket, Scope>>>>
+type LeftTyped = Never<Effect.Services<ReturnType<typeof withResourceTyped<Socket, Scope>>>>
+type LeftCallback = Never<Effect.Services<ReturnType<typeof withAnyResource<never, Scope>>>>
+
+export function main(): object!! {
+  const left: Array<Left | LeftTyped | LeftCallback> = []
+  return {
+    socket: {
+      inline: deadline((seen) => holdSocket(seen)),
+      generic: deadline((seen) => { withResource(() => connect(seen)) }),
+      typed: deadline((seen) => { withResourceTyped(() => connect(seen)) })
+    },
+    db: {
+      inline: deadline((seen) => holdDb(seen)),
+      generic: deadline((seen) => { withResource(() => openDb(seen)) }),
+      callback: deadline((seen) => { withAnyResource(() => openDb(seen)) })
+    },
+    scoped: [withScoped(() => plainScoped()), ...left][0]
+  }
+}
+
+// Runs work under a 100 ms deadline and returns what it recorded, then how
+// the deadline ended.
+function deadline(work: (seen: string[]) => void!!) {
+  const seen: string[] = []
+  try {
+    Effect.timeout(() => work(seen), "100 millis")
+    seen.push("finished")
+  } catch (e) {
+    seen.push(e._tag)
+  }
+  return seen
+}
+
+class Socket {
+  [Symbol.dispose](): void {}
+}
+
+function connect(seen: string[]) {
+  return Effect.acquireRelease(
+    () => {
+      sleep("2 seconds")
+      seen.push("connected")
+      return new Socket()
+    },
+    () => {
+      seen.push("released")
+    },
+    { interruptible: true }
+  )
+}
+
+function openDb(seen: string[]) {
+  sleep("2 seconds")
+  seen.push("opened")
+  return { [Symbol.dispose](): void { seen.push("disposed") } }
+}
+
+function plainScoped(): { name: string }!!Scope {
+  return { name: "plain" }
+}
+
+function holdSocket(seen: string[]) {
+  using socket = connect(seen)
+  seen.push("body")
+}
+
+function holdDb(seen: string[]) {
+  using db = openDb(seen)
+  seen.push("body")
+}
