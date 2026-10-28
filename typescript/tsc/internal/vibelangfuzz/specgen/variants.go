@@ -472,6 +472,9 @@ func extracted(p *Program, c *chooser) *Program {
 			continue
 		}
 		helper := &Func{Name: f.Name + "$part", Params: slices.Clone(f.Params), Body: slices.Clone(run), Kind: kindNormal}
+		if f.Annot == "plain" {
+			helper.Annot = "plain-void" // a part of a plain function is plain, and returns nothing (D500)
+		}
 		p.inferFunc(helper)
 		var args []Expr
 		for _, prm := range f.Params {

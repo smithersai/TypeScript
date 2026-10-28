@@ -241,7 +241,7 @@ var noEffectHost = &ruleHost{
 	Name: "template:no-effect",
 	Main: "main.vibe",
 	Files: map[string]string{
-		"main.vibe": `export function hostAdd(a: number, b: number) {
+		"main.vibe": `export function hostAdd(a: number, b: number): number {
   return a + b;
 }
 

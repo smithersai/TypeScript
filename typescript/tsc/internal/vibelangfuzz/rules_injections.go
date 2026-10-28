@@ -130,7 +130,7 @@ var ruleInjections = []*ruleInjection{
 		Decls: "function name$$(): string!! {\n  return \"x\";\n}", Text: "const value$$ = yield* name$$();"},
 
 	// Chapter 13: an unexported main that nothing references.
-	{Code: 1016, Name: "unexported-main", Quote: "an otherwise valid module defines a zero-argument, unexported main that nothing references", Slots: []string{slotFile},
+	{Code: 1016, Name: "unexported-main", Quote: "an otherwise valid module defines a zero-argument, unexported `main` that nothing references", Slots: []string{slotFile},
 		Text: "function main() {\n  Console.log(\"hello\");\n}"},
 
 	// Chapter 4: provide is a statement.
@@ -338,7 +338,7 @@ var ruleInjections = []*ruleInjection{
 		Text: "const released$$ = retryApproval$$(\"deploy\");"},
 
 	// Chapters 10 and 16: only a plain function fits a synchronous callback.
-	{Code: 4301, Name: "map-pauses", Quote: "a callback or function value that can pause", Slots: stmt,
+	{Code: 4301, Name: "map-pauses", Quote: "a function literal at a destination of the plain form whose body can pause", Slots: stmt,
 		Decls: "function double$$(n: number) {\n  yieldNow();\n  return n * 2;\n}", Text: "const doubled$$ = [1, 2].map((n) => double$$(n));"},
 	{Code: 4301, Name: "map-throws", Quote: "or let a `throw` or a trusted call's listed failure escape", Slots: stmt,
 		Decls: "error Negative$$", Text: "const checked$$ = [1, -2].map((n) => {\n  if (n < 0) throw new Negative$$();\n  return n;\n});"},
@@ -558,7 +558,7 @@ var ruleInjections = []*ruleInjection{
 	{Code: 4840, Name: "option-pipeline", Quote: "whose every stage is a function of the `Option` module", Slots: top,
 		Text: "export const name$$ = (nick: Option.Option<string>) => ⟦pipe(nick, Option.map((s) => s.trim()), Option.getOrElse(() => \"anon\"))⟧;"},
 	{Code: 4841, Name: "schema-alias", Quote: "a schema constant other than a `Schema.Struct` whose type alias", Slots: top,
-		Text: "export type Id$$ = typeof Id$$.Type;\nexport const Id$$ = Schema.String;"},
+		Text: "export const Id$$ = Schema.String;\nexport type Id$$ = typeof Id$$.Type;"},
 	{Code: 4842, Name: "global-import", Quote: "an import that binds one of Effect's modules under the name of a JavaScript global", Slots: top,
 		Text: "import { ⟦Array⟧ } from \"effect\";\nexport const firstTwo$$ = (values: ReadonlyArray<number>) => Array.take(values, 2);"},
 
@@ -593,7 +593,7 @@ var ruleInjections = []*ruleInjection{
 	{Code: 3201, Name: "run-promise-missing", Quote: "No provider for a required service", Slots: top,
 		Decls: "service Mailer$$ {\n  send(to: string): void!!\n}\nfunction welcome$$() {\n  Mailer$$.send(\"ada\");\n}",
 		Text:  "export const sent$$ = Effect.runPromise(() => welcome$$());"},
-	{Code: 4301, Name: "contracted-callback", Quote: "a function with an Effect contract, whatever its body", Slots: stmt,
+	{Code: 4301, Name: "contracted-callback", Quote: "an Effect-annotated literal there", Slots: stmt,
 		Text: "const doubled$$ = [1, 2].map((n): number!! => n * 2);"},
 	{Code: 4402, Name: "global-this-fetch", Quote: "A Node.js global or a web global that does I/O, run or held as a value", Slots: stmt, DOM: true,
 		Text: "const response$$ = globalThis.fetch(\"https://example.com\");"},
@@ -662,8 +662,8 @@ var ruleInjections = []*ruleInjection{
 		Text: "const w$$ = wire;"},
 	{Code: 4410, Name: "hatch-value", Quote: "a hatch, or the prelude's `fork` or `join`, used other than as the callee of a call under its own name", Slots: stmt,
 		Text: "const run$$ = sync;"},
-	{Code: 4411, Name: "hatch-function-expression", Quote: "a hatch whose first argument is a single expression whose type is a function", Slots: stmt,
-		Text: "const roll$$ = sync(Math.random);"},
+	{Code: 4411, Name: "hatch-function-expression", Quote: "a hatch whose first argument is a single expression whose type is not a function, followed by inputs", Slots: stmt,
+		Text: "const roll$$ = sync(Math.PI, 1);"},
 	{Code: 4613, Name: "unrun-element", Quote: "an element of an await operation's literal operand, or the operand of `fork`, whose type is a program", Slots: effectOnly,
 		Decls: loadDecl, Text: "const job$$ = () => load$$();\nconst both$$ = await.all [⟦job$$⟧, load$$()];"},
 }
@@ -753,12 +753,12 @@ var allowedForms = []*ruleAllowed{
 		Slots: effectOnly, Decls: "error Fail$$ { code: string }\nfunction fail$$(): string!Fail$$! {\n  throw new Fail$$({ code: \"unknown\" });\n}",
 		Text: "const coded$$ = fail$$() catch (f) => throw (f.code === \"unknown\" ? \"a\" : \"b\");"},
 	// Chapters 13 and 14: what a plain or Effect contract allows.
-	{Name: "contract-throw", Chapter: "428-part4-ch28-tooling.md", Quote: "for an escaping failure, a quick fix writes `T!E!`",
+	{Name: "contract-throw", Chapter: "428-part4-ch28-tooling.md", Quote: "such as `T!!`, `T!!Users`, or `T!Invalid!`",
 		Slots: top, Decls: "error Bad$$", Text: "export function check$$(n: number): number!Bad$$! {\n  if (n < 0) throw new Bad$$();\n  return n;\n}"},
-	{Name: "plain-calls-plain", Chapter: "428-part4-ch28-tooling.md", Quote: "other than by calling a plain function whose plain return type is not definitely an Effect (D67, D74, D445, D480)",
-		Slots: top, Text: "function increment$$(n: number) {\n  return n + 1;\n}\nexport function twice$$(n: number): number {\n  return increment$$(increment$$(n));\n}"},
-	{Name: "top-plain-call", Chapter: "428-part4-ch28-tooling.md", Quote: "A call of a plain function whose plain return type is not definitely an Effect runs no program in any of them, since it calls the plain form (D445)",
-		Slots: top, Text: "function increment$$(n: number) {\n  return n + 1;\n}\nexport const two$$ = increment$$(1);"},
+	{Name: "plain-calls-plain", Chapter: "428-part4-ch28-tooling.md", Quote: "other than by calling a plain function whose return type is not definitely an Effect (D67, D74, D445, D480)",
+		Slots: top, Text: "function increment$$(n: number): number {\n  return n + 1;\n}\nexport function twice$$(n: number): number {\n  return increment$$(increment$$(n));\n}"},
+	{Name: "top-plain-call", Chapter: "428-part4-ch28-tooling.md", Quote: "A call of a plain function whose return type is not definitely an Effect runs no program in any of them (D445)",
+		Slots: top, Text: "function increment$$(n: number): number {\n  return n + 1;\n}\nexport const two$$ = increment$$(1);"},
 	// Chapter 4: providing.
 	{Name: "provide-statement", Chapter: "428-part4-ch28-tooling.md", Quote: "Write `provide layer { statements }` and return from inside its block",
 		Slots: effectOnly, Decls: "service Left$$ {\n  left: number\n}\nconst LeftLive$$ = Layer.succeed(Left$$, { left: 1 });",

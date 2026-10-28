@@ -243,7 +243,9 @@ func (g *generator) helpers() {
 	p := g.p
 	if g.on("call-order") {
 		p.HasCount = true
-		g.bump = g.addFunc(&Func{Name: "bump", Params: []string{"k"}, Kind: kindBump, Body: []Stmt{
+		// bump is plain, and D500 makes an unannotated function an Effect
+		// function, so it writes its plain return type: plain code calls it.
+		g.bump = g.addFunc(&Func{Name: "bump", Params: []string{"k"}, Kind: kindBump, Annot: "plain", Body: []Stmt{
 			&Assign{Counter: true, Op: "+=", Value: &Ref{"k"}},
 			&Return{Value: &Counter{}},
 		}})
@@ -272,7 +274,9 @@ func (g *generator) helpers() {
 		g.quietBad = g.addFunc(bad)
 	}
 	if g.on("plain-function") {
-		f := &Func{Name: "plain0", Params: []string{"p0", "p1"}, Export: true}
+		// A plain function writes its return type: without one it is an
+		// Effect function (D500).
+		f := &Func{Name: "plain0", Params: []string{"p0", "p1"}, Export: true, Annot: "plain"}
 		ctx := gctx{fn: f, vars: slices.Clone(f.Params), plain: true, ret: true, mult: 1}
 		f.Body = g.body(ctx, 1+g.c.intn(3))
 		g.plainFn = g.addFunc(f)

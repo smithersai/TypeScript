@@ -295,8 +295,9 @@ const (
 func (f *Func) Producer() bool { return f.Kind == kindProducer }
 
 // A Func is a function declaration. Annot is the base print's annotation:
-// "" (inferred), "plain" (a plain return annotation, Ch 15) or "ae" (A!E with
-// R inferred, Ch 14).
+// "" (inferred), "plain" (a plain return annotation, Ch 15), "plain-void" (a
+// plain void annotation, for the extract variant's part of a plain function)
+// or "ae" (A!E with R inferred, Ch 14).
 type Func struct {
 	Name      string
 	Params    []string

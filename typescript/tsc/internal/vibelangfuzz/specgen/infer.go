@@ -528,6 +528,9 @@ func (in *inferer) expr(x Expr) effects {
 // Producers yield numbers. A written A constrains return inference; otherwise
 // TypeScript widens a numeric return to number and infers void without one.
 func SuccessType(f *Func) string {
+	if f.Annot == "plain-void" {
+		return "void"
+	}
 	if f.Producer() || f.Annot != "" {
 		return returnType(f)
 	}

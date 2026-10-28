@@ -283,6 +283,8 @@ func (v *vibePrinter) baseAnnotation(f *Func) string {
 	switch f.Annot {
 	case "plain":
 		return ": " + returnType(f)
+	case "plain-void":
+		return ": void"
 	case "ae":
 		return fmt.Sprintf(": %s!%s", returnType(f), setUnion(f.E, "never"))
 	}

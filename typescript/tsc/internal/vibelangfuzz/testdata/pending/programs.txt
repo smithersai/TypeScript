@@ -39,3 +39,9 @@ FuzzSpecPrograms feature:throw-cause-invalid programs not generated: Ch 17, D406
 FuzzSpecPrograms feature:test-block-param programs not generated: Ch 5: it.effect requires a test runner; the worker directly calls exported programs
 
 FuzzSpecPrograms  feature:service-identity programs  not generated: Chapter 4 (D361): typing an implementation, a default or a TypeScript class's implements clause as Users.Shape is a type-level rule with no runtime behavior; the generator's layers are typed by inference
+#
+# s3 (D382, D394, D433): an await operation's operand is a program by syntax, and a
+# site whose meaning changed from VibeLang 0.0.10 is EK1023. The generator writes
+# await.all's do-block elements and records with 0.0.10's evaluation order.
+FuzzSpecPrograms  compile:EK1023/await-all-record  programs  D394, D433: the generator writes an await.all record whose do-block fields 0.0.10 evaluated where the form stood, which EK1023 now names; its Outcome model needs s3's deferred elements
+FuzzSpecPrograms  compile:EK1023/await-all         programs  D394, D433: the generator writes await.all do-block elements that 0.0.10 evaluated where the form stood, which EK1023 now names; its Outcome model needs s3's deferred elements
