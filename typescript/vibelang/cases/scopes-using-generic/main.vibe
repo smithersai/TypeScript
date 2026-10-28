@@ -1,7 +1,7 @@
 // A generic using is the same one program as the using written inline
 // (D490): under timeout(…, "100 millis"), withResource(() => connect(…)) and
 // withResource(() => openDb(…)) each end when the same using written inline
-// ends, and so does a contract-less callback's. withResource's R is
+// ends, and so does a callback's that writes its channels. withResource's R is
 // Exclude<R, Scope> (expected/generic.d.ts), so its caller needs no Scope,
 // and withScoped, whose R extends Scope, binds a value with no disposal
 // method.

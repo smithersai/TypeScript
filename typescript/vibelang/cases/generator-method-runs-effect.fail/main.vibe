@@ -8,7 +8,7 @@ function work(n: number): number!! {
   return n
 }
 
-function double(n: number) {
+function double(n: number): number {
   return n * 2
 }
 

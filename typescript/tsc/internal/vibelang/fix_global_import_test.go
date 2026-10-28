@@ -22,8 +22,8 @@ func TestGlobalImportQuickFixes(t *testing.T) {
 			"import { Array as Arr } from \"effect\"\nexport function pair(a: number): Array<number> { return Arr.of(a).concat([a]) }\n"},
 		{"an inferred tuple", "import { Array } from \"effect\"\nexport const pair = (a: number) => Array.make(a, a)\n",
 			"import { Array as Arr } from \"effect\"\nexport const pair = (a: number) => Arr.make(a, a)\n"},
-		{"a local type", "import { Function } from \"effect\"\nfunction twice(n: number) { return Function.pipe(n, (x) => x * 2) }\nexport const four = twice(2)\n",
-			"import { Function as Fn } from \"effect\"\nfunction twice(n: number) { return Fn.pipe(n, (x) => x * 2) }\nexport const four = twice(2)\n"},
+		{"a local type", "import { Function } from \"effect\"\nfunction twice(n: number): number { return Function.pipe(n, (x) => x * 2) }\nexport const four = twice(2)\n",
+			"import { Function as Fn } from \"effect\"\nfunction twice(n: number): number { return Fn.pipe(n, (x) => x * 2) }\nexport const four = twice(2)\n"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			got := applyQuickFix(t, test.source, EK4842.Code)
