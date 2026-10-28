@@ -147,7 +147,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | `runMain` options | Changed | The same options, with a program |
 | One-shot runners and `run*With(context)` | Changed | Programs as functions, only where no fiber runs the code (D38) |
 | `ManagedRuntime` | Unchanged | `ManagedRuntime.make(AppLive)`; `runtime.runPromise(() => handle(req))` in a framework callback, or from TypeScript |
-| Top-level `await` | Changed | No `await`; the top level builds values and calls runners (EK1001) |
+| Top-level `await` | Changed | No `await`; the top level builds values, calls plain functions (D445), and calls runners (EK1001) |
 | Scheduling and fairness | Unchanged | 2048 operations per slice; a plain JavaScript region is atomic |
 | `ErrorReporter`, `Effect.withErrorReporting` | Changed | `Effect.withErrorReporting(() => program())()`: the arrow stays a function, and the declared return type is a conditional with a function branch, so the call returns the wrapped function, and `()` runs it (D321, D324) |
 
@@ -225,13 +225,13 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 
 | Feature | In VibeLang | Form |
 | --- | --- | --- |
-| `async` and `await` | Changed | `async` only inside a hatch's function, where `await` is JavaScript's; elsewhere a call waits, `join` waits for a fiber, and `await` appears only in the await operations (D148, D226) |
+| `async` and `await` | Changed | In the TypeScript escapes, a hatch's function, a `module` declaration's body, and a `.ts` file, `async` and `await` keep JavaScript's meaning, a module body's top-level `await` included; in VibeLang code outside them, a call waits, `join` waits for a fiber, `async` is EK1003, and `await` appears only in the await operations (D148, D226, D283) |
 | `Effect.promise`, `Effect.tryPromise` | Changed | `sync(async (signal) => …)` and `try(async (signal) => …)`; the `AbortSignal`, after any inputs, cancels on interruption (D148, D230) |
 | `Effect.callback` | Changed | The `callback` hatch; `resume(value)`; `suspend` for resources (D43, D148) |
 | `Effect.runPromise` from Promise code | Changed | `runPromise`, from TypeScript, a top-level callback, or a hatch's body (D38, D148) |
 | Async iterables and event emitters | Unchanged | `Stream.fromAsyncIterable`, `Stream.fromEventListener` |
 | Synchronous code that throws | Changed | An exception from TypeScript code is a defect; use `try(…)` for a typed Effect failure (D282) |
-| Effect 3 libraries | Changed | Foreign code: `try((p) => Effect3.runPromise(p), (error) => …, p)` |
+| Effect 3 libraries | Changed | Foreign code: `try(async (p, signal) => Effect3.runPromise(p, { signal }), (error) => …, p)` (D439) |
 
 #### C14. Streams
 

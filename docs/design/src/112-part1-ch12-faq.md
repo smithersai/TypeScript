@@ -247,7 +247,7 @@ Yes, in one program: `vibelang` checks both and the editor serves both (Chapter 
 #### Is there anything from Effect I cannot use?
 
 ```ts es
-const legacy = try((program) => Effect3.runPromise(program), (cause) => new LegacyError({ cause }), oldProgram)
+const legacy = try(async (program, signal) => Effect3.runPromise(program, { signal }), (cause) => new LegacyError({ cause }), oldProgram)
 ```
 
 Five things, each with a replacement:
@@ -256,7 +256,7 @@ Five things, each with a replacement:
 - Effectful handlers in `Option.match` or `Match` are rejected (EK4301); use `if` or `switch`.
 - Runners inside code a fiber runs are rejected (EK1005); call the program, or `detach` it.
 - A TypeScript function whose requirements include a control operation is rejected (EK4202).
-- Effect 3 code, including `Micro`, runs only as foreign code behind a boundary, as above.
+- Effect 3 code, including `Micro`, runs only as foreign code behind a boundary, as above: an `async` hatch function waits for `runPromise`'s promise, and the mapper receives its rejection (Chapter 10).
 
 Everything else in Effect is available; Appendix C lists it feature by feature.
 

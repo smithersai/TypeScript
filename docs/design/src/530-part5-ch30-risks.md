@@ -34,7 +34,7 @@ No design question here is open: each row states the rule that stands, what coul
 
 #### Conformance obligations
 
-Each rule the second and third reviews of 2026-10-27 changed has a conformance case that fails on the rule it replaced [Rule] (D392-D444), except decisions that change only wording, an index, or a diagnostic's default (D413, D416, D429, D444), which the documentation, grammar, and registry checks cover. An implementation conforms only when each holds:
+Each rule the second, third, and fourth reviews of 2026-10-27 changed has a conformance case that fails on the rule it replaced [Rule] (D392-D456), except decisions that change only wording, an index, or a diagnostic's default (D413, D416, D429, D444, D447, D456), which the documentation, grammar, and registry checks cover. An implementation conforms only when each holds:
 
 | Case | It passes when | Rule |
 | --- | --- | --- |
@@ -55,11 +55,11 @@ Each rule the second and third reviews of 2026-10-27 changed has a conformance c
 | Plain marker | Stock TypeScript rejects `double.$plain(2)`; a declaration consumer passes a plain-annotated export to `map` without EK4401 | D411 |
 | Annotated recursion | A plain-annotated `sumTo(100000)` completes as the unannotated one does | D412 |
 | Effect-annotated callback | `[1, 2].map(twice)`, with `twice(n: number): number!!`, is EK4301 from source and from declarations; the unannotated `twice` gives `[2, 4]` from both; each keeps its overload with a plain and an Effect overload in either order | D421 |
-| Contextual parameter types | `(x) => x.run()` against two candidates whose parameter types make `run()` plain under one and an Effect under the other is EK1021 | D422 |
+| Contextual parameter types | `(x) => x.run()` against two candidates that type `x` differently, one taking a plain callback and one an Effect callback, is EK1021 in either order of the candidates; against two candidates that type `x` differently and both take plain callbacks, the literal is typed by the first, as TypeScript types it, and its body is typed once | D422, D450 |
 | Discarded iterable | One `discard` function, reached through `(xs: unknown) => string` and through `(xs: Iterable<Effect<number>>) => string`, steps a counting iterable in neither call; the second does not type-check until written `[...jobs]`, which steps it once, at the call | D423 |
 | Late iterator `return` | A body that installs a failing `return()` on a custom iterator and then fails gives both reasons, in order, on the native and the runtime loop; a `return` getter that gives `undefined` is read once per close and never at the loop's entry | D424 |
 | Widened disposable | `using held = lease()`, with `lease(): object!!Scope` returning a `Lease` after a pause, cancelled during the pause, releases the lease once, as the `Lease`-typed version does | D425 |
-| Exported composition | `composed("x")`, exported from a `.ts` file the program compiles, and `Box<Effect<number>>`'s `get` exported extracted and bound from a `.vibe` file, return the Effect as data from source and from declarations | D426 |
+| Exported composition | `composed("x")`, exported from a `.ts` file the program compiles, runs and gives the success value from source and from declarations; `Box<Effect<number>>`'s `get`, exported extracted and bound from a `.vibe` file, returns the Effect as data from both | D426, D449 |
 | Duplicate package | With two installed copies of one package version declaring an `error` class, a match whose coverage counts its arm is EK4701 naming the second copy; with `default`, a value from the other copy takes `default` | D427 |
 | Open class arm | A match over `Error` whose last arm is `when Error:` and that has no `default` is EK4701 | D428 |
 | Optional callbacks | `retry(() => f(), { while: (e) => e.retryable })` accepts the literal in its own form; `retry(makeSync(store), policy)` compiles | D395 |
@@ -77,8 +77,20 @@ Each rule the second and third reviews of 2026-10-27 changed has a conformance c
 | Forked program | `fork job`, with `const job = () => heartbeat()`, is EK4613; `fork job()` runs `heartbeat` | D433 |
 | Named channels | `service Tx { run<A>(work: () => A): A!TxError \| E!R }` accepts an implementation that calls `work`; inside `class Box<E>`, a member naming `E` that way is EK2130 | D434 |
 | Program-building callbacks | `ids.map((id) => () => fetchUser(id))` compiles and gives programs; a release returning its program is EK4802 | D436 |
-| Synchronous hatch result | `sync(() => thenable)` gives the thenable, whose `then` is never called | D439 |
-| Module cycle | A cyclic importer's top-level plain call of an eligible export, before the exporter's body runs, gives the source's result | D442 |
+| Hatch results | `sync(() => thenable)` gives the thenable, whose `then` is never called; `try(async () => Promise.reject(cause), (cause) => new LegacyError({ cause }))` fails with `LegacyError`, the mapper's result | D439 |
+| Plain functions in plain code | With `double` unannotated and eligible, `plain(3)` under `: number`, `[1, 2].map((n) => double(n))`, and a top-level `const initial = double(3)` give 6, `[2, 4]`, and 6, compiled from source and against declarations, with the plain path and with every other function in frames; with `twice(n: number): number!!` in `double`'s place, the three are EK2003, EK4301, and EK1001 | D445 |
+| Module cycle | In a module cycle, an importer's top-level `double(3)` and `[1, 2].map(double)`, evaluated before the exporter's body, give 6 and `[2, 4]`, call no runner, start no fiber, and leave the exporter's body unevaluated until its turn | D446 |
+| Stored functions | `const twin = double; [1, 2].map(twin)` gives `[2, 4]` from source and from declarations; with `const api = { double }`, `xs.map(api.double)` is EK4301 from both; an object literal's unannotated method that only computes is accepted where a plain member is expected | D448 |
+| Bound type parameters | `export const load = Effect.fn("load")(function* (id: string) { … }, Effect.scoped)` in a `.ts` file: `load("x")` in a `.vibe` file runs and gives the success value, compiled from source and against declarations | D449 |
+| Interruptible acquisition under `using` | `using socket = connect(host)`, whose runtime `acquireRelease(…, { interruptible: true })` waits 2 seconds, under `timeout(…, "100 millis")` ends after about 100 ms; with an `uninterruptible { }` block around the acquisition inside the initializer it waits the 2 seconds | D451 |
+| Parenthesized keywords | `fork(work()).join()` forks `work()` and joins it; with a local function `fork`, `fork(x).y` reads `y` of its result; `await.all([a(), b()]).length` is 2; `R.fork(x)` through a namespace import of the runtime is EK4410 | D452 |
+| Destinations | `[a, b].reduce((acc, x) => acc, Effect.succeed(1))` type-checks and gives the initial Effect; `flatMap(x, (v) => cached)` runs `cached`; `all([...pair])` with `pair: [() => number, Effect<string>]` converts the first element; `all([c ? () => a() : () => b()])` converts the chosen function; with `f(x: { reset(): void })` declared before `f(x: { reset(): Effect<void> })`, `f(new Counter())` resolves to the second | D453 |
+| Callee forms | `f(1)` with `f: ((x: number) => Effect<number>) \| ((x: number) => Effect<string>)` runs; with one plain member it is plain; `mapAll`'s `f(item)` runs the callback | D454 |
+| Diagnostics | In a file that declares `type E = NotFound`, `run(work: () => A): A!E` is EK2130; `fork { resume(v) }` in a statement clause is EK2128; `const f = ready ? fork a() : fork b()` compiles; a throw that can escape a constructor is EK2003, not EK1001 | D455 |
+| Constrained program value | `function run<T extends Effect<number>>(p: T) { return p() }` gives the number | D437 |
+| Inferred declaration | `export const findName = (id: string) => Effect.gen(…)` in a `.ts` file: `findName(id)` in a `.vibe` file runs | D438 |
+| Primitive subject | `match ("abc") { when { let length }: 1; default: 0 }` gives 0 | D441 |
+| Keyword follow sets | `const fork = 1; fork as number` casts the binding; a match whose first arm starts on the line after its `{` parses | D443 |
 
 The suite compiles each case from source and against declarations, with the plain path and with frames, and compares their observations (G10).
 

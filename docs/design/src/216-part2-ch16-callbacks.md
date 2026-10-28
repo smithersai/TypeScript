@@ -26,7 +26,7 @@ service Tx {
 }
 ```
 
-A written contract that does not name them keeps its meaning: a body that calls the callback is EK2001 and EK2002, since the callback's failures and requirements would escape it, and a declaration without a body promises that no implementation calls it. Where the signature's annotation or parameter types name `E`, `R`, `E2`, or `R2` while a type parameter of that name is already in scope there, declared by the signature or an enclosing declaration, the name is EK2130, whose repair writes the callback's channels as type parameters of the author's choosing: `run<A, F, Q>(work: () => A!F!Q): A!TxError | F!Q`.
+A written contract that does not name them keeps its meaning: a body that calls the callback is EK2001 and EK2002, since the callback's failures and requirements would escape it, and a declaration without a body promises that no implementation calls it. Where the signature's annotation or parameter types name `E`, `R`, `E2`, or `R2` while a declaration with a type meaning of that name is already in scope there, a type parameter of the signature or an enclosing declaration, or a type alias, interface, class, enum, or imported type of the file, the name is EK2130, so the callback's channels never silently shadow a type the file means (D455), whose repair writes the callback's channels as type parameters of the author's choosing: `run<A, F, Q>(work: () => A!F!Q): A!TxError | F!Q`.
 
 The rule follows the language a function type is written in, not how it is spelled (D331). A function type written in a `.vibe` file gains the channels in a parameter position, whether it is written in place or through a type alias or an interface that a `.vibe` file declares: an alias means what the type it names means, so extracting one changes nothing.
 
@@ -54,7 +54,7 @@ function withRetry<A>(times: number, program: () => A) {
 
 #### Callbacks into JavaScript
 
-A JavaScript function such as `Array.prototype.map` calls its callback synchronously, on a stack frame the runtime cannot pause or capture. A callback passed where a plain function type is expected must therefore compile to plain JavaScript (Chapter 15), with no Effect operation and E = `never`; anything else is EK4301 (Chapter 10). The same holds for a named VibeLang function passed as a value: `stores.map(makeSync)` passes `makeSync`'s plain form, since its own form is plain, and a function whose own form is Effect is rejected, an Effect-annotated one included, even where the compiler gives it a plain variant for its calls (Chapter 13, D421).
+A JavaScript function such as `Array.prototype.map` calls its callback synchronously, on a stack frame the runtime cannot pause or capture. A callback passed where a plain function type is expected must therefore compile to plain JavaScript (Chapter 15), with no Effect operation and E = `never`; anything else is EK4301 (Chapter 10). The same holds for a named VibeLang function passed as a value: `stores.map(makeSync)` passes `makeSync`'s plain form, since its own form is plain, and a function whose own form is Effect is rejected, an Effect-annotated one included, even where the compiler gives it a plain variant for its calls (Chapter 13, D421). A callback that calls a plain function, `xs.map((x) => double(x))`, is plain itself: the call calls `double`'s plain form (D445).
 
 #### Which Effect combinators run their argument on another fiber
 

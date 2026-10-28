@@ -213,7 +213,7 @@ Notation, as in ECMA-262 where it can be: a token is quoted; `X?` is optional, `
 
 #### Contextual words
 
-No word VibeLang adds is reserved. Each is a keyword only in the position the table gives, and an identifier everywhere else, so `const match = 1`, `error.message`, `words.join(",")`, and a local function named `fork` called as `fork(x)` parse as in TypeScript; which of the parenthesized forms is the keyword follows rule H5.
+No word VibeLang adds is reserved. Each is a keyword only in the position the table gives, and an identifier everywhere else, so `const match = 1`, `error.message`, `words.join(",")`, and a local function named `fork` called as `fork(x)` parse as in TypeScript; `fork(x)` and `join(x)` always parse as a call, whatever `fork` and `join` resolve to, and which of them is the keyword follows rule H5 (D452).
 
 | Word | A keyword where | Production |
 | --- | --- | --- |
@@ -221,9 +221,9 @@ No word VibeLang adds is reserved. Each is a keyword only in the position the ta
 | `mutable` | Before a property or index signature's name on the same line, in an interface or object type (D134) | Declarations |
 | `module` | At the start of a top-level statement, followed on the same line by an identifier and `{` (D283) | ModuleDeclaration |
 | `try` | Followed by `(` where an expression starts: a call of the hatch; followed by `{`, TypeScript's try statement (D149) | TypeScript's call |
-| `fork` | Followed on the same line by an identifier other than `as`, `satisfies`, `in`, `instanceof`, or `is`, or by `this`, `new`, `super`, `await`, `{`, or `(` (D166, D391, D443) | ForkExpression |
-| `join` | Followed on the same line by an identifier other than `as`, `satisfies`, `in`, `instanceof`, or `is`, or by `this`, `{`, `(`, or, after white space, `[`; `join[i]` without the space is an element access (D225, D391, D443) | JoinExpression |
-| `await` `.` `all`, `allSettled`, `race`, `any` | Always; a plain `await` parses as TypeScript's and is EK4601-EK4604 (D196, D226) | AwaitOperation |
+| `fork` | At the start of a unary expression, followed on the same line by an identifier other than `as`, `satisfies`, `in`, `instanceof`, or `is`, or by `this`, `new`, `super`, `await`, or `{`; followed by `(`, it is TypeScript's call of the identifier, which rule H5 reads (D166, D391, D443, D452) | ForkExpression; CallExpression |
+| `join` | At the start of a unary expression, followed on the same line by an identifier other than `as`, `satisfies`, `in`, `instanceof`, or `is`, or by `this`, `{`, or, after white space, `[`; followed by `(`, TypeScript's call of the identifier, which rule H5 reads; `join[i]` without the space is an element access (D225, D391, D443, D452) | JoinExpression; CallExpression |
+| `await` `.` `all`, `allSettled`, `race`, `any` | Always; followed by `(`, a call in shape; a plain `await` parses as TypeScript's and is EK4601-EK4604 (D196, D226, D452) | AwaitOperation; AwaitCall |
 | `provide` | At the start of a statement, followed on the same line by a provider or `(` (D172) | ProvideStatement |
 | `uninterruptible`, `interruptible`, `restore` | At the start of a statement, followed on the same line by `{` (D180) | MaskStatement |
 | `concurrent` | After `for` on the same line (D169) | ForConcurrentStatement |
@@ -342,18 +342,23 @@ DefaultArm :
 Guard :
   "if" "(" Expression ")"
 CallExpression :
-  TypeScript's
+  TypeScript's                                                fork(x) and join(x) included, which rule H5 reads (D452)
+  AwaitCall
   CallExpression [nLT] Block                                  f(args) { … } is f(args, () => { … }) (D188, D376)
   MemberExpression [nLT] Block                                f { … } is f(() => { … })
+AwaitCall :                                                   D196, D452
+  "await" "." AwaitName [nLT] "(" AssignmentExpression ")"    a call in shape: what follows the ")" applies to its value
 UnaryExpression :
   TypeScript's | ForkExpression | JoinExpression | AwaitOperation | ThrowExpression
-ForkExpression :                                              D166, D391
-  "fork" [nLT] UnaryExpression
+ForkExpression :                                              D166, D391, D452
+  "fork" [nLT] [lookahead ≠ "("] UnaryExpression
   "fork" [nLT] Block
-JoinExpression :                                              D225, D391
-  "join" [nLT] UnaryExpression                                a "{" here starts an object literal
-AwaitOperation :                                              D196, D377, D394
-  "await" "." ("all" | "allSettled" | "race" | "any") [nLT] UnaryExpression
+JoinExpression :                                              D225, D391, D452
+  "join" [nLT] [lookahead ≠ "("] UnaryExpression              a "{" here starts an object literal
+AwaitOperation :                                              D196, D377, D394, D452
+  "await" "." AwaitName [nLT] [lookahead ≠ "("] UnaryExpression
+AwaitName :
+  "all" | "allSettled" | "race" | "any"
 ThrowExpression :                                             D186
   "throw" UnaryExpression
 RelationalExpression :
@@ -373,7 +378,7 @@ AssignmentExpression :
   TypeScript's, with PipeExpression where TypeScript has ConditionalExpression
 ```
 
-A block param is not taken after `new`, in a heritage clause, or after a provider (above). A statement that starts with `throw`, `do`, `{`, or `match` followed by a line break is TypeScript's statement, not one of these expressions. The arguments of a CallExpression, a block param included, follow rule E1.
+A block param is not taken after `new`, in a heritage clause, or after a provider (above). A statement that starts with `throw`, `do`, `{`, or `match` followed by a line break is TypeScript's statement, not one of these expressions. The arguments of a CallExpression, a block param included, follow rule E1, except the one operand of `fork(x)`, which rule D defers when rule H5 makes the call the keyword; the prelude's `fork` and `join` take exactly one operand.
 
 #### Patterns
 
@@ -413,7 +418,7 @@ Regular expression and relational patterns are EK4704 (D212). A binding inside `
 
 #### Precedence
 
-From the tightest: member access, calls and block params; the unary operators, `fork`, `join`, the await operations, and `throw` in an expression; TypeScript's binary operators, with `is` at `instanceof`'s level; `&&`, `||`, and `??`; `catch`, left-associative; `? :`; `|>`, left-associative; assignment and arrow functions; the comma. Chapter 13 gives each form's decision, and Chapter 14 the precedence inside contracts.
+From the tightest: member access, calls and block params, the parenthesized forms of `fork`, `join`, and the await operations included (D452); the unary operators, `fork`, `join`, the await operations, and `throw` in an expression; TypeScript's binary operators, with `is` at `instanceof`'s level; `&&`, `||`, and `??`; `catch`, left-associative; `? :`; `|>`, left-associative; assignment and arrow functions; the comma. Chapter 13 gives each form's decision, and Chapter 14 the precedence inside contracts.
 
 ### Glossary
 
@@ -423,7 +428,7 @@ The terms the rules use. A term defined here means only this in a rule.
 | --- | --- |
 | Abandonment | Ending a captured continuation without resuming it: its owner unwinds it as an interruption, running its finalizers (Chapters 20, 21) |
 | `AsData<T>` | The runtime's alias `type AsData<T> = T`, which declaration emit writes at a return type that rule R reads as data in the source, so a declaration consumer's call returns data too (Chapter 13, D426) |
-| Call that runs | A call whose callee's declared return type is definitely an `Effect`, or whose callee is itself an Effect value, `p()`: it runs the program on the current fiber and evaluates to its success value (Chapter 13) |
+| Call that runs | A call whose callee's declared return type is definitely an `Effect`, or whose callee is itself an Effect value, `p()`: it runs the program on the current fiber and evaluates to its success value (Chapter 13). A call of a plain function is not one: it is a plain call of the function's plain form, which plain code may make (D445) |
 | Closed class | A class whose arm covers its type in an exhaustive match: an `error` declaration, or an error class of the pinned `effect`, that neither declares nor inherits its own `[Symbol.hasInstance]` or `[customMatcher]`; an `error` declaration's type is nominal. Its arm counts only where its package resolves to one installed copy (Chapter 3, D407, D427) |
 | Contextual keyword | A word that is a keyword only in the position the grammar gives, such as `fork` before its operand, and an identifier elsewhere (Grammar) |
 | Cause | Effect's record of why a program did not succeed: an ordered list of reasons, each a Fail (an expected failure), a Die (a defect), or an Interrupt (Chapter 17) |
@@ -432,7 +437,7 @@ The terms the rules use. A term defined here means only this in a rule.
 | Contract | A function's `Effect<A, E, R>`, written as `A!E!R` or `Effect<A, E, R>`, or inferred: its success type, expected failures, and requirements (Chapter 14) |
 | Control operation | A member of a `control` declaration: a request a handler answers, which may capture the continuation (Chapter 9) |
 | Data type | A `data` declaration, or a tagged union declared with `Data.taggedEnum`: a closed set of tagged variants (Chapter 11) |
-| Declared return type | The return type written in the declaration a call's resolved signature comes from, or the one TypeScript infers for that declaration where none is written, with every type parameter in scope there left uninstantiated (Chapter 13, D393, D438) |
+| Declared return type | The return type written in the declaration a call's resolved signature comes from, or the one TypeScript infers for that declaration where none is written. A class's, an interface's, or a type alias's type parameter in it is left uninstantiated, and so is a function's in a call of that function itself, while a signature that a completed call returned is read as that call bound it (Chapter 13, D393, D438, D449) |
 | Definitely an Effect | Of a type: the `Effect` interface with any type arguments, written directly or through an alias; a conditional whose every branch is definitely an Effect or `never`; or a union whose every member is. Never a type parameter, `any`, `unknown`, an intersection, or a type that extends `Effect` (Chapter 13, rule R) |
 | Destination | Where a function or a value lands and is typed: the parameter of the signature a call resolves to, a declared variable, field, or return type, a field of a contextually typed object literal, or an element of a contextually typed array literal (Chapter 13, rule F) |
 | Defect | A failure no contract lists: a bug or an unlisted foreign exception. It is a Die reason, outside E, and `catch` does not receive it (Chapter 17) |
@@ -448,8 +453,9 @@ The terms the rules use. A term defined here means only this in a rule.
 | Layer | Effect's `Layer<Out, E, In>`: a recipe that builds the services `Out`, may fail with `E`, and needs `In` (Chapter 4) |
 | Live binding | An import that reads the exporting binding's current value at each use, as an ECMAScript import does (Chapter 26) |
 | Observation | What a run of a program shows the world: its exit and Cause, its effects outside the program in order and number, its bindings, its lifetimes, and its suspension points. Two programs are observationally equivalent when every observation is the same (Chapter 26) |
-| Own form | A function's own form, which no destination's return type changes: the form its return annotation names, or, without one, plain when it is eligible for the plain form with its parameter types and Effect otherwise (Chapter 13, rule F, D421, D422) |
-| Plain function | A function whose own form is plain, with a plain return annotation or unannotated and eligible: it compiles to plain JavaScript, performs no Effect operation, cannot fail with an expected failure, and needs no service (Chapter 15) |
+| Own form | A function's own form, which no destination's return type changes: the form its return annotation names, or, without one, plain when it is eligible for the plain form with the parameter types TypeScript assigns it and Effect otherwise. A `const` or import alias that names a function has that function's own form; any other function value has the form its type gives (Chapter 13, rule F, D421, D422, D448, D450) |
+| Plain code | Code that runs as plain JavaScript: a module's top level, a class field initializer, a constructor, an accessor, a static block, a parameter default, a function with a plain contract, and a plain callback. It calls plain functions and makes no other call that runs (Chapter 13, D445) |
+| Plain function | A function whose own form is plain, with a plain return annotation or unannotated and eligible: it compiles to plain JavaScript, performs no Effect operation, cannot fail with an expected failure, and needs no service (Chapter 15). A call of one is a plain call of its plain form, wherever it stands, plain code included (Chapter 13, D445) |
 | Plain marker | The type-only `$plain` member a declaration file gives a function whose own form is plain, naming its plain call signature; an Effect-contract function has none (Chapter 27, D384, D411, D421) |
 | Prelude | The names every `.vibe` file has in scope without an import: the runtime's exports and Effect's modules (Chapter 1) |
 | Producer | What a `function*` call returns: a `Stream` value that carries a cold program yielding values one at a time; `for...of` runs that program on the loop's fiber, and any other consumer through the adapter (Chapter 8, D402) |
