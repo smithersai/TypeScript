@@ -54,4 +54,4 @@ rm -rf "$package/node_modules/vibelang"
 ln -s "$repo/packages/compiler" "$package/node_modules/vibelang"
 
 cd "$package"
-exec node --test "$@" test/backend-cache.test.mjs test/bundlers.test.mjs test/deferred.test.mjs test/deferred-types.test.mjs test/entry.test.mjs
+exec node --test "$@" test/backend-cache.test.mjs test/bundlers.test.mjs test/bundlers.property.test.mjs test/deferred.test.mjs test/deferred-types.test.mjs test/entry.test.mjs

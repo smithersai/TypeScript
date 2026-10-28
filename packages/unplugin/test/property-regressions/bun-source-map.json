@@ -1,0 +1,45 @@
+{
+  "property": "bundlers-build",
+  "rule": "docs/design/src/428-part4-ch28-tooling.md: Packages and versions, Building and testing; docs/design/src/326-part3-ch26-compiled.md: Modules (D364/D365/D403); docs/design/src/428-part4-ch28-tooling.md: Debugging (original .vibe positions)",
+  "input": {
+    "modules": [
+      {
+        "typescript": false,
+        "inline": false,
+        "value": 0,
+        "text": "plain",
+        "padding": 0
+      }
+    ],
+    "directory": "src",
+    "dotted": false,
+    "query": "",
+    "edit": 1,
+    "options": false,
+    "bundlers": [
+      "bun"
+    ]
+  },
+  "seed": 20261028,
+  "counterexamplePath": "0:0:0:0:0:0:0:0:0",
+  "generatorVersion": 1,
+  "fastCheckVersion": "4.10.2",
+  "command": "FC_BUNDLERS=bun node --test test/bundlers.property.test.mjs",
+  "replay": "FC_PROPERTY='bundlers-build' FC_SEED=20261028 FC_PATH='0:0:0:0:0:0:0:0:0' FC_BUNDLERS=bun node --test test/bundlers.property.test.mjs",
+  "numRuns": 1,
+  "numShrinks": 8,
+  "error": "AssertionError [ERR_ASSERTION]: bun: B1_TOKEN_0\n+ actual - expected\n\n  [\n    0,\n+   59\n-   109\n  ]\n\n    at assertMappings (file:///<repo>/packages/unplugin/test/bundlers.property.test.mjs:80:12)\n    at checkProject (file:///<repo>/packages/unplugin/test/bundlers.property.test.mjs:192:9)\n    at check (file:///<repo>/packages/unplugin/test/bundlers.property.test.mjs:209:119)\n    at AsyncProperty.predicate (file:///<repo>/packages/unplugin/node_modules/fast-check/lib/fast-check.js:1283:104)\n    at AsyncProperty.run (file:///<repo>/packages/unplugin/node_modules/fast-check/lib/fast-check.js:1217:30)\n    at asyncPropertyExecution (file:///<repo>/packages/unplugin/node_modules/fast-check/lib/fast-check.js:2564:29)\n    at async asyncRunIt (file:///<repo>/packages/unplugin/node_modules/fast-check/lib/fast-check.js:2557:15)\n    at async checkProperty (file:///<repo>/scripts/testing/property.mjs:43:18)\n    at async TestContext.<anonymous> (file:///<repo>/packages/unplugin/test/bundlers.property.test.mjs:207:7)\n    at async Test.run (node:internal/test_runner/test:1409:7)",
+  "diagnostics": "build: initial {\"modules\":[{\"typescript\":false,\"inline\":false,\"value\":0,\"text\":\"plain\",\"padding\":0}],\"directory\":\"src\",\"dotted\":false,\"query\":\"\",\"edit\":1,\"options\":false,\"bundlers\":[\"bun\"]}\ndirect compiler emit\ndirect compiler emit: status=0 signal=null\n<repo>/packages/unplugin/test/.fixtures/property-1zU1vs/src/n0.vibe\n<repo>/packages/unplugin/test/.fixtures/property-1zU1vs/src/main.ts\n\n\nexecute direct emit\nexecute direct emit: status=0 signal=null\n{\"text\":\"😀plain\",\"value\":0,\"trace\":[\"B1_TOKEN_0\"]}\n\n\nbun: build\nbun: build: status=0 signal=null\n\nvibelang-unplugin: build start\nvibelang-unplugin: compile <repo>/packages/unplugin/test/.fixtures/property-1zU1vs/tsconfig.json 1 started\nvibelang-unplugin: compiled <repo>/packages/unplugin/test/.fixtures/property-1zU1vs/tsconfig.json in 74ms (no entry): lookup 0ms, snapshot 2ms, compiler 69ms, collect 1ms, store 1ms; 1 module, 2 files read\nvibelang-unplugin: compile <repo>/packages/unplugin/test/.fixtures/property-1zU1vs/tsconfig.json 1 finished in 74ms: 1 outputs, 0 errors\nvibelang-unplugin: load <repo>/packages/unplugin/test/.fixtures/property-1zU1vs/src/n0.vibe from <repo>/packages/unplugin/test/.fixtures/property-1zU1vs/tsconfig.json\n\nbun: execute\nbun: execute: status=0 signal=null\n{\"text\":\"😀plain\",\"value\":0,\"trace\":[\"B1_TOKEN_0\"]}\n\n\n",
+  "knownFailure": true,
+  "reason": "Bun.build ignores plugin source maps (packages/unplugin/README.md, Limitations; src/index.js, bun.setup/onLoad). The bundle executes correctly, but its marker maps to emitted JavaScript column 59 rather than original .vibe column 109. This regression must XPASS when Bun starts composing plugin maps.",
+  "files": {
+    "initial/package.json": "{\"private\":true,\"type\":\"module\"}\n",
+    "initial/src/main.ts": "import { result } from \"./n0.vibe\"\nconsole.log(JSON.stringify(result))\n",
+    "initial/src/n0.vibe": "export const result: { text: string; value: number; trace: string[] } = { text: \"😀plain\", value: 0, trace: [\"B1_TOKEN_0\"] }\n",
+    "initial/tsconfig.json": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"module\": \"NodeNext\",\n    \"moduleResolution\": \"NodeNext\",\n    \"strict\": true,\n    \"skipLibCheck\": true,\n    \"types\": [],\n    \"lib\": [\n      \"ES2022\",\n      \"DOM\"\n    ],\n    \"rootDir\": \".\",\n    \"outDir\": \"dist\",\n    \"noEmitOnError\": true,\n    \"rewriteRelativeImportExtensions\": true\n  },\n  \"include\": [\n    \"src/**/*\"\n  ]\n}\n",
+    "edited/package.json": "{\"private\":true,\"type\":\"module\"}\n",
+    "edited/src/main.ts": "import { result } from \"./n0.vibe\"\nconsole.log(JSON.stringify(result))\n",
+    "edited/src/n0.vibe": "export const result: { text: string; value: number; trace: string[] } = { text: \"😀plain\", value: 1, trace: [\"B1_TOKEN_0\"] }\n",
+    "edited/tsconfig.json": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"module\": \"NodeNext\",\n    \"moduleResolution\": \"NodeNext\",\n    \"strict\": true,\n    \"skipLibCheck\": true,\n    \"types\": [],\n    \"lib\": [\n      \"ES2022\",\n      \"DOM\"\n    ],\n    \"rootDir\": \".\",\n    \"outDir\": \"dist\",\n    \"noEmitOnError\": true,\n    \"rewriteRelativeImportExtensions\": true\n  },\n  \"include\": [\n    \"src/**/*\"\n  ]\n}\n"
+  }
+}
