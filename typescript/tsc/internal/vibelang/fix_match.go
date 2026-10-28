@@ -325,9 +325,17 @@ func matchChainRewrite(c *checker.Checker, file *ast.SourceFile, call *ast.Node)
 			subject = freshMatchName(text[start:end])
 		}
 		b.WriteString("(" + subject + ": " + matchTypeText(c, file, chain.typeArg) + ")")
-		if typeText != "" {
+		// Match.type's chain is a plain function, and an arrow without a
+		// return annotation is an Effect function (D500): the arrow writes
+		// the chain's return type, or infer _ where it is not a primitive.
+		switch {
+		case typeText != "":
 			b.WriteString(": " + typeText)
 			typeText = ""
+		case chainType != nil && isPrimitiveType(chainType):
+			b.WriteString(": " + c.TypeToString(chainType))
+		default:
+			b.WriteString(": infer _")
 		}
 		b.WriteString(" => ")
 	}

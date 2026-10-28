@@ -43,7 +43,7 @@ export function kind(config: Config): string {
   }
 }
 
-export const size = (u: string | number) => match (u) {
+export const size = (u: string | number): number => match (u) {
   when Number and let n: n;
   when String and let s: s.length;
 }

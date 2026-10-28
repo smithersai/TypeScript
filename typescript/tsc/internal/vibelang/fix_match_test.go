@@ -89,7 +89,7 @@ export function kind(config: Config): string {
 }
 `},
 		{"pipe and Match.type", "export const size = pipe(\n  Match.type<number | string>(),\n  Match.when(Match.number, (n) => n),\n  Match.when(Match.string, (s) => s.length),\n  Match.exhaustive\n)\n",
-			"export const size = (u: string | number) => match (u) {\n  when Number and let n: n;\n  when String and let s: s.length;\n}\n"},
+			"export const size = (u: string | number): number => match (u) {\n  when Number and let n: n;\n  when String and let s: s.length;\n}\n"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			got := applyQuickFix(t, test.source, EK4839.Code)
