@@ -244,7 +244,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D265 | An Effect-typed object field holds its initializer as a program | D147 applied to record fields | Superseded by D320, D322, D323 | 13 |
 | D266 | EK diagnostics belong to `.vibe` files; `.ts` files keep TypeScript's verdict | A `.ts` file keeps TypeScript's meaning exactly |  | 28 |
 | D267 | A tagged template runs like a call of its tag | SQL statements built with a template | Amended by D320, D322 | 13 |
-| D268 | A pure export carries its direct variant, `f[$direct]`, across files | Survives aliases, barrels, default exports, and CommonJS | Amended by D332, D366, D384, D411, D421, D442, D446 | 15, 27 |
+| D268 | A pure export carries its direct variant, `f[$direct]`, across files | Survives aliases, barrels, default exports, and CommonJS | Amended by D332, D366, D384, D411, D421, D442, D446, D483 | 15, 27 |
 | D269 | A function declared to return an Effect may return a program (a factory); an Effect-typed `const` holds its initializer at any scope | Two-phase APIs from TypeScript | Superseded by D320, D323 | 5, 13 |
 | D270 | A union made only of Effects runs where it stands | One predicate for checking and lowering |  | 13 |
 | D271 | A `function*` with a JavaScript iterator annotation is a JavaScript generator | Generators that implement JavaScript protocols | Superseded by D370 | 8 |
@@ -345,7 +345,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D381 | A program is a function with no required parameters | The compiler's zero-required-input rule |  | 13 |
 | D382 | A migration analyzer reports each site whose meaning changed but still type-checks, and each exported factory, as EK1023; `--fix` never guesses | No program changes meaning silently |  | 5, 13, 28 |
 | D383 | `pipe` passes its first argument as the value it is | D110's look-ahead let a type decide a representation |  | 5, 13 |
-| D384 | A declaration carries a plain function's `$plain` call signature; without one, passing the function as a plain callback is EK4301 | `[1, 2].map(double)` differed between source and declaration consumers | Amended by D411, D421 | 10, 15, 27 |
+| D384 | A declaration carries a plain function's `$plain` call signature; without one, passing the function as a plain callback is EK4301 | `[1, 2].map(double)` differed between source and declaration consumers | Amended by D411, D421, D483 | 10, 15, 27 |
 | D385 | Every VibeLang function is, to TypeScript, a function returning a cold `Effect`, except plain-annotated functions and producers; inside VibeLang a call of a function declared to return an Effect runs it, and an arrow delays | One statement of settled decision 1 | Amended by D397 | Intro, 2, 10, 13 |
 | D386 | An escaping block-owned fiber is EK4838, an error | One rule, one code | Amended by D409 | 7, 23, 28 |
 | D387 | A file's entry statement and EK3205 depend on that file alone | An unrelated importer silenced EK3205 | Amended by D420 | 13, 28 |
@@ -372,7 +372,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D408 | A fiber belongs to a region the source names, never to braces | Braces the formatter may add changed a fiber's lifetime | Amended by D464 | 7, 12, 13, 17, 20, 26, 28 |
 | D409 | A fiber stays with its owner by a flow rule the compiler checks; EK4838 | "Outlives the block" had no criterion | Amended by D455, D464, D469 | 7, 28 |
 | D410 | A handler's left-out returns and its continuation's uses are read from syntax; EK2128 | "Computed from" and "`k` stays" were unchecked | Amended by D440 | 9, 28, 30 |
-| D411 | Every plain function carries a type-only plain marker, which declaration consumers trust | A phantom value member; plain-annotated exports were EK4401 to consumers | Amended by D421, D431, D445 | 10, 15, 26, 27 |
+| D411 | Every plain function carries a type-only plain marker, which declaration consumers trust | A phantom value member; plain-annotated exports were EK4401 to consumers | Amended by D421, D431, D445, D483 | 10, 15, 26, 27 |
 | D412 | A plain function's recursion continues on heap frames, annotated or not | An annotation changed a deep recursion's exit |  | 15 |
 | D413 | Chapter 13 lists every place a type decides | The list was not closed | Amended by D447 | 13 |
 | D414 | A repeated `infer` name is EK2129 | Repeated names read as connected channels |  | 14, 28 |
@@ -392,7 +392,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D428 | A class arm covers only what its test is guaranteed to accept | An arm over an open class counted as total |  | 3, 28 |
 | D429 | Four stale statements follow their rules | Chapters 1, 2, 4, and 24 contradicted rules in force |  | 1, 2, 4, 24 |
 | D430 | An Effect never satisfies a plain function type; EK4301 | An Effect method passed a plain interface and did nothing | Amended by D448, D453 | 10, 14, 28 |
-| D431 | A class names its plain methods in a marker; a `trusted` value's marker lists its error classes | Plain methods were foreign to declaration consumers; two rules disagreed on `trusted` failures |  | 10, 26, 27 |
+| D431 | A class names its plain methods in a marker; a `trusted` value's marker lists its error classes | Plain methods were foreign to declaration consumers; two rules disagreed on `trusted` failures | Amended by D460, D483 | 10, 26, 27 |
 | D432 | The prelude's `fork`, `join`, and hatches are used only under their own names; EK4410 | An import alias deferred an argument | Amended by D452 | 1, 7, 10, 13, 28 |
 | D433 | A `fork` of a program value is EK4613 | `fork job` ran nothing |  | 7, 13, 28 |
 | D434 | A written contract names a contract-less callback's channels `E` and `R`; EK2130 | A service member could not pass its callback's channels through | Amended by D455 | 14, 16, 28 |
@@ -409,7 +409,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D445 | A call of a plain function, or of a `trusted` value, is a plain call of its plain form, wherever it stands; an Effect-contract function's call runs, plain variant or not | Rule R forbade in plain code the calls Chapter 15, D65, and D442 allowed | Amended by D460, D480 | 2, 10, 13, 15, 16, 23, 26, 27, 28, 30, Appendices |
 | D446 | A plain function's plain form is reached through its hoisted declaration before its module's body runs; an Effect-contract function's variant falls back to the current fiber | D442 ran a program at a module's top level, where no fiber runs, and passed an Effect form to `map` |  | 13, 15, 26, 27, 30 |
 | D447 | The list of places a type decides says that a function value's form decides what the receiver's call of it does | The list denied a difference rule F makes |  | 13 |
-| D448 | A `const` or import alias that names a function keeps its own form; any other function value takes its type's form, read as rule R reads a call of it | `const g = double` had one form from source and another from declarations | Amended by D460 | 13, 14, Appendices |
+| D448 | A `const` or import alias that names a function keeps its own form; any other function value takes its type's form, read as rule R reads a call of it | `const g = double` had one form from source and another from declarations | Amended by D460, D483 | 13, 14, Appendices |
 | D449 | Rule R reads a type parameter by who declares it: a class's, an interface's, or an alias's uninstantiated, a function's as the completed call that returned the signature bound it | `Effect.fn(name)(body, pipeline)` functions returned their Effect as data | Amended by D458 | 10, 13, 26, 30, Appendices |
 | D450 | A literal's own form is read once, with the parameter types TypeScript assigns; EK1021 where candidates would type it differently and take different forms | TypeScript never types a literal per candidate | Amended by D457, D482 | 13, 27, 28, 30, Appendices |
 | D451 | `using`'s mask records the interruptibility it replaced, and the runtime's interruptible acquisitions run with it | Effect's `restore` is the identity under an outer mask | Superseded by D481 | 6, 21, 24, 26, 30 |
@@ -421,7 +421,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D457 | Candidates that accept a call's other arguments must type each function literal they reach alike; EK1021 otherwise, whatever forms their destinations accept | Destinations that accept both forms let overload order pick a callback's form | Superseded by D482 | 13, 27, 28, 30 |
 | D458 | Rule R reads a type parameter as TypeScript shows it for the call, except one the callee's own signature declares; `AsData<T>` is withdrawn | An alias, an interface, or a class ran differently from the same type written inline |  | 10, 13, 26, 27, 28, 30, Appendices |
 | D459 | While a `using` mask is in force, the runtime keeps the interruptibility the fiber would have without it; VibeLang's masks keep it, and a nested `using` inherits it | A nested `using` recorded the outer mask and kept an interruptible acquisition masked | Superseded by D481 | 6, 17, 21, 24, 26, 27, 30, Appendices |
-| D460 | An object literal's methods take a function literal's own form and carry their plain form as `m[$direct]`; a namespace import's member and an anonymous default export keep a function's own form; a `let` does not | Chapters 10, 14 and the function-kinds table called object methods Effect methods; no plain form or signature was stated for them |  | 10, 13, 14, 27, 30, Appendices |
+| D460 | An object literal's methods take a function literal's own form and carry their plain form as `m[$direct]`; a namespace import's member and an anonymous default export keep a function's own form; a `let` does not | Chapters 10, 14 and the function-kinds table called object methods Effect methods; no plain form or signature was stated for them | Amended by D483 | 10, 13, 14, 27, 30, Appendices |
 | D461 | A destination reaches both operands of `??` and `\|\|` and the right operand of `&&` | TypeScript types the left operand of `\|\|` and `??` by the destination too |  | 13, 30 |
 | D462 | A parenthesized await operation's literal operand is deferred; `join`'s operand is evaluated, never deferred | The grammar note evaluated `await.all([a(), b()])`'s elements; rule H called `join`'s operand deferred |  | 13, 30, Appendices |
 | D463 | EK4802 covers an Effect-form callback that returns a program where an Effect-returning callback is expected | Adding a log line to `(v) => cached` silently stopped `cached` from running | Amended by D480 | 13, 28, 30 |
@@ -434,6 +434,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D480 | A call whose type is an Effect runs, whatever its callee compiles to; an Effect-form function that returns an Effect value is EK4802 wherever it stands; a program is held by a function written where an Effect type is declared | A plain function returning a program ran by one rule and returned data by four others |  | 13, 15, 28, 30, Appendices |
 | D481 | `using` is the Effect program a TypeScript developer would write: `Effect.acquireRelease` of the initializer, interruptible for a scoped acquisition and masked otherwise, with no mask or interruptibility record of VibeLang's own; D401's ownership record stays | A release inside an initializer lost its mask; an escaping acquisition left earlier resources unregistered |  | 6, 13, 17, 20, 21, 24, 26, 27, 30, Appendices |
 | D482 | Overloads resolve as TypeScript resolves them: a literal is typed by the first candidate TypeScript checks it against, and no candidates are compared; EK1021 only where lifting or conversion is needed and its candidates disagree; reordering a library's overloads is a stated rough edge | The cross-candidate checks rejected `Effect.tap` and still missed named functions and generic calls at return positions |  | 2, 5, 13, 27, 28, 30 |
+| D483 | A function's plain form is part of its type, `Plain<F, C>`, wherever it is held, and every holder has its form; declarations write that type, at any depth | One function was plain or Effect by its holder; a returned object's method had no plain form in declarations |  | 10, 13, 15, 26, 27, 28, 30, Appendices |
 
 #### Rules of the runtime and compiler
 
