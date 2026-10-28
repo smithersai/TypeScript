@@ -86,7 +86,6 @@ Each entry gives the condition and the repair. The examples and language-service
 | EK2111 | A `restore` block has no enclosing `uninterruptible` block. | Put it inside `uninterruptible`, or use `interruptible { … }`. |
 | EK2114 | A hatch contains a VibeLang catch expression. | Move the catch outside the hatch, or use a TypeScript `try` statement inside it. |
 | EK2116 | A factory returns a program on one path but a value, or nothing, on another. | Return a program on every path: `() => value` or `() => { throw error }`. |
-| EK2130 | In a function with a callback parameter that has no contract, the contract names `E` or `R` (`E2`, `R2` for a second callback), the callback's channels, while a type of that name is in scope. | Write the callback's channels as type parameters of your own, `work: () => A!F!Q`, or rename the type. |
 | EK3001 | Two services share a key. | Rename one of the declarations named by the diagnostic. |
 | EK3002 | A class extends a service key. | Implement the service's shape instead of extending its key. |
 | EK3003 | `new` tries to construct a service key. | Read the provided implementation with `Service()`; create implementations as objects or classes implementing its shape. |

@@ -289,7 +289,6 @@ coverage. Repairs are suggestions, not shipped code actions:
 | EK2125 | A member of a `data` variant that is not a field: a method, an index or call signature, a field without a type, or a `mutable` field (D307) | Write `name: Type` or `name?: Type`; a variant's fields are readonly | 11 |
 | EK2126 | A `data` declaration with more than four type parameters, or a constrained one, which `Data.TaggedEnum.WithGenerics` cannot pass (D307) | Use at most four unconstrained type parameters | 11 |
 | EK2127 | `Name.Variant` where `Name` is a data type without that variant, in a call, a pattern, or anywhere else; it replaces TypeScript's TS2339 (D307) | Name one of the variants the message lists | 11 |
-| EK2130 | In a function with a contract-less callback parameter, a return annotation or another parameter's type that names `E`, `R`, `E2` or `R2`, a callback's channel, while a type parameter, type alias, interface, class, enum or imported type of that name is in scope there (Chapter 16, D434, D455) | Write the callback's channels as type parameters of your own, `run<A, F, Q>(work: () => A!F!Q): A!TxError \| F!Q`, or rename the type | 16 |
 | EK2140 | A `throw` whose operand's type is a Cause type, or a union with one, which would fail with the `Cause` object itself (D406) | `Effect.failCause(cause)` to fail with every reason | 3, 17 |
 | EK3001 | Two services share a key | Rename one | 4 |
 | EK3002 | A class extends a service | Replace `extends` with `implements` | 4 |

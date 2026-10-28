@@ -1,5 +1,0 @@
-main.vibe(14,49): error EK2130
-main.vibe(18,53): error EK2130
-main.vibe(18,70): error EK2130
-main.vibe(22,63): error EK2130
-main.vibe(22,76): error EK2130

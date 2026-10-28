@@ -303,15 +303,6 @@ func (a *analyzer) checkContract(file *ast.SourceFile, fn *ast.Node) {
 	if !k.inferred(channelR) {
 		requirementEscapes = escapes(c, info.requirements, info.requirementSources, channelType(c, contractType, "_R"))
 	}
-	if len(errorEscapes)+len(requirementEscapes) > 0 {
-		if collisions := a.channelNameCollisions(fn); len(collisions) > 0 {
-			// The contract names a callback's channel and a type at once
-			// (callback_channels.go): EK2130 says so, where EK2001 and EK2002
-			// would read the name one way or the other.
-			reportChannelNameCollisions(c, file, collisions)
-			return
-		}
-	}
 	if !k.inferred(channelE) {
 		declared := channelType(c, contractType, "_E")
 		for _, escape := range errorEscapes {
