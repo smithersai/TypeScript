@@ -1,0 +1,10 @@
+// expect: EK1001 EK1001
+function work() { sleep("1 millis"); return 1 }
+
+class Getter {
+  get value() { return work() }
+}
+
+class Setter {
+  set value(_value: number) { const result = work() }
+}

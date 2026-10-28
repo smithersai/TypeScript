@@ -146,8 +146,9 @@ func checkProgramStarts(c *checker.Checker, file *ast.SourceFile) {
 			topLevel, plain = false, node
 		case ast.IsFunctionLike(node) && node.Body() != nil:
 			topLevel, plain = false, nil
-		case ast.IsPropertyDeclaration(node) && node.Parent != nil && ast.IsClassLike(node.Parent) && node.Initializer() != nil,
-			node.Kind == ast.KindParameter && node.Initializer() != nil:
+		case node.Kind == ast.KindParameter && node.Initializer() != nil:
+			plain = node
+		case ast.IsPropertyDeclaration(node) && node.Parent != nil && ast.IsClassLike(node.Parent) && node.Initializer() != nil:
 			// One declared with an Effect type holds the program its
 			// initializer builds, as a const does (D269).
 			if node.Type() == nil || !isEffectType(c, c.GetTypeFromTypeNode(node.Type())) {
@@ -160,11 +161,7 @@ func checkProgramStarts(c *checker.Checker, file *ast.SourceFile) {
 		}
 		if ast.IsCallExpression(node) {
 			if plain != nil && !a.passedAsProgram(node) && !discarded(node) {
-				// At the top level a class field's program was EK1001 already.
-				// Elsewhere such a call builds a program, which plain code may
-				// keep; it is reported only where its value is misused, which
-				// TypeScript reports without saying why.
-				if runs, explains := runsAtTopLevel(c, a, node); runs && (topLevel || explains || misused(c, node)) {
+				if runs, explains := runsAtTopLevel(c, a, node); runs {
 					reportPlainCodeRun(c, file, node, plain)
 					if explains {
 						cover(c, node)
@@ -188,31 +185,6 @@ func checkProgramStarts(c *checker.Checker, file *ast.SourceFile) {
 		return node.ForEachChild(func(child *ast.Node) bool { return visit(child, topLevel, plain) })
 	}
 	file.AsNode().ForEachChild(func(child *ast.Node) bool { return visit(child, true, nil) })
-}
-
-// misused reports whether call's Effect value stands where TypeScript requires
-// another type, so TypeScript reports an error there: an operand of
-// arithmetic or a comparison, or a position whose contextual type, such as a
-// parameter's declared type, the Effect does not fit.
-func misused(c *checker.Checker, call *ast.Node) bool {
-	node := ast.WalkUpParenthesizedExpressions(call)
-	switch parent := node.Parent; {
-	case ast.IsBinaryExpression(parent):
-		switch parent.AsBinaryExpression().OperatorToken.Kind {
-		case ast.KindMinusToken, ast.KindAsteriskToken, ast.KindSlashToken, ast.KindPercentToken, ast.KindAsteriskAsteriskToken,
-			ast.KindLessThanLessThanToken, ast.KindGreaterThanGreaterThanToken, ast.KindGreaterThanGreaterThanGreaterThanToken,
-			ast.KindAmpersandToken, ast.KindBarToken, ast.KindCaretToken,
-			ast.KindLessThanToken, ast.KindGreaterThanToken, ast.KindLessThanEqualsToken, ast.KindGreaterThanEqualsToken:
-			return parent.Flags&ast.NodeFlagsVibeLang == 0 // not a pipe, whose operator is a bar
-		}
-	case parent != nil && parent.Kind == ast.KindPrefixUnaryExpression:
-		switch parent.AsPrefixUnaryExpression().Operator {
-		case ast.KindMinusToken, ast.KindPlusToken, ast.KindTildeToken:
-			return true
-		}
-	}
-	contextual := c.GetContextualType(node, checker.ContextFlagsNone)
-	return contextual != nil && !c.IsTypeAssignableTo(c.GetTypeAtLocation(call), contextual)
 }
 
 // discarded reports whether call is a whole expression statement, whose

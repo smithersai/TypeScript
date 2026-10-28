@@ -1,10 +1,10 @@
 // expect: EK1001 EK1001 EK1001 EK1001 EK1001 TS2362 TS2362 TS2365
 // A class field's initializer, a default parameter value, a constructor, an
 // accessor and a static block run as plain JavaScript wherever they stand,
-// outside any program (D282). A call there builds a program instead of running
-// it, so where its value is used as the program's success, which TypeScript
-// reports as a type error, EK1001 names the code; a module-level class field's
-// program was EK1001 already, which named the module's top level.
+// outside any program (D282). A running call there is always EK1001,
+// including when its result has no contextual type.
+// TypeScript can also report errors where the unrun Effect is used
+// as a success value in arithmetic or a comparison.
 function now(): number!! { return Clock.currentTimeMillis() }
 
 class Box {

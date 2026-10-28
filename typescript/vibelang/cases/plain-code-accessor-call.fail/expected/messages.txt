@@ -1,0 +1,3 @@
+work() runs a program, but get value runs as plain JavaScript, outside any program.
+work() runs a program, but set value runs as plain JavaScript, outside any program.
+Write a method instead, which runs as an Effect: value() { … }.
