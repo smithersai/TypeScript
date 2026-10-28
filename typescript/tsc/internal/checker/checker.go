@@ -10525,9 +10525,10 @@ func (c *Checker) inferFromAnnotatedParametersAndReturn(sig *Signature, context 
 	}
 	if declaration := sig.Declaration(); declaration != nil {
 		if returnTypeNode := declaration.Type(); returnTypeNode != nil {
-			source := c.applyAnnotatedReturnInferenceHooks(declaration, c.getTypeFromTypeNode(returnTypeNode))
-			target := c.getReturnTypeOfSignature(context)
-			c.inferTypes(inferenceContext.inferences, source, target, InferencePriorityNone, false)
+			if source := c.applyAnnotatedReturnInferenceHooks(declaration, c.getTypeFromTypeNode(returnTypeNode)); source != nil {
+				target := c.getReturnTypeOfSignature(context)
+				c.inferTypes(inferenceContext.inferences, source, target, InferencePriorityNone, false)
+			}
 		}
 	}
 }
@@ -17156,9 +17157,6 @@ func (c *Checker) getTypeForVariableLikeDeclaration(declaration *ast.Node, inclu
 	isOptional := includeOptionality && isOptionalDeclaration(declaration)
 	// Use type from type annotation if one is present
 	declaredType := c.tryGetTypeFromTypeNode(declaration)
-	if declaredType != nil && ast.IsParameterDeclaration(declaration) {
-		declaredType = c.applyParameterTypeHooks(declaration, declaredType)
-	}
 	if ast.IsCatchClauseVariableDeclarationOrBindingElement(declaration) {
 		if declaredType != nil {
 			// If the catch clause is explicitly annotated with any or unknown, accept it, otherwise error.
@@ -20424,7 +20422,7 @@ func (c *Checker) getSignatureFromDeclaration(declaration *ast.Node) *Signature 
 	if classType != nil {
 		typeParameters = classType.AsInterfaceType().LocalTypeParameters()
 	} else {
-		typeParameters = c.appendTypeParametersFromHooks(c.getTypeParametersFromDeclaration(declaration), declaration)
+		typeParameters = c.getTypeParametersFromDeclaration(declaration)
 	}
 	if hasRestParameter(declaration) {
 		flags |= SignatureFlagsHasRestParameter
@@ -20594,6 +20592,9 @@ func (c *Checker) getReturnTypeFromAnnotation(declaration *ast.Node) *Type {
 		return c.getDeclaredTypeOfClassOrInterface(c.getMergedSymbol(declaration.Parent.Symbol()))
 	}
 	returnType := declaration.Type()
+	if returnType != nil && returnType.Kind == ast.KindInferType && c.inferTypeHasExtensionMeaning(returnType) {
+		return nil // an extension's inferred return, which the body gives as if unannotated
+	}
 	if returnType != nil {
 		return c.getTypeFromTypeNode(returnType)
 	}
@@ -24457,7 +24458,7 @@ func (c *Checker) getOuterTypeParameters(node *ast.Node, includeThisTypes bool) 
 			if kind == ast.KindConditionalType {
 				return append(outerTypeParameters, c.getInferTypeParameters(node)...)
 			}
-			outerAndOwnTypeParameters := c.appendTypeParametersFromHooks(c.appendTypeParameters(outerTypeParameters, node.TypeParameters()), node)
+			outerAndOwnTypeParameters := c.appendTypeParameters(outerTypeParameters, node.TypeParameters())
 			var thisType *Type
 			if includeThisTypes && (kind == ast.KindClassDeclaration || kind == ast.KindClassExpression || kind == ast.KindInterfaceDeclaration) {
 				thisType = c.getDeclaredTypeOfClassOrInterface(c.getSymbolOfDeclaration(node)).AsInterfaceType().thisType

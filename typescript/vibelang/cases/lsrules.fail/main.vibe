@@ -78,7 +78,7 @@ service Reports {
 }
 
 // EK4810: an assertion that drops a failure.
-export function dropped(program: Effect.Effect<number, NotFound>) {
+export function dropped(program: Effect.Effect<number, NotFound>): infer _ {
   return program as Effect.Effect<number>
 }
 

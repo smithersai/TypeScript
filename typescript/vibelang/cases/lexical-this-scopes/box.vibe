@@ -10,14 +10,14 @@ export class Box {
   value = 42
   Base = Base
 
-  fromDefault() {
+  fromDefault(): infer _ {
     return (n = this.value) => {
       const tick = Effect.sync(() => 0)
       return n
     }
   }
 
-  fromExtends() {
+  fromExtends(): infer _ {
     return () => {
       const tick = Effect.sync(() => 0)
       const C = class extends this.Base {}

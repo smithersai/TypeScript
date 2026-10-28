@@ -20,7 +20,7 @@ export function countDown(n: number): number {
   return n === 0 ? 0 : 1 + step(n - 1)
 }
 
-function step(n: number) {
+function step(n: number): number {
   return countDown(n)
 }
 

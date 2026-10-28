@@ -1,8 +1,6 @@
 package vibelang
 
 import (
-	"slices"
-
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
@@ -12,14 +10,14 @@ import (
 //
 //	Effect.retry(flaky, policy)            // flaky: () => Effect<A, E, R>    -> Effect.suspend(flaky)
 //	Effect.all(stores.map(makeSync))       // Array<() => Effect<A, E, R>>    -> $programs(...)
-//	ids.map(findName)                      // findName can pause              -> EK4301
+//	ids.map(findName)                      // findName is an Effect function  -> EK4301
 //
 // Where the overload candidate under check declares an Effect, a function
 // with no parameters that returns an Effect converts to a program (D7). Where
 // it declares an iterable or a record of Effects, an iterable or a record of
 // such functions converts element by element (D49). Where it declares a plain
-// function, a VibeLang function that can pause has no plain form, so the
-// candidate rejects it, as it rejects such a lambda (D9, D56). As with
+// function, an Effect function is EK4301 (D430, D500): it is passed as itself,
+// never as its plain variant. As with
 // lambdas, each candidate decides once, and the candidate overload resolution
 // selects decides what the value compiles to.
 type conversion uint8
@@ -29,7 +27,6 @@ const (
 	convertProgram                // Effect.suspend(value)
 	convertSyncProgram            // Effect.sync(value), a plain zero-argument function
 	convertPrograms               // $programs(value), an array or record of programs
-	convertDirect                 // f$direct, the plain variant of a function that compiles to plain JavaScript
 	convertRejected               // a function that can pause where a plain function is expected
 	convertByName                 // an expression that runs an Effect, passed as a program that runs it (D147)
 )
@@ -104,7 +101,7 @@ func expressionType(c *checker.Checker, node *ast.Node, t *checker.Type) *checke
 			if program := a.byNameType(node, a.valueTypeOf(node, t)); program != nil {
 				return program
 			}
-		case convertProgram, convertSyncProgram, convertPrograms, convertDirect, convertRejected:
+		case convertProgram, convertSyncProgram, convertPrograms, convertRejected:
 			return s.types[key]
 		}
 		return t
@@ -214,12 +211,6 @@ func (a *analyzer) convert(node *ast.Node, t *checker.Type, position valuePositi
 			return convertProgram, effect
 		}
 	case position.plainFn && !position.effectFn:
-		if a.isCallbackParameterValue(node) {
-			// A callback parameter without a contract holds a function that
-			// can pause and has no plain form (D12, D68). TypeScript checks
-			// it in the plain form, so EK4301 alone reports it.
-			return convertRejected, a.plainTypeOf(t)
-		}
 		fn := esFunctionOf(a.checker, node)
 		switch {
 		case fn == nil:
@@ -229,8 +220,6 @@ func (a *analyzer) convert(node *ast.Node, t *checker.Type, position valuePositi
 			// Calling a producer runs none of it: it is a plain function.
 		case a.isPlainFunction(fn) && !a.isSplittable(fn):
 			// Annotated with a plain return type: the function itself is plain.
-		case a.isPlainFunction(fn) && a.directReferenceOf(node, fn) != nil:
-			return convertDirect, a.plainTypeOf(t)
 		case a.isEffect(fn) || a.isPlainFunction(fn):
 			return convertRejected, t
 		}
@@ -600,26 +589,6 @@ func (a *analyzer) finalConversion(node *ast.Node) conversion {
 		}
 	}
 	return s.first
-}
-
-// isCallbackParameterValue reports whether node, an identifier, names a
-// callback parameter without a contract (D12), such as p in
-// function findFirst<T>(xs: ReadonlyArray<T>, p: (x: T) => boolean). Its
-// value is an Effect function whatever the caller passed (D68).
-func (a *analyzer) isCallbackParameterValue(node *ast.Node) bool {
-	if !ast.IsIdentifier(node) {
-		return false
-	}
-	symbol := a.checker.GetSymbolAtLocation(node)
-	if symbol == nil {
-		return false
-	}
-	parameter := symbol.ValueDeclaration()
-	if parameter == nil || !ast.IsParameterDeclaration(parameter) || parameter.Parent == nil {
-		return false
-	}
-	s := a.callbackContractsOf(parameter.Parent)
-	return s != nil && slices.Contains(s.parameters, parameter)
 }
 
 // esFunctionOf returns the .vibe function that node, an identifier or a

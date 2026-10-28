@@ -106,7 +106,7 @@ Equal.equals(first, second) // true
 Equal.equals(["inbox", 5] as const, ["inbox", 5] as const) // true
 Equal.equals([2, 4, 6], [2, 4, 6]) // true
 
-function makeRoute(name: string) {
+function makeRoute(name: string): infer _ {
   return { _tag: "Route" as const, name }
 }
 Equal.equals(makeRoute("inbox"), makeRoute("inbox")) // true

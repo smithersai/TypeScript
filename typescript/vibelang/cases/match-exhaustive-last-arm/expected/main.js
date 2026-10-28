@@ -11,7 +11,7 @@ import * as runtime from "vibelang-runtime";
 // that is not a finite union, a match without default keeps its tests and
 // $noMatch, which throws the proposal's TypeError (D209), as text does here.
 import { announce, Denied, describe, greeting, NotFound, phaseLabel, record, Timeout, width } from "./arms.js";
-import { record$direct, phaseLabel$direct, width$direct, describe$direct, greeting$direct } from "./arms.js";
+import { record$direct, describe$direct, greeting$direct } from "./arms.js";
 function text$direct(value) {
     {
         const $match2 = value;
@@ -50,8 +50,8 @@ export function main() {
                 throw pending_1;
         }
         return {
-            phases: phases.map(phaseLabel$direct),
-            widths: phases.map(width$direct),
+            phases: phases.map(phaseLabel),
+            widths: phases.map(width),
             logged,
             failures: [describe$direct(new NotFound({ id: "7" })), describe$direct(new Timeout()), describe$direct(new Denied({ user: "Ada" }))],
             greetings: [greeting$direct(Option.none()), greeting$direct(Option.some("Ada"))],

@@ -1,4 +1,4 @@
-export function other(s: string) {
+export function other(s: string): string {
   return s + "?"
 }
 function quoted(s: string) {

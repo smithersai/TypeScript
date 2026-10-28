@@ -11,7 +11,7 @@ assert.ok(existsSync(path.join(dir, "out/main.js")), "the warning-only case must
 // plain contracts in plain-catch-exceptions (the projector requires those).
 // Its catch receives typed failures only (D282), so EK2004 warns and the
 // coercion exception passes through.
-const repro = `export const f = (x: unknown) => {
+const repro = `export const f = (x: unknown): string => {
   try {
     return String(x)
   } catch {

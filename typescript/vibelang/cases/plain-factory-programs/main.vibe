@@ -2,7 +2,7 @@
 import { makeRuntime, stored, runs, useIt, useGenericFactory } from "./program.vibe"
 export function main() {
   const before = runs
-  const localFactory = (options: { n: number }) => {
+  const localFactory = (options: { n: number }): infer _ => {
     const p: Effect.Effect<{ n: number }, never, never> = () => {
       const service = makeRuntime(options)
       return service

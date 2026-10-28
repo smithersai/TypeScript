@@ -71,7 +71,7 @@ For another format, supply a logger such as `Logger.consoleJson` through `Logger
 
 ```vibe
 // run: Console.log(roll())
-const seeded = { nextIntUnsafe: () => 4, nextDoubleUnsafe: () => 0.5 }
+const seeded = { nextIntUnsafe: (): number => 4, nextDoubleUnsafe: (): number => 0.5 }
 
 function roll(): number!! {
   provide Random = seeded {

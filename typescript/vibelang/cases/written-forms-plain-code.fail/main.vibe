@@ -1,0 +1,37 @@
+// expect: EK1001 EK2003 EK4301 TS2345
+// D500: an unannotated function is an Effect function, whatever its body
+// does, so plain code may not call it or pass it: a module's top level, a
+// class field, a constructor, an accessor, a parameter default, a function
+// with a plain annotation, and a plain callback. Nor may it call an Effect
+// function with a contract that has a plain variant.
+function twice(n: number) {
+  return n * 2
+}
+function cmp(a: number, b: number): number!! {
+  return a - b
+}
+
+export const mapped = [1, 2].map(twice)
+export const sorted = [2, 1].sort(cmp)
+export const called = [1, 2].map((n) => twice(n))
+export const initial = twice(3)
+
+export class Holder {
+  field = twice(1)
+  static shared = twice(2)
+  readonly made: number
+  constructor() {
+    this.made = twice(3)
+  }
+  get value(): number {
+    return twice(4)
+  }
+}
+
+export function withDefault(n = twice(5)): number {
+  return n
+}
+
+export function plain(n: number): number {
+  return twice(n)
+}

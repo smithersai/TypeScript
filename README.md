@@ -98,7 +98,7 @@ Effect.runPromise(main)
 
 <!-- token-headline:start -->
 
-**14.6% fewer tokens across 47 cheat-sheet pairs; VibeLang is longer in 13 pairs.** The example above uses **116 vs 202 tokens (42.6% fewer)**.
+**14.5% fewer tokens across 47 cheat-sheet pairs; VibeLang is longer in 13 pairs.** The example above uses **116 vs 202 tokens (42.6% fewer)**.
 
 <!-- token-headline:end -->
 

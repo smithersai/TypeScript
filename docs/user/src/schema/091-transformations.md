@@ -149,7 +149,7 @@ A lossy conversion has no meaningful inverse. `forbidden` reports a schema issue
 // run: Console.log(JSON.stringify(readNumbers())); Console.log(Schema.decodeEffect(DeferredLabel)("crate")); try { Schema.decodeEffect(DeferredLabel)("x") } catch (error) { Console.log(error.message) }
 const SemicolonNumbers = Schema.String.pipe(
   Schema.decodeTo(Schema.Array(Schema.String), SchemaTransformation.transform({
-    decode: (text): ReadonlyArray<string>!! => text.split(";"),
+    decode: (text): ReadonlyArray<string> => text.split(";"),
     encode: (items) => items.join(";")
   })),
   Schema.decodeTo(Schema.Array(Schema.FiniteFromString))

@@ -24,7 +24,7 @@ export function direct(n: number): number!Oops! {
   return step(n)
 }
 
-export const handler = (base: number) => (n: number) => step(base + n)
+export const handler = (base: number): infer _ => (n: number) => step(base + n)
 
 function mapped(cause: Oops): Bad {
   return new Bad({ code: String(cause.n) })

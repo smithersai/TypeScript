@@ -1,5 +1,6 @@
-// A plain return annotation keeps a callback plain. An Effect contract at
-// these destinations is rejected in effect-contract-plain-destinations.fail.
+// A lambda's return annotation writes its form (D500). Where only a plain
+// function fits, a plain annotation returns A, so Schema.suspend receives a
+// schema, and SchemaTransformation.transform infers its types from A.
 import { Schema, SchemaTransformation } from "effect"
 
 interface Crate {

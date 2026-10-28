@@ -1,20 +1,21 @@
 // expect-result: ["custom 2","custom 2","default",true,20,"caught thrown",true,"ran 2","default",-1]
-// An optional call of a callback without a contract runs the callback when it
-// is present, as a required call does (D68).
+// An optional call of an Effect callback runs the callback when it is
+// present, as a required call does; the callback's type declares its
+// channels (D500).
 error Late { label: string }
 
-const coalesced = (label?: (seconds: number) => Late) => {
+const coalesced = <E = never, R = never>(label?: (seconds: number) => Late!E!R) => {
   return label?.(2) ?? new Late({ label: "default" })
 }
 
-const bound = (label?: (seconds: number) => Late) => {
+const bound = <E = never, R = never>(label?: (seconds: number) => Late!E!R) => {
   const value = label?.(2)
   return value
 }
 
-const scaled = (scale?: (n: number) => number) => scale?.(2)
+const scaled = <E = never, R = never>(scale?: (n: number) => number!E!R) => scale?.(2)
 
-const announced = (log?: (n: number) => void) => {
+const announced = <E = never, R = never>(log?: (n: number) => void!E!R) => {
   log?.(2)
   return true
 }

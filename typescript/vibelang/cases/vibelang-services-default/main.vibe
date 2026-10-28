@@ -12,7 +12,7 @@ abstract class Sessions {
   abstract get(token: string): Effect.Effect<Session | undefined, never, never>
   abstract set(token: string, session: Session): Effect.Effect<void, never, never>
 
-  static make() {
+  static make(): Sessions.Shape {
     const entries = new Map<string, Session>()
     const impl: Sessions.Shape = {
       get: (token: string) => Effect.succeed(entries.get(token)),

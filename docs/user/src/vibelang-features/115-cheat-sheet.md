@@ -338,7 +338,7 @@ const roll = Random.nextInt.pipe(
 
 ```vibe es
 // run: Console.log(roll())
-const seeded = { nextIntUnsafe: () => 4, nextDoubleUnsafe: () => 0.5 }
+const seeded = { nextIntUnsafe: (): number => 4, nextDoubleUnsafe: (): number => 0.5 }
 
 function roll(): number!! {
   provide Logger.layer([]), Random = seeded {

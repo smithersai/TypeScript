@@ -1,7 +1,8 @@
 // A lambda passed where a bare type parameter is expected, as to
 // check<T>(actual: T), fixes T to its own type, so after inference its
-// contextual type is that type. It says nothing about the lambda's form, and
-// a lambda that returns an Effect subtype as data (D24) is typed as written.
+// contextual type is that type. It says nothing about the lambda's form: the
+// lambda writes it, here `: infer _`, a plain function that returns an Effect
+// subtype as data (D24, D500).
 // Reading the lambda's own return type to decide its form re-entered it:
 // TS7024, "Function implicitly has return type 'any'".
 module labels {
@@ -20,8 +21,8 @@ module labels {
 
 import { check, checkWith, labeled } from labels
 
-const one = check(() => labeled("one", 1))
-const two = checkWith(() => labeled("two", 2), "with a message")
+const one = check((): infer _ => labeled("one", 1))
+const two = checkWith((): infer _ => labeled("two", 2), "with a message")
 const names = [one().label, two().label]
 
 // expect-result: ["one","two",2]

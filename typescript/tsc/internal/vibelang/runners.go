@@ -221,7 +221,7 @@ func reportPlainCodeRun(c *checker.Checker, file *ast.SourceFile, call *ast.Node
 // TypeScript reports a member that does not exist or a value that is not
 // callable, which EK1001 explains.
 func runsAtTopLevel(c *checker.Checker, a *analyzer, call *ast.Node) (runs bool, explainsTypeScript bool) {
-	if a.runs(call) {
+	if a.runs(call) || a.runsVariant(call) {
 		return true, false
 	}
 	if call.QuestionDotToken() != nil {

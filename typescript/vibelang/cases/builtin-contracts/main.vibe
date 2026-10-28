@@ -16,10 +16,10 @@ function config(text: string) {
   }
 }
 
-// A function that catches its own failures compiles to plain JavaScript
-// (D54), so Array.prototype.map can call it, and its catch still receives
+// A plain-annotated function that catches its own failures is plain (D54,
+// D500), so Array.prototype.map can call it, and its catch still receives
 // the SyntaxError.
-function parseOr(text: string, fallback: number) {
+function parseOr(text: string, fallback: number): number {
   try {
     return JSON.parse(text) as number
   } catch (e) {

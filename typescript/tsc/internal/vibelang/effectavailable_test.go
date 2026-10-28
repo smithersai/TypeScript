@@ -9,11 +9,9 @@ import (
 )
 
 // TestMissingEffectReportsEffectFunctions compiles a program in which neither
-// effect nor vibelang-runtime resolves. Each function that compiles to an
-// Effect by what it does, a throw or a producer, is EK1011; before, each was
-// declared plain while its JavaScript imported effect and returned an Effect.
-// A plain function, with or without a plain annotation, keeps its plain
-// behavior and is not reported.
+// effect nor vibelang-runtime resolves. Each Effect function, an unannotated
+// one whatever its body does (D500) and a producer, is EK1011. A function with
+// a plain annotation keeps its plain behavior and is not reported.
 func TestMissingEffectReportsEffectFunctions(t *testing.T) {
 	t.Parallel()
 	source := `export const make = (name: string) => {
@@ -42,7 +40,7 @@ export function shout(name: string): string {
 		}
 	}
 	slices.Sort(reported)
-	assert.DeepEqual(t, reported, []string{"count", "make"})
+	assert.DeepEqual(t, reported, []string{"count", "greet", "make"})
 }
 
 // Effect 3 resolves normally, but its dist/dts layout cannot supply the

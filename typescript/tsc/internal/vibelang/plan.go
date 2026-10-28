@@ -263,8 +263,6 @@ type analyzer struct {
 	// Scope regions (scopes.go).
 	programScopeType     *checker.Type // effect's Scope interface, found in the program's files
 	programScopeSearched bool
-
-	callbacks map[*ast.Node]*callbackContracts // functions with uncontracted callback parameters (callbackcontracts.go)
 }
 
 type analyzerKey struct{}
@@ -300,7 +298,6 @@ func analyzerFor(c *checker.Checker) *analyzer {
 			plain:            map[*ast.Node]plainState{},
 			plainEdges:       map[*ast.Node][]plainEdge{},
 			plainCycles:      map[*ast.Node]bool{},
-			callbacks:        map[*ast.Node]*callbackContracts{},
 		}
 	}).(*analyzer)
 }
@@ -315,8 +312,11 @@ func (a *analyzer) isEffect(fn *ast.Node) bool {
 	if isLambda(fn) {
 		return a.finalForm(fn) != formPlain
 	}
-	if isPlainCandidate(fn) {
-		return !a.isPlainFunction(fn)
+	if isWrittenForm(fn) {
+		// D500: a function's form is written. Without a return annotation it
+		// is an Effect function, whatever its body does; with one that is not
+		// an Effect, or with `infer _`, it is plain.
+		return !a.hasPlainContract(fn)
 	}
 	switch a.states[fn] {
 	case stateVisiting:
@@ -337,10 +337,33 @@ func (a *analyzer) isEffect(fn *ast.Node) bool {
 	return effect
 }
 
+// isWrittenForm reports whether fn is a .vibe function whose form its
+// declaration writes (D500): a function declaration or a method. A class's
+// constructor, accessors, and static blocks run as plain JavaScript (D282).
+func isWrittenForm(fn *ast.Node) bool {
+	return (fn.Kind == ast.KindFunctionDeclaration || fn.Kind == ast.KindMethodDeclaration) && isLowerable(fn) && !isProducer(fn)
+}
+
 // performs reports whether call performs an Effect operation: it runs an
-// Effect, or it looks up a service.
+// Effect, calls an Effect function through its plain variant, or looks up a
+// service.
 func (a *analyzer) performs(call *ast.Node) bool {
-	return a.runs(call) || ast.IsCallExpression(call) && !holdsProgram(a.checker, call) && isServiceLookup(a.checker, call)
+	return a.runs(call) || a.runsVariant(call) || ast.IsCallExpression(call) && !holdsProgram(a.checker, call) && isServiceLookup(a.checker, call)
+}
+
+// runsVariant reports whether call calls an Effect function through its plain
+// variant (D421). It runs no Effect, but its callee is an Effect function,
+// which plain code may not call (D500): EK1001, EK2003, or EK4301.
+func (a *analyzer) runsVariant(call *ast.Node) bool {
+	if inHatch(call) || holdsProgram(a.checker, call) {
+		return false
+	}
+	sig := a.checker.GetResolvedSignature(call)
+	if sig == nil {
+		return false
+	}
+	fn := implementationOf(sig.Declaration())
+	return fn != nil && isLowerable(fn) && a.isSplittable(fn) && a.isPlainFunction(fn)
 }
 
 // runs reports whether call runs an Effect, which the lowering spells yield*.

@@ -9,7 +9,8 @@ export class Timeout extends TaggedError("Timeout") {
 }
 export class Denied extends TaggedError("Denied") {
 }
-export function phaseLabel$direct(phase) {
+// After return.
+export function phaseLabel(phase) {
     {
         const $match2 = phase;
         {
@@ -33,10 +34,8 @@ export function phaseLabel$direct(phase) {
         }
     }
 }
-// After return.
-export function phaseLabel(...args) { return runtime.$plainSync(phaseLabel$direct, this, args); }
-phaseLabel[runtime.$direct] = phaseLabel$direct;
-export function width$direct(phase) {
+// Inside an expression, where the match runs in its own function.
+export function width(phase) {
     const label = (() => {
         const $match3 = phase;
         {
@@ -61,9 +60,6 @@ export function width$direct(phase) {
     })();
     return label;
 }
-// Inside an expression, where the match runs in its own function.
-export function width(...args) { return runtime.$plainSync(width$direct, this, args); }
-width[runtime.$direct] = width$direct;
 export function record$direct(phase, log) {
     $match5: {
         const $match6 = phase;

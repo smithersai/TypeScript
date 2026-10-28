@@ -7,17 +7,17 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
-// A function declaration that performs no Effect operation and cannot fail
-// compiles to plain JavaScript (design D10), and still has one calling
-// convention: TypeScript sees (...) => Effect<A, never, never> (Chapter 15).
-// It compiles to two functions:
+// An Effect function whose body performs no Effect operation and cannot fail
+// gets a plain variant, an optimization that changes no form, declaration, or
+// diagnostic (D421, D500): TypeScript sees (...) => Effect<A, never, never>
+// (Chapter 15), and plain code may not call it. It compiles to two functions:
 //
 //	function double$direct(n) { return n * 2 }                          // VibeLang callers use this
 //	export function double(...args) { return Effect.sync(() => double$direct(...args)) }
 //
-// A VibeLang caller calls double$direct inline: double(4) has the type
-// number, runs no Effect, and costs what a JavaScript call costs. Passed
-// where a plain function is expected, double is double$direct (D9).
+// A VibeLang call in Effect code calls double$direct inline: double(4) has
+// the type number, runs no Effect, and costs what a JavaScript call costs.
+// Passed where a plain function is expected, double is EK4301 (D500).
 //
 // Eligibility is a greatest fixpoint over the call graph (D56): a group of
 // functions that call one another compiles to plain JavaScript when each
@@ -182,6 +182,12 @@ func (a *analyzer) isPlainFunction(fn *ast.Node) bool {
 				return false
 			}
 			if callee := a.candidateCallee(call); callee != nil {
+				if !a.isSplittable(d) && a.isSplittable(callee) {
+					// d is plain-annotated, and callee an Effect function:
+					// plain code may not call it, variant or not (D500).
+					m.ok = false
+					return true
+				}
 				switch a.plain[callee] {
 				case plainNo:
 					m.ok = false
@@ -363,20 +369,6 @@ func (a *analyzer) directCallee(call *ast.Node) *directReference {
 	return a.directReferenceOf(ast.GetInvokedExpression(call), fn)
 }
 
-// plainTypeOf returns the type of fn's $direct variant, given t, the type of
-// its Effect form: the same parameters, returning the success type.
-func (a *analyzer) plainTypeOf(t *checker.Type) *checker.Type {
-	signatures := a.checker.GetSignaturesOfType(t, checker.SignatureKindCall)
-	if len(signatures) != 1 {
-		return t
-	}
-	success := successType(a.checker, a.checker.GetReturnTypeOfSignature(signatures[0]))
-	if success == nil {
-		return t
-	}
-	return a.checker.NewFunctionTypeWithReturnType(t.Symbol(), signatures[0], success)
-}
-
 // programEffectInterface returns the generic Effect interface that effect's
 // Effect module declares, or nil when the program does not include effect.
 // Unlike an Effect found in some type on the way, it does not depend on the
@@ -463,10 +455,6 @@ func (p *plainPlan) planPlain(a *analyzer, node *ast.Node) {
 		return
 	case isInvocation(node):
 		ref = a.directCallee(node)
-	case a.finalConversion(node) == convertDirect:
-		if fn := esFunctionOf(a.checker, node); fn != nil {
-			ref = a.directReferenceOf(node, fn)
-		}
 	}
 	if ref == nil {
 		return

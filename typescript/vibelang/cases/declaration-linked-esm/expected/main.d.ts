@@ -1,4 +1,5 @@
-export declare const fn: (x: number) => import("effect/Effect").Effect<number, never, never>;
+import { Effect } from "effect";
+export declare const fn: (x: number) => Effect.Effect<number, never, never>;
 export declare const obj: {
-    f: (x: number) => import("effect/Effect").Effect<number, never, never>;
+    f: (x: number) => Effect.Effect<number, never, never>;
 };

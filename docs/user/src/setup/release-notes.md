@@ -54,6 +54,12 @@ The fixes keep a rewrite only when it adds no compiler error.
 | A call that runs in a getter, a setter, a parameter default, a constructor, a static block or a class field with no type, such as `get next() { return seven() }` or `function later(program = seven())`, which held the program it built | `EK1001`: that code runs as plain JavaScript, so the call cannot run there. Delay it with a function, `() => seven()`, and call that where the program runs, or give a class field an Effect type, `program: number!! = seven()`, which still holds the program. |
 | `const spawn = fork`, `const run = sync`, an import that renames `fork`, `join`, `sync`, `try` or `callback`, or `R.fork(x)` through a namespace import of the runtime | EK4410: a call spelled otherwise read its first operand by a binding its reader cannot see, so `spawn(work())` deferred `work()`. Call each under its own name where it runs; to pass forking as a function, write `(job: () => A!E!R) => fork job()`. In a `module` block the runtime's functions stay ordinary values. |
 | A pause in a `using` initializer, such as a wait in the function that opens the resource | Cancellation now follows Effect. Every initializer runs with the interruptibility in force where the `using` stands, whether or not it requires `Scope`, so cancellation reaches its waits and `using` registers nothing. A `timeout` around `using db = openDb()` now ends at its deadline instead of waiting for `openDb`. To wait one out, write `using db = Effect.acquireDisposable(() => openDb())`: its acquisition holds cancellation off, and `using` adds no second release. |
+| A function without a return annotation that plain code calls or passes, such as `function double(n: number) { return n * 2 }` in `xs.map(double)`, at a module's top level, in a getter, or in a function annotated `: number` | EK4301, EK1001 or EK2003: a function without a return annotation is an Effect function, whatever its body does (a ruling marked controversial). It was plain when its body ran no Effect. Write its return type, `double(n: number): number`, or `: infer _` to keep the type TypeScript infers from the body. TypeScript callers now receive the annotated function's plain signature, and an unannotated function's Effect signature. |
+| A literal with no declared destination, such as `const half = (n: number) => n / 2` or `const api = { triple(n: number) { return n * 3 } }`, used from plain code or from TypeScript | An Effect function, as a declaration is: write `(n: number): number => n / 2`. A literal where a declared type gives it a form, as `xs.map((x) => x + 1)` does, still takes that form; a method named `toString`, `toJSON`, `valueOf`, `then` or a well-known symbol is plain. |
+| A callback parameter written without a contract, `f: (a: A) => B`, that receives a function that runs Effects | It means what TypeScript means, a plain callback, so passing an Effect function is EK4301 and the parameter no longer gains `E` and `R`. Declare the channels the callback may have: `mapAll<A, B, E, R>(items: ReadonlyArray<A>, f: (a: A) => B!E!R)`. |
+| A literal at a destination that accepts a value or an Effect, such as `retry`'s `while: (e) => boolean \| Effect<boolean>`, whose body runs an Effect | EK4301: such a literal is plain unless its annotation says otherwise. Write `(e): boolean!! => …`. |
+| A literal with an Effect contract where only a plain function fits, such as `Schema.suspend((): Codec<A>!! => A)` | EK4301; it previously compiled as a plain function returning the contract's success value. Write the plain type, `(): Codec<A> => A`. |
+| An unannotated function that returns a program it holds or receives, such as `const make = (n: number) => { const p: number!! = () => n; return p }` | EK4802, as an Effect function returning a program. Write `: infer _`: the function is plain, a VibeLang call of it runs the program it returns, and a TypeScript caller receives the program unrun. |
 | `fork job`, `fork(() => work())` or `await.all [job]`, where `job` is an Effect or a function with no required parameters | EK4613: the operand is a program by syntax whose result is its value, so the new fiber or the element would give `job` back unrun; it previously ran it. Write `fork job()`, `fork work()` or `await.all [job()]`; `vibelang --fix` writes these. |
 | `await.all [fiber]` or `await.race [ready]`, an element that is a `Fiber` or a `Deferred` | EK4609 or EK4610: an element's result is its value, never waited for again. Write `join fiber` or `ready.await()` as the element. The operation no longer interrupts a fiber you hand it when another element fails or wins; the fiber's region interrupts it when the region ends. |
 | `await.all exits`, an operand that is not a literal whose element type is an `Exit`, a `Config`, or a union with a member that is not a program | EK4603: such an operand runs each element by its static type, and an `Exit` is data. It previously ran each `Exit` as an Effect. Give the elements a program type, or write an array literal, whose elements are programs by syntax. |
@@ -152,6 +158,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 #### Compiler and diagnostics
 
 - A `schema` declaration's `.d.ts` declared an interface, `interface User extends Schema.Schema.Type<typeof User> {}`, before the constant, so a library that rewrote `const User = Schema.Struct(…)` and `type User = typeof User.Type` as a `schema` changed its public declarations. It now declares the constant and then `type User = typeof User.Type`, byte for byte what the Effect TypeScript declares.
+- A function's form followed its body: adding a log call to an unannotated exported helper changed its declaration from plain to Effect and broke callers compiled earlier, a callback type written in place accepted Effect callbacks while the same type through an alias did not, and an unannotated protocol method such as `static [customMatcher]()` or `[Symbol.dispose]()` that ran an Effect returned it unrun. A function's form is now written: a plain return annotation or `: infer _` makes it plain, a function without one is an Effect function, a literal takes its destination's form, and a callback type means what TypeScript means; see [Upgrade from 0.0.10](#upgrade-from-0010).
 - A match whose last arm only binds the value, `when let other: …`, reported EK4701 over a union of literals or tags as if that arm handled no case. Such an arm now handles every case, as `default` does.
 - A structural type could stand for a service. A requirement for one service could be relabeled as another and fail at run time with `Service not found`. Services are now nominal by their key; see [Upgrade from 0.0.10](#upgrade-from-0010).
 - A `service` declaration's `.d.ts` declared VibeLang's own interface, runtime key type and `Shape` namespace, and its key was always derived, so a library that rewrote a `Context.Service` class as a `service` changed its public declarations and its key (foldkit's `Dispatch`, alchemy's `Correlation`). It now declares Effect's own `Context.Service` class, byte for byte what the TypeScript declared, and `static readonly key = "…"` in the body keeps the original key, which the `Context.Service` quick fix and `vibelang --fix` now write.
@@ -446,11 +453,6 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
 - `for concurrent(limit()) (const item of items())` can evaluate `items()`
   before `limit()`, even selecting an old collection and skipping work.
   Evaluate the limit into a local before the loop.
-- A call of a plain function that returns a program it was given, such as
-  `pick(load)` with `function pick(p: number!!) { return p }`, gives back
-  the program unrun instead of running it once, and the same call at a
-  module's top level compiles instead of failing with EK1001. Call the
-  result, `pick(load)()`, and drop that extra call once this is fixed.
 - A function with an Effect contract whose body compiles to plain
   JavaScript, such as `function twice(n: number): number!! { return n * 2 }`
   or `(x): number!! => x + 1`, is accepted where only a plain function fits:
@@ -706,19 +708,6 @@ listed with an upgrade step.
   try { work() } catch (e) { return match (e) {
     when KnownError: 1; // another subclass of the family can arrive
   } }
-  ```
-
-- **Extracting a callback type alias changes what callbacks are accepted.**
-  An inline function type without a contract gains effect polymorphism;
-  an alias of the same TypeScript type stays plain and can reject a callback
-  that pauses or needs a service. Today, write the callback's `A!E!R` contract
-  explicitly in reusable types and keep synchronous callbacks plain.
-
-  ```vibe
-  // fragment
-  type Fn = (n: number) => number
-  function inline(f: (n: number) => number) { return f(1) }
-  function aliased(f: Fn) { return f(1) } // different callback contract
   ```
 
 - **A generic return type can decide whether a result runs.** Calls whose

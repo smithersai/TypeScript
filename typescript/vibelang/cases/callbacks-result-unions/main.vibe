@@ -1,6 +1,6 @@
-// A callback declared to return a plain value or an Effect takes the plain
-// form when it compiles to plain JavaScript and the Effect form when it can
-// pause (design D39), as Arbitrary.checkEffect's property does.
+// A callback declared to return a plain value or an Effect, as
+// Arbitrary.checkEffect's property is, takes the plain form unless its return
+// annotation makes it an Effect function (D112, D500).
 import { Arbitrary, Schema } from "effect"
 import { probe } from "./helpers.ts"
 
@@ -12,7 +12,7 @@ function isSmall(n: number) {
 const Count = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 100 }))
 
 function roundTrip() {
-  const result = Arbitrary.checkEffect(Arbitrary.schema(Count), (count) => {
+  const result = Arbitrary.checkEffect(Arbitrary.schema(Count), (count): boolean!Schema.SchemaError!never => {
     const wire = Schema.encodeEffect(Schema.FiniteFromString)(count)
     return Schema.decodeEffect(Schema.FiniteFromString)(wire) === count
   }, { runs: 20, seed: "count-round-trip" })

@@ -1,5 +1,5 @@
-// A callback parameter type without a contract accepts any contract
-// (design D12): mapAll's E and R come from each call's callback.
+// A callback that may run Effects declares its channels as type parameters
+// (design D500): mapAll's E and R come from each call's callback.
 class NotFound extends TaggedError("NotFound")<{ readonly id: string }> {}
 
 function find(id: string) {
@@ -8,7 +8,7 @@ function find(id: string) {
   return `user-${id}`
 }
 
-export function mapAll<A, B>(items: ReadonlyArray<A>, f: (a: A) => B) {
+export function mapAll<A, B, E, R>(items: ReadonlyArray<A>, f: (a: A) => B!E!R) {
   const out: B[] = []
   for (const item of items) out.push(f(item))
   return out
@@ -19,7 +19,7 @@ export function mapSafe<A, B>(items: ReadonlyArray<A>, f: (a: A) => Effect<B, ne
   return items.length === 0 ? [] : [f(items[0])]
 }
 
-export function withRetry<A>(times: number, program: () => A) {
+export function withRetry<A, E, R>(times: number, program: () => A!E!R) {
   return Effect.retry(program, { times })
 }
 

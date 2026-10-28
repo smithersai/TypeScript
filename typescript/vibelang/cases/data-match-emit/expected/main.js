@@ -1,5 +1,4 @@
 import * as Data from "effect/Data";
-import * as Effect from "effect/Effect";
 import * as runtime from "vibelang-runtime";
 const Delivery = Data.taggedEnum();
 function describe(delivery) {
@@ -27,4 +26,4 @@ export function main$direct() {
 }
 export function main(...args) { return runtime.$plainSync(main$direct, this, args); }
 main[runtime.$direct] = main$direct;
-runtime.$entry(import.meta.main, import.meta.url, main, () => runtime.$runMain(Effect.sync(main)));
+runtime.$entry(import.meta.main, import.meta.url, main, () => runtime.$runMain(main()));

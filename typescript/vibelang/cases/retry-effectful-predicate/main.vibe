@@ -9,7 +9,7 @@ function retryWhileBusy() {
       throw new Busy({ attempt: attempts })
     }, {
       times: 5,
-      while: (error) => {
+      while: (error): boolean!! => {
         sleep("1 millis")
         return error.attempt < 3
       }

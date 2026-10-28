@@ -49,7 +49,7 @@ export class Child extends Parent {
   tagged() { const t = Effect.sync(() => 0); return [super.tag`a${1}b`] }
   bigint() { const t = Effect.sync(() => 0); const r = super.big++; return [String(r), String(this.bigValue)] }
   static staticPost() { const t = Effect.sync(() => 0); const r = super.counter++; return [r, Parent.counterValue] }
-  arrow() {
+  arrow(): infer _ {
     return () => { const t = Effect.sync(() => 0); const r = super.count++; return [r, this.value] }
   }
   field = () => { const t = Effect.sync(() => 0); const r = super.count--; return [r, this.value] }

@@ -76,7 +76,7 @@ Generation targets the decoded type, so a string-to-number codec generates numbe
 function checkCountRoundTrip() {
   const Count = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 100 }))
   const generator = Arbitrary.schema(Count)
-  const result = Arbitrary.checkEffect(generator, (count) => {
+  const result = Arbitrary.checkEffect(generator, (count): boolean!Schema.SchemaError!never => {
     const wire = Schema.encodeEffect(Schema.FiniteFromString)(count)
     return Schema.decodeEffect(Schema.FiniteFromString)(wire) === count
   }, { runs: 200, seed: "count-round-trip" })

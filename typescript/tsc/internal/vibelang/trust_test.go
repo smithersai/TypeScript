@@ -133,7 +133,7 @@ func TestTrustedWorkspacePackageNames(t *testing.T) {
 			for _, d := range p.GetSemanticDiagnostics(t.Context(), p.GetSourceFile("/main.vibe")) {
 				if d.Code() == EK4401.Code {
 					count++
-				} else if d.Category() == diagnostics.CategoryError {
+				} else if d.Category() == diagnostics.CategoryError && d.Code() != EK1011.Code { // the fixture installs no effect
 					t.Errorf("unexpected diagnostic: %v", d)
 				}
 			}
@@ -176,7 +176,7 @@ export declare function make(): Schema`,
 			for _, d := range p.GetSemanticDiagnostics(t.Context(), p.GetSourceFile("/main.vibe")) {
 				if d.Code() == EK4401.Code {
 					count++
-				} else if d.Category() == diagnostics.CategoryError {
+				} else if d.Category() == diagnostics.CategoryError && d.Code() != EK1011.Code { // the fixture installs no effect
 					t.Errorf("unexpected diagnostic: %v", d)
 				}
 			}
@@ -220,7 +220,7 @@ export declare const vi: { spyOn(target: object, name: string): Spy }`,
 			for _, d := range p.GetSemanticDiagnostics(t.Context(), p.GetSourceFile("/main.vibe")) {
 				if d.Code() == EK4401.Code {
 					count++
-				} else if d.Category() == diagnostics.CategoryError {
+				} else if d.Category() == diagnostics.CategoryError && d.Code() != EK1011.Code { // the fixture installs no effect
 					t.Errorf("unexpected diagnostic: %v", d)
 				}
 			}

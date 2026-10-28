@@ -1,5 +1,5 @@
 // expect: EK1001 EK2001 EK2002 EK2003
-const makeRuntime = (n: number) => {
+const makeRuntime = (n: number): infer _ => {
   const p: Effect.Effect<{ n: number }, never, never> = () => { return { n } }
   return p
 }
@@ -11,7 +11,7 @@ export const plain = (): number => {
 
 error Unavailable {}
 service Needed { value: number }
-const makeProgram = (input: Effect.Effect<number, Unavailable, Needed>) => {
+const makeProgram = (input: Effect.Effect<number, Unavailable, Needed>): infer _ => {
   const p: Effect.Effect<number, Unavailable, Needed> = input
   return p
 }

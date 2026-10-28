@@ -19,7 +19,6 @@ func init() {
 	compiler.RegisterScriptTransformerHook(newLowering)
 	compiler.RegisterDirectiveExemptSource(diagnosticSource)
 	compiler.RegisterImplicitImportHook(implicitRuntimeImport)
-	compiler.RegisterDeclarationTransformerHook(declareCallbackContracts) // before transformDeclarations, which imports what it writes
 	compiler.RegisterDeclarationTransformerHook(transformDeclarations)
 	checker.RegisterCallExpressionTypeHook(callExpressionType)
 	checker.RegisterReturnInferenceTargetHook(runningCallInferenceTarget)
@@ -29,7 +28,6 @@ func init() {
 	checker.RegisterCandidateRankingHook(rankProgramCandidates)
 	checker.RegisterFunctionExpressionTypeHook(functionExpressionType)
 	checker.RegisterContextualReturnTypeHook(contextualReturnType)
-	checker.RegisterAnnotatedReturnInferenceHook(annotatedReturnInference)
 	checker.RegisterSourceFileCheckHook(checkSourceFile)
 	checker.RegisterDiagnosticsFilterHook(filterCoveredDiagnostics)
 	checker.RegisterDiagnosticsFilterHook(filterPlatformImports)
@@ -45,6 +43,7 @@ func init() {
 	checker.RegisterCatchVariableTypeHook(catchVariableType)
 	checker.RegisterUnwrappedReturnTypeHook(unwrappedReturnType)
 	checker.RegisterAnnotatedReturnTypeHook(annotatedReturnType)
+	checker.RegisterAnnotatedReturnInferenceHook(inferredReturnInference)
 	checker.RegisterResolvingReturnTypeHook(selfCallType)
 	checker.RegisterInferTypeHook(inferChannel)
 	declarations.RegisterTypeAnnotationHook(hasInferredChannel)
@@ -52,8 +51,6 @@ func init() {
 	checker.RegisterSpellingCandidatesHook(preludeSpellingCandidates)
 	checker.RegisterEntityNameVisibilityHook(preludeNameVisible)
 	checker.RegisterModuleNameHook(preludeModuleName)
-	checker.RegisterTypeParametersHook(extraTypeParameters)
-	checker.RegisterParameterTypeHook(callbackParameterType)
 	checker.RegisterIteratedElementTypeHook(iteratedElementType)
 }
 

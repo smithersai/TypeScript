@@ -125,7 +125,7 @@ Use a native Set when JavaScript value equality fits. A size limit counts unique
 // run: Console.log(JSON.stringify(Array.from(summarizeStations())))
 type Reading = { station: string; count: number }
 
-function addReading(totals: Map<string, number>, reading: Reading) {
+function addReading(totals: Map<string, number>, reading: Reading): Map<string, number> {
   totals.set(reading.station, (totals.get(reading.station) ?? 0) + reading.count)
   return totals
 }

@@ -27,7 +27,7 @@ export class Parent {
   set big(n: bigint) { this.bigValue = n }
   static get counter(): number { return Parent.counterValue }
   static set counter(n: number) { Parent.counterValue = n }
-  tag(strings: TemplateStringsArray, ...values: unknown[]) {
+  tag(strings: TemplateStringsArray, ...values: unknown[]): string {
     return `${this.value}:${strings.join("|")}:${values.join(",")}`
   }
 }

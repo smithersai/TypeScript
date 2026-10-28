@@ -192,8 +192,8 @@ func (c *Checker) applyReturnInferenceTargetHooks(call *ast.Node, contextual *Ty
 // annotation of fn, a context-sensitive function expression, arrow function,
 // or object literal method, as the source that inference from fn's
 // annotations infers the enclosing call's type arguments from. TypeScript
-// infers from the annotation as written; an extension that gives fn another
-// return type in some positions can infer from that type instead.
+// infers from the annotation as written; an extension whose annotation asks
+// for the body's type returns nil, and nothing is inferred from it.
 type AnnotatedReturnInferenceHook func(c *Checker, fn *ast.Node, t *Type) *Type
 
 var annotatedReturnInferenceHooks []AnnotatedReturnInferenceHook
@@ -207,7 +207,9 @@ func RegisterAnnotatedReturnInferenceHook(hook AnnotatedReturnInferenceHook) {
 
 func (c *Checker) applyAnnotatedReturnInferenceHooks(fn *ast.Node, t *Type) *Type {
 	for _, hook := range annotatedReturnInferenceHooks {
-		t = hook(c, fn, t)
+		if t = hook(c, fn, t); t == nil {
+			return nil
+		}
 	}
 	return t
 }

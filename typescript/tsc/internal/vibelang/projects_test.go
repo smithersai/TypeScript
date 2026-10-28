@@ -56,7 +56,7 @@ func untrustedCallsIn(t *testing.T, fs vfs.FS, parsed *tsoptions.ParsedCommandLi
 		for _, d := range p.GetSemanticDiagnostics(t.Context(), file) {
 			if d.Code() == EK4401.Code {
 				counts[i]++
-			} else if d.Category() == diagnostics.CategoryError {
+			} else if d.Category() == diagnostics.CategoryError && d.Code() != EK1011.Code { // the fixture installs no effect
 				t.Errorf("unexpected diagnostic in %s: %v", name, d)
 			}
 		}
@@ -194,7 +194,7 @@ func TestLinkedWorkspaceVibeFileUsesItsOwnProjectSettings(t *testing.T) {
 			for _, d := range p.GetSemanticDiagnostics(t.Context(), check) {
 				if d.Code() == EK4401.Code {
 					count++
-				} else if d.Category() == diagnostics.CategoryError {
+				} else if d.Category() == diagnostics.CategoryError && d.Code() != EK1011.Code { // the fixture installs no effect
 					t.Errorf("unexpected diagnostic: %v", d.MessageText())
 				}
 			}

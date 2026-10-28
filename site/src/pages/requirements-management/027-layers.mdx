@@ -74,7 +74,7 @@ const ReportsLive = Layer.effect(Reports) {
 // Output: reports/Inventory
 ```
 
-Use `Layer.succeed` for an existing implementation or constant factory, `Layer.effect` for a factory that performs Effect operations, and `Layer.sync` for an eligible synchronous constructor that needs no Effect work. Constructing a layer value doesn't run its initialization program.
+Use `Layer.succeed` for an existing implementation or constant factory, `Layer.effect` for a factory that performs Effect operations, and `Layer.sync` for a plain synchronous constructor, one with a plain return annotation such as `(): Users.Shape => …`, that needs no Effect work. Constructing a layer value doesn't run its initialization program.
 
 A factory can register `Effect.addFinalizer` or acquire with `Effect.acquireRelease`; `Layer.effect` supplies the construction scope and removes `Scope` from the layer's input requirements. Acquire a returned service's resources without `using`: a lexical `using` releases them when the factory returns.
 

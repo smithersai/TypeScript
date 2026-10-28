@@ -2,7 +2,7 @@ main.vibe:12:3 find covered
 main.vibe:18:1 step covered
 main.vibe:23:1 direct covered
 main.vibe:27:24 handler covered
-main.vibe:27:42 (anonymous) covered
+main.vibe:27:51 (anonymous) covered
 main.vibe:29:1 mapped uncovered
 main.vibe:33:1 load covered
 main.vibe:34:27 (anonymous) uncovered

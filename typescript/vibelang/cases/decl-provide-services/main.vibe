@@ -14,7 +14,7 @@ const NamesLive = Layer.succeed(Names, {
   name() { return "Ada" }
 })
 
-const fixedRandom = { nextIntUnsafe: () => 7, nextDoubleUnsafe: () => 0.25 }
+const fixedRandom = { nextIntUnsafe: (): number => 7, nextDoubleUnsafe: (): number => 0.25 }
 
 function single(): string!! {
   provide Greeting = { text: () => "hi" } {

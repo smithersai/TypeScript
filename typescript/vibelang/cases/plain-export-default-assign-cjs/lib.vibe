@@ -1,6 +1,6 @@
-export function helper(s: string) {
+export function helper(s: string): string {
   return s + "!"
 }
-export function other(s: string) {
+export function other(s: string): string {
   return s + "?"
 }

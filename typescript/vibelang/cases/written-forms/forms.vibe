@@ -1,0 +1,38 @@
+// D500: a function's form is written. An unannotated function is an Effect
+// function whatever its body does; a plain return annotation, or `: infer _`,
+// makes a plain function, for VibeLang and TypeScript alike.
+let bumps = 0
+
+// Unannotated: Effect functions, cold to TypeScript.
+export function bump() {
+  bumps++
+  return bumps
+}
+export const arrow = (n: number) => n + 1
+export const api = { triple(n: number) { return n * 3 } }
+
+// Plain: a plain return annotation, or `: infer _`.
+export function double(n: number): number {
+  return n * 2
+}
+export const half = (n: number): infer _ => n / 2
+export function makeApi(): infer _ {
+  return { half(n: number): number { return n / 2 }, nested: { third(n: number): number { return n / 3 } } }
+}
+
+// Plain code calls plain functions, and passes them.
+export const initial = double(3)
+export const halves = [2, 4].map(half)
+export const doubled = [1, 2].map((n) => double(n))
+export const madeHalf = makeApi().half(2)
+export const madeThird = makeApi().nested.third(3)
+
+// A protocol member is plain wherever it is written (D484).
+export const label = { toString() { return "ok" }, toJSON: () => 1 }
+
+// Effect code runs an Effect function where it calls it.
+export function main() {
+  const first = bump()
+  const second = bump()
+  return [first, second, arrow(1), api.triple(2), double(4)]
+}

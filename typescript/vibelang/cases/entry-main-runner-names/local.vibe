@@ -1,5 +1,5 @@
 // A local function named like a prelude runner is not a runner either.
-function runPromise(n: number) {
+function runPromise(n: number): number {
   return n
 }
 const started = runPromise(3)

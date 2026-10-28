@@ -80,7 +80,7 @@ module node {
 }
 import { createServer } from node
 
-function server(port: number) {
+function server(port: number): infer _ {
   const Server = NodeHttpServer.layer(createServer, { port })
   return Layer.provide(HttpRouter.serve(App), Server)
 }

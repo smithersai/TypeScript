@@ -12,7 +12,7 @@ const listFlows = () => {
 const handlers = { list: listFlows }
 
 // A command handler whose contract is void!!.
-const command = (name: string, handler: (n: number) => void!!) => handler
+const command = (name: string, handler: (n: number) => void!!): infer _ => handler
 export const ls = command("ls", () => listFlows)
 export const fromField = command("list", () => handlers.list)
 

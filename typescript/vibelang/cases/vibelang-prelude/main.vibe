@@ -13,7 +13,7 @@ function lookup(id: number) {
 
 const done: Effect<void, never, Scope> = Effect.void
 const both: Effect.Effect<void, never, Scope.Scope> = done
-const double = (n: number) => n * 2
+const double = (n: number): number => n * 2
 
 // The top level may not run a program (EK1001), so the Effect<number> value
 // arrives as a program, a function with no parameters (D7).

@@ -85,8 +85,9 @@ func (a *analyzer) hasContract(fn *ast.Node) bool {
 }
 
 // hasPlainContract identifies a plain contract without inspecting the body
-// (D67, D282). In particular, asking about a callback parameter must not
-// first lift that parameter under D12 and then infer an Effect from its call.
+// (D67, D282, D500): a plain return annotation or `: infer _`, a protocol
+// method or one implementing a plain member (D397), or a literal whose
+// destination gives the plain form.
 func (a *analyzer) hasPlainContract(fn *ast.Node) bool {
 	if isPlainGenerator(fn) {
 		return true // D296: a JavaScript iterator annotation is a plain contract
@@ -112,6 +113,9 @@ func (a *analyzer) hasPlainContract(fn *ast.Node) bool {
 // the return type the checker gives it, the full contract with the inferred
 // channels filled in, instead of copying the annotation.
 func hasInferredChannel(node *ast.Node) bool {
+	if hasInferredReturn(node) {
+		return true
+	}
 	if !isLowerable(node) || node.Type() == nil || node.Type().Kind != ast.KindTypeReference {
 		return false
 	}
@@ -121,6 +125,37 @@ func hasInferredChannel(node *ast.Node) bool {
 		}
 	}
 	return false
+}
+
+// hasInferredReturn reports whether fn is a .vibe function whose return
+// annotation is `infer _`: a plain function whose return type TypeScript
+// infers from its body, as it infers an unannotated TypeScript function's
+// (D500). Its declaration file declares that inferred type.
+func hasInferredReturn(fn *ast.Node) bool {
+	if fn == nil || !isLowerable(fn) || fn.Type() == nil {
+		return false
+	}
+	return isInferredReturnAnnotation(fn.Type())
+}
+
+// isInferredReturnAnnotation reports whether t, a return annotation, is
+// written `infer _`.
+func isInferredReturnAnnotation(t *ast.Node) bool {
+	if t == nil || t.Kind != ast.KindInferType {
+		return false
+	}
+	parameter := t.AsInferTypeNode().TypeParameter
+	return parameter != nil && parameter.Name() != nil && parameter.Name().Text() == "_" && parameter.AsTypeParameterDeclaration().Constraint == nil
+}
+
+// inferredReturnInference infers nothing from a literal's `: infer _`
+// annotation, whose type is its body's, as TypeScript infers nothing from an
+// unannotated literal's return type before checking its body (D500).
+func inferredReturnInference(c *checker.Checker, fn *ast.Node, t *checker.Type) *checker.Type {
+	if hasInferredReturn(fn) {
+		return nil
+	}
+	return t
 }
 
 // unwrappedReturnType checks what a .vibe function with a contract returns
@@ -181,6 +216,9 @@ func annotatedReturnType(c *checker.Checker, fn *ast.Node, t *checker.Type) *che
 // contract, where `infer Name` asks for the channel to be inferred (D57). The
 // name is not in scope anywhere, so it is never unused.
 func inferChannel(c *checker.Checker, node *ast.Node) bool {
+	if node.Parent != nil && node.Parent.Type() == node && hasInferredReturn(node.Parent) {
+		return true // `: infer _`, the inferred plain return (D500)
+	}
 	reference := node.Parent
 	if reference == nil || reference.Kind != ast.KindTypeReference || reference.Parent == nil {
 		return false
@@ -278,9 +316,6 @@ func (a *analyzer) checkContract(file *ast.SourceFile, fn *ast.Node) {
 		declared := channelType(c, contractType, "_E")
 		for _, escape := range errorEscapes {
 			d := report(c, escape.source, EK2001, c.TypeToString(escape.t), name, "its contract says E = "+c.TypeToString(declared))
-			if parameter := a.uncontractedCallbackOf(fn, escape.t); parameter != nil {
-				note(d, "{0} has no Effect contract, so a call to it can fail with any {1}. If it cannot fail, write its contract: {2}", declarationName(parameter), c.TypeToString(escape.t), callbackContractText(file, parameter))
-			}
 			note(d, "Catch it inside {0}, or change the contract to {1}.", name, contractText(c, contractType, channelE, escape.t))
 		}
 	}

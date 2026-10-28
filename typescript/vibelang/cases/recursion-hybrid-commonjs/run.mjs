@@ -8,7 +8,7 @@ import * as m from "./out/main.js"
 assert.equal(lib.complex$direct.length, 1)
 assert.equal(lib.args$direct.length, 1)
 const receivers = await import("./out/receiver-a.js")
-for (const n of [0, 1, 10, 11]) assert.equal(Effect.runSync(receivers.f(n)), n % 2 === 0 ? 1 : 2)
+for (const n of [0, 1, 10, 11]) assert.equal(receivers.f(n), n % 2 === 0 ? 1 : 2)
 assert.equal(lib.default$direct, down[$direct])
 assert.equal(down.length, 0, "preserve the plain public Effect wrapper arity")
 const publicKeys = Reflect.ownKeys(down)

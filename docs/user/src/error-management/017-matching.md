@@ -29,7 +29,7 @@ function countLabel(raw: number) {
 Count unavailable
 ```
 
-`Effect.match` applies synchronous value callbacks, which can't perform Effect operations; one that only formats text is eligible for plain JavaScript compilation. A cause without an expected failure propagates. A cause with a defect propagates too, its expected failures as defects. From an expected failure beside an interruption, Effect selects the failure and discards the interruption, as ordinary catch does.
+`Effect.match` applies synchronous value callbacks, which are plain functions and can't perform Effect operations, such as one that only formats text. A cause without an expected failure propagates. A cause with a defect propagates too, its expected failures as defects. From an expected failure beside an interruption, Effect selects the failure and discards the interruption, as ordinary catch does.
 
 ## Choosing effectful branches
 

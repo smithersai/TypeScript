@@ -1,5 +1,5 @@
 // Chapter 14. Callbacks and higher-order functions.
-// D12: a function type without a contract accepts any contract, inferred from each call's argument.
+// D500: a callback that may run Effects declares its channels as type parameters, as Effect TypeScript does.
 import { Schedule } from "effect"
 
 class UserNotFound extends TaggedError("UserNotFound")<{ readonly id: string }> {}
@@ -14,7 +14,7 @@ abstract class Users {
   abstract find(id: string): Effect<User, UserNotFound, never>
 }
 
-function mapAll<A, B>(items: ReadonlyArray<A>, f: (a: A) => B) {
+function mapAll<A, B, E, R>(items: ReadonlyArray<A>, f: (a: A) => B!E!R) {
   const out: B[] = []
   for (const item of items) out.push(f(item))
   return out
@@ -29,7 +29,7 @@ function namesAndSizes(ids: ReadonlyArray<string>, words: ReadonlyArray<string>)
   return { names, sizes }
 }
 
-function withRetry<A>(times: number, program: () => A) {
+function withRetry<A, E, R>(times: number, program: () => A!E!R) {
   return Effect.retry(program, Schedule.recurs(times))
 }
 // <A, E, R>(times: number, program: () => Effect<A, E, R>) => Effect<A, E, R>

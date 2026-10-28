@@ -71,7 +71,9 @@ func TestPipeFirstArgumentAlwaysHasItsFunctionForm(t *testing.T) {
 		var visit func(*ast.Node) bool
 		visit = func(n *ast.Node) bool {
 			if isLambda(n) && strings.Contains(file.Text()[n.Pos():n.End()], "5") {
-				if form := a.finalForm(n); form != formPlain {
+				// pipe's first parameter is a type parameter, which gives no
+				// form: the literal is an Effect function, never a program (D500).
+				if form := a.finalForm(n); form != formEffect {
 					t.Errorf("first argument took form %v for %s", form, stage)
 				}
 			}

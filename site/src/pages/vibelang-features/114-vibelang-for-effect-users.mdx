@@ -261,7 +261,7 @@ These are single-machine observations from the 0.0.9 alpha review on Linux x64, 
 | 1,000,000 `Effect.succeed`/`Effect.fail` steps with `Effect.orElseSucceed` | About 0.33 s |
 | 1,000,000 plain-function calls | About 3 ms |
 
-Effect-contracted calls were in the same order of cost as `Effect.fn` generators. The `catch` loop cost more than the hand-written `Effect.orElseSucceed` loop. A function that compiles to plain JavaScript adds no Effect wrapper. Measure your own workload, including tracing, before choosing a boundary for a hot loop.
+Effect-contracted calls were in the same order of cost as `Effect.fn` generators. The `catch` loop cost more than the hand-written `Effect.orElseSucceed` loop. A plain-annotated function, `double(n: number): number`, adds no Effect wrapper, and an unannotated one whose body runs no Effect operation is called inline from Effect code. Measure your own workload, including tracing, before choosing a boundary for a hot loop.
 
 ## Catch expected failures only
 

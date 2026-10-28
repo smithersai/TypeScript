@@ -20,7 +20,7 @@ function getter() {
         reads++
         seen.push("lookup:" + reads)
         const saved = reads
-        return () => { seen.push("dispose:" + saved) }
+        return (): void => { seen.push("dispose:" + saved) }
       }
     }
   }

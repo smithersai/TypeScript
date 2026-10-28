@@ -36,7 +36,7 @@ class Box<A> {
   constructor(readonly value: A) {}
 }
 
-function BoxSchema<S extends Schema.Constraint>(value: S) {
+function BoxSchema<S extends Schema.Constraint>(value: S): infer _ {
   return Schema.declareConstructor<Box<S["Type"]>, Box<S["Encoded"]>>()(
     [value],
     ([element]) => (input, ast, options) => {
@@ -259,7 +259,7 @@ interface CrateWire {
 const Crate = Schema.Struct({
   count: Schema.FiniteFromString,
   children: Schema.Array(
-    Schema.suspend((): Schema.Codec<Crate, CrateWire>!! => Crate)
+    Schema.suspend((): Schema.Codec<Crate, CrateWire> => Crate)
   )
 })
 
@@ -267,7 +267,7 @@ interface Branch { leaves: ReadonlyArray<Leaf> }
 interface Leaf { owner: Branch | null }
 
 const Branch = Schema.Struct({
-  leaves: Schema.Array(Schema.suspend((): Schema.Codec<Leaf>!! => Leaf))
+  leaves: Schema.Array(Schema.suspend((): Schema.Codec<Leaf> => Leaf))
 })
 const Leaf = Schema.Struct({ owner: Schema.NullOr(Branch) })
 
@@ -281,7 +281,7 @@ function readCrate(input: unknown) {
 {"leaves":[{"owner":null}]}
 ```
 
-`suspend` delays resolving a schema reference, so schemas can refer to themselves or to each other without reading an uninitialized binding. Write the recursive callback's full contract to break the inference cycle. The callback returns a codec as data, runs no Effect operation, and has `never` for E and R, so Schema receives its plain JavaScript form. When encoded and decoded fields differ, define both recursive interfaces and keep both in `Codec`; `Codec<Crate>` would wrongly claim the wire count is already a number. Decoding and encoding services go in the inner `Schema.Codec<T, E, RD, RE>` type; the callback's own E and R stay `never`.
+`suspend` delays resolving a schema reference, so schemas can refer to themselves or to each other without reading an uninitialized binding. Write the recursive callback's return type to break the inference cycle: `(): Schema.Codec<Crate, CrateWire> => Crate` is a plain function that returns the codec as data, as Schema expects. When encoded and decoded fields differ, define both recursive interfaces and keep both in `Codec`; `Codec<Crate>` would wrongly claim the wire count is already a number. Decoding and encoding services go in the inner `Schema.Codec<T, E, RD, RE>` type.
 
 ---
 

@@ -157,9 +157,6 @@ func (a *analyzer) formHere(fn *ast.Node) form {
 			if s.first == formNone {
 				s.first = f
 			}
-			if f == formPlain && !a.canBePlain(fn) {
-				a.reject(call, key)
-			}
 			return f
 		}
 	}
@@ -170,37 +167,6 @@ func (a *analyzer) formHere(fn *ast.Node) form {
 // expects of fn at path among call's arguments.
 func (a *analyzer) expectationAt(call *ast.Node, signature *checker.Signature, path []pathStep, fn *ast.Node) expectation {
 	return a.classify(a.expectedAt(call, signature, path, fn))
-}
-
-// annotatedReturnInference makes inference from the contract of a lambda that
-// only a plain function fits, such as decode in SchemaTransformation.transform,
-// infer from the contract's A, the lambda's return type in the plain form
-// (D9). TypeScript would infer from Effect<A, E, R>, before the lambda takes
-// a form. Only the position decides here: fn's parameters are being typed,
-// so its body cannot be checked yet.
-func annotatedReturnInference(c *checker.Checker, fn *ast.Node, t *checker.Type) *checker.Type {
-	if !isLambda(fn) {
-		return t
-	}
-	a := analyzerFor(c)
-	call, path := ownerCall(fn)
-	if call == nil {
-		return t
-	}
-	signature := a.candidateOf(call)
-	if signature == nil {
-		return t
-	}
-	if e := a.expectationAt(call, signature, path, fn); !e.plainFn || e.effectFn || e.program {
-		return t
-	}
-	if analyzerFor(c).isFactory(fn) {
-		return t
-	}
-	if success := successType(c, t); success != nil {
-		return success
-	}
-	return t
 }
 
 // finalForm is the form fn compiles to: the form the candidate its call
@@ -270,10 +236,10 @@ func (a *analyzer) freeForm(fn *ast.Node) form {
 // provisionalForm is the form a recursive call sees while fn's free form is
 // being decided: an Effect function when fn has an Effect contract, else plain.
 func (a *analyzer) provisionalForm(fn *ast.Node) form {
-	if a.contractOf(fn) != nil {
-		return formEffect
+	if a.hasPlainContract(fn) {
+		return formPlain
 	}
-	return formPlain
+	return formEffect
 }
 
 // decide turns an expectation into a form for fn. Without one, fn is plain
@@ -290,37 +256,53 @@ func (a *analyzer) decide(fn *ast.Node, e expectation) form {
 	if a.isFactory(fn) {
 		return formFactory
 	}
-	if fn.Type() != nil && a.hasPlainContract(fn) && a.canBePlain(fn) && !a.hasEscapingFailure(fn) {
-		return formPlain // D67: a plain return annotation keeps its calling convention
+	if fn.Type() != nil && a.hasPlainContract(fn) {
+		return formPlain // D500: a plain return annotation makes a plain function
 	}
-	plainOrEffect := func() form {
-		if a.hasContract(fn) {
-			return formEffect // D67: an explicit Effect contract is the function's API
+	if a.hasContract(fn) {
+		// D500: an Effect annotation makes an Effect function wherever it
+		// stands; where only a plain function fits, TypeScript's
+		// assignability or EK4301 rejects it (callbacks.go).
+		if e.program && !e.effectFn && !e.plainFn && requiredParameterCount(fn) == 0 {
+			return formProgram
 		}
+		return formEffect
+	}
+	if a.atProtocolKey(fn) && !a.hasContract(fn) {
+		return formPlain // D484: a protocol key is a destination of the plain form
+	}
+	if isCalledInPlace(fn) {
+		// A match or an is expression is an arrow the parser writes and calls
+		// where it stands (isProgramArrow): no source text writes it as a
+		// function, so its body's form is the code's around it.
 		if a.canBePlain(fn) && !a.hasEscapingFailure(fn) {
 			return formPlain
 		}
 		return formEffect
 	}
-	function := formNone
 	switch {
-	case e.effectFn && e.plainFn:
-		function = plainOrEffect()
-	case e.effectFn:
-		function = formEffect
 	case e.plainFn:
-		function = formPlain
-	}
-	if e.program && requiredParameterCount(fn) == 0 && (function == formNone || !a.canBePlain(fn)) {
+		return formPlain // D112, D500: where both forms fit, plain unless an Effect annotation says otherwise
+	case e.effectFn:
+		return formEffect
+	case e.program && requiredParameterCount(fn) == 0:
 		return formProgram
 	}
-	if function != formNone {
-		return function
+	return formEffect // D500: no destination, as for a literal with none
+}
+
+// isCalledInPlace reports whether fn is a program arrow the parser writes and
+// calls where it stands, as it writes a match or an is expression.
+func isCalledInPlace(fn *ast.Node) bool {
+	if !isProgramArrow(fn) {
+		return false
 	}
-	if e.program {
-		return formEffect
+	callee := fn.Parent
+	if callee == nil || !ast.IsParenthesizedExpression(callee) {
+		return false
 	}
-	return plainOrEffect()
+	call := callee.Parent
+	return call != nil && ast.IsCallExpression(call) && call.Expression() == callee
 }
 
 func (a *analyzer) reject(call *ast.Node, key candidateKey) {
@@ -364,8 +346,7 @@ func (a *analyzer) canBePlain(fn *ast.Node) bool {
 
 // typeInForm returns fn's type in form f, given t, the type TypeScript
 // inferred for it: a function that returns its body's success value A. A
-// lambda with a contract, Effect<A, E, R>, that takes the plain form returns
-// A, as Schema.suspend's thunk returns a schema (D9, D67).
+// lambda with a return annotation keeps the type it writes (D500).
 func (a *analyzer) typeInForm(fn *ast.Node, t *checker.Type, f form) *checker.Type {
 	if f == formFactory {
 		if fn.Type() != nil {
@@ -384,9 +365,6 @@ func (a *analyzer) typeInForm(fn *ast.Node, t *checker.Type, f form) *checker.Ty
 			return a.checker.NewFunctionTypeWithReturnType(t.Symbol(), sigs[0], declared)
 		}
 		return t
-	}
-	if f == formPlain && fn.Type() != nil {
-		return a.plainTypeOf(t)
 	}
 	if f == formProgram && fn.Type() != nil {
 		// S6-4: an explicit Effect contract already types the body as its

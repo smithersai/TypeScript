@@ -128,11 +128,10 @@ var preludeModules = map[string]string{
 // runtime, one that may use an export of effect's root (effectroot.go)
 // resolve effect, and one that may use a subpath module (effectsubpath.go)
 // resolve that module's package, such as effect/http, so their
-// declarations are in the program. A file with a
-// function that may compile to plain JavaScript resolves effect too: such a
-// function is still an Effect to TypeScript (plain.go), and its type needs
-// effect's Effect interface. A file with none of these compiles exactly as
-// TypeScript would. So does a file whose functions are Effects only by what
+// declarations are in the program. A file with an unannotated function
+// resolves effect too: such a function is an Effect function (D500), and its
+// type needs effect's Effect interface. A file with none of these compiles
+// exactly as TypeScript would. So does a file whose functions are Effects only by what
 // they do (mayLowerToEffect): one that throws, a producer, and one that
 // declares `using`.
 func implicitRuntimeImport(file *ast.SourceFile) []string {
@@ -146,7 +145,7 @@ func implicitRuntimeImport(file *ast.SourceFile) []string {
 	if prelude || entry || runtime || declaresService(file) {
 		modules = append(modules, runtimeModule)
 	}
-	if root || effect || maySplitPlainFunction(file) {
+	if root || effect || mayDeclareEffectFunction(file) {
 		modules = append(modules, effectRootModule)
 	}
 	modules = append(modules, barrels...)
@@ -230,18 +229,24 @@ func isMemberNameOf(identifier *ast.Node) bool {
 	return false
 }
 
-// maySplitPlainFunction reports whether file declares a function that may
-// compile to plain JavaScript with an Effect form (isSplittable): a named
-// function declaration with a body and no return type annotation that is
-// neither async nor a generator. A function annotated with A!E!R names
+// mayDeclareEffectFunction reports whether file declares a function that
+// may be an Effect function whatever its body does (D500): a function
+// declaration, function expression, arrow function, or method with a body
+// and no return type annotation that is neither async nor a generator. Its
+// type needs effect's Effect interface. A function annotated with A!E!R names
 // effect's Effect, so mayUsePrelude already loads effect for it, and one
-// annotated with a plain type keeps that type.
-func maySplitPlainFunction(file *ast.SourceFile) bool {
+// annotated with a plain type keeps that type. A module block's body is
+// TypeScript.
+func mayDeclareEffectFunction(file *ast.SourceFile) bool {
 	var visit func(node *ast.Node) bool
 	visit = func(node *ast.Node) bool {
-		if node.Kind == ast.KindFunctionDeclaration && node.Name() != nil && node.Body() != nil && node.Type() == nil &&
-			ast.GetFunctionFlags(node)&(ast.FunctionFlagsAsync|ast.FunctionFlagsGenerator) == 0 {
-			return true
+		switch node.Kind {
+		case ast.KindModuleDeclaration:
+			return false
+		case ast.KindFunctionDeclaration, ast.KindFunctionExpression, ast.KindArrowFunction, ast.KindMethodDeclaration:
+			if node.Body() != nil && node.Type() == nil && ast.GetFunctionFlags(node)&(ast.FunctionFlagsAsync|ast.FunctionFlagsGenerator) == 0 {
+				return true
+			}
 		}
 		return node.ForEachChild(visit)
 	}

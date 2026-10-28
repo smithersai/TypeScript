@@ -159,8 +159,8 @@ func (a *analyzer) addCall(info *effectInfo, call *ast.Node) {
 		return
 	}
 	sig := a.callSignature(call)
-	// A call to a generic .vibe function, such as one whose callback accepts any
-	// contract (D12), adds the callee's E and R as this call instantiates
+	// A call to a generic .vibe function, such as one whose callback type
+	// declares its channels, `(a: A) => B!E!R`, adds the callee's E and R as this call instantiates
 	// them, so it reads its instantiated return type; the callee's own body
 	// knows only its type parameters. A callee with a contract adds what the
 	// contract says.

@@ -26,14 +26,15 @@ func init() {
 // such as "run find(id), an Effect", and {1} names the callee.
 var pausingCallback = EK4301.With("This callback can't {0}: {1} calls it synchronously, as a plain function.")
 
+// effectAnnotatedCallback is EK4301's text for a literal whose Effect
+// annotation makes it an Effect function where only a plain function fits
+// (D500).
+var effectAnnotatedCallback = EK4301.With("this callback is an Effect function, annotated {0}, but {1} calls it synchronously.")
+
 // pausingMethod is EK4301's text for a method that implements a plain
 // function member, such as Equal.Equal's [Equal.symbol] (D55). {0} is the
 // method, {1} what it can't do, {2} the member's owner.
 var pausingMethod = EK4301.With("{0} can't {1}: {2} declares it as a plain function, which its callers call synchronously.")
-
-// inlineCallbackNote explains why a callback parameter accepts a callback
-// that runs Effects (D12, D68). {0} is the parameter.
-const inlineCallbackNote = "{0} has no Effect contract, so it accepts a callback that runs Effects. Give {0} a named function type, such as type Body<A> = () => A, which accepts only plain functions"
 
 func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 	a := analyzerFor(c)
@@ -53,11 +54,16 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 					}
 				}
 			}
-			// S10-11: a boundary callback may be inferred as an Effect after
-			// calling an inline callback parameter. Explain that parameter
-			// before the downstream contract/channel errors, in either form.
-			// Keep D56's form finalization ahead of body inspection.
-			if f := a.finalForm(node); !a.reportBoundaryCallback(file, node) && f == formPlain {
+			if a.hasContract(node) && a.finalForm(node) == formEffect {
+				if call, path := ownerCall(node); call != nil {
+					if sig := a.candidateOf(call); sig != nil {
+						if e := a.expectationAt(call, sig, path, node); e.plainFn && !e.effectFn {
+							report(c, node, effectAnnotatedCallback, nodeText(file, node.Type()), calleeName(c, file, call))
+						}
+					}
+				}
+			}
+			if f := a.finalForm(node); f == formPlain && !(node.Type() != nil && a.hasPlainContract(node)) {
 				if pause := a.pauseWhat(file, node); pause != "" {
 					call, _ := ownerCall(node)
 					if !reportTracedCallback(c, file, call, node) {
@@ -95,17 +101,12 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 		case node.Kind == ast.KindIdentifier:
 			if a.finalConversion(node) == convertRejected {
 				call, _ := ownerCall(node)
-				// S10-21 covers named callbacks as well as inline lambdas;
-				// D68's callback-parameter advice still applies elsewhere.
+				// S10-21 covers named callbacks as well as inline lambdas.
 				if reportTracedCallback(c, file, call, node) {
 					break
 				}
 				d := report(c, node, EK4301, node.Text(), calleeName(c, file, call))
-				if a.isCallbackParameterValue(node) {
-					note(d, inlineCallbackNote+", or call it in a for...of loop.", node.Text())
-				} else {
-					note(d, "Use {0} or a for...of loop.", forEachFix(c, file, call, node))
-				}
+				note(d, "Use {0} or a for...of loop.", forEachFix(c, file, call, node))
 			}
 		}
 		return node.ForEachChild(visit)
@@ -113,22 +114,55 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 	file.AsNode().ForEachChild(visit)
 }
 
-// reportBoundaryCallback adds S10-11's advice only at a plain-code boundary;
-// ordinary callbacks retain D9/D56's existing pause diagnostics.
-func (a *analyzer) reportBoundaryCallback(file *ast.SourceFile, fn *ast.Node) bool {
-	c := a.checker
-	if !isBoundaryCallback(c, fn) {
+// protocolNames are the methods JavaScript calls by name without reading a
+// declaration (D397).
+var protocolNames = map[string]bool{"toString": true, "toLocaleString": true, "valueOf": true, "toJSON": true, "then": true}
+
+// isProtocolKey reports whether name, a member's name, is a protocol key
+// (D397, D484): toString, toLocaleString, valueOf, toJSON, then, a well-known
+// symbol such as [Symbol.dispose] or [Symbol.hasInstance], the prelude's
+// [customMatcher] (D407), or a protocol symbol of effect (effectProtocolKeys).
+// A method there is plain, as is a function literal written there as an
+// object literal's field.
+func (a *analyzer) isProtocolKey(name *ast.Node) bool {
+	if name == nil {
 		return false
 	}
-	pause := a.firstPause(fn)
-	if pause == nil || !a.isCallbackParameterValue(pause.Expression()) {
-		return false
+	switch name.Kind {
+	case ast.KindIdentifier, ast.KindStringLiteral:
+		return protocolNames[name.Text()]
+	case ast.KindComputedPropertyName:
+		key := ast.SkipParentheses(name.Expression())
+		if ast.IsIdentifier(key) {
+			return key.Text() == "customMatcher"
+		}
+		if !ast.IsPropertyAccessExpression(key) {
+			return false
+		}
+		if owner := key.Expression(); ast.IsIdentifier(owner) && owner.Text() == "Symbol" {
+			return true // a well-known symbol: Symbol.dispose, Symbol.iterator, ...
+		}
+		symbol := a.checker.GetSymbolAtLocation(key)
+		if symbol == nil || len(symbol.Declarations()) == 0 {
+			return false
+		}
+		file := ast.GetSourceFileOfNode(symbol.Declarations()[0])
+		return effectProtocolKeys[moduleOf(file)+"."+key.Name().Text()] && packageOf(a.checker, file) == "effect"
 	}
-	name := nodeText(file, pause.Expression())
-	call, _ := ownerCall(fn)
-	d := report(c, pause, pausingCallback, "call "+name+", which can run Effects", calleeName(c, file, call))
-	note(d, inlineCallbackNote+", to call it inside {1}.", name, calleeName(c, file, call))
-	return true
+	return false
+}
+
+// effectProtocolKeys are effect's symbols that its own code, or Node's
+// util.inspect, calls a method by: Equal.symbol, Hash.symbol, and
+// Inspectable.NodeInspectSymbol.
+var effectProtocolKeys = map[string]bool{"Equal.symbol": true, "Hash.symbol": true, "Inspectable.NodeInspectSymbol": true}
+
+// atProtocolKey reports whether fn, a function literal, is written as an
+// object literal's field at a protocol key, a destination of the plain form
+// (D484).
+func (a *analyzer) atProtocolKey(fn *ast.Node) bool {
+	parent := ast.WalkUpParenthesizedExpressions(fn.Parent)
+	return parent != nil && ast.IsPropertyAssignment(parent) && ast.SkipParentheses(parent.Initializer()) == fn && a.isProtocolKey(parent.Name())
 }
 
 // plainMemberOwner returns the name of the type whose member method
@@ -140,7 +174,13 @@ func (a *analyzer) reportBoundaryCallback(file *ast.SourceFile, fn *ast.Node) bo
 func (a *analyzer) plainMemberOwner(method *ast.Node) string {
 	c := a.checker
 	symbol := c.GetSymbolOfDeclaration(method)
-	if symbol == nil || ast.IsStatic(method) {
+	if symbol == nil {
+		return ""
+	}
+	if a.isProtocolKey(method.Name()) {
+		return "JavaScript" // D397, D484: JavaScript calls a protocol method by name
+	}
+	if ast.IsStatic(method) {
 		return ""
 	}
 	var owners []*ast.Node
@@ -204,8 +244,9 @@ func calleeName(c *checker.Checker, file *ast.SourceFile, call *ast.Node) string
 // pausingCallbackFix writes EK4301's fix for callback, a lambda that can
 // pause, passed to call: a comparator for sort or toSorted cannot run an
 // Effect at all, so its Effects run first; a VibeLang function that calls its
-// callback synchronously needs a contract that runs it as a program (D12);
-// any other callee's elements go through Effect.forEach or a loop.
+// callback synchronously needs a callback type that returns an Effect,
+// `(a: A) => B!E!R` (D500); any other callee's elements go through
+// Effect.forEach or a loop.
 func pausingCallbackFix(c *checker.Checker, file *ast.SourceFile, call *ast.Node, callback *ast.Node) string {
 	name := calleeName(c, file, call)
 	if strings.HasSuffix(name, ".prototype.sort") || strings.HasSuffix(name, ".prototype.toSorted") {

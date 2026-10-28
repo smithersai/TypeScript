@@ -55,7 +55,7 @@ Each case gets two symlinks in its `node_modules`: `effect`, from `$EFFECT_NODE_
 | Case | Proves |
 | --- | --- |
 | `declaration-nested-linked`, `declaration-nested-linked.fail` | S17-1: a dependency's own linked `node_modules` names an inferred export as `import("memory/MemoryStore")`; an invalid revision type keeps TS2322 |
-| `declaration-linked-esm`, `declaration-linked-esm.fail` | ESM inferred arrows and object properties name linked Effect types as `import("effect/Effect")` through its exports map; an invalid success type keeps TS2322 |
+| `declaration-linked-esm`, `declaration-linked-esm.fail` | ESM inferred arrows and object properties name linked Effect types through effect's exports map, as `import { Effect } from "effect"`; an invalid success type keeps TS2322 |
 | `factory-snapshot`, `factory-forwarding`, `factory-layer`, `held-binding-retry` | D269 call-time capture, contextual forwarding, layer setup, and held versus by-name retry timing |
 | `factory-visitor`, `factory-value-kept`, `ek4301-visitor-note.fail` | D7 visitor spelling, F7 function values, and EK4301's used-result hint |
 | `ek2115-factory-runs.fail`, `ek2116-factory-paths.fail` | Factory bodies cannot run Effects or look up services; every returning path returns a program |

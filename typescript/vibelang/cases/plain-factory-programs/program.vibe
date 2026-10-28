@@ -1,5 +1,5 @@
 export let runs = 0
-export const makeRuntime = (options: { n: number }) => {
+export const makeRuntime = (options: { n: number }): infer _ => {
   const n = options.n
   const p: Effect.Effect<{ n: number }, never, never> = () => {
     runs++
@@ -7,8 +7,9 @@ export const makeRuntime = (options: { n: number }) => {
   }
   return p
 }
-// D262: importing this module constructs the program without running it.
-export const stored: Effect.Effect<{ n: number }, never, never> = makeRuntime({ n: 11 })
+// D262, D500: importing this module holds a program without running it; each
+// run calls makeRuntime and runs the program it returns.
+export const stored: Effect.Effect<{ n: number }, never, never> = () => makeRuntime({ n: 11 })
 
 // This body has no other Effect operation to force generator lowering.
 export function useIt(options: { n: number }): number!! {

@@ -1,13 +1,13 @@
 // expect: EK2001 EK2002
-// An optional call of a callback without a contract runs the callback, as a
-// required call does, so the callback's E and R reach the contract.
+// An optional call of an Effect callback runs the callback, as a required call
+// does, so the channels its type declares reach the contract (D500).
 export error Late { label: string }
 
-export const coalesced = (label?: (seconds: number) => Late): Late!! => {
+export const coalesced = <E, R>(label?: (seconds: number) => Late!E!R): Late!! => {
   return label?.(2) ?? new Late({ label: "default" })
 }
 
-export function announced(log?: (n: number) => void): boolean!! {
+export function announced<E, R>(log?: (n: number) => void!E!R): boolean!! {
   log?.(2)
   return true
 }

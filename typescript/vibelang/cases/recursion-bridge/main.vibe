@@ -1,6 +1,6 @@
 import { fault } from "./fault.ts"
 import { inner, remoteBridge } from "./inner.vibe"
-function localInner(n: number): number!! { return n === 0 ? 1 : localInner(n - 1) }
+function localInner(n: number): number { return n === 0 ? 1 : localInner(n - 1) }
 function bridge(n: number) { return localInner(n) }
 export function outer(n: number): number!! {
   return n === 0 ? 0 : bridge(3) + outer(n - 1)

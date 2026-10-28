@@ -1,4 +1,4 @@
-function helper(s: string) {
+function helper(s: string): string {
   return s + "#"
 }
 export default helper

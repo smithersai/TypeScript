@@ -20,7 +20,7 @@ export const stepsSeen = (): ReadonlyArray<string> => steps
 
 // TypeScript code that a plain function calls keeps its exceptions unchanged.
 export const contextual: (text: string) => string = (text) => foreign(text)
-export const inferred = (text: string) => foreign(text)
+export const inferred = (text: string): infer _ => foreign(text)
 export const callForeign = (text: string): string => foreign(text)
 export const callContextual: (f: () => string) => string = (f) => f()
 

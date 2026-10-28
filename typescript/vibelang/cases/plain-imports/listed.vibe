@@ -1,2 +1,2 @@
-function triple(n: number) { return n * 3 }
+function triple(n: number): number { return n * 3 }
 export { triple, triple as threeTimes }
