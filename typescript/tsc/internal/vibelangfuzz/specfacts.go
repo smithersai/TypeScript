@@ -183,9 +183,12 @@ var Facts = sync.OnceValue(func() *SpecFacts {
 	for _, m := range regexp.MustCompile(`(?m)^- \*\*EK(\d{4})\*\*`).FindAllStringSubmatch(tail, -1) {
 		n, _ := strconv.Atoi(m[1])
 		facts.Rules = append(facts.Rules, int32(n))
-		if int32(n) < facts.Boundary && !slices.Contains(warnings, int32(n)) && !slices.Contains(mixed, int32(n)) {
+		switch {
+		case int32(n) < facts.Boundary && slices.Contains(warnings, int32(n)):
+			facts.Defaults[int32(n)] = DefaultWarning // EK2129 (D504)
+		case int32(n) < facts.Boundary && !slices.Contains(mixed, int32(n)):
 			facts.Defaults[int32(n)] = DefaultError
-		} else {
+		default:
 			facts.Defaults[int32(n)] = DefaultUnknown
 		}
 	}

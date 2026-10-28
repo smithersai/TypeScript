@@ -21,3 +21,4 @@ FuzzParse             feature:parse-span-CallExpression          compiler  D61: 
 FuzzParse             feature:estree-range-CallExpression        compiler  Chapter 28 Linting (D277): a schema error's extends clause converts to a CallExpression whose range ends before it starts
 FuzzConfig            corpus:ek9100-off                          compiler  Chapter 28 (D366, D416): EK9100 is an error no setting lowers, but "EK9100": "off" is accepted without a diagnostic (core.VibeLangAdjustableCodes lists it)
 FuzzConfig            ek:EK9100                                  compiler  Chapter 28 (D366, D416): the diagnostics setting accepts EK9100, which no setting may lower
+FuzzConfig            ek:EK2129                                  compiler  D504: Chapter 28 makes EK2129 a warning the diagnostics setting adjusts, but the compiler does not report EK2129 yet (ek:EK2129/infer-twice) and rejects the setting (TS5023)

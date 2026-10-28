@@ -347,7 +347,13 @@ func CheckConfig(t *testing.T, w *Workspace, target, config, source string) {
 		}
 	}
 	if len(problems) == 0 && len(configErrors) != 0 && !globs {
-		g.Add("feature:config-valid-rejected", "Chapter 28: settings %s %s are valid, but: %s", config, where, keyOf(configured.Dir, configErrors[0]))
+		key := "feature:config-valid-rejected"
+		if text := configErrors[0].MessageText(); strings.Contains(text, "is not adjustable") {
+			if codes := codesIn(text); len(codes) == 1 {
+				key = fmt.Sprintf("ek:EK%d", codes[0]) // a code Chapter 28 makes adjustable that the compiler does not
+			}
+		}
+		g.Add(key, "Chapter 28: settings %s %s are valid, but: %s", config, where, keyOf(configured.Dir, configErrors[0]))
 	}
 
 	facts := Facts()

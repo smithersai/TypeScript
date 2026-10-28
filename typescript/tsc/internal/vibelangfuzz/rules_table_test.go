@@ -32,7 +32,7 @@ func TestSpecRuleFacts(t *testing.T) {
 		t.Fatal("Chapter 28 no longer counts the warnings before EK4801")
 	}
 	var warnings []string
-	for _, code := range SpecCodes() {
+	for _, code := range append(SpecCodes(), SpecListedCodes()...) {
 		if code < 4801 && SpecDefaultCategory(code) == CategoryWarning {
 			warnings = append(warnings, specCodeName(code))
 		}
