@@ -19,8 +19,8 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,462 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 15,265 |
-| The skill and the user guide (134 pages) | 252,190 |
-| The user guide alone | 246,728 |
+| The skill and the user guide (134 pages) | 252,755 |
+| The user guide alone | 247,293 |
 | The specification (33 chapters) | 192,003 |
 | The decision log, `docs/design/DECISIONS.md` | 129,458 |
 
@@ -90,19 +90,19 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Start Here** | **2,257** |
 | [Welcome](../001-onboarding.md) | 1,657 |
 | [Why VibeLang?](../getting-started/002-why-effect.md) | 600 |
-| **Learning Path** | **9,664** |
+| **Learning Path** | **9,740** |
 | [The Effect Type](../getting-started/003-the-effect-type.md) | 1,790 |
-| [Installation](../getting-started/004-installation.md) | 2,402 |
+| [Installation](../getting-started/004-installation.md) | 2,471 |
 | [Creating Effects](../getting-started/005-creating-effects.md) | 3,349 |
 | [Two Types of Errors](../error-management/006-two-error-types.md) | 642 |
-| [Basic Concurrency](../concurrency/007-basic-concurrency.md) | 1,481 |
+| [Basic Concurrency](../concurrency/007-basic-concurrency.md) | 1,488 |
 | **Core Concepts** | **18,688** |
 | [Effect's Modules](../getting-started/008-importing-effect.md) | 2,576 |
 | [Running Effects](../getting-started/009-running-effects.md) | 1,808 |
 | [Sequencing Effects](../getting-started/010-using-generators.md) | 1,184 |
 | [Building Pipelines](../getting-started/011-building-pipelines.md) | 1,807 |
 | [Devtools](../getting-started/012-devtools.md) | 11,313 |
-| **All 12 pages** | **30,609** |
+| **All 12 pages** | **30,685** |
 
 ### Setup
 
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **28,595** |
-| [Release notes](../setup/release-notes.md) | 28,595 |
-| **All 15 pages** | **47,764** |
+| **Upgrade** | **28,681** |
+| [Release notes](../setup/release-notes.md) | 28,681 |
+| **All 15 pages** | **47,850** |
 
 ### Guides
 
@@ -148,8 +148,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Error Channel Operations](../error-management/022-error-channel-operations.md) | 1,362 |
 | [Parallel and Sequential Errors](../error-management/023-parallel-and-sequential-errors.md) | 763 |
 | [Custom Error Classes](../error-management/024-yieldable-errors.md) | 1,088 |
-| **Requirements Management** | **6,438** |
-| [Managing Services](../requirements-management/025-services.md) | 2,079 |
+| **Requirements Management** | **6,445** |
+| [Managing Services](../requirements-management/025-services.md) | 2,086 |
 | [Default Services](../requirements-management/026-default-services.md) | 966 |
 | [Managing Layers](../requirements-management/027-layers.md) | 2,482 |
 | [Layer Memoization](../requirements-management/028-layer-memoization.md) | 911 |
@@ -176,8 +176,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Caching** | **1,839** |
 | [Caching Effects](../caching/045-caching-effects.md) | 859 |
 | [Cache](../caching/046-cache.md) | 980 |
-| **Concurrency** | **7,175** |
-| [Fibers](../concurrency/047-fibers.md) | 2,592 |
+| **Concurrency** | **7,183** |
+| [Fibers](../concurrency/047-fibers.md) | 2,600 |
 | [Deferred](../concurrency/048-deferred.md) | 886 |
 | [Queue](../concurrency/049-queue.md) | 1,266 |
 | [PubSub](../concurrency/050-pubsub.md) | 1,132 |
@@ -252,7 +252,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Terminal](../platform/110-terminal.md) | 1,508 |
 | [Platform globals in VibeLang](../platform/platform-globals.md) | 4,125 |
 | [Cloudflare Workers](../platform/cloudflare-workers.md) | 747 |
-| **All 100 pages** | **141,541** |
+| **All 100 pages** | **141,556** |
 
 ### VibeLang features
 
@@ -261,11 +261,11 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Control operations and handlers](111-control-operations-and-handlers.md) | 2,027 |
 | [Producers](112-producers.md) | 1,387 |
 | [Building an HTTP API](113-building-an-http-api.md) | 1,375 |
-| [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,849 |
+| [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 5,237 |
 | [Cheat sheet](115-cheat-sheet.md) | 9,803 |
 | [Pattern matching with match and is](116-match-and-is.md) | 4,154 |
 | [Experimental platform APIs](118-experimental-platform-apis.md) | 3,219 |
-| **All 7 pages** | **26,814** |
+| **All 7 pages** | **27,202** |
 
 ### Specification
 

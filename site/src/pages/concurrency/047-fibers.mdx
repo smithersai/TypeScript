@@ -118,7 +118,7 @@ function combine() {
 // Output: Inventory: 18
 ```
 
-`await.all [...]`, like `Promise.all`, starts every element in its own fiber, waits for all, and keeps the array or object shape. Elements are passed by name, so `rowCount()` starts in its fiber, not before the operation. If one fails, `await.all` interrupts the rest and propagates the failure, as `all` fails fast. For an expected-failure fallback, wrap it in `try` and recover in `catch`; defects and interruption still propagate.
+`await.all [...]`, like `Promise.all`, starts every element in its own fiber, waits for all, and keeps the array or object shape. An await operation's element is a program because of where it stands, so `rowCount()` starts in its fiber, not before the operation. If one fails, `await.all` interrupts the rest and propagates the failure, as `all` fails fast. For an expected-failure fallback, wrap it in `try` and recover in `catch`; defects and interruption still propagate.
 
 `await.allSettled [...]` returns each success or typed failure as a `Result` and never fails with a typed error. Defects and interruption propagate exactly as in `Effect.all` with `mode: "result"`, and so does a typed failure beside a defect, as a defect; a cause with no typed failure still propagates. Wrap each program in `Effect.exit` to keep every outcome as data, mixed causes included.
 

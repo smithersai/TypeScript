@@ -39,7 +39,7 @@ function lookup(query: string) {
 // Output: > hit:vibe
 ```
 
-`service Name: Type` declares a service whose implementation has any type: an interface declared elsewhere, a primitive such as `string`, or a function type. It is Effect's `class Search extends Context.Service<Search, SearchApi>()(key) {}`, with the key derived as for every service. The body is optional and holds only static members, such as a layer: `service Search: SearchApi { static readonly layer = Layer.succeed(Search, impl) }`. An instance member there is error EK2103; declare it in the shape. Reading is the same as for any service: `Search.find(q)` calls a member and `Prefix()` returns the implementation. The type `Search` names the service's key, as Effect's class form makes it, so type an implementation with its shape, `SearchApi`.
+`service Name: Type` declares a service whose implementation has any type: an interface declared elsewhere, a primitive such as `string`, or a function type. Like Effect's `class Search extends Context.Service<Search, SearchApi>()(key) {}`, it is a service key, with the key derived as for every service. The body is optional and holds only static members, such as a layer: `service Search: SearchApi { static readonly layer = Layer.succeed(Search, impl) }`. An instance member there is error EK2103; declare it in the shape. Reading is the same as for any service: `Search.find(q)` calls a member and `Prefix()` returns the implementation. As for every service, the type `Search` is the service's identifier and `Search.Shape` is `SearchApi`, so type an implementation `SearchApi`.
 
 ## Requesting and supplying implementations
 

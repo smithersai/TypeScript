@@ -156,4 +156,4 @@ The synchronous `onWinner` callback observes the winning fiber and its index: ze
 
 ## Coming from Effect
 
-`Effect.all([task(1), task(2)], { concurrency: "unbounded" })` becomes `await.all [task(1), task(2)]`, and `Effect.raceFirst(a, b)` becomes `await.race [a(), b()]`. Each element is passed by name, so `task(1)` starts in its own fiber instead of running before the operation.
+`Effect.all([task(1), task(2)], { concurrency: "unbounded" })` becomes `await.all [task(1), task(2)]`, and `Effect.raceFirst(a, b)` becomes `await.race [a(), b()]`. An await operation's element is a program because of where it stands, so `task(1)` starts in its own fiber instead of running before the operation.

@@ -834,6 +834,11 @@ listed with an upgrade step.
   compiler warns in the editor only and a project can set it.** Write the type
   it asks for, which both accept.
 
+- **The specification reads `fork(x)` and `join(x)` as `fork x` and `join x`;
+  the compiler reads them as calls.** Today `join(f)` is TS2304 and
+  `fork(work())` passes a fiber to a call, which EK4838 rejects. Write the
+  keyword forms, `fork work()` and `join f`, which both treat the same way.
+
 ### Known limitations
 
 

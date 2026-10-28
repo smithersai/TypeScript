@@ -67,6 +67,39 @@ node dist/use.js
 
 Node runs the JavaScript output; importing the `.vibe` source directly with Node does not compile it.
 
+### Services and errors from TypeScript
+
+A service gives TypeScript two types, as Effect's `Context.Service` does. `Users` is the service's identifier: its members plus a brand that only the service carries, so a structural object can't stand for it. `Users.Shape` is the members alone. Implement a service in TypeScript with `implements Users.Shape`, provide it with `Layer.succeed(Users, impl)`, and read it with `yield* Users`. An `error` class is nominal: only its own instances are assignable to it, and `Effect.catchTag` catches it by its tag.
+
+```vibe
+// users.vibe
+export error NotFound { id: string }
+export service Users { find(id: string): string!NotFound; region: string }
+```
+
+```ts
+// live.ts
+import { Effect, Layer } from "effect"
+import { NotFound, Users } from "./users.vibe"
+
+class UsersImpl implements Users.Shape {
+  readonly region = "eu"
+  find(id: string): Effect.Effect<string, NotFound> {
+    return id === "1" ? Effect.succeed("Ada") : Effect.fail(new NotFound({ id }))
+  }
+}
+
+const program = Effect.gen(function* () {
+  const users = yield* Users
+  return yield* users.find("2").pipe(Effect.catchTag("NotFound", (e) => Effect.succeed(`no user ${e.id}`)))
+})
+
+console.log(Effect.runSync(program.pipe(Effect.provide(Layer.succeed(Users, new UsersImpl())))))
+// Output: no user 2
+```
+
+The emitted declarations say the same to a package's consumers: a service is `interface Users extends Users.Shape, ServiceBrand<...>` with its key, and an `error` class carries a private member, with the brands imported from `vibelang-runtime`.
+
 ## Translate the idioms
 
 | In Effect TypeScript | In VibeLang |

@@ -204,7 +204,7 @@ Set `"declaration": true` in `compilerOptions` to emit `.d.ts` files. The starte
 
 ### TypeScript declaration consumers
 
-A downstream project using stock `tsc` needs **TypeScript 5.7 or later** for declarations built against the pinned `effect@4.0.6`. Effect's declarations use generic typed arrays such as `Uint8Array<ArrayBuffer>`, introduced in TypeScript 5.7; TypeScript 5.6 and earlier report errors such as “Type 'Uint8Array' is not generic.” This consumer requirement is separate from VibeLang's TypeScript 7.1 checker. Upgrade the consumer's `typescript` dependency; `skipLibCheck` can hide library errors but is not compatibility support.
+A downstream project using stock `tsc` needs **TypeScript 5.7 or later** for declarations built against the pinned `effect@4.0.6`. Effect's declarations use generic typed arrays such as `Uint8Array<ArrayBuffer>`, introduced in TypeScript 5.7; TypeScript 5.6 and earlier report errors such as “Type 'Uint8Array' is not generic.” This consumer requirement is separate from VibeLang's TypeScript 7.1 checker. Upgrade the consumer's `typescript` dependency; `skipLibCheck` can hide library errors but is not compatibility support. The declarations import their service and error brands from `vibelang-runtime`, so a consumer installs it beside `effect`; [Services and errors from TypeScript](/vibelang-features/114-vibelang-for-effect-users#services-and-errors-from-typescript) shows how a TypeScript consumer implements a service and catches an error.
 
 ## Coming from Effect
 
