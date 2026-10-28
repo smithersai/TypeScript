@@ -825,6 +825,18 @@ listed with an upgrade step.
   provide makeLayer() { makeProgram() } // construction order can change
   ```
 
+- **The specification makes EK4802 an error by default; the compiler still
+  warns.** Returning an Effect value from a function that runs Effects, where
+  the success type names no value, reports EK4802 as a warning until the
+  compiler's default changes. Treat it as an error today: return the result,
+  `return program()`.
+
+- **The specification says a hatch waits only for a function written
+  `async`; the compiler still waits for a promise that a synchronous hatch
+  function returns.** Today `sync(() => Promise.resolve(5))` succeeds with
+  `5`; under the specification it succeeds with the promise itself. Write the
+  function `async` when you mean to wait, which both treat the same way.
+
 ### Known limitations
 
 - A JavaScript Disposable acquired while interruption is masked can leak if

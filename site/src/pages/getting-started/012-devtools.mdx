@@ -215,14 +215,14 @@ function discard(program: Effect.Effect<number>) {
 | Anti-pattern | `effectFnIife` | Not needed: no `Effect.fn`; an immediately called function is a call | `(() => load())()` |
 | Anti-pattern | `effectGenUsesAdapter` | Not needed: no `Effect.gen` | None |
 | Anti-pattern | `effectInFailure` | EK4815, warning | `throw program`; run it: `program()` |
-| Anti-pattern | `effectInVoidSuccess` | EK4802, an error by default, with a quick fix; TS2322 under a `void!!` contract | `return program` from a function that runs Effects |
+| Anti-pattern | `effectInVoidSuccess` | EK4802, warning, with a quick fix; TS2322 under a `void!!` contract | `return program` from a function that runs Effects |
 | Anti-pattern | `globalErrorInEffectCatch` | EK4804, warning | `try(code, (cause) => new Error(String(cause)))` |
 | Anti-pattern | `globalErrorInEffectFailure` | EK4804, warning | `throw new Error("boom")`; declare `error Boom { }` |
 | Anti-pattern | `layerMergeAllWithDependencies` | EK4807, warning, with a quick fix | `Layer.mergeAll(DbLive, UsersLive)`; the fix writes `wire` |
-| Anti-pattern | `lazyPromiseInEffectSync` | Not needed: a hatch waits only for a function written `async`, and a synchronous one's promise is its value, so write the function `async` to wait | `sync(async () => fetch(url))` |
+| Anti-pattern | `lazyPromiseInEffectSync` | Not needed: `sync(() => promise)` already compiles to `Effect.promise` | `sync(async () => fetch(url))` |
 | Anti-pattern | `leakingRequirements` | EK4809, warning; `@vibelang leakable` exempts a service | `service Users { find(): User!!Db; all(): User[]!!Db }` |
 | Anti-pattern | `multipleEffectProvide` | EK4808, warning, with a quick fix | `provide A { provide B { … } }`; the fix writes `provide A, B { … }` or `provide wire(A, B) { … }` |
-| Anti-pattern | `returnEffectInGen` | EK4802, an error by default, with a quick fix, also where an Effect callback returns a program to an API that expects one | `return program`; the fix writes `return program()` |
+| Anti-pattern | `returnEffectInGen` | EK4802, warning, with a quick fix | `return program`; the fix writes `return program()` |
 | Anti-pattern | `runEffectInsideEffect` | Covered: EK1005 | `Effect.runPromise(load())` inside a function |
 | Anti-pattern | `schemaSyncInEffect` | Effect 3 only | None |
 | Anti-pattern | `scopeInLayerEffect` | Effect 3 only: Effect 4's `Layer.effect` owns its scope | `Layer.effect(Users) { using pool = open(); … }` |
