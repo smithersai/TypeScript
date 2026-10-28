@@ -51,7 +51,8 @@ import (
 // Effect.acquireRelease(e, release, { interruptible: true }), which runs e
 // with the interruptibility in force where the using stands, as yield* runs
 // it, each acquisition in e keeping its own policy (D25), and adds no mask
-// of its own. for (using x of values) takes each
+// of its own. The block supplies Scope to the whole initializer, each
+// operand it evaluates included. for (using x of values) takes each
 // value with using in a Scope region around that iteration's body, so the
 // value is released when the iteration ends, by any path; over an iterator,
 // a producer, or a Stream, $forOf runs those iterations and closes what it
@@ -196,35 +197,66 @@ func usingDeclarationOf(node *ast.Node) *ast.Node {
 	return nil
 }
 
-// isAcquisition reports whether call is an acquisition: the initializer of a
-// using declaration in a block or a for head, and a call that runs an Effect. Its Effect
-// runs with the block's Scope, so Scope leaves its R.
-func (a *analyzer) isAcquisition(call *ast.Node) bool {
-	return usingDeclarationOf(call) != nil && a.runs(call)
+// usingInitializerOf returns the using declaration, in a block or a for head,
+// whose initializer holds node in its own code: node is the initializer, or
+// an operand the initializer evaluates where it stands, such as a branch of
+// a conditional, an operand of a comma, or an argument, and not code in a
+// function or class nested in it. Otherwise it returns nil.
+func usingInitializerOf(node *ast.Node) *ast.Node {
+	for n := node; n.Parent != nil; n = n.Parent {
+		parent := n.Parent
+		switch {
+		case parent.Kind == ast.KindVariableDeclaration:
+			if parent.Initializer() != n {
+				return nil
+			}
+			return usingDeclarationOf(n)
+		case isFunctionBoundary(parent), ast.IsStatement(parent), parent.Kind == ast.KindBlock:
+			return nil
+		}
+	}
+	return nil
 }
 
-// requiresScope reports whether initializer, a using declaration's, is an
-// acquisition whose requirements include Scope. Then using may bind a value
-// it cannot dispose, which the acquisition releases (D401). Scope never
-// decides who releases a value using can dispose, which the run-time record
-// does, or how the initializer runs, which is the same for every initializer
-// (D490).
+// isAcquisition reports whether call is an acquisition: a call that runs an
+// Effect in the initializer of a using declaration in a block or a for head,
+// the initializer itself or an operand it evaluates (usingInitializerOf).
+// using runs its whole initializer with the block's Scope, so Scope leaves
+// the R of each acquisition in it (D401, D490).
+func (a *analyzer) isAcquisition(call *ast.Node) bool {
+	return usingInitializerOf(call) != nil && a.runs(call)
+}
+
+// requiresScope reports whether initializer, a using declaration's, requires
+// Scope: Scope is a member of the R of a call it runs, the initializer or an
+// operand it evaluates (D490). Then using may bind a value it cannot
+// dispose, which an acquisition releases (D401). Scope never decides who
+// releases a value using can dispose, which the run-time record does, or how
+// the initializer runs, which is the same for every initializer (D490).
 func (a *analyzer) requiresScope(initializer *ast.Node) bool {
-	if initializer.Kind != ast.KindCallExpression || !a.isAcquisition(initializer) {
+	if usingDeclarationOf(initializer) == nil {
 		return false
 	}
-	acquisition := &effectInfo{}
-	a.addCall(acquisition, initializer)
-	for _, r := range acquisition.requirements {
-		members := []*checker.Type{r}
-		if r.Flags()&checker.TypeFlagsUnion != 0 {
-			members = r.Types()
+	found := false
+	var visit func(n *ast.Node) bool
+	visit = func(n *ast.Node) bool {
+		switch {
+		case isFunctionBoundary(n), n != initializer && a.isByName(n), isHatchArgument(n):
+			return false // nothing there runs as part of the initializer, or its callee's R holds what it needs
+		case n.Kind == ast.KindCallExpression && a.isAcquisition(n):
+			acquisition := &effectInfo{}
+			a.addCall(acquisition, n)
+			for _, r := range acquisition.requirements {
+				if slices.ContainsFunc(unionMembers(r), isScopeType) {
+					found = true
+					return true
+				}
+			}
 		}
-		if slices.ContainsFunc(members, isScopeType) {
-			return true
-		}
+		return n.ForEachChild(visit)
 	}
-	return false
+	visit(initializer)
+	return found
 }
 
 // usingInitializer is the checker's using initializer hook. In a .vibe

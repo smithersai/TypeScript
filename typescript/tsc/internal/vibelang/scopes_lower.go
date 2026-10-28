@@ -3,6 +3,7 @@ package vibelang
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
 // scopePlan records the Scope regions of one file (scopes.go).
@@ -342,29 +343,84 @@ func (tx *lowering) visitUsing(node *ast.Node) *ast.Node {
 	return statement
 }
 
-// acquisition returns the Effect that $using runs for a using initializer: a
-// call that runs an Effect, as the call that makes the Effect without running
-// it, and any other value v as Effect.succeed(v).
+// acquisition returns the program that $using runs for a using initializer,
+// so that the whole initializer runs with the block's Scope, where the
+// declaration stands (D401, D490). A call that runs an Effect, when nothing
+// else in the initializer yields, is the Effect the call makes, not run;
+// an initializer that runs nothing, v, is Effect.succeed(v); and any other
+// initializer, such as a conditional, a comma expression, or a call whose
+// operands run calls, is a program that evaluates it, each operand once and
+// in source order:
+//
+//	using r = flag ? acquire() : open()
+//
+// becomes
+//
+//	const r = yield* runtime.$using(scope, Effect.gen(function* () {
+//	  return flag ? yield* acquire() : yield* open();
+//	}));
 func (tx *lowering) acquisition(initializer *ast.Node) *ast.Node {
+	f := tx.Factory()
 	if initializer == nil {
-		return tx.succeed(tx.Factory().NewVoidZeroExpression())
+		return tx.succeed(f.NewVoidZeroExpression())
 	}
 	if call := ast.SkipParentheses(initializer); call.Kind == ast.KindCallExpression {
+		var program *ast.Node
 		switch {
 		case tx.plan.values[call]:
-			return tx.Visitor().VisitNode(call.Expression()) // p(), where p is an Effect value
+			program = tx.Visitor().VisitNode(call.Expression()) // p(), where p is an Effect value
 		case tx.plan.runsCall(call):
 			// Visit the call itself so module methods and other call rewrites
-			// still apply. Only defer its outer run: $using must supply Scope
-			// before the acquisition runs, while nested calls run as usual.
-			lowered := tx.Visitor().VisitNode(call)
-			if lowered.Kind == ast.KindYieldExpression {
-				return lowered.Expression()
+			// still apply, and defer only its outer run: $using supplies the
+			// Scope before the acquisition runs.
+			program = tx.Visitor().VisitNode(call)
+			if program.Kind == ast.KindYieldExpression {
+				program = program.Expression()
 			}
-			return lowered
+		}
+		if program != nil {
+			if !containsYield(program) {
+				return program
+			}
+			// Its callee or arguments run calls too, which must run with the
+			// block's Scope, after the Scope is supplied.
+			return tx.initializerProgram(initializer, f.NewYieldExpression(f.NewToken(ast.KindAsteriskToken), program))
 		}
 	}
-	return tx.succeed(tx.Visitor().VisitNode(initializer))
+	value := tx.Visitor().VisitNode(initializer)
+	if !containsYield(value) {
+		return tx.succeed(value)
+	}
+	return tx.initializerProgram(initializer, value)
+}
+
+// initializerProgram returns `Effect.gen(function* () { return value })`, the
+// program of initializer, a using initializer whose lowered value runs
+// calls, or `Effect.gen({ self: this }, function* () { return value })` when
+// initializer refers to this, which the generator would not otherwise see.
+func (tx *lowering) initializerProgram(initializer *ast.Node, value *ast.Node) *ast.Node {
+	f := tx.Factory()
+	ec := tx.EmitContext()
+	// The initializer's leading comments are printed where it was written.
+	// Printed again inside the program, a line comment between the return and
+	// the value would end the return (byNameProgram).
+	ec.AddEmitFlags(value, printer.EFNoLeadingComments)
+	body := f.NewBlock(f.NewNodeList([]*ast.Node{f.NewReturnStatement(value)}), false /*multiLine*/)
+	generator := f.NewFunctionExpression(nil /*modifiers*/, f.NewToken(ast.KindAsteriskToken), nil /*name*/, nil /*typeParameters*/, f.NewNodeList(nil), nil /*type*/, nil /*fullSignature*/, body)
+	ec.SetOriginal(generator, initializer)
+	tx.generated(generator)
+	arguments := []*ast.Node{generator}
+	if usesThis(initializer) {
+		self := f.NewObjectLiteralExpression(f.NewNodeList([]*ast.Node{
+			f.NewPropertyAssignment(nil /*modifiers*/, f.NewIdentifier("self"), nil /*postfixToken*/, nil /*typeNode*/, f.NewThisExpression()),
+		}), false /*multiLine*/)
+		arguments = []*ast.Node{self, generator}
+	}
+	callee := f.NewPropertyAccessExpression(tx.effectName(), nil /*questionDotToken*/, f.NewIdentifier("gen"), ast.NodeFlagsNone)
+	program := f.NewCallExpression(callee, nil /*questionDotToken*/, nil /*typeArguments*/, f.NewNodeList(arguments), ast.NodeFlagsNone)
+	ec.SetOriginal(program, initializer)
+	program.Loc = initializer.Loc
+	return program
 }
 
 // succeed makes `Effect.succeed(value)`.

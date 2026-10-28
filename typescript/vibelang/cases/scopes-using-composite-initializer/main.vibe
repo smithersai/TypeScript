@@ -1,0 +1,112 @@
+// using runs its whole initializer with the block's Scope, where the
+// declaration stands (D401, D490), whatever form the initializer takes: a
+// conditional ("conditional"), a comma expression ("comma"), a call whose
+// argument runs an acquisition ("argument"), a plain call around one
+// ("plain"), a method that reads this ("method"), and a for head
+// ("forHead"). Each acquisition in it registers its release in the block's
+// Scope and records it there, so using adds no second release, the release
+// runs when the block exits, and Scope leaves the function's R: each work
+// function below is void!!, so it needs no Scope.
+// The initializer evaluates its operands once, in source order ("order").
+// expect-result: {"conditional":["body","disposed","after work"],"comma":["body","disposed","released","after work"],"argument":["body","disposed","after work"],"plain":["body","disposed","after work"],"method":["body","disposed","after work"],"forHead":["body","disposed","after work"],"order":["a","acquired","b","body","disposed","after work"]}
+export function main() {
+  return {
+    conditional: run((events) => conditional(events, true)),
+    comma: run((events) => comma(events)),
+    argument: run((events) => argument(events)),
+    plain: run((events) => plain(events)),
+    method: run((events) => new Holder(events, true).hold()),
+    forHead: run((events) => forHead(events)),
+    order: run((events) => order(events))
+  }
+}
+
+// Runs work in a Scope of the caller's, which would also own an acquisition
+// that ran outside the block's Scope, and returns what it recorded.
+function run(work: (events: string[]) => void!!) {
+  const events: string[] = []
+  Effect.scoped(() => {
+    work(events)
+    events.push("after work")
+  })
+  return events
+}
+
+type Resource = { [Symbol.dispose](): void }
+
+function handle(events: string[]): Resource {
+  return { [Symbol.dispose](): void { events.push("disposed") } }
+}
+
+// Its release disposes the value it recorded.
+function acquire(events: string[]) {
+  return Effect.acquireRelease(() => handle(events), (r) => { r[Symbol.dispose]() })
+}
+
+function keep<A>(value: A) {
+  yieldNow()
+  return value
+}
+
+function same<A>(value: A): A {
+  return value
+}
+
+function conditional(events: string[], flag: boolean): void!! {
+  using r = flag ? acquire(events) : acquire(events)
+  events.push("body")
+}
+
+function comma(events: string[]): void!! {
+  using h = (Effect.acquireRelease(() => "lease", () => { events.push("released") }), handle(events))
+  events.push("body")
+}
+
+function argument(events: string[]): void!! {
+  using r = keep(acquire(events))
+  events.push("body")
+}
+
+function plain(events: string[]): void!! {
+  using r = same(acquire(events))
+  events.push("body")
+}
+
+class Holder {
+  events: string[]
+  flag: boolean
+  constructor(events: string[], flag: boolean) {
+    this.events = events
+    this.flag = flag
+  }
+  hold(): void!! {
+    using r = this.flag ? acquire(this.events) : acquire(this.events)
+    this.events.push("body")
+  }
+}
+
+function forHead(events: string[]): void!! {
+  for (using r = keep(acquire(events)); ; ) {
+    events.push("body")
+    break
+  }
+}
+
+function step<A>(events: string[], name: string, value: A) {
+  yieldNow()
+  events.push(name)
+  return value
+}
+
+function pick<A>(first: unknown, value: A, last: unknown) {
+  yieldNow()
+  return value
+}
+
+function order(events: string[]): void!! {
+  using r = pick(step(events, "a", 1), Effect.acquireRelease(() => {
+    events.push("acquired")
+    return handle(events)
+  }, (h) => { h[Symbol.dispose]() }), step(events, "b", 2))
+  events.push("body")
+}
