@@ -4,7 +4,7 @@
 
 ```text
 settled before this document      1-7        the original design decisions
-decisions                         D1-D501    every decision since; a number without a row is unassigned
+decisions                         D1-D504    every decision since; a number without a row is unassigned
 rules of the runtime and compiler P1-P22     adopted by D29, revised by verified counterexamples
 ```
 
@@ -353,7 +353,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D393 | Rule R reads every type parameter in scope uninstantiated; no subtype of `Effect` is definitely an Effect | "Before instantiation" did not say which type parameters | Amended by D426, D435, D449, D458 | 13 |
 | D394 | An await operation adopts nothing at run time: literal elements are programs by syntax, non-literal operands are typed; EK4613 | `isEffect` is true for `Exit`, `Config`, errors, and keys | Amended by D433 | 7, 13, 28 |
 | D395 | A destination's `null` and `undefined` are ignored; "an Effect" is rule R's; a call whose value is a program is not EK1018 | The function-values table was not total |  | 13, 28 |
-| D396 | A hatch's first argument is a function literal or a single expression, by syntax; EK4411 | "A function" was undefined | Amended by D432 | 10, 28 |
+| D396 | A hatch's first argument is a function literal or a single expression, by syntax; EK4411 | "A function" was undefined | Amended by D432, D503 | 10, 28 |
 | D397 | An unannotated method's form follows its declaration: protocol methods and plain-member implementations are plain, others are Effect methods | A method's TypeScript type followed its body | Amended by D430, D448, D460, D492 | Intro, 2, 10, 13 |
 | D398 | A contract-less function type carries channels only as a parameter's type | No function carried an interface member's channels | Superseded by D500 | 13, 16 |
 | D399 | A trusted call's listed failures are expected failures in every function | A plain annotation turned a recoverable failure into a defect |  | 8, 10, 13, 15, 28 |
@@ -371,7 +371,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D411 | Every plain function carries a type-only plain marker, which declaration consumers trust | A phantom value member; plain-annotated exports were EK4401 to consumers | Superseded by D500 | 10, 15, 26, 27 |
 | D412 | A plain function's recursion continues on heap frames, annotated or not | An annotation changed a deep recursion's exit |  | 15 |
 | D413 | Chapter 13 lists every place a type decides | The list was not closed | Amended by D447 | 13 |
-| D414 | A repeated `infer` name is EK2129 | Repeated names read as connected channels |  | 14, 28 |
+| D414 | A repeated `infer` name is EK2129 | Repeated names read as connected channels | Amended by D504 | 14, 28 |
 | D415 | A service key called with arguments is EK3007 | TypeScript's TS2348 suggested `new` |  | 4, 28 |
 | D416 | EK9100 is an error in every renderer | The registry made it an adjustable warning |  | 27, 28 |
 | D417 | An array pattern over an iterable that may not be an array is EK4704 | A restriction gave a program another meaning |  | 28, 30 |
@@ -396,7 +396,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D436 | EK4802 spares a type parameter the receiving function returns | Programs a caller keeps were rejected | Amended by D463 | 13, 28 |
 | D437 | `p()` on a value typed by a type parameter constrained to an Effect runs it | Two readings |  | 13 |
 | D438 | A declaration that writes no return type is read through the one TypeScript infers | Nothing was written to read | Amended by D449 | 13, Appendices |
-| D439 | A synchronous hatch's result is its value | A run-time thenable test adopted lazy queries |  | 10 |
+| D439 | A synchronous hatch's result is its value | A run-time thenable test adopted lazy queries | Amended by D503 | 10 |
 | D440 | EK2128 covers every clause | Clauses outside the call escaped the check | Amended by D455 | 9, 28 |
 | D441 | An object pattern matches only an object | A restriction stated a meaning |  | 3, 30 |
 | D442 | A plain call in a module cycle before its variant exists runs the Effect form | `f[$direct]` was not yet attached | Superseded by D446 | 26 |
@@ -454,6 +454,9 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D498 | An exported `const` or `let` named `main` that holds a function is `EK4843`, fixed into `export function main()` | Such a `main` ran nothing |  | 13, 28 |
 | D500 | Written forms (**controversial**): a function without a return annotation is an Effect function, and a return annotation that is not an Effect, or `: infer _`, makes it plain; a function literal takes its destination's form; a callback type means what TypeScript means; declarations write the form, and a manifest carries trust | Inferred forms let overload order, a holder, a stored array, or a dependency's log line drop or change work, and gave one value two forms; Effect 4 marks forms in its own types |  | Intro, 2, 5, 10, 13, 14, 15, 16, 23, 26, 27, 28, 29, 30, Appendices |
 | D501 | A `service`, `schema`, or `error` declaration declares what idiomatic Effect TypeScript declares: `Context.Service<X, Shape>()(key)`, `Schema.Struct` with `type P = typeof P.Type`, a `Data.TaggedError` class; identity rests on Effect's key type and run-time class | Migrated libraries' declarations changed where a service or schema was rewritten |  | 1, 3, 4, 11, 14, 24, 26, 27, 28, 29, 30, Appendices |
+| D502 | Statements that contradicted the implementation: the guard is a pattern term, `when P and if (e):`; an exported `const main` is no entry | The grammar and Chapter 3 wrote `when P if (e):`, which the parser rejects; the entry rule did not say what a `const main` does |  | 3, 13, 26, Appendices |
+| D503 | A hatch's first argument whose type is a function is the hatch's function, called with the inputs; a `Promise`-returning function value waits; EK4411 narrows to inputs nothing receives | `sync(fn, input)` with an imported function, which shipped cases use, was rejected for an undefined term |  | 10, 28, 30 |
+| D504 | A repeated `infer` name, EK2129, is a warning | The name is documentation only; the error rejected programs that mean what they say |  | 14, 28, 30 |
 
 #### Rules of the runtime and compiler
 

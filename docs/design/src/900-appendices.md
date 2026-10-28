@@ -339,11 +339,9 @@ DoExpression :                                                D187, rule L5
 MatchExpression :                                             D206
   "match" [nLT] "(" Expression ")" [nLT] "{" MatchArm* DefaultArm? "}"
 MatchArm :
-  "when" Pattern Guard? ":" AssignmentExpression ";"
+  "when" Pattern ":" AssignmentExpression ";"                 a guard is a PatternTerm: when P and if (e): (D207, D502)
 DefaultArm :
   "default" ":" AssignmentExpression ";"
-Guard :
-  "if" "(" Expression ")"
 CallExpression :
   TypeScript's                                                fork(x) and join(x) included, which rule H5 reads (D452)
   AwaitCall
@@ -400,6 +398,7 @@ PatternTerm :
   MatcherReference
   MatcherReference "(" (Pattern ("," Pattern)*)? ")"         an extractor
   MatcherReference "{" ("let" BindingIdentifier (";" | ",")?)* "}"   a data variant's fields (D307, EK4706)
+  "if" "(" Expression ")"                                     a guard: matches when Expression is truthy, read with the bindings of the terms before it (D207, D502)
 PatternElement :
   Pattern
   "..." ("let" | "const" | "var") BindingIdentifier

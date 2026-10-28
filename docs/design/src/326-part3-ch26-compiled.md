@@ -209,7 +209,7 @@ G10 compiles a corpus both ways and compares these observations (Chapter 30).
 A `match` or an `is` evaluates in one order, which every lowering keeps [Rule] (D328, D367, D368):
 
 1. **The subject** is evaluated once, before any arm (D214).
-2. **Arms** are tried in order. Within an arm the pattern is tested left to right, depth first; a test runs only after the tests before it in that arm succeeded, and the arm's guard runs only after its pattern matched.
+2. **Arms** are tried in order. Within an arm the pattern is tested left to right, depth first; a test runs only after the tests before it in that arm succeeded, so a guard, `and if (…)`, runs only after the pattern terms before it matched (D502).
 3. **Reads are shared.** Within one `match` or `is`, each property of each value is read at most once, and an iterator is advanced at most once per element, as the TC39 proposal caches them; a read happens when a test first needs it. A subpattern's subject, such as `value` in `when { value: 1 and let n }`, is that one read value, so its test and its binding see the same value.
 4. **Matcher expressions**, such as `registry.State.Waiting` or a custom matcher's object, are evaluated when their arm's test is reached, in arm order.
 5. **Names resolve by scope.** A name in a pattern resolves as any reference does (Chapter 13, rule H4). `Option.Some`, `Exit.Failure`, `Result.Success` and their siblings, the primitive classes `String`, `Number`, `Boolean`, `BigInt` and `Symbol`, and a data type's variants have their built-in tests only when the name resolves to that declaration, under any import alias. A local `Option` or `Number` shadows them, and the pattern then uses the local value as an ordinary matcher (D213).

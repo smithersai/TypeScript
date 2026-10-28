@@ -40,7 +40,7 @@ No design question here is open: each row states the rule that stands, what coul
 
 #### Conformance obligations
 
-Each rule the second through seventh reviews and the rulings of 2026-10-28 changed has a conformance case that fails on the rule it replaced [Rule] (D392-D501), except decisions that change only wording, an index, or a diagnostic's default (D413, D416, D429, D444, D447, D456, D467, D468, D489, D496), which the documentation, grammar, and registry checks cover. An implementation conforms only when each holds:
+Each rule the second through seventh reviews and the rulings of 2026-10-28 changed has a conformance case that fails on the rule it replaced [Rule] (D392-D504), except decisions that change only wording, an index, or a diagnostic's default (D413, D416, D429, D444, D447, D456, D467, D468, D489, D496, D502, D504), which the documentation, grammar, and registry checks cover. An implementation conforms only when each holds:
 
 | Case | It passes when | Rule |
 | --- | --- | --- |
@@ -69,11 +69,12 @@ Each rule the second through seventh reviews and the rulings of 2026-10-28 chang
 | Duplicate package | With two installed copies of one package version declaring an `error` class, a match whose coverage counts its arm is EK4701 naming the second copy; with `default`, a value from the other copy takes `default` | D427 |
 | Open class arm | A match over `Error` whose last arm is `when Error:` and that has no `default` is EK4701 | D428 |
 | Optional callbacks | `retry(() => f(), { while: (e) => e.retryable })` takes the literal as a plain function, since `while`'s type returns a union of `boolean` and an Effect; `retry(makeSync(store), policy)` compiles | D395 |
-| Hatch arguments | `sync(Math.random)` is EK4411; `sync(() => Math.random())` gives a number | D396 |
+| Hatch arguments | `sync(Math.random)` gives a number, as `sync(() => Math.random())` does; with `count(...xs: number[])` and `echo(value: number, signal: AbortSignal)` written `async` in a `module` block, `sync(count, 1, 2)` gives 2 and `sync(echo, 42)` gives `{ value: 42, signal: true }`; `sync(1 + 1, 3)` is EK4411 | D396, D503 |
 | Method forms | Adding a service call to an unannotated `reset()` changes no TypeScript signature; a `toString` whose body can pause is EK4301 | D397 |
 | Callback channels | A `.vibe` interface member typed `(n: Node) => void`, and a parameter of that type, reject a function that can fail (EK4301); a parameter typed `(n: Node) => void!E!R`, with `E` and `R` declared, passes its callback's channels through | D500 |
 | Continuation uses | Storing `k` in a clause of a `handle(...)` call, passing a non-literal clauses object, and a `resume` in a function nested in a statement clause are EK2128 | D410, D440 |
-| Repeated `infer` and key calls | `Effect<infer V, infer V, never>` is EK2129; `Fn(3)` for a function-shaped service is EK3007 | D414, D415 |
+| Repeated `infer` and key calls | `Effect<infer V, infer V, never>` compiles with warning EK2129 and infers each channel on its own; `Fn(3)` for a function-shaped service is EK3007 | D414, D415, D504 |
+| Guards | `match (s) { when Shape.Circle { let r } and if (r > 0): r; default: 0 }` parses and gives `r` for a circle of positive radius and 0 otherwise; `when Shape.Circle { let r } if (r > 0):` is a syntax error | D502 |
 | Array patterns | An array pattern over `Iterable<number>` is EK4704 | D417 |
 | Curried pipe stage | `x \|> f(a)(%)`, where `x` has a `pipe` member that counts its calls, reads it never | D418 |
 | Entry services | An entry `main` that needs a service nothing provides fails to compile | D420 |
