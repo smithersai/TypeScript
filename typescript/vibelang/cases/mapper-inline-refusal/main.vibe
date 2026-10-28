@@ -1,0 +1,7 @@
+// D364/D366/D416: an inline TypeScript module may import a sibling.
+module text {
+  import { value } from "./helper.ts"
+  export const result = value
+}
+import { result } from text
+export function main(): number!! { return result }

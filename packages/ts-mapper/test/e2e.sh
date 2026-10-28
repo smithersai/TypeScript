@@ -33,6 +33,8 @@
 #   TS7_VERSION  typescript version to test (default: devDependencies.typescript
 #                in package.json)
 #   EFFECT_DIR   an installed effect 4.0.6 to use instead of the cached one
+#   VIBELANG_BINARY  a compiler from this checkout; skips the properties' Go build
+#   FC_*         property selection, run count, seed, replay path and artifact directory
 #   KEEP=1       keep the temporary project and print its path
 set -euo pipefail
 
@@ -52,6 +54,9 @@ fi
 tsc="$cache/node_modules/.bin/tsc"
 effect_dir="${EFFECT_DIR:-$cache/node_modules/effect}"
 "$tsc" --version
+
+step "install locked property-test dependencies"
+(cd "$package" && bun install --frozen-lockfile --ignore-scripts --no-cache --omit peer)
 
 step "go test ./internal/vibelangmapper"
 (cd "$root/typescript/tsc" && TS7_VERSION="$ts7_version" VIBELANG_REQUIRE_STOCK_TYPESCRIPT=1 CGO_ENABLED=0 go test -trimpath -gcflags=all=-dwarf=false ./internal/vibelangmapper/)
@@ -100,6 +105,18 @@ step "tsc --lsp --stdio: hover and diagnostics at .vibe positions"
 # bin/tsc is a Node launcher; the language server is the native binary it starts.
 native="$(node -e 'const r=require("node:module").createRequire(process.argv[1]);const p=`@typescript/typescript-${process.platform}-${process.arch}`;console.log(require("node:path").join(require("node:path").dirname(r.resolve(p+"/package.json")),"lib","tsc"))' "$cache/node_modules/typescript/package.json")"
 node "$here/lsp-hover.mjs" "$native" "$work"
+
+step "mapper protocol properties: projections, UTF-8/UTF-16 positions and source maps"
+if [ -z "${VIBELANG_BINARY:-}" ]; then
+  VIBELANG_BINARY="$work/vibelang"
+  (cd "$root/typescript/tsc" && CGO_ENABLED=0 go build -trimpath -gcflags=all=-dwarf=false -o "$VIBELANG_BINARY" ./cmd/tsc)
+fi
+# Reuse parity's test-only adapter: the production --emit CLI has no tracing option.
+node -e 'require("node:fs").writeFileSync(process.argv[1], JSON.stringify({ Replace: { [process.argv[2]]: process.argv[3] } }))' \
+  "$work/emit-overlay.json" "$root/typescript/tsc/cmd/vibelang-mapper/main.go" "$here/parity/emit-main.go"
+(cd "$root/typescript/tsc" && CGO_ENABLED=0 go build -overlay "$work/emit-overlay.json" -trimpath -gcflags=all=-dwarf=false -o "$work/emit-options" ./cmd/vibelang-mapper)
+(cd "$package" && M1_WORK="$work" M1_MAPPER="$package/bin/vibelang-mapper" M1_STOCK="$native" \
+  M1_TRACING_MAPPER="$work/emit-options" VIBELANG_BINARY="$VIBELANG_BINARY" node --test "$here/protocol.property.test.mjs")
 
 step "a .vibe file emitted as .js: stock tsc, vibelang-mapper --emit, node"
 # Inside $work, so the project resolves this package, effect and the runtime

@@ -24,6 +24,7 @@
     "vibelang-runtime": "0.0.1"
   },
   "devDependencies": {
+    "fast-check": "4.10.2",
     "typescript": "7.1.0-beta"
   }
 }

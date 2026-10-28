@@ -1,0 +1,52 @@
+{
+  "property": "mapper-renderings",
+  "rule": "docs/design/src/427-part4-ch27-compiler.md: Other renderings (D366/D416); docs/design/src/213-part2-ch13-calls.md: Contracts; docs/design/src/326-part3-ch26-compiled.md: Modules",
+  "input": {
+    "project": {
+      "modules": [
+        {
+          "typescript": false,
+          "inline": false,
+          "value": 0,
+          "text": "plain",
+          "padding": 0
+        }
+      ],
+      "directory": "src",
+      "dotted": false,
+      "query": "",
+      "edit": 1,
+      "options": false
+    },
+    "form": "contract",
+    "identifier": "mapperLocal",
+    "eol": "\n",
+    "tracing": "",
+    "incomplete": "function unfinished(",
+    "strictKnownFailures": true
+  },
+  "seed": 42,
+  "counterexamplePath": "0:0:0:0:0:0:0:0:0:0:1",
+  "generatorVersion": 1,
+  "fastCheckVersion": "4.10.2",
+  "command": "bash test/e2e.sh",
+  "replay": "FC_PROPERTY='mapper-renderings' FC_SEED=42 FC_PATH='0:0:0:0:0:0:0:0:0:0:1' bash test/e2e.sh",
+  "numRuns": 1,
+  "numShrinks": 10,
+  "error": "TS2741: Property '$plain' is missing in type '(n: number) => Effect<number, never, never>' but required in type 'typeof probe'.",
+  "diagnostics": "\nM1 mapper-renderings form=contract modules=1\nM1 fork reference\nM1 execute native{\"result\":{\"text\":\"😀plain\",\"value\":0,\"trace\":[\"B1_TOKEN_0\"]},\"positive\":3,\"negative\":0}\n\nM1 stock check tracing=nonesrc/contracts.ts(4,7): error TS2741: Property '$plain' is missing in type '(n: number) => Effect<number, never, never>' but required in type 'typeof probe'.\n",
+  "knownFailure": true,
+  "reason": "D421: a function with an Effect annotation keeps its Effect own form regardless of a pure body. The mapper adds a required $plain namespace member, so stock TS rejects the reverse assignment accepted by the compiler (TS2741). Random cases continue to verify the callable signature, execution and mappings after this specific, recorded member mismatch.",
+  "minimalInput": {
+    "source": "export function f(n: number): number!! { return n }\n",
+    "consumer": "import { Effect } from \"effect\"\nimport { f } from \"./main.vibe\"\nconst forward: (n: number) => Effect.Effect<number, never, never> = f\nconst backward: typeof f = forward\n"
+  },
+  "files": {
+    "package.json": "{\"private\":true,\"type\":\"module\"}\n",
+    "tsconfig.json": "{\"compilerOptions\":{\"target\":\"ES2022\",\"module\":\"NodeNext\",\"moduleResolution\":\"NodeNext\",\"strict\":true,\"skipLibCheck\":true,\"types\":[],\"lib\":[\"ES2022\",\"DOM\"],\"rootDir\":\".\",\"outDir\":\"dist\",\"noEmitOnError\":true,\"rewriteRelativeImportExtensions\":true,\"declaration\":true},\"include\":[\"src/**/*\"],\"contentMappers\":[{\"package\":\"vibelang-ts-mapper\",\"extensions\":[\".vibe\"],\"outputExtensions\":{\".vibe\":\".js\"},\"options\":{\"tracing\":\"\"}}]}",
+    "tsconfig.native.json": "{\"compilerOptions\":{\"target\":\"ES2022\",\"module\":\"NodeNext\",\"moduleResolution\":\"NodeNext\",\"strict\":true,\"skipLibCheck\":true,\"types\":[],\"lib\":[\"ES2022\",\"DOM\"],\"rootDir\":\".\",\"outDir\":\"dist\",\"noEmitOnError\":true,\"rewriteRelativeImportExtensions\":true,\"declaration\":true},\"include\":[\"src/**/*\"],\"vibelang\":{\"tracing\":\"none\"}}",
+    "src/main.ts": "import { result } from \"./n0.vibe\"\nconsole.log(JSON.stringify(result))\n",
+    "src/contracts.ts": "import { Effect } from \"effect\"\nimport { probe } from \"./n0.vibe\"\nconst forward: (n: number) => Effect.Effect<number, never, never> = probe\nconst backward: typeof probe = forward\nconst notAny: 0 extends (1 & ReturnType<typeof probe>) ? true : false = false\nvoid backward; void notAny\n",
+    "src/n0.vibe": "export const result: { text: string; value: number; trace: string[] } = { text: \"😀plain\", value: 0, trace: [\"B1_TOKEN_0\"] }\nexport function probe(mapperValue: number): number!! {\n  /* 😀plain */ const mapperLocal: number = mapperValue + 1\n  return mapperLocal\n}\n"
+  }
+}
