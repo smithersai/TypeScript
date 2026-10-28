@@ -84,8 +84,12 @@ if [ ! -x "$ts7_cache/node_modules/.bin/tsc" ]; then
 	echo "install: typescript@$ts7_version into $ts7_cache"
 	npm install --prefix "$ts7_cache" --no-audit --no-fund --silent "typescript@$ts7_version"
 fi
+# The seed run looks for wrong results, not hangs: TestPendingHangs probes the
+# known ones, and the campaigns find new ones. A loaded shared host can take
+# longer than the campaigns' 10 s for an ordinary compile, so a stage here
+# fails as a hang only after 120 s.
 echo "test: go test -short ./internal/vibelangfuzz/..."
-(cd "$root/tsc" && CGO_ENABLED=0 VIBELANG_FUZZ_REQUIRE=1 EFFECT_NODE_MODULES=$effect_modules go test -short -timeout=20m -trimpath -gcflags=all=-dwarf=false ./internal/vibelangfuzz/... >/dev/null) ||
-	(cd "$root/tsc" && CGO_ENABLED=0 VIBELANG_FUZZ_REQUIRE=1 EFFECT_NODE_MODULES=$effect_modules go test -short -timeout=20m -trimpath -gcflags=all=-dwarf=false ./internal/vibelangfuzz/...; exit 1)
+(cd "$root/tsc" && CGO_ENABLED=0 VIBELANG_FUZZ_REQUIRE=1 VIBELANG_FUZZ_HANG=120s EFFECT_NODE_MODULES=$effect_modules go test -short -timeout=20m -trimpath -gcflags=all=-dwarf=false ./internal/vibelangfuzz/... >/dev/null) ||
+	(cd "$root/tsc" && CGO_ENABLED=0 VIBELANG_FUZZ_REQUIRE=1 VIBELANG_FUZZ_HANG=120s EFFECT_NODE_MODULES=$effect_modules go test -short -timeout=20m -trimpath -gcflags=all=-dwarf=false ./internal/vibelangfuzz/...; exit 1)
 
 EFFECT_NODE_MODULES=$effect_modules VIBELANG_RUNTIME=$runtime exec node "$root/vibelang/harness.mjs" "$@"
