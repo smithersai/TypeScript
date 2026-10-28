@@ -52,7 +52,8 @@ func pipeMigrationDiagnostics(c *checker.Checker, file *ast.SourceFile, ds []*as
 			}
 			noted[d] = true
 		}
-		note(d, "Through VibeLang 0.0.10, pipe's first argument became a program by look-ahead. Write the first program stage explicitly; --fix preserves stage construction order.")
+		// fix-snippets.ts recognizes a migration by this note's first words.
+		note(d, "Through VibeLang 0.0.10, pipe took this first argument as a program. To keep that meaning, hold the first argument as a program with its type written, const first: A!E!R = () => …, and pass first. vibelang --fix writes it and builds the stages in their original order.")
 		if rewrite := pipeMigrationRewrite(c, file, call); rewrite.why != "" {
 			note(d, "{0}", rewrite.why)
 		}

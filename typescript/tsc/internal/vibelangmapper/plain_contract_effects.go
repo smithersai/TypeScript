@@ -29,7 +29,7 @@ func (p *projector) checkPlainContractEffects(fn *ast.Node) {
 			start := p.tokenStart(node)
 			p.diagnostics = append(p.diagnostics, Diagnostic{
 				Start: start, Length: node.End() - start, Code: CodePlainContractEffect,
-				Message: "A function with a plain return contract never fails, so it cannot throw (D282). Write an Effect return contract that names the failure, or throw inside a hatch.",
+				Message: "A plain function can't throw: its return annotation makes it a plain function, which never fails. Make it an Effect function, A!E!; or fail with a defect instead, die(error), annotated A!!; or escape to TypeScript in a .ts file or a module block.",
 			})
 			return true
 		}
@@ -124,7 +124,7 @@ func (p *projector) checkPlainGeneratorThrows(fn *ast.Node) {
 			start := p.tokenStart(node)
 			p.diagnostics = append(p.diagnostics, Diagnostic{
 				Start: start, Length: node.End() - start, Code: CodePlainContractEffect,
-				Message: "A generator with a JavaScript iterator annotation never fails, so it cannot throw (D296). Remove the annotation to make it a Stream producer, or write it in a module block or a .ts file.",
+				Message: "A JavaScript generator can't throw: its iterator annotation makes it one, which never fails. Remove the annotation to make it a producer, a Stream whose throw fails the Stream, or escape to TypeScript in a module block or a .ts file.",
 			})
 			return true
 		}

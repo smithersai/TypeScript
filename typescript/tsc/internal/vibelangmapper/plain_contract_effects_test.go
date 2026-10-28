@@ -138,7 +138,7 @@ func TestPlainGeneratorThrows(t *testing.T) {
 		for _, projection := range []Projection{Project(test.source, testContext), Executable(test.source, testContext)} {
 			count := 0
 			for _, d := range projection.Diagnostics {
-				if d.Code == 2003 && strings.Contains(d.Message, "(D296)") {
+				if d.Code == 2003 && strings.Contains(d.Message, "A JavaScript generator can't throw") {
 					count++
 				}
 			}

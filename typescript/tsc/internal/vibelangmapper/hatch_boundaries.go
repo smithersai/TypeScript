@@ -124,7 +124,7 @@ func isRetiredCatchStatement(node *ast.Node) bool {
 // assigning the fork's retired type-directed meaning to this clause.
 func (p *projector) retiredCatchStatement(node *ast.Node) {
 	clause := node.AsTryStatement().CatchClause
-	p.diagnostics = append(p.diagnostics, Diagnostic{Start: p.tokenStart(clause), Length: len("catch"), Code: CodeUnprojectedForm, Message: "Typed catch clauses are deleted (L4, D216/D217). Catch the failure without an annotation and match on it; to recover a whole Cause, match on exit(program)."})
+	p.diagnostics = append(p.diagnostics, Diagnostic{Start: p.tokenStart(clause), Length: len("catch"), Code: CodeUnprojectedForm, Message: "A catch clause no longer tests a failure's type. Catch the failure without an annotation and match on it; to recover a whole Cause, match on exit(program)."})
 }
 
 // hatchValueInput proves a non-callable input from its written type or

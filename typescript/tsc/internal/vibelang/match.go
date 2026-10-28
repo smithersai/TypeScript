@@ -108,7 +108,7 @@ func checkExhaustive(c *checker.Checker, file *ast.SourceFile, call *ast.Node) {
 	}
 	d := reportAt(c, file, call.Expression().Loc, EK4701, declaredText, leftText)
 	if open {
-		note(d, "{0} is open: it is not a finite union of literals, data variants, and closed classes, so arms over its cases cannot cover it (D346).", declaredText)
+		note(d, "{0} is open: it is not a finite union of literals, data variants, and closed classes, so arms over its cases cannot cover it.", declaredText)
 	}
 	for _, why := range uncountedArmNotes(c, file, call) {
 		note(d, why)

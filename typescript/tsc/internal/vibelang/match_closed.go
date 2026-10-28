@@ -94,7 +94,7 @@ func classArmCreditOf(c *checker.Checker, matcher *ast.Node) classArmCredit {
 		symbol = c.GetAliasedSymbol(symbol)
 	}
 	if symbol == nil || symbol.ValueDeclaration() == nil {
-		return classArmCredit{why: "{0} is not a closed class, so a value of its type need not pass its instanceof test, and its arm removes nothing (D428)."}
+		return classArmCredit{why: "{0} is not a closed class, so a value of its type need not pass its instanceof test, and its arm removes nothing."}
 	}
 	// Flow analysis asks at every reference to the subject after the arm.
 	state := closedClassStateOf(c)
@@ -130,10 +130,10 @@ func classCreditOf(c *checker.Checker, symbol *ast.Symbol, constructor *checker.
 		return classArmCredit{why: why}
 	}
 	if declaresOwnMatcher(c, constructor) {
-		return classArmCredit{why: "{0} or a class it extends declares its own [Symbol.hasInstance] or [customMatcher], which may reject a value of its type, so its arm removes nothing (D407)."}
+		return classArmCredit{why: "{0} or a class it extends declares its own [Symbol.hasInstance] or [customMatcher], which may reject a value of its type, so its arm removes nothing."}
 	}
 	if copy := secondCopyOf(c, symbol); copy != "" {
-		return classArmCredit{why: "{0}'s package is installed twice, and module resolution merged the copy at " + copy + " with it: TypeScript gives both copies one type, but the run time loads two classes, so its arm removes nothing (D427)."}
+		return classArmCredit{why: "{0}'s package is installed twice, and module resolution merged the copy at " + copy + " with it: TypeScript gives both copies one type, but the run time loads two classes, so its arm removes nothing."}
 	}
 	return classArmCredit{counts: true}
 }
@@ -154,7 +154,7 @@ func isPrimitiveClass(c *checker.Checker, symbol *ast.Symbol) bool {
 // declaration with the runtime's ErrorBrand, or an error class of the pinned
 // effect, one that extends its YieldableError (D407).
 func openClassReason(c *checker.Checker, symbol *ast.Symbol) string {
-	const open = " so a value of its type need not pass its instanceof test, and its arm removes nothing (D428)."
+	const open = " so a value of its type need not pass its instanceof test, and its arm removes nothing."
 	declaration := symbol.ValueDeclaration()
 	file := ast.GetSourceFileOfNode(declaration)
 	switch {

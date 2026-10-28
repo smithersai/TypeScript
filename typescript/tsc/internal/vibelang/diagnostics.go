@@ -93,7 +93,7 @@ var (
 	// EK1022: a next-line block could be mistaken for the previous statement's block param (D376).
 	EK1022 = message(1022, errorCategory, parser.VibeLangNextLineBlockMessage)
 	// EK1023: a legacy decision would silently change meaning (D382). Not adjustable.
-	EK1023 = message(1023, errorCategory, "pipe passes its first argument as the value it is; through VibeLang 0.0.10 this site passed a program by look-ahead.")
+	EK1023 = message(1023, errorCategory, "pipe now passes its first argument as the value it is, but through VibeLang 0.0.10 this pipe passed it as a program.")
 	// EK2001: an expected failure escapes the written contract. {0} is the failure, {1} the function, {2} what the contract allows.
 	EK2001 = message(2001, errorCategory, "{0} can escape {1}, but {2}.")
 	// EK2002: a requirement escapes the written contract. {0} is the function, {1} the requirement, {2} the contract's R.

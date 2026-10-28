@@ -36,6 +36,6 @@ func (p *projector) dataDeclaration(node *ast.Node) {
 		Start:   start,
 		Length:  node.End() - start,
 		Code:    CodeUnprojectedForm,
-		Message: "The TypeScript 7 mapper does not lower a data declaration (D307) yet; compile this file with vibelang.",
+		Message: "The TypeScript 7 mapper does not lower a data declaration yet; compile this file with vibelang.",
 	})
 }

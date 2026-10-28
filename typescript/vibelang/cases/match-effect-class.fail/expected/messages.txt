@@ -1,1 +1,1 @@
-Message.IncomingEnvelope is a class of effect that does not extend its error base, YieldableError, so a value of its type need not pass its instanceof test, and its arm removes nothing (D428).
+Message.IncomingEnvelope is a class of effect that does not extend its error base, YieldableError, so a value of its type need not pass its instanceof test, and its arm removes nothing.

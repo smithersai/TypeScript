@@ -1232,7 +1232,7 @@ func TestRetiredCatchMigration(t *testing.T) {
 		executable := Executable(source, testContext)
 		for _, ds := range [][]Diagnostic{projection.Diagnostics, executable.Diagnostics} {
 			assert.Equal(t, len(ds), 1)
-			assert.Assert(t, strings.Contains(ds[0].Message, "L4, D216/D217"))
+			assert.Assert(t, strings.Contains(ds[0].Message, "no longer tests a failure's type"))
 			assert.Equal(t, source[ds[0].Start:ds[0].Start+ds[0].Length], "catch")
 		}
 	}
