@@ -8,10 +8,11 @@ error NotFound { id: string }
 service Users { name(id: string): string!NotFound }
 
 function nameOf(id: string): string!!Users {
-  return Users.name(id)
-    |> timeout(%, "1 second") // each attempt
-    |> retry(%, { times: 3, schedule: Schedule.exponential("100 millis") })
-    catch (e) => "unknown"
+  // timeout bounds each attempt
+  return retry(() => timeout(() => Users.name(id), "1 second"), {
+    times: 3,
+    schedule: Schedule.exponential("100 millis")
+  }) catch (e) => "unknown"
 }
 
 export function names(ids: ReadonlyArray<string>) {

@@ -30,7 +30,12 @@ Call your own `.ts` functions and npm packages through `try`, `trusted`, or `"tr
 
 ```vibe
 import { parseSettings } from "./settings.ts"
-function settings(text: string) { return try((text) => parseSettings(text), text) } // try's first argument is plain TypeScript, not VibeLang.
+error BadSettings { cause: unknown }
+
+function settings(text: string) {
+  // try's first argument is plain TypeScript, not VibeLang.
+  return try((text) => parseSettings(text), (cause) => new BadSettings({ cause }), text)
+}
 ```
 
 Use Effect services for platform, clock and randomness APIs, such as `Console`, `Clock` and `Random`. The compiler reports unwrapped foreign calls as `EK4401`, platform calls as `EK4402`, and uncontrolled time or randomness reads as `EK4403` ([diagnostics](https://vibelang.sh/getting-started/012-devtools#diagnostics-completions-and-refactors)).
@@ -180,4 +185,4 @@ Report a bug with a minimal reproduction, or propose an idea, in [Issues](https:
 
 [MIT](LICENSE), except the TypeScript fork in [`typescript/`](typescript/) and the compiler packages built from it, `vibelang` and `vibelang-<platform>`, which use the [Apache License 2.0](typescript/LICENSE.txt) and keep its [notices](typescript/NOTICE.txt).
 
-<sub>2,073 tokens (o200k_base, js-tiktoken 1.0.21), counted by the [docs flow](.smithers/flows/docs/flow.ts).</sub>
+<sub>2,093 tokens (o200k_base, js-tiktoken 1.0.21), counted by the [docs flow](.smithers/flows/docs/flow.ts).</sub>

@@ -14,10 +14,11 @@ error NotFound { id: string }
 service Users { name(id: string): string!NotFound }
 
 function nameOf(id: string): string!!Users {
-  return Users.name(id)
-    |> timeout(%, "1 second") // each attempt
-    |> retry(%, { times: 3, schedule: Schedule.exponential("100 millis") })
-    catch (e) => "unknown"
+  // timeout bounds each attempt
+  return retry(() => timeout(() => Users.name(id), "1 second"), {
+    times: 3,
+    schedule: Schedule.exponential("100 millis")
+  }) catch (e) => "unknown"
 }
 
 export function names(ids: ReadonlyArray<string>) {
@@ -35,4 +36,4 @@ export function names(ids: ReadonlyArray<string>) {
 - A plain TypeScript call needs `sync((x) => f(x), x)`; if it can throw, `try((x) => f(x), (error: unknown) => new E(), x)`.
 - `@effect/vitest`: `it.effect("name") { assert.strictEqual(a, b) }` uses a test clock (`sleep` stalls); `it.live`: real time. Vitest hides `console.log` under agents; assert.
 
-<!-- 583 tokens (o200k_base, js-tiktoken 1.0.21). Generated: smithersai/vibelang .smithers/flows/docs/flow.ts -->
+<!-- 584 tokens (o200k_base, js-tiktoken 1.0.21). Generated: smithersai/vibelang .smithers/flows/docs/flow.ts -->

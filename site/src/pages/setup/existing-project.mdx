@@ -11,7 +11,12 @@ Call your own `.ts` functions and npm packages through `try`, `trusted`, or `"tr
 
 ```vibe
 import { parseSettings } from "./settings.ts"
-function settings(text: string) { return try((text) => parseSettings(text), text) } // try's first argument is plain TypeScript, not VibeLang.
+error BadSettings { cause: unknown }
+
+function settings(text: string) {
+  // try's first argument is plain TypeScript, not VibeLang.
+  return try((text) => parseSettings(text), (cause) => new BadSettings({ cause }), text)
+}
 ```
 
 Give a `.vibe` wrapper a different file stem from the `.ts` module it

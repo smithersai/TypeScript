@@ -15,7 +15,7 @@ test("1: onboarding explains calls into local TypeScript and npm at the boundary
     for (const term of ["try", "trusted", "trustedPackages", "EK4401", "EK4402", "EK4403"]) assert.ok(text.includes(term), path + ": " + term)
     assert.match(text, /114-vibelang-for-effect-users/)
     assert.match(text, /012-devtools/)
-    assert.match(text, /import \{ parseSettings \} from "\.\/settings\.ts"\nfunction settings\(text: string\) \{ return try\(\(text\) => parseSettings\(text\), text\) \}/)
+    assert.match(text, /import \{ parseSettings \} from "\.\/settings\.ts"\nerror BadSettings \{ cause: unknown \}\n\nfunction settings\(text: string\) \{\n  \/\/ try's first argument is plain TypeScript, not VibeLang\.\n  return try\(\(text\) => parseSettings\(text\), \(cause\) => new BadSettings\(\{ cause \}\), text\)\n\}/)
   }
 })
 
