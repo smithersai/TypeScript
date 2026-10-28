@@ -348,7 +348,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D388 | A value member named like a property of the key's class is EK4503 too | `Person.name` returned `"Person"` |  | 13, 28 |
 | D389 | The trusted contract is `trusted(impl, [Errors])`; the D23 tags are deprecated | One form; a per-file renderer cannot see tags | Amended by D400 | 2, 10, 13, 26, 27 |
 | D390 | A factory has no VibeLang form: TypeScript, a `module` declaration, or a plain function returning a function | Every candidate made a type decide when code runs |  | 5, 10 |
-| D391 | `fork` and `join` are contextual keywords: `fork(e)` is the keyword with a parenthesized operand unless `fork` resolves to a binding the program declares; the await operations take a parenthesized operand too | Parentheses must not turn a deferred operand into a running call; recognition by binding (rule H) | Amended by D432, D443, D452 | 7, 13 |
+| D391 | `fork` and `join` are contextual keywords: `fork(e)` is the keyword with a parenthesized operand unless `fork` resolves to a binding the program declares; the await operations take a parenthesized operand too | Parentheses must not turn a deferred operand into a running call; recognition by binding (rule H) | Amended by D432, D443, D452, D462 | 7, 13 |
 | D392 | A function argument takes its own form, plain or Effect, and the order of overloads never chooses it; overloads resolve as TypeScript would, lifting only when no candidate accepts the own form; EK1021 for disagreement | Overload order decided whether a TypeScript API received a plain function or a cold program | Amended by D421, D422, D450, D457 | 2, 13, 27, 28 |
 | D393 | Rule R reads every type parameter in scope uninstantiated; no subtype of `Effect` is definitely an Effect | "Before instantiation" did not say which type parameters | Amended by D426, D435, D449, D458 | 13 |
 | D394 | An await operation adopts nothing at run time: literal elements are programs by syntax, non-literal operands are typed; EK4613 | `isEffect` is true for `Exit`, `Config`, errors, and keys | Amended by D433 | 7, 13, 28 |
@@ -393,7 +393,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D433 | A `fork` of a program value is EK4613 | `fork job` ran nothing |  | 7, 13, 28 |
 | D434 | A written contract names a contract-less callback's channels `E` and `R`; EK2130 | A service member could not pass its callback's channels through | Amended by D455 | 14, 16, 28 |
 | D435 | A type parameter at a destination is read by one ordered rule; `flow` does not compose Effect functions | The table was not total; the `flow` example was EK4301 | Amended by D453 | 13, 30 |
-| D436 | EK4802 spares a type parameter the receiving function returns | Programs a caller keeps were rejected |  | 13, 28 |
+| D436 | EK4802 spares a type parameter the receiving function returns | Programs a caller keeps were rejected | Amended by D463 | 13, 28 |
 | D437 | `p()` on a value typed by a type parameter constrained to an Effect runs it | Two readings |  | 13 |
 | D438 | A declaration that writes no return type is read through the one TypeScript infers | Nothing was written to read | Amended by D449 | 13, Appendices |
 | D439 | A synchronous hatch's result is its value | A run-time thenable test adopted lazy queries |  | 10 |
@@ -409,8 +409,8 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D449 | Rule R reads a type parameter by who declares it: a class's, an interface's, or an alias's uninstantiated, a function's as the completed call that returned the signature bound it | `Effect.fn(name)(body, pipeline)` functions returned their Effect as data | Amended by D458 | 10, 13, 26, 30, Appendices |
 | D450 | A literal's own form is read once, with the parameter types TypeScript assigns; EK1021 where candidates would type it differently and take different forms | TypeScript never types a literal per candidate | Amended by D457 | 13, 27, 28, 30, Appendices |
 | D451 | `using`'s mask records the interruptibility it replaced, and the runtime's interruptible acquisitions run with it | Effect's `restore` is the identity under an outer mask | Amended by D459 | 6, 21, 24, 26, 30 |
-| D452 | `fork(x)`, `join(x)`, and `await.all(x)` are calls in shape; a runtime namespace member of a keyword or hatch is EK4410 | `fork(x).y` had two parse trees |  | 7, 10, 13, 28, 30, Appendices |
-| D453 | Rule F's destinations: Effect-returning plain functions unlifted, derived element types, contextual propagation, per-element spreads, D430 in a candidate's acceptance | Five cases rule F left wrong or unstated |  | 13, 14, 30 |
+| D452 | `fork(x)`, `join(x)`, and `await.all(x)` are calls in shape; a runtime namespace member of a keyword or hatch is EK4410 | `fork(x).y` had two parse trees | Amended by D462 | 7, 10, 13, 28, 30, Appendices |
+| D453 | Rule F's destinations: Effect-returning plain functions unlifted, derived element types, contextual propagation, per-element spreads, D430 in a candidate's acceptance | Five cases rule F left wrong or unstated | Amended by D461, D463 | 13, 14, 30 |
 | D454 | Rule R covers union callees and contract-less callback parameters | Neither had a stated reading |  | 13, 30 |
 | D455 | EK2130, EK2128, EK4838, and EK1001 cover what their rules meant | Silent shadowing, a continuation moved by `fork`, a fiber bound through a conditional, two codes for one failure |  | 7, 9, 16, 28, 30 |
 | D456 | Statements that contradicted rules or facts | Appendix C and Chapters 3, 10, 12, 13, 15, 24, 27, 28, and 30 |  | 3, 10, 12, 13, 15, 24, 27, 28, 30, Appendices |
@@ -418,6 +418,9 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D458 | Rule R reads a type parameter as TypeScript shows it for the call, except one the callee's own signature declares; `AsData<T>` is withdrawn | An alias, an interface, or a class ran differently from the same type written inline |  | 10, 13, 26, 27, 28, 30, Appendices |
 | D459 | While a `using` mask is in force, the runtime keeps the interruptibility the fiber would have without it; VibeLang's masks keep it, and a nested `using` inherits it | A nested `using` recorded the outer mask and kept an interruptible acquisition masked |  | 6, 17, 21, 24, 26, 27, 30, Appendices |
 | D460 | An object literal's methods take a function literal's own form and carry their plain form as `m[$direct]`; a namespace import's member and an anonymous default export keep a function's own form; a `let` does not | Chapters 10, 14 and the function-kinds table called object methods Effect methods; no plain form or signature was stated for them |  | 10, 13, 14, 27, 30, Appendices |
+| D461 | A destination reaches both operands of `??` and `\|\|` and the right operand of `&&` | TypeScript types the left operand of `\|\|` and `??` by the destination too |  | 13, 30 |
+| D462 | A parenthesized await operation's literal operand is deferred; `join`'s operand is evaluated, never deferred | The grammar note evaluated `await.all([a(), b()])`'s elements; rule H called `join`'s operand deferred |  | 13, 30, Appendices |
+| D463 | EK4802 covers an Effect-form callback that returns a program where an Effect-returning callback is expected | Adding a log line to `(v) => cached` silently stopped `cached` from running |  | 13, 28, 30 |
 
 #### Rules of the runtime and compiler
 

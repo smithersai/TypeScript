@@ -382,7 +382,7 @@ AssignmentExpression :
   TypeScript's, with PipeExpression where TypeScript has ConditionalExpression
 ```
 
-A block param is not taken after `new`, in a heritage clause, or after a provider (above). A statement that starts with `throw`, `do`, `{`, or `match` followed by a line break is TypeScript's statement, not one of these expressions. The arguments of a CallExpression, a block param included, follow rule E1, except the one operand of `fork(x)`, which rule D defers when rule H5 makes the call the keyword; the prelude's `fork` and `join` take exactly one operand.
+A block param is not taken after `new`, in a heritage clause, or after a provider (above). A statement that starts with `throw`, `do`, `{`, or `match` followed by a line break is TypeScript's statement, not one of these expressions. The arguments of a CallExpression, a block param included, follow rule E1, except the one operand of `fork(x)`, which rule D defers when rule H5 makes the call the keyword, and the elements of an array or object literal written as an AwaitCall's operand, which rule D defers as it defers an AwaitOperation's (D462); `join(x)`'s operand is evaluated once (E7), and the prelude's `fork` and `join` take exactly one operand.
 
 #### Patterns
 
