@@ -1,0 +1,21 @@
+// expect-result: {"one":1,"pair":[1,2],"keyed":{"a":1,"b":2},"spaced":3}
+// join(x) with parentheses is the keyword join x with a parenthesized
+// operand while join resolves to the prelude's binding (D391, D432), as
+// fork(e) is fork e: it joins a fiber, or every fiber of an array or object,
+// keeping the shape. A join the program declares is an ordinary call
+// (fibers-join-identifiers).
+function work(n: number) {
+  sleep("1 millis")
+  return n
+}
+
+export function main() {
+  const a = fork work(1)
+  const b = fork work(2)
+  const c = fork(work(3))
+  const one = join(a)
+  const pair = join([a, b])
+  const keyed = join({ a, b })
+  const spaced = join (c)
+  return { one, pair, keyed, spaced }
+}

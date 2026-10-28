@@ -1,0 +1,14 @@
+// expect: EK4410
+// The prelude's join is used only as the callee of join(…) or as the keyword
+// join x (D432): an import that renames it, a stored reference, and a
+// namespace import's member are EK4410, since a call spelled otherwise would
+// read as an ordinary call.
+import { join as wait } from "vibelang-runtime"
+import * as Runtime from "vibelang-runtime"
+
+const joiner = join
+
+export function main() {
+  const fiber = fork Effect.succeed(1)
+  return Runtime.join(fiber)
+}

@@ -1,8 +1,13 @@
 // A hatch called as a value runs through the runtime's sync and try, which
 // pass an async function the AbortSignal in the parameter after its inputs,
 // as a direct call does (D230, D232). Interruption aborts the signal. A rest
-// or defaulted parameter gets no signal.
+// or defaulted parameter gets no signal. VibeLang code calls a hatch only
+// under its own name (EK4410, D432), so the calls of hatches as values are
+// TypeScript's, in this module, where the runtime's sync and try are
+// ordinary functions (D330).
 module foreign {
+  import { sync as run, try as attempt } from "vibelang-runtime"
+
   export async function hasSignal(signal: AbortSignal) {
     return signal instanceof AbortSignal && !signal.aborted
   }
@@ -24,21 +29,19 @@ module foreign {
   export async function untilAbortedAsync(events: string[], signal: AbortSignal): Promise<string> {
     return untilAborted(events, signal)
   }
+  export const value = () => run(hasSignal)
+  export const input = () => run(echo, 42)
+  export const tried = () => attempt(echo, 7)
+  export const rest = () => run(count, 1, 2)
+  export const sum = () => run(defaulted, 1)
+  export const waiting = (events: string[]) => run(untilAbortedAsync, events)
 }
-import { hasSignal, echo, count, defaulted, untilAbortedAsync } from foreign
-import { try as attempt } from "vibelang-runtime"
-
-const run = sync
+import { hasSignal, value, input, tried, rest, sum, waiting } from foreign
 
 // expect-result: {"direct":true,"value":true,"input":{"value":42,"signal":true},"tried":{"value":7,"signal":true},"rest":2,"defaulted":6,"timedOut":"timed out","events":["aborted"]}
 export function main() {
   const events: string[] = []
   const direct = sync(hasSignal)
-  const value = run(hasSignal)
-  const input = run(echo, 42)
-  const tried = attempt(echo, 7)
-  const rest = run(count, 1, 2)
-  const sum = run(defaulted, 1)
-  const timedOut = timeout(run(untilAbortedAsync, events), "10 millis") catch "timed out"
-  return { direct, value, input, tried, rest, defaulted: sum, timedOut, events }
+  const timedOut = timeout(waiting(events), "10 millis") catch "timed out"
+  return { direct, value: value(), input: input(), tried: tried(), rest: rest(), defaulted: sum(), timedOut, events }
 }

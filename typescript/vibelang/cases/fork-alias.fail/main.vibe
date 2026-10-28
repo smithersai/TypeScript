@@ -1,0 +1,19 @@
+// expect: EK4410
+// The prelude's fork is used only under its own name (rule H4, D432): a
+// stored reference is EK4410, so no call spelled otherwise defers its
+// operand. Through 0.0.10 spawn(work()) deferred work() by the parameter's
+// type and ran it on the new fiber, after "after spawn".
+const events: string[] = []
+
+function work(): number!! {
+  sleep("1 millis")
+  events.push("work ran")
+  return 1
+}
+
+const spawn = fork
+
+export function aliased() {
+  const start = fork
+  return [spawn, start]
+}

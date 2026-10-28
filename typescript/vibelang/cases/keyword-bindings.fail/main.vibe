@@ -1,0 +1,18 @@
+// expect: EK4410
+// The prelude's fork and join, and the hatches, are used only as the callee
+// of a call spelled with their own name, since their first operand is
+// syntax (D330, D432): renamed, stored, or read from a namespace import, a
+// call spelled otherwise would defer its operand by a binding its reader
+// cannot see (D452).
+import { fork as spawn, sync as run } from "vibelang-runtime"
+import * as Runtime from "vibelang-runtime"
+
+const start = fork
+const wait = join
+const hatch = { callback }
+
+export function main() {
+  const fiber = fork Effect.succeed(1)
+  const value = Runtime.sync(() => 2)
+  return [join(fiber), value]
+}

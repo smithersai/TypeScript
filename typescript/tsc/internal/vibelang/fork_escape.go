@@ -323,13 +323,21 @@ func (f *fiberFlow) literalStays(literal *ast.Node) bool {
 }
 
 // joinsOperand reports whether n, skipping parentheses, is the operand of
-// join or an argument of a Fiber function whose result holds no Fiber.
+// join, join x or join(x), or an argument of a Fiber function whose result
+// holds no Fiber.
 func (f *fiberFlow) joinsOperand(n *ast.Node) bool {
 	for n.Parent != nil && ast.IsParenthesizedExpression(n.Parent) {
 		n = n.Parent
 	}
 	call := n.Parent
-	return call != nil && ast.IsCallExpression(call) && call.Expression() != n && (fiberHelper(call) == "$join" || f.isFiberFunction(call))
+	return call != nil && ast.IsCallExpression(call) && call.Expression() != n && (f.isJoin(call) || f.isFiberFunction(call))
+}
+
+// isJoin reports whether call is a join: the keyword join x, or a call of
+// the prelude's join, join(x) (D391). A renamed or namespace reference to
+// the prelude's join is EK4410, which stands alone.
+func (f *fiberFlow) isJoin(call *ast.Node) bool {
+	return fiberHelper(call) == "$join" || runtimeExportOf(f.c, call.Expression()) == "join"
 }
 
 // elsewhere is the escape of a value used in any way the rule does not list.
@@ -343,8 +351,7 @@ func (f *fiberFlow) elsewhere(n *ast.Node) *fiberEscape {
 // plain await of the fiber is EK4609, whose fix writes join, so it reports
 // nothing more here.
 func (f *fiberFlow) keepsInRegion(call *ast.Node) bool {
-	switch fiberHelper(call) {
-	case "$join", "$await":
+	if f.isJoin(call) || fiberHelper(call) == "$await" {
 		return true
 	}
 	return isRuntimeExport(f.c, call.Expression(), "interrupt") || f.isFiberFunction(call)

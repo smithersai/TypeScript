@@ -120,6 +120,7 @@ JavaScript value. Decisions are in [`docs/design/DECISIONS.md`](../../docs/desig
 | `detach` | Fork a program independently of the current block | — |
 | `interrupt` | Interrupt the running fiber | — |
 | `interruptible` | Run a program with interruption enabled | — |
+| `join` | The prelude's `join`: `join(x)` is the keyword `join x`, joining a fiber or collection of fibers | D391, D432 |
 | `restore` | Restore the enclosing uninterruptible region’s previous interruptibility | — |
 | `runCallback` | Run a program with a callback for its exit | — |
 | `runFork` | Run a program on a new fiber | — |

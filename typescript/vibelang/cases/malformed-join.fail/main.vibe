@@ -1,2 +1,4 @@
-// expect: TS2304
+// expect: EK4410
+// join with no operand is a reference to the prelude's join, which is used
+// only as the callee of join(…) (D391, D432).
 export function main() { join }

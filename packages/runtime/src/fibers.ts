@@ -84,6 +84,13 @@ export function $join(value: unknown): any {
   return awaitValue(value)
 }
 
+/**
+ * The prelude's `join`. `join(x)` with parentheses is the keyword `join x`
+ * while `join` resolves to this binding (D391), and the binding is used only
+ * under its own name (EK4410, D432).
+ */
+export const join: typeof $join = $join
+
 // An array or object is read once: each element once, in order. The fibers
 // it joins are the fibers it interrupts when one fails, so a getter that
 // returns another fiber the second time cannot make it join one child and

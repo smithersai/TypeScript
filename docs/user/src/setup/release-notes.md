@@ -49,6 +49,7 @@ The fixes keep a rewrite only when it adds no compiler error.
 | `() => fork p()`, or a `fork` in an `if` branch or a bare block | A fiber belongs to its innermost named region: a function body (an arrow's expression body included), one loop iteration, a `try`, `catch` or `finally` block, a block that declares `using`, or a `provide` or mask block. `if` branches, bare blocks, `do` blocks and `match` own nothing. Passing an owned fiber out of its region (returning, storing, assigning outside it, or capturing it) is now the error EK4838. Use `Effect.forkScoped(() => p())` for a child the caller's scope owns, or `detach(() => p())`. |
 | `using h = Effect.acquireRelease(() => openDisposable(), release)` with a plain-holder workaround | The acquisition's release is now the only release, so `using` no longer also calls `[Symbol.dispose]()`. Bind the Disposable directly and drop the holder. |
 | `using n = count()` where the value has no disposal method and the initializer needs no `Scope` | TS2850. Bind it with `const`, or acquire it with `acquireRelease` so its release is recorded. |
+| `const spawn = fork`, `const run = sync`, an import that renames `fork`, `join`, `sync`, `try` or `callback`, or `R.fork(x)` through a namespace import of the runtime | EK4410: a call spelled otherwise read its first operand by a binding its reader cannot see, so `spawn(work())` deferred `work()`. Call each under its own name where it runs; to pass forking as a function, write `(job: () => A!E!R) => fork job()`. In a `module` block the runtime's functions stay ordinary values. |
 | A pause in a `using` initializer, such as a wait in the function that opens the resource | Cancellation now follows Effect. Every initializer runs with the interruptibility in force where the `using` stands, whether or not it requires `Scope`, so cancellation reaches its waits and `using` registers nothing. A `timeout` around `using db = openDb()` now ends at its deadline instead of waiting for `openDb`. To wait one out, write `using db = Effect.acquireDisposable(() => openDb())`: its acquisition holds cancellation off, and `using` adds no second release. |
 
 Direct platform calls such as `console.log` and `process.env.NAME` were
@@ -222,6 +223,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - An Effect type in the `!` form declared every channel, `number!!` as `Effect.Effect<number, never, never>`, where the Effect TypeScript it replaced wrote `Effect.Effect<number>`. Declarations now leave out the empty slots at the end of a `!` form, and dependencies that a return annotation leaves for the body when they come to `never`; a slot the source fills, `never` included, stays.
 - A `.vibe` file that kept an import of `effect`, such as `import { Array } from "effect"`, declared the other names its declarations needed in a second import of `effect`, where the Effect TypeScript it replaced had one. They now join the kept import.
 - A function you declared named `fork` captured the keyword form: with `function fork(x: number)`, `fork slow()` called that function, so `join` of its number was EK4611. `fork x` and `fork { … }` now always start a fiber; only the call form `fork(x)` calls your function.
+- `join(fiber)` with parentheses was TS2304, an unknown name. It now joins the fiber, as `join fiber` does, and `join([a, b])` keeps the shape; a function you declare named `join` makes it an ordinary call of yours.
 - Clearer messages for a plain function that throws or runs an Effect (EK2003). The message led with the annotation, `number is a plain return annotation, but quantity can fail with InvalidQuantity`, offered only the contract and a hatch, and for a function that runs an Effect suggested `number!Errors!`, which closes `R`, so a function that needed a service got EK2002 next. It now leads with the rule, `quantity can't throw InvalidQuantity` or `read can't run Count(), an Effect`, names the throw or the call, and lists each way out as code: the Effect contract with the channels the body adds, `number!!Count` included, which the quick fix also writes for a function that runs an Effect; `die(…)` under `number!!`; or a `.ts` file, a `module` block or a `sync` hatch. A throw that escapes a constructor, an accessor, a static block, a JavaScript generator or a module's top level reads the same way, and its note no longer cites a decision number.
 - Clearer messages for a callback that runs an Effect or throws where a plain function is expected (EK4301). The message said `this callback can pause (find)`, its fix pasted the whole callback into `Effect.forEach(…)`, however long, and its notes cited decision numbers and a "Visitor spelling". It now says what the callback can't do and why, `This callback can't run find(id), an Effect: ReadonlyArray.prototype.map calls it synchronously, as a plain function`, writes a long callback as `(id) => { … }` in the fix, and shows the one spelling that returns the program, `(id) => () => find(id)`. A callback that throws also suggests catching inside it, a function passed by name says it `can't be passed to` the callee, and a discarded Effect subtype, such as an SQL statement, says the statement discards it and shows the call that runs it.
 - Clearer messages for a `match` that leaves a case (EK4701), a call of a callback parameter that can fail (EK2001), a `pipe` whose first argument changed meaning (EK1023), and the content mapper's errors. Their notes cited the decision log by number and spoke of a program "by look-ahead". They now say the same in the docs' words, and EK1023 shows the code that keeps the old meaning: `const first: A!E!R = () => …`.
@@ -405,8 +407,9 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
 - A `sync` or `try` hatch returning a scalar-or-Promise union can hand back
   an unresolved Promise despite a scalar result type; ordinary data with a
   non-callable `then` property can instead be treated as a Promise and crash.
-  Use an async callback for mixed returns, or the runtime hatch adapter
-  imported under an alias for data with a `then` field.
+  Use an async callback for mixed returns; for data with a `then` field,
+  call the runtime's `sync` from a `module` block, where it is an ordinary
+  function.
 - `try(evaluate, makeMapper(), input())` can run `input()` before
   `makeMapper()`. Evaluate the mapper and inputs into locals in written order
   before calling the hatch.
@@ -696,21 +699,6 @@ listed with an upgrade step.
   identity(savedProgram) // instantiated Effect result can run
   ```
 
-- **An aliased hatch can pass different arguments from a direct hatch.**
-  Direct `sync`/`try` calls use types to choose signal injection and mapper
-  positions; their first-class runtime values cannot see those types. An
-  optional numeric parameter can receive an AbortSignal through an alias.
-  Today, use direct hatch syntax with explicit inputs and a callback whose
-  parameters unambiguously accept them; declare a signal parameter only when
-  intended, and keep `try`'s mapper explicitly second.
-
-  ```vibe
-  // fragment
-  sync(nativeAsyncWithOptionalNumber, 1) // optional number stays undefined
-  const h = sync
-  h(nativeAsyncWithOptionalNumber, 1) // optional number can get a signal
-  ```
-
 - **A plain return annotation changes foreign-call failure handling.**
   A TypeScript call that needs a trust boundary in an Effect function can
   become an ordinary call inside a plain-annotated helper; trusted listed
@@ -879,11 +867,6 @@ listed with an upgrade step.
 - **The specification makes EK9100 an error that no setting lowers; the
   compiler warns in the editor only and a project can set it.** Write the type
   it asks for, which both accept.
-
-- **The specification reads `fork(x)` and `join(x)` as `fork x` and `join x`;
-  the compiler reads them as calls.** Today `join(f)` is TS2304 and
-  `fork(work())` passes a fiber to a call, which EK4838 rejects. Write the
-  keyword forms, `fork work()` and `join f`, which both treat the same way.
 
 ### Known limitations
 

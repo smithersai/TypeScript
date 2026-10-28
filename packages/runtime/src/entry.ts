@@ -93,6 +93,7 @@ export const {
   handoff,
   interrupt,
   interruptible,
+  join,
   pipe,
   restore,
   resume,

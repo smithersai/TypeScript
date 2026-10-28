@@ -80,6 +80,9 @@ func fiberHelper(call *ast.Node) string {
 func checkFiberForms(c *checker.Checker, file *ast.SourceFile) {
 	var visit func(node *ast.Node) bool
 	visit = func(node *ast.Node) bool {
+		if fiberHelper(node) == "" && isPreludeJoin(c, node) && !inHatch(node) {
+			checkJoin(c, file, node) // join(x), the keyword with a parenthesized operand (D391)
+		}
 		switch helper := fiberHelper(node); helper {
 		case "$await":
 			checkAwait(c, file, node)

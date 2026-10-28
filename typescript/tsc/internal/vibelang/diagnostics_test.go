@@ -91,6 +91,13 @@ func TestRegistryMatchesSpec(t *testing.T) {
 		}
 		want = append(want, EK1023.Code)
 	}
+	// D432 defines EK4410 in Chapter 28's revision bullets.
+	if !slices.Contains(want, EK4410.Code) {
+		if !strings.Contains(string(spec), "- **EK4410**:") {
+			t.Fatal("EK4410 has no Chapter 28 definition")
+		}
+		want = append(want, EK4410.Code)
+	}
 	var got []int32
 	for code := range registry {
 		got = append(got, code)

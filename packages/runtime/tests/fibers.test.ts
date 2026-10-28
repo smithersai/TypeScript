@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Fiber, Result, Scope } from "effect"
 import {
   $await, $awaitAll, $awaitAllSettled, $awaitAny, $awaitRace, $forConcurrent,
-  $join, $select, detach, forkIn
+  $join, $select, detach, forkIn, join as preludeJoin
 } from "vibelang-runtime"
 
 // D167, D196, D225: these operands may contain already-running fibers.
@@ -44,6 +44,12 @@ for (const [name, join] of [["join", $join], ["legacy await", $await]] as const)
     })
   })
 }
+
+test("the prelude's join is the keyword's own function", () => {
+  // D391, D432: join(x) with parentheses is the keyword while join resolves
+  // to this binding.
+  expect(preludeJoin).toBe($join)
+})
 
 test("legacy await accepts Deferred leaves, including nested runtime collections", async () => {
   await Effect.runPromise(Effect.gen(function*() {

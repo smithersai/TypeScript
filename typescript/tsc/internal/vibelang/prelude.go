@@ -13,7 +13,7 @@ import (
 
 // The prelude (design decisions D4 and D48) is the names every .vibe file sees
 // without an import: Effect, Schema, Layer, TaggedError, Control, Scope, pipe,
-// wire, fork, handle, resume, resumeWith, abandon, and Experimental (D313). They are the exports of
+// wire, fork, join, handle, resume, resumeWith, abandon, and Experimental (D313). They are the exports of
 // vibelang-runtime, which declares each with the right meanings: Effect
 // is the namespace and the type Effect<A, E, R>, Scope the namespace and the
 // type Scope.Scope.
@@ -81,8 +81,10 @@ var preludeModules = map[string]string{
 	"$clause": runtimeModule,
 	// The fiber forms (D166-D170, fibers.go): the parser writes await, select,
 	// and for concurrent as calls of these; detach and forkIn are fork's variants.
-	"$await":  runtimeModule,
-	"$join":   runtimeModule,
+	"$await": runtimeModule,
+	"$join":  runtimeModule,
+	// join(x), the keyword join x with a parenthesized operand (D391, D432).
+	"join":    runtimeModule,
 	"$select": runtimeModule,
 	// The await operations (D196): await.all, await.allSettled, await.race, await.any.
 	"$awaitAll":        runtimeModule,
