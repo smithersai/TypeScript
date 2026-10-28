@@ -340,27 +340,47 @@ func performSite(c *checker.Checker, file *ast.SourceFile, argument *ast.Node, c
 	return argument, control.Symbol().Name()
 }
 
-// checkProducerArguments reports EK4201 for a producer passed to call, a
-// Stream operator or any other function, whose requirements hold a control
-// operation: run as a Stream, a producer runs on a fiber of its own (D26).
-// for...of and yield* run it on this fiber instead.
+// checkProducerArguments reports EK4201 for a Stream whose requirements hold
+// a control operation where it reaches a consumer other than for...of: an
+// argument of call, a Stream operator, a runner or any other function, or
+// the receiver of a Stream method (D402). A producer is one value, a Stream,
+// whatever binding or type it reaches the consumer through, and the Stream
+// interface pulls it on a fiber of its own (D26); for...of and yield* run it
+// on this fiber instead. A .vibe function the Stream is passed to is no
+// consumer: it passes the value on, and its own uses are checked where they
+// stand.
 func checkProducerArguments(c *checker.Checker, file *ast.SourceFile, call *ast.Node) {
-	for _, argument := range call.Arguments() {
-		producer := producerOfCall(c, ast.SkipParentheses(argument))
-		if producer == nil {
-			continue
+	if signature := c.GetResolvedSignature(call); signature != nil {
+		if fn := implementationOf(signature.Declaration()); fn != nil && isLowerable(fn) {
+			return
 		}
+	}
+	streams := call.Arguments()
+	if callee := call.Expression(); ast.IsPropertyAccessExpression(callee) {
+		if method, ok := methodCallOf(c, callee); ok && method.module == "Stream" {
+			streams = append([]*ast.Node{callee.Expression()}, streams...)
+		}
+	}
+	for _, argument := range streams {
 		requirements := streamChannel(c, c.GetTypeAtLocation(argument), "_R")
 		if requirements == nil {
 			continue
 		}
+		producer := producerOfCall(c, ast.SkipParentheses(argument))
 		for _, control := range controlsIn(c, []*checker.Type{requirements}) {
-			operation := control.Symbol().Name()
-			if site, _ := performSite(c, ast.GetSourceFileOfNode(producer), producer.Body(), control); site != producer.Body() {
-				operation = nodeText(ast.GetSourceFileOfNode(producer), site.Expression())
+			operation, what := control.Symbol().Name(), "the Stream "+nodeText(file, argument)
+			if producer != nil {
+				what = "the producer " + nodeText(file, argument)
+				if site, _ := performSite(c, ast.GetSourceFileOfNode(producer), producer.Body(), control); site != producer.Body() {
+					operation = nodeText(ast.GetSourceFileOfNode(producer), site.Expression())
+				}
 			}
-			d := report(c, argument, EK4201, operation, "the producer "+nodeText(file, argument)+" passed to "+nodeText(file, call.Expression()), control.Symbol().Name())
-			note(d, "A producer used as a Stream runs on a fiber of its own. Loop over it with for...of, or handle {0} inside the producer.", control.Symbol().Name())
+			d := report(c, argument, EK4201, operation, what+" passed to "+nodeText(file, call.Expression()), control.Symbol().Name())
+			if producer != nil {
+				note(d, "A producer used as a Stream runs on a fiber of its own. Loop over it with for...of, or handle {0} inside the producer.", control.Symbol().Name())
+			} else {
+				note(d, "A Stream's consumer pulls it on a fiber of its own. Loop over it with for...of, or handle {0} where the Stream is made.", control.Symbol().Name())
+			}
 		}
 	}
 }
