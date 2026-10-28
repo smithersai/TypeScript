@@ -111,6 +111,7 @@ A run's `issues.jsonl` is the input to the loop that improves the flow. The repa
 | `Effect.gen(function* () { … })`, or with `{ self: this }`, as the whole body of an arrow, a function or a method, or where the declared type takes a program, such as `Layer.effect`'s | The body in direct style: `yield* e` becomes the call `e`, `e()` for an Effect value such as a service key, or `throw e` for an error instance; `() => { … }` where a program is expected | EK1002 (D470) |
 | `Match.value(x).pipe(Match.when(…), …, Match.exhaustive)`, `pipe(Match.value(x), …)`, `Match.type<T>().pipe(…)` | `match (x) { when …: …; default: …; }` | EK4839 (D472) |
 | `pipe(x, Option.map(f), Option.getOrElse(g))`, `x.pipe(Option.…)` | `x.map(f).getOrElse(g)`, or `Option.fromNullishOr(x).map(f)` for a value that is not an Option | EK4840 (D473) |
+| `type X = typeof X.Type` just before `const X = Schema.Literals([…])`, or another schema other than a struct whose every part has a type | `schema X = <type>` | EK4841 (D474) |
 | Effect error classes, `Context.Service` classes, `Schema.Struct` constants, `Effect.Effect<A, E, R>`, a running `Effect.succeed` or `Effect.fail`, catch combinators, `Effect.withSpan`, `provide` and `provideService` | `error`, `service`, `schema`, `A!E!R`, the value or `throw`, `catch` and `match`, the block forms | EK4830-EK4836 |
 
 Each rewrite keeps the program's meaning and type, or it is not made: the diagnostic it leaves says why in a note that starts `No quick fix:`.
@@ -128,6 +129,7 @@ These patterns have no `--fix` rule yet. The counts are from the four first targ
 | A call that builds a program no `yield*` runs, as `yield* load(id).pipe(Effect.retry(policy))` or `Effect.all([a(), b()])` | most of the rest | The call would run where it stands; the call-rule migration (EK1018, EK1023) writes `() =>` |
 | `Match.when` with a predicate or an array pattern, `Match.discriminator`, a handler that builds a program | | No pattern tests the same, or the arm's call would run |
 | An Option stage whose argument is a call, `Option.getOrElse(makeDefault())` | | The chain would evaluate it after the stage before it runs |
+| A schema constant written before its type alias, `const X = Schema.…` then `type X = typeof X.Type` | 818 of 820 such pairs that are not structs; 1,474 struct pairs | A schema declaration's declaration file lists the type before the constant, so the rewrite would reorder the module's declarations: EK4841 leaves these pairs, and EK4832's rewrite of a struct pair changes the declarations |
 
 ## Tests
 

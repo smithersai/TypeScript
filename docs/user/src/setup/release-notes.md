@@ -220,6 +220,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Tooling and bundlers
 
+- `vibelang --fix` left a schema constant and its type alias, such as `type Kind = typeof Kind.Type` just before `const Kind = Schema.Literals(["a", "b"])`, for you to rewrite. They now draw EK4841, whose quick fix writes the schema alias `schema Kind = "a" | "b"`. A constant written before its type keeps its form, because the alias's declaration file lists the type first.
 - A `--fix` rewrite that left two names of one import unused, such as `Option` and `pipe`, was refused with TS1005 because its two removals overlapped. The import list is now written once with the names it keeps.
 - `vibelang --fix` left `pipe(x, Option.map(f), Option.getOrElse(g))` pipelines for you to rewrite with Option's methods. They now draw EK4840, whose quick fix writes `x.map(f).getOrElse(g)` through the same data-first functions.
 - `vibelang --fix` left Effect `Match` chains, `Match.value(x).pipe(Match.when(…), …, Match.exhaustive)`, for you to rewrite as a `match` expression. They now draw EK4839, whose quick fix writes the `match` wherever its arms test and give the same, with the chain's type.

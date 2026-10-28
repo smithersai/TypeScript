@@ -1,0 +1,24 @@
+// vibelang --fix writes a schema constant and the type alias just before it
+// as one schema alias (EK4841, D474). The migration renames this file to
+// kinds.vibe; migrate-schema-alias-fixed holds what --fix then writes, which
+// main.ts runs with the same result. The rule's fixes alone keep the
+// declarations TypeScript emits (expected/kinds.d.ts).
+
+// Literals.
+export schema Kind = "persistent" | "incognito"
+
+// A union of other schemas.
+export schema Id = string | number
+
+// An array.
+export schema Tags = string[]
+
+// Written before its type, the constant keeps its form: a schema alias's
+// declaration file lists the type first, which would reorder this module's
+// declarations.
+export const Mode = Schema.Literals(["light", "dark"])
+export type Mode = typeof Mode.Type
+
+// No type writes a transformation.
+export type Name = typeof Name.Type
+export const Name = Schema.NullOr(Schema.String)

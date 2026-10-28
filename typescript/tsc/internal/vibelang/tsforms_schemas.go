@@ -30,8 +30,9 @@ import (
 // alias becomes an interface. Anything else, a check, an annotation, a pipe,
 // Schema.optionalKey, a spread, a computed key, a comment, or a declaration
 // with a type annotation or more than one binding, keeps the constant and
-// draws no warning: no schema declaration says the same. D280's alias form,
-// schema Name = type, will cover constants of other schemas once it parses.
+// draws no warning: no schema declaration says the same. EK4841
+// (fix_schema_alias.go, D474) writes a constant of another schema with D280's
+// alias form, schema Name = type.
 
 func init() {
 	tsFormRules[EK4832.Code] = &tsFormRule{

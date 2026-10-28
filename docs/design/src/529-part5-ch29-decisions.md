@@ -258,7 +258,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D283 | A `module` declaration escapes to TypeScript | Code that must keep JavaScript's meaning, after D282 | Amended by D364 | 11 |
 | D284 | A class that an `error` declaration writes draws EK4830, a Schema error class EK4837 | TypeScript-style forms with a VibeLang form are warnings with fixes |  | 3, 28 |
 | D285 | A `Context.Service` class draws EK4831 | The same |  | 4, 28 |
-| D286 | A constant that holds a `Schema.Struct` draws EK4832 | The same |  | 11, 28 |
+| D286 | A constant that holds a `Schema.Struct` draws EK4832 | The same | Amended by D474 | 11, 28 |
 | D287 | An `Effect.Effect<A, E, R>` type draws EK4833 | The same |  | 2, 28 |
 | D288 | A running `Effect.succeed` or `Effect.fail` draws EK4834 | The same |  | 2, 28 |
 | D289 | Effect's catch combinators draw EK4835 | The same |  | 3, 28 |
@@ -431,6 +431,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D471 | An arm that only binds handles every case | `when let other:` drew EK4701 for every case |  | 3 |
 | D472 | A choice written with Effect's `Match` functions is EK4839, fixed into a `match` | Migrations rewrote the chains by hand |  | 3, 28 |
 | D473 | A pipeline of the `Option` module's functions is EK4840, fixed into Option's methods | Migrations rewrote the pipelines by hand |  | 11, 28 |
+| D474 | A schema constant just after its type alias is EK4841, fixed into a schema alias | Migrations rewrote the pairs by hand |  | 11, 28 |
 | D480 | A call whose type is an Effect runs, whatever its callee compiles to; an Effect-form function that returns an Effect value is EK4802 wherever it stands; a program is held by a function written where an Effect type is declared | A plain function returning a program ran by one rule and returned data by four others |  | 13, 15, 28, 30, Appendices |
 | D481 | `using` is the Effect program a TypeScript developer would write: `Effect.acquireRelease` of the initializer, interruptible for a scoped acquisition and masked otherwise, with no mask or interruptibility record of VibeLang's own; D401's ownership record stays | A release inside an initializer lost its mask; an escaping acquisition left earlier resources unregistered | Amended by D490 | 6, 13, 17, 20, 21, 24, 26, 27, 30, Appendices |
 | D482 | Overloads resolve as TypeScript resolves them: a literal is typed by the first candidate TypeScript checks it against, and no candidates are compared; EK1021 only where lifting or conversion is needed and its candidates disagree; reordering a library's overloads is a stated rough edge | The cross-candidate checks rejected `Effect.tap` and still missed named functions and generic calls at return positions | Amended by D494 | 2, 5, 13, 27, 28, 30 |

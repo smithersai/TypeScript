@@ -322,7 +322,7 @@ func TestMigrationCasesFix(t *testing.T) {
 			if len(goldens) == 0 {
 				return
 			}
-			declarations := migrationRuleDeclarations(t, migrated(), []int32{EK1002.Code})
+			declarations := migrationRuleDeclarations(t, migrated(), []int32{EK1002.Code, EK4841.Code})
 			for _, golden := range goldens {
 				want, err := os.ReadFile(golden)
 				if err != nil {
