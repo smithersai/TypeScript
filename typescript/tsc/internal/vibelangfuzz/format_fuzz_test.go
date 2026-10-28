@@ -74,6 +74,14 @@ func FuzzFormat(f *testing.F) {
 				if statements := toolsParse("main.vibe", source).Statements.Nodes; len(statements) > 0 {
 					first = strings.TrimPrefix(statements[0].Kind.String(), "Kind")
 				}
+				// A refusal whose TypeScript projection does not parse names the
+				// projection's error, so one known refusal leaves the others checked.
+				if _, after, ok := strings.Cut(err.Error(), "does not parse at "); ok {
+					if _, message, ok := strings.Cut(after, ": "); ok {
+						message, _, _ = strings.Cut(message, "\n")
+						first += ":" + toolsSlug(message)
+					}
+				}
 				Gap(t, "FuzzFormat", "format:refusal:"+first, "D276: the formatter refused a file without syntax errors (%v):\n%s", err, source)
 			}
 			// Chapter 28, "Rewrites keep meaning", and D276: the result parses to
@@ -206,4 +214,23 @@ func toolsTypeScriptIdempotence(source string, formatter vibelangfmt.TypeScriptF
 		return ":typescript"
 	}
 	return ""
+}
+
+// toolsSlug turns a message into a pending key's word: lower-case letters and
+// digits, with a hyphen for each run of anything else.
+func toolsSlug(message string) string {
+	var b strings.Builder
+	hyphen := false
+	for _, r := range strings.ToLower(message) {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			if hyphen && b.Len() > 0 {
+				b.WriteByte('-')
+			}
+			b.WriteRune(r)
+			hyphen = false
+		} else {
+			hyphen = true
+		}
+	}
+	return b.String()
 }

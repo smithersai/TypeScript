@@ -1,0 +1,2 @@
+go test fuzz v1
+string("service S {\n  a: string,\n}\n")
