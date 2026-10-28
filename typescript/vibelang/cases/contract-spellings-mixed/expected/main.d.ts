@@ -20,7 +20,7 @@ export declare function terse(id: string): Effect.Effect<string, NotFound, Users
 export declare function spelled(id: string): Effect.Effect<string, NotFound, Users>;
 export declare function guest(lookup: Lookup, id: string): Effect.Effect<string, never, Users>;
 export declare function add(program: Counted, extra: Effect.Effect<number>): Effect.Effect<number, never, Users>;
-export declare function main(): import("effect/Effect").Effect<{
+export declare function main(): Effect.Effect<{
     terse: string;
     spelled: string;
     guest: string;

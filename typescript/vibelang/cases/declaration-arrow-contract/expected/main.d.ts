@@ -1,5 +1,5 @@
-import { Effect } from "effect";
-export declare const Digest: import("effect/Schema").brand<import("effect/Schema").String, "Digest">;
+import { Effect, Schema } from "effect";
+export declare const Digest: Schema.brand<Schema.String, "Digest">;
 export type Digest = typeof Digest.Type;
 declare const Empty_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: "Empty";

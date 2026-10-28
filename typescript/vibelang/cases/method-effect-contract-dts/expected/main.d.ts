@@ -16,4 +16,4 @@ export declare class Counter {
     read(): Effect.Effect<number, never, Count>;
     label(): string;
 }
-export declare function total(): import("effect/Effect").Effect<string, never, Count>;
+export declare function total(): Effect.Effect<string, never, Count>;

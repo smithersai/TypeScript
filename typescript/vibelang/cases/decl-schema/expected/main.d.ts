@@ -1,30 +1,30 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 export interface Address extends Schema.Schema.Type<typeof Address> {
 }
-export declare const Address: import("effect/Schema").Struct<{
-    readonly city: import("effect/Schema").String;
-    readonly zip: import("effect/Schema").optional<import("effect/Schema").String>;
+export declare const Address: Schema.Struct<{
+    readonly city: Schema.String;
+    readonly zip: Schema.optional<Schema.String>;
 }>;
 export interface User extends Schema.Schema.Type<typeof User> {
 }
-export declare const User: import("effect/Schema").Struct<{
-    readonly id: import("effect/Schema").String;
-    readonly name: import("effect/Schema").String;
-    readonly nickname: import("effect/Schema").optional<import("effect/Schema").String>;
-    readonly role: import("effect/Schema").Literals<readonly ["admin", "member"]>;
-    readonly tags: import("effect/Schema").$Array<import("effect/Schema").String>;
-    readonly home: import("effect/Schema").Struct<{
-        readonly city: import("effect/Schema").String;
-        readonly zip: import("effect/Schema").optional<import("effect/Schema").String>;
+export declare const User: Schema.Struct<{
+    readonly id: Schema.String;
+    readonly name: Schema.String;
+    readonly nickname: Schema.optional<Schema.String>;
+    readonly role: Schema.Literals<readonly ["admin", "member"]>;
+    readonly tags: Schema.$Array<Schema.String>;
+    readonly home: Schema.Struct<{
+        readonly city: Schema.String;
+        readonly zip: Schema.optional<Schema.String>;
     }>;
-    readonly score: import("effect/Schema").Tuple<readonly [import("effect/Schema").Number, import("effect/Schema").String]>;
-    readonly counts: import("effect/Schema").$Record<import("effect/Schema").String, import("effect/Schema").Number>;
-    readonly verified: import("effect/Schema").Union<readonly [import("effect/Schema").Boolean, import("effect/Schema").Null]>;
-    readonly login: import("effect/Schema").Struct<{
-        readonly at: import("effect/Schema").Number;
+    readonly score: Schema.Tuple<readonly [Schema.Number, Schema.String]>;
+    readonly counts: Schema.$Record<Schema.String, Schema.Number>;
+    readonly verified: Schema.Union<readonly [Schema.Boolean, Schema.Null]>;
+    readonly login: Schema.Struct<{
+        readonly at: Schema.Number;
     }>;
 }>;
-export declare function main(): import("effect/Effect").Effect<{
+export declare function main(): Effect.Effect<{
     a: string | {
         readonly id: string;
         readonly name: string;

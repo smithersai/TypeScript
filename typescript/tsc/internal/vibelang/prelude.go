@@ -334,12 +334,14 @@ func forEachBindingName(name *ast.Node, fn func(name string)) {
 
 // preludeState is what one checker remembers about the prelude.
 type preludeState struct {
-	modules  map[*ast.SourceFile]*ast.Symbol            // the runtime module each .vibe file resolves
-	roots    map[*ast.SourceFile]*ast.Symbol            // the effect root module each .vibe file resolves
-	barrels  map[string]map[*ast.SourceFile]*ast.Symbol // each subpath package each .vibe file resolves, by name
-	uses     map[*ast.SourceFile]map[string]bool        // prelude names each .vibe file uses as values
-	typeUses map[*ast.SourceFile]map[string]bool        // prelude names each .vibe file's declaration file writes (declarations.go)
-	typeRefs map[*ast.Node]bool                         // the identifiers that write those names
+	modules     map[*ast.SourceFile]*ast.Symbol            // the runtime module each .vibe file resolves
+	roots       map[*ast.SourceFile]*ast.Symbol            // the effect root module each .vibe file resolves
+	barrels     map[string]map[*ast.SourceFile]*ast.Symbol // each subpath package each .vibe file resolves, by name
+	uses        map[*ast.SourceFile]map[string]bool        // prelude names each .vibe file uses as values
+	typeUses    map[*ast.SourceFile]map[string]bool        // prelude names each .vibe file's declaration file writes (declarations.go)
+	typeRefs    map[*ast.Node]bool                         // the identifiers that write those names
+	scopes      map[*ast.SourceFile]map[*ast.Symbol]string // the modules each .vibe file names, by name (preludeModuleName)
+	moduleNames map[*ast.Node]bool                         // the identifiers preludeModuleName made
 
 	// intrinsics are the intrinsics that a source binding of another meaning
 	// would capture, which the lowering reaches through its own import
@@ -352,12 +354,14 @@ type preludeStateKey struct{}
 func preludeStateOf(c *checker.Checker) *preludeState {
 	return c.ExtensionState(preludeStateKey{}, func() any {
 		return &preludeState{
-			modules:  map[*ast.SourceFile]*ast.Symbol{},
-			roots:    map[*ast.SourceFile]*ast.Symbol{},
-			barrels:  map[string]map[*ast.SourceFile]*ast.Symbol{},
-			uses:     map[*ast.SourceFile]map[string]bool{},
-			typeUses: map[*ast.SourceFile]map[string]bool{},
-			typeRefs: map[*ast.Node]bool{},
+			modules:     map[*ast.SourceFile]*ast.Symbol{},
+			roots:       map[*ast.SourceFile]*ast.Symbol{},
+			barrels:     map[string]map[*ast.SourceFile]*ast.Symbol{},
+			uses:        map[*ast.SourceFile]map[string]bool{},
+			typeUses:    map[*ast.SourceFile]map[string]bool{},
+			typeRefs:    map[*ast.Node]bool{},
+			scopes:      map[*ast.SourceFile]map[*ast.Symbol]string{},
+			moduleNames: map[*ast.Node]bool{},
 		}
 	}).(*preludeState)
 }

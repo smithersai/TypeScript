@@ -271,7 +271,11 @@ A default service uses `ReferenceKey`. A service inside a namespace is written
 the same way inside the namespace's body, without `declare`; the body then
 exports its members explicitly and ends with `export {}`, which keeps the base
 constant out of the namespace's exports. Declaration transforms add imports
-for prelude names, preserve D12's callback parameters, and write source
+for prelude names, name an effect module that an inferred type comes from
+through the name the source reaches it by, as Effect TypeScript that imports
+the module does (`Option.Option<string>`, not
+`import("effect/Option").Option<string>`; the Effect module always),
+preserve D12's callback parameters, and write source
 specifiers as `.js` (Chapter 26). TypeScript consumers need only the `.js`,
 `.d.ts`, `effect`, and runtime packages. A TypeScript class implements the
 service's shape, `implements Users.Shape`; `implements Users` asks for the

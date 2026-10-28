@@ -1,4 +1,4 @@
-import { Effect as Effect_1 } from "effect";
+import { Layer } from "effect";
 import { Effect } from "effect";
 declare const Missing_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: "Missing";
@@ -8,13 +8,13 @@ export declare class Missing extends Missing_base<{
 }> {
 }
 export interface Names {
-    lookup(id: number): Effect_1.Effect<string, Missing, never>;
+    lookup(id: number): Effect.Effect<string, Missing, never>;
     readonly "~vibelang/service"?: "vibelang-prelude-dts-shadow/main#Names";
 }
 declare const Names_base: import("vibelang-runtime").ServiceKey<Names>;
 export declare abstract class Names extends Names_base {
 }
-export declare const NamesLive: import("effect/Layer").Layer<Names, never, never>;
-export declare function fallback(): Effect_1.Effect<string, never, never>;
+export declare const NamesLive: Layer.Layer<Names, never, never>;
+export declare function fallback(): Effect.Effect<string, never, never>;
 export declare function greet(id: number): Effect.Effect<string, Missing, Names>;
 export {};

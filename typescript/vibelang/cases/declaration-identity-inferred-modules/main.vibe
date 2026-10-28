@@ -1,0 +1,16 @@
+// An inferred type names an effect module through the name the source
+// reaches it by, as typescript/main.ts, which imports that module, does:
+// Option.Option<string>, not import("effect/Option").Option<string>. Effect
+// is in scope whether or not the source writes it. A module the source never
+// names, Cause and Types in Gone's base, stays an import type.
+export const fromString = Option.liftPredicate((s: string) => s.length > 0)
+
+export const ModelID = Schema.String.pipe(Schema.brand("ModelID"))
+export type ModelID = typeof ModelID.Type
+
+export const withoutParentSpan = <A, E>(effect: A!E!Scope) =>
+  effect.pipe(Effect.updateContext((context: Context<Scope>) => Context.omit(Tracer.ParentSpan)(context)))
+
+export class Gone extends Data.TaggedError("Gone")<{}> {}
+
+export const pause = (ms: number) => Effect.sleep(ms)

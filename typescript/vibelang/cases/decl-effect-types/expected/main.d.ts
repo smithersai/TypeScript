@@ -12,12 +12,12 @@ declare const Timeout_base: new <A extends Record<string, any> = {}>(args: impor
 declare class Timeout extends Timeout_base<{}> {
 }
 export declare function find(id: string): Effect.Effect<string, NotFound, never>;
-export declare function lookup(id: string): import("effect/Effect").Effect<string, NotFound | Timeout, never>;
+export declare function lookup(id: string): Effect.Effect<string, NotFound | Timeout, never>;
 export declare function count(): Effect.Effect<number, never, never>;
 export type Finder = (id: string) => Effect.Effect<string, NotFound, never>;
 export type Scoped = Effect.Effect<string, NotFound, Scope.Scope>;
 export type Values = ReadonlyArray<Effect.Effect<number, never, never>>;
-export declare function main(): import("effect/Effect").Effect<{
+export declare function main(): Effect.Effect<{
     found: string;
     slow: string;
     missing: string;

@@ -145,6 +145,9 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 			var visit func(*ast.Node) bool
 			visit = func(n *ast.Node) bool {
 				if name := typeEntityName(n); name != nil {
+					if first := resolver.EmitContext().MostOriginal(ast.GetFirstIdentifier(name)); state.moduleNames[first] {
+						recordTypeUse(state, sourceFile, first) // preludeModuleName's Option of Option.Option<string>
+					}
 					original := resolver.EmitContext().MostOriginal(n)
 					if written := typeEntityName(original); written != nil && original.Kind == n.Kind && !ast.NodeIsSynthesized(original) {
 						first := ast.GetFirstIdentifier(written)
@@ -189,7 +192,7 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 		slices.Sort(names)
 		// A file that imports Effect from effect and writes Effect<…> keeps
 		// its import, so the prelude's Effect needs another local name.
-		aliases := preludeAliases(declarations, names)
+		aliases, imported := preludeAliases(declarations, names)
 		if len(aliases) > 0 {
 			renamer := &preludeRenamer{aliases: aliases, refs: refs}
 			renamer.NewTransformer(renamer.visit, resolver.EmitContext())
@@ -207,7 +210,7 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 		for _, module := range declarationModules(names) {
 			var specifiers []*ast.Node
 			for _, name := range names {
-				if declarationModuleOf(name) != module {
+				if declarationModuleOf(name) != module || imported[name] {
 					continue
 				}
 				if alias, ok := aliases[name]; ok {
@@ -227,6 +230,86 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 		statements.Loc = declarations.Statements.Loc
 		return f.UpdateSourceFile(declarations, statements, declarations.EndOfFileToken).AsSourceFile()
 	}
+}
+
+// preludeModuleName names module in the declaration file of file, a .vibe
+// file, when the node builder would write a type from it as an import type
+// because no import of file binds it. A module the source reaches through a
+// name it writes, a prelude name, an effect root export or a subpath module,
+// is named by that name, as in Effect TypeScript that imports the module:
+//
+//	// options.vibe                                         // options.d.ts
+//	export const fromString =                               import { Option } from "effect";
+//	  Option.liftPredicate((s: string) => s.length > 0)     export declare const fromString: (b: string) => Option.Option<string>;
+//
+// rather than import("effect/Option").Option<string>. The Effect module is in
+// scope whether or not the source writes Effect, since a function is an
+// Effect by what it does, and Effect TypeScript that declares one imports
+// Effect. transformDeclarations imports each name that the declaration file
+// keeps.
+func preludeModuleName(c *checker.Checker, file *ast.SourceFile, module *ast.Symbol, newIdentifier func(string) *ast.Node) *ast.Node {
+	if !isVibeLangFile(file) {
+		return nil
+	}
+	state := preludeStateOf(c)
+	name, ok := modulesInScope(c, state, file)[c.GetMergedSymbol(module)]
+	if !ok {
+		return nil
+	}
+	identifier := newIdentifier(name)
+	state.moduleNames[identifier] = true
+	return identifier
+}
+
+// modulesInScope returns the modules the declaration file of file may name,
+// by their names: Effect's, and each one whose name file writes and does not
+// declare.
+func modulesInScope(c *checker.Checker, state *preludeState, file *ast.SourceFile) map[*ast.Symbol]string {
+	if scope, ok := state.scopes[file]; ok {
+		return scope
+	}
+	declared := map[string]bool{}
+	for _, statement := range file.Statements.Nodes {
+		forEachTopLevelName(statement, func(name string) { declared[name] = true })
+	}
+	written := map[string]bool{"Effect": true}
+	var visit func(node *ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		if ast.IsIdentifier(node) {
+			if !isMemberNameOf(node) && isPreludeName(node.Text()) {
+				written[node.Text()] = true
+			}
+			return false
+		}
+		return node.ForEachChild(visit)
+	}
+	file.AsNode().ForEachChild(visit)
+	names := make([]string, 0, len(written))
+	for name := range written {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	scope := map[*ast.Symbol]string{}
+	for _, name := range names {
+		if declared[name] {
+			continue
+		}
+		symbol := preludeSymbol(c, state, file, name)
+		if module, ok := preludeModules[name]; ok && strings.HasPrefix(module, effectRootModule+"/") && symbol == nil {
+			symbol = effectExportSymbol(c, state, file, name) // a file that loads effect but not the runtime
+		}
+		if symbol != nil && symbol.Flags()&ast.SymbolFlagsAlias != 0 {
+			symbol = c.GetAliasedSymbol(symbol)
+		}
+		if symbol == nil || ast.GetDeclarationOfKind(symbol, ast.KindSourceFile) == nil {
+			continue // not a module, such as TaggedError or sleep
+		}
+		if module := c.GetMergedSymbol(symbol); scope[module] == "" {
+			scope[module] = name
+		}
+	}
+	state.scopes[file] = scope
+	return scope
 }
 
 // declarationModuleOf returns the module a declaration file imports name,
@@ -329,11 +412,22 @@ func effectModulePath(c *checker.Checker, t *checker.Type) string {
 }
 
 // preludeAliases returns a free local name for each prelude name in names
-// that a top-level declaration or import of declarations already binds.
-func preludeAliases(declarations *ast.SourceFile, names []string) map[string]string {
+// that a top-level declaration or import of declarations already binds, and
+// the names an import of declarations already imports, under the same name,
+// from the module declaration emit would import them from, which need no
+// import of their own: the Effect of `import { Effect } from "effect"`.
+func preludeAliases(declarations *ast.SourceFile, names []string) (map[string]string, map[string]bool) {
 	bound := map[string]bool{}
+	imported := map[string]bool{}
 	for _, statement := range declarations.Statements.Nodes {
 		forEachTopLevelName(statement, func(name string) { bound[name] = true })
+		if ast.IsImportDeclaration(statement) {
+			for _, name := range namesImportedAsThemselves(statement) {
+				if declarationModuleOf(name) == statement.ModuleSpecifier().Text() {
+					imported[name] = true
+				}
+			}
+		}
 	}
 	used := map[string]bool{}
 	var visit func(node *ast.Node) bool
@@ -346,7 +440,7 @@ func preludeAliases(declarations *ast.SourceFile, names []string) map[string]str
 	declarations.AsNode().ForEachChild(visit)
 	aliases := map[string]string{}
 	for _, name := range names {
-		if !bound[name] {
+		if !bound[name] || imported[name] {
 			continue
 		}
 		for i := 1; ; i++ {
@@ -357,7 +451,24 @@ func preludeAliases(declarations *ast.SourceFile, names []string) map[string]str
 			}
 		}
 	}
-	return aliases
+	return aliases, imported
+}
+
+// namesImportedAsThemselves returns the names that statement, an import
+// declaration, imports under their own names: Effect in
+// import { Effect } from "effect", not E in import { Effect as E }.
+func namesImportedAsThemselves(statement *ast.Node) []string {
+	clause := statement.AsImportDeclaration().ImportClause
+	if clause == nil || clause.AsImportClause().NamedBindings == nil || !ast.IsNamedImports(clause.AsImportClause().NamedBindings) {
+		return nil
+	}
+	var names []string
+	for _, specifier := range clause.AsImportClause().NamedBindings.AsNamedImports().Elements.Nodes {
+		if property := specifier.PropertyName(); property == nil || property.Text() == specifier.Name().Text() {
+			names = append(names, specifier.Name().Text())
+		}
+	}
+	return names
 }
 
 // moduleServiceTypes writes a type that names a module's service by the

@@ -666,6 +666,20 @@ func (b *NodeBuilderImpl) symbolToTypeNode(symbol *ast.Symbol, mask ast.SymbolFl
 		}
 		contextFile := ast.GetSourceFileOfNode(b.e.MostOriginal(b.ctx.enclosingDeclaration)) // TODO: Just use b.ctx.enclosingFile ? Or is the delayed lookup important for context moves?
 		targetFile := ast.GetSourceFileOfModule(chain[0])
+		// A declaration file may name the module through a name a hook puts
+		// in scope, as VibeLang's prelude does: Option.Option<string>, not
+		// import("effect/Option").Option<string>. The name's import resolves
+		// in the file's own mode, so not where the import type needs another.
+		if b.ctx.internalFlags&nodebuilder.InternalFlagsRewriteModuleSpecifiers != 0 && contextFile != nil && (nonRootParts == nil && isTypeOf || nonRootParts != nil && ast.IsEntityName(nonRootParts)) &&
+			(targetFile == nil || b.ch.program.GetEmitModuleFormatOfFile(targetFile) == b.ch.program.GetEmitModuleFormatOfFile(contextFile)) {
+			if name := b.ch.moduleNameFromHooks(contextFile, chain[0], b.f.NewIdentifier); name != nil {
+				entityName := b.qualifyEntityName(name, nonRootParts)
+				if isTypeOf {
+					return b.f.NewTypeQueryNode(entityName, typeParameterNodes)
+				}
+				return b.f.NewTypeReferenceNode(entityName, typeParameterNodes)
+			}
+		}
 		var specifierResult moduleSpecifierResult
 		var importModeOverride core.ResolutionMode
 		if b.ch.compilerOptions.GetModuleResolutionKind() == core.ModuleResolutionKindNode16 || b.ch.compilerOptions.GetModuleResolutionKind() == core.ModuleResolutionKindNodeNext {
@@ -741,6 +755,19 @@ func (b *NodeBuilderImpl) symbolToTypeNode(symbol *ast.Symbol, mask ast.SymbolFl
 		return b.f.NewTypeQueryNode(b.f.DeepCloneNode(expr.Expression), expr.TypeArguments)
 	}
 	return entityName
+}
+
+// qualifyEntityName returns entityName, an entity name or nil, qualified by
+// root: A.B qualified by M is M.A.B, and nil is M.
+func (b *NodeBuilderImpl) qualifyEntityName(root *ast.Node, entityName *ast.Node) *ast.Node {
+	switch {
+	case entityName == nil:
+		return root
+	case ast.IsQualifiedName(entityName):
+		name := entityName.AsQualifiedName()
+		return b.f.NewQualifiedName(b.qualifyEntityName(root, name.Left), name.Right)
+	}
+	return b.f.NewQualifiedName(root, entityName)
 }
 
 func getTopmostIndexedAccessType(node *ast.IndexedAccessTypeNode) *ast.IndexedAccessTypeNode {

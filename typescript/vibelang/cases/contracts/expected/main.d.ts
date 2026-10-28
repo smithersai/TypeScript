@@ -24,15 +24,15 @@ export declare function point(): Effect.Effect<{
     readonly x: number;
     readonly kind: "point";
 }, never, never>;
-export declare function greeting(id: string): import("effect/Effect").Effect<string, UserNotFound, never>;
-export declare function safe(id: string): import("effect/Effect").Effect<string, never, never>;
-export declare function named(id: string): import("effect/Effect").Effect<{
+export declare function greeting(id: string): Effect.Effect<string, UserNotFound, never>;
+export declare function safe(id: string): Effect.Effect<string, never, never>;
+export declare function named(id: string): Effect.Effect<{
     id: string;
     name: string;
 }, UserNotFound, never>;
-export declare function everything(id: string): import("effect/Effect").Effect<User, UserNotFound, never>;
+export declare function everything(id: string): Effect.Effect<User, UserNotFound, never>;
 export declare const twice: (n: number) => number;
-export declare function main(): import("effect/Effect").Effect<{
+export declare function main(): Effect.Effect<{
     find: string;
     wide: string;
     answer: number;

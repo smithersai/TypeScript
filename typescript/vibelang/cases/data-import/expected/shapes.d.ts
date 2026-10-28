@@ -1,4 +1,4 @@
-import { Data } from "effect";
+import { Data, Effect } from "effect";
 export declare const Shape: Data.TaggedEnum.Constructor<Shape>;
 export type Shape = Data.TaggedEnum<{
     Circle: {
@@ -24,4 +24,4 @@ export type Tree<A> = Data.TaggedEnum<{
         readonly right: Tree<A>;
     };
 }>;
-export declare function area(shape: Shape): import("effect/Effect").Effect<number, never, never>;
+export declare function area(shape: Shape): Effect.Effect<number, never, never>;

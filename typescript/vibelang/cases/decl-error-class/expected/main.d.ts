@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 interface Coded {
     readonly code: string;
 }
@@ -26,7 +27,7 @@ export declare class Wrapped<T extends string> extends Wrapped_base<{
     readonly value: T;
 }> {
 }
-export declare function main(): import("effect/Effect").Effect<{
+export declare function main(): Effect.Effect<{
     code: string;
     tag: "Validated";
     name: string;

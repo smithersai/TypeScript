@@ -1,1 +1,2 @@
-export declare function main(): import("effect/Effect").Effect<void, never, never>;
+import { Effect } from "effect";
+export declare function main(): Effect.Effect<void, never, never>;

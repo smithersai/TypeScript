@@ -49,6 +49,7 @@ func init() {
 	checker.RegisterNameResolutionHook(resolvePreludeName)
 	checker.RegisterSpellingCandidatesHook(preludeSpellingCandidates)
 	checker.RegisterEntityNameVisibilityHook(preludeNameVisible)
+	checker.RegisterModuleNameHook(preludeModuleName)
 	checker.RegisterTypeParametersHook(extraTypeParameters)
 	checker.RegisterParameterTypeHook(callbackParameterType)
 	checker.RegisterIteratedElementTypeHook(iteratedElementType)

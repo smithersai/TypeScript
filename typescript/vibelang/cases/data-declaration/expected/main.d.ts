@@ -1,4 +1,4 @@
-import { Data } from "effect";
+import { Data, Effect } from "effect";
 /** A parcel on its way. */
 export declare const Delivery: Data.TaggedEnum.Constructor<Delivery>;
 /** A parcel on its way. */
@@ -29,8 +29,8 @@ export type LoadState<A, E> = Data.TaggedEnum<{
         readonly error: E;
     };
 }>;
-export declare function describe(delivery: Delivery): import("effect/Effect").Effect<string, never, never>;
-export declare function main(): import("effect/Effect").Effect<{
+export declare function describe(delivery: Delivery): Effect.Effect<string, never, never>;
+export declare function main(): Effect.Effect<{
     described: string[];
     loads: number[];
     sent: boolean;

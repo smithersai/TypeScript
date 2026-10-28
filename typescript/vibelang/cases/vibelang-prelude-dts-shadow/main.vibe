@@ -1,7 +1,7 @@
 // An Effect user imports Effect from effect and writes Effect<…> types,
 // which name the prelude's type. The declaration file keeps the import and
-// imports the prelude's type under a free name, so TypeScript reads it
-// without a duplicate identifier.
+// writes the prelude's type through it, Effect.Effect, since both are
+// effect's Effect, so TypeScript reads it without a duplicate identifier.
 import { Effect } from "effect"
 
 export class Missing extends TaggedError("Missing")<{ readonly id: number }> {}

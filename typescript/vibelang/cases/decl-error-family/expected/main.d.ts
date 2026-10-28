@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { $ErrorArgs } from "vibelang-runtime";
 declare const AppError_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: string;
@@ -44,7 +45,7 @@ export declare class Gone extends Gone_base {
     readonly _tag: "Gone";
     describe(): string;
 }
-export declare function main(): import("effect/Effect").Effect<{
+export declare function main(): Effect.Effect<{
     tags: string[];
     names: string[];
     family: boolean[];

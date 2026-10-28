@@ -1,25 +1,26 @@
-declare const FsError_base: import("effect/Schema").Class<FsError, import("effect/Schema").TaggedStruct<string, {
-    readonly method: import("effect/Schema").String;
-    readonly path: import("effect/Schema").optional<import("effect/Schema").String>;
+import { Effect, Schema } from "effect";
+declare const FsError_base: Schema.Class<FsError, Schema.TaggedStruct<string, {
+    readonly method: Schema.String;
+    readonly path: Schema.optional<Schema.String>;
 }>, import("effect/Cause").YieldableError>;
 /** The base of a family of file system failures. */
 export declare class FsError extends FsError_base {
 }
-declare const NotFound_base: import("effect/Schema").Class<NotFound, import("effect/Schema").Struct<{
-    readonly method: import("effect/Schema").String;
-    readonly path: import("effect/Schema").optional<import("effect/Schema").String>;
-    _tag: import("effect/Schema").tag<"NotFound">;
-    attempts: import("effect/Schema").Number;
+declare const NotFound_base: Schema.Class<NotFound, Schema.Struct<{
+    readonly method: Schema.String;
+    readonly path: Schema.optional<Schema.String>;
+    _tag: Schema.tag<"NotFound">;
+    attempts: Schema.Number;
 }>, FsError> & Pick<{}, never>;
 export declare class NotFound extends NotFound_base {
 }
-declare const Locked_base: import("effect/Schema").Class<Locked, import("effect/Schema").TaggedStruct<"Locked", {
-    readonly holder: import("effect/Schema").String;
+declare const Locked_base: Schema.Class<Locked, Schema.TaggedStruct<"Locked", {
+    readonly holder: Schema.String;
 }>, import("effect/Cause").YieldableError>;
 export declare class Locked extends Locked_base {
     describe(): string;
 }
-export declare function main(): import("effect/Effect").Effect<{
+export declare function main(): Effect.Effect<{
     tag: "NotFound";
     name: string;
     encoded: {

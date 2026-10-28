@@ -1,7 +1,8 @@
+import { Effect } from "effect";
 import { ChildProcess } from "effect/process";
 export declare function encoded(bytes: Uint8Array): string;
 export declare const command: ChildProcess.Command;
-export declare function main(): import("effect/Effect").Effect<{
+export declare function main(): Effect.Effect<{
     hex: string;
     command: "PipedCommand" | "StandardCommand";
     headers: string | null;

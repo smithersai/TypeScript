@@ -333,6 +333,31 @@ func (c *Checker) applyEntityNameVisibilityHooks(entityName *ast.Node, symbol *a
 	return false
 }
 
+// ModuleNameHook lets a declaration file write a type from module, a module
+// no declaration of file imports, through a name, Name.Type, instead of an
+// import type, import("module").Type. It returns an identifier, made with
+// newIdentifier, that names module in file, or nil. A hook that returns one
+// must make the declaration file import that name.
+type ModuleNameHook func(c *Checker, file *ast.SourceFile, module *ast.Symbol, newIdentifier func(name string) *ast.Node) *ast.Node
+
+var moduleNameHooks []ModuleNameHook
+
+// RegisterModuleNameHook adds hook to every checker. Call it only from the
+// init function of an in-tree package that tsc/cmd/tsc imports; registration
+// is not synchronized.
+func RegisterModuleNameHook(hook ModuleNameHook) {
+	moduleNameHooks = append(moduleNameHooks, hook)
+}
+
+func (c *Checker) moduleNameFromHooks(file *ast.SourceFile, module *ast.Symbol, newIdentifier func(name string) *ast.Node) *ast.Node {
+	for _, hook := range moduleNameHooks {
+		if name := hook(c, file, module, newIdentifier); name != nil {
+			return name
+		}
+	}
+	return nil
+}
+
 // unwrapReturnTypeOf returns the type that what fn returns is checked
 // against, given returnType, fn's return type: the type an async function or
 // a generator wraps, as unwrapReturnType says, unless a hook says otherwise.

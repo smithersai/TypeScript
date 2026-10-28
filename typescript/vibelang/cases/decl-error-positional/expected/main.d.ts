@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 declare const Failure_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: string;
 } & Readonly<A>;
@@ -19,7 +20,7 @@ declare const Plain_base: typeof Failure;
 export declare class Plain extends Plain_base {
     readonly _tag: "Plain";
 }
-export declare function main(): import("effect/Effect").Effect<{
+export declare function main(): Effect.Effect<{
     failure: {
         tag: string;
         summary: string;

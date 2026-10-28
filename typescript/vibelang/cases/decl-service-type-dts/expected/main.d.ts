@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 export interface SearchApi {
     find(query: string): Effect.Effect<string, never, never>;
 }
@@ -7,7 +7,7 @@ export interface Search {
 }
 declare const Search_base: import("vibelang-runtime").ServiceKey<Search, SearchApi>;
 export declare abstract class Search extends Search_base {
-    static readonly layer: import("effect/Layer").Layer<Search, never, never>;
+    static readonly layer: Layer.Layer<Search, never, never>;
 }
 export interface Prefix {
     readonly "~vibelang/service"?: "decl-service-type-dts/main#Prefix";
@@ -22,4 +22,4 @@ declare const Version_base: import("vibelang-runtime").ReferenceKey<number>;
 export declare abstract class Version extends Version_base {
     static readonly default: number;
 }
-export declare function greet(query: string): import("effect/Effect").Effect<string, never, Prefix | Search>;
+export declare function greet(query: string): Effect.Effect<string, never, Prefix | Search>;
