@@ -1,4 +1,5 @@
 import { Effect, Schema } from "effect";
+import { ErrorBrand } from "vibelang-runtime";
 export declare const Digest: Schema.brand<Schema.String, "Digest">;
 export type Digest = typeof Digest.Type;
 declare const Empty_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
@@ -6,6 +7,9 @@ declare const Empty_base: new <A extends Record<string, any> = {}>(args: import(
 } & Readonly<A>;
 export declare class Empty extends Empty_base<{}> {
     #private;
+}
+export declare namespace Empty {
+    type $error = ErrorBrand<"declaration-arrow-contract/main#Empty">;
 }
 export declare const parse: (input: string) => Effect.Effect<Digest, Empty>;
 export declare const parseExpression: (input: string) => Effect.Effect<Digest, Empty>;

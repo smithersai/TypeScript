@@ -1,0 +1,22 @@
+// expect: EK4701
+// An error class of the pinned effect is closed only when it extends
+// effect's error base, YieldableError, as NoSuchElementError does (D407).
+// IncomingEnvelope is a tagged class of effect that is not an error, so its
+// arm removes nothing and the match needs a default arm. It compiled before.
+import { Message } from "effect/cluster"
+
+error Gone { id: string }
+
+export function describe(e: Message.IncomingEnvelope | Gone): string {
+  return match (e) {
+    when Message.IncomingEnvelope: "envelope";
+    when Gone: "gone";
+  }
+}
+
+export function missing(e: Cause.NoSuchElementError | Gone): string {
+  return match (e) {
+    when Cause.NoSuchElementError: "none";
+    when Gone: "gone";
+  }
+}

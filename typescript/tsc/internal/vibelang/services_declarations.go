@@ -48,6 +48,23 @@ import (
 // a service in source checks against its shape, so its declaration writes
 // implements Users.Shape.
 //
+// An error declaration's class gets its marker beside it (D407): a
+// type-only member of a namespace that merges with the class, the runtime's
+// ErrorBrand for the class's key:
+//
+//	export declare class NotFound extends NotFound_base<{ readonly id: string; }> {
+//	    #private;
+//	}
+//	export declare namespace NotFound {
+//	    type $error = ErrorBrand<"app/errors#NotFound">;
+//	}
+//
+// A consumer of the declarations counts an arm over the class toward
+// exhaustiveness only when the marker is there (match_closed.go). It is a
+// namespace member, not an instance member, because a subclass does not
+// inherit it: a TypeScript class that extends an error is not marked, and an
+// error family's base and subclass do not give one property two types.
+//
 // A service in a namespace is written the same way inside the namespace's
 // body, which is ambient, so nothing in it says declare. A body whose
 // members are all exported carries no export modifiers, so the body gains
@@ -72,11 +89,15 @@ func serviceDeclarations(resolver printer.EmitResolver, file *ast.SourceFile) fu
 	}
 	emits := map[*ast.Node]*serviceEmit{}
 	implemented := map[*ast.Node]bool{} // implements clause elements that name a service
+	errorKeys := map[*ast.Node]string{} // error declarations, and the keys their markers carry
 	r.WithChecker(func(c *checker.Checker) {
 		s := servicesFor(c)
 		var collect func(statements []*ast.Node)
 		collect = func(statements []*ast.Node) {
 			for _, statement := range statements {
+				if form, _ := errorFormOf(statement); form != errorFormNone {
+					errorKeys[statement] = s.key(statement)
+				}
 				switch kind := classKindOf(statement); kind {
 				case serviceClass:
 					emits[statement] = &serviceEmit{key: s.key(statement), kind: kind, members: serviceShape(statement) == nil || shapeHasMembers(c, s.shapeOf(statement))}
@@ -98,12 +119,12 @@ func serviceDeclarations(resolver printer.EmitResolver, file *ast.SourceFile) fu
 		}
 		collect(file.Statements.Nodes)
 	})
-	if len(emits) == 0 && len(implemented) == 0 {
+	if len(emits) == 0 && len(implemented) == 0 && len(errorKeys) == 0 {
 		return nil
 	}
 	ec := resolver.EmitContext()
 	return func(declarations *ast.SourceFile) *ast.SourceFile {
-		e := &serviceEmitter{ec: ec, names: &freshNames{file: file}, emits: emits, implemented: implemented}
+		e := &serviceEmitter{ec: ec, names: &freshNames{file: file}, emits: emits, implemented: implemented, errorKeys: errorKeys}
 		statements, changed := e.statements(declarations.Statements.Nodes, false /*ambient*/)
 		if !changed {
 			return declarations
@@ -129,7 +150,8 @@ type serviceEmitter struct {
 	names       *freshNames                // the names that declaration emit adds (hygiene.go)
 	emits       map[*ast.Node]*serviceEmit // service and control classes, by source declaration
 	implemented map[*ast.Node]bool         // implements clause elements that name a service
-	brands      []*ast.Node                // the ServiceBrand identifiers it wrote
+	errorKeys   map[*ast.Node]string       // error declarations, by source declaration, and their markers' keys
+	brands      []*ast.Node                // the ServiceBrand and ErrorBrand identifiers it wrote
 }
 
 // namespaceBlock returns the body of statement, a namespace declaration,
@@ -176,10 +198,16 @@ func (e *serviceEmitter) statements(statements []*ast.Node, ambient bool) ([]*as
 			continue
 		}
 		switch {
-		case ast.IsClassDeclaration(statement) && len(e.implemented) > 0:
+		case ast.IsClassDeclaration(statement) && (len(e.implemented) > 0 || e.errorKeys[class] != ""):
 			if updated := e.implementShapes(statement); updated != statement {
 				statement = updated
 				changed = true
+			}
+			if key := e.errorKeys[class]; key != "" {
+				exported := allExported || ast.HasSyntacticModifier(statement, ast.ModifierFlagsExport)
+				result = append(result, e.errorMarker(statement, key, ambient, exported)...)
+				changed = true
+				continue
 			}
 		case ast.IsModuleDeclaration(statement):
 			if namespace, ok := e.namespace(statement); ok {
@@ -341,6 +369,40 @@ func (e *serviceEmitter) control(declared *ast.Node, key string, ambient, export
 		result = append(result, f.NewExportAssignment(nil /*modifiers*/, false /*isExportEquals*/, nil /*type*/, f.NewIdentifier(name)))
 	}
 	return result, []*ast.Node{base}
+}
+
+// errorMarker returns declared, the class of an error declaration, and the
+// namespace that marks it as one (D407), whose type-only member $error is
+// ErrorBrand<key>. The namespace merges with the class only with the same
+// export status, so the class of a default export stays local and the module
+// exports the merged name. ambient says that it is in a namespace's body,
+// where nothing says declare.
+func (e *serviceEmitter) errorMarker(declared *ast.Node, key string, ambient, exported bool) []*ast.Node {
+	f := e.ec.Factory
+	name := declared.Name().Text()
+	isDefault := ast.HasSyntacticModifier(declared, ast.ModifierFlagsDefault)
+	exported = exported && !isDefault
+	class := declared
+	if isDefault {
+		var modifiers []*ast.Node
+		for _, modifier := range declared.ModifierNodes() {
+			if modifier.Kind != ast.KindExportKeyword && modifier.Kind != ast.KindDefaultKeyword {
+				modifiers = append(modifiers, modifier)
+			}
+		}
+		data := declared.AsClassDeclaration()
+		class = f.UpdateClassDeclaration(data, f.NewModifierList(modifiers), declared.Name(), declared.TypeParameterList(), data.HeritageClauses, declared.MemberList())
+	}
+	brand := f.NewIdentifier(errorBrandName)
+	e.brands = append(e.brands, brand)
+	brandType := f.NewTypeReferenceNode(brand, f.NewNodeList([]*ast.Node{f.NewLiteralTypeNode(f.NewStringLiteral(key, ast.TokenFlagsNone))}))
+	member := f.NewTypeAliasDeclaration(nil /*modifiers*/, f.NewIdentifier(errorMarkerName), nil /*typeParameters*/, brandType)
+	marker := f.NewModuleDeclaration(f.NewModifierList(declareModifiers(f, ambient, exported)), ast.KindNamespaceKeyword, f.NewIdentifier(name), nil /*attributes*/, f.NewModuleBlock(f.NewNodeList([]*ast.Node{member})))
+	result := []*ast.Node{class, marker}
+	if isDefault {
+		result = append(result, f.NewExportAssignment(nil /*modifiers*/, false /*isExportEquals*/, nil /*type*/, f.NewIdentifier(name)))
+	}
+	return result
 }
 
 // splitMembers returns the instance members of declared as interface

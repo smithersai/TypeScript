@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { ErrorBrand } from "vibelang-runtime";
 interface Coded {
     readonly code: string;
 }
@@ -20,6 +21,9 @@ export declare class Validated extends Validated_base<{
     describe(): string;
     toJSON(): Record<string, unknown>;
 }
+export declare namespace Validated {
+    type $error = ErrorBrand<"decl-error-class/main#Validated">;
+}
 declare const Wrapped_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: "Wrapped";
 } & Readonly<A>;
@@ -27,6 +31,9 @@ export declare class Wrapped<T extends string> extends Wrapped_base<{
     readonly value: T;
 }> {
     #private;
+}
+export declare namespace Wrapped {
+    type $error = ErrorBrand<"decl-error-class/main#Wrapped">;
 }
 export declare function main(): Effect.Effect<{
     code: string;

@@ -1,10 +1,13 @@
 import { Effect } from "effect";
-import { ServiceBrand } from "vibelang-runtime";
+import { ErrorBrand, ServiceBrand } from "vibelang-runtime";
 declare const Gone_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: "Gone";
 } & Readonly<A>;
 declare class Gone extends Gone_base<{}> {
     #private;
+}
+declare namespace Gone {
+    type $error = ErrorBrand<"contract-wider-callers/main#Gone">;
 }
 interface Needed extends Needed.Shape, ServiceBrand<"contract-wider-callers/main#Needed"> {
 }

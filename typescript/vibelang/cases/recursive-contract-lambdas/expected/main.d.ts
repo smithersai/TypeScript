@@ -1,3 +1,4 @@
+import { ErrorBrand } from "vibelang-runtime";
 import * as Effect from "effect/Effect";
 export declare const reserve: (attempts: number) => Effect.Effect<string, string, never>;
 export declare const load: () => Effect.Effect<string, never, never>;
@@ -17,6 +18,9 @@ declare class Rejected extends Rejected_base<{
     readonly message: string;
 }> {
     #private;
+}
+declare namespace Rejected {
+    type $error = ErrorBrand<"recursive-contract-lambdas/main#Rejected">;
 }
 export declare const validate: (depth: number) => Effect.Effect<void, Rejected, never>;
 export declare const processTrigger: (n: number) => Effect.Effect<number>;

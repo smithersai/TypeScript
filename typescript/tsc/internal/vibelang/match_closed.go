@@ -17,12 +17,15 @@ import (
 // removes its class only when the class is closed and its package resolves
 // to one installed copy:
 //
-//   - A closed class is an error declaration, in a .vibe file or as the
-//     compiler writes it in a declaration file, or an error class of the
-//     pinned effect, where neither the class nor a class it extends declares
-//     its own static [Symbol.hasInstance] or [customMatcher]. An error
-//     declaration's private brand (D407) keeps any other class from being
-//     assignable to its type.
+//   - A closed class is an error declaration, in a .vibe file, or in a
+//     declaration file that marks it with the runtime's ErrorBrand in a
+//     merged namespace, as the compiler writes one (services_declarations.go), or an error class of
+//     the pinned effect, one that extends its YieldableError, where neither
+//     the class nor a class it extends declares its own static
+//     [Symbol.hasInstance] or [customMatcher]. An error declaration's private
+//     brand (D407) keeps any other class from being assignable to its type.
+//     A declaration file's class without the marker is open, whatever its
+//     shape.
 //   - TypeScript gives two installed copies of one package version one type,
 //     while the run time loads two classes, so where module resolution
 //     merged a second copy of the class's package, the arm removes nothing
@@ -123,8 +126,8 @@ func classCreditOf(c *checker.Checker, symbol *ast.Symbol, constructor *checker.
 	if isPrimitiveClass(c, symbol) {
 		return classArmCredit{counts: true} // its test is typeof (D213)
 	}
-	if !isClosedClassDeclaration(c, symbol) {
-		return classArmCredit{why: "{0} is not a closed class, so a value of its type need not pass its instanceof test, and its arm removes nothing (D428). Only an error declaration or an error class of effect is closed."}
+	if why := openClassReason(c, symbol); why != "" {
+		return classArmCredit{why: why}
 	}
 	if declaresOwnMatcher(c, constructor) {
 		return classArmCredit{why: "{0} or a class it extends declares its own [Symbol.hasInstance] or [customMatcher], which may reject a value of its type, so its arm removes nothing (D407)."}
@@ -145,47 +148,95 @@ func isPrimitiveClass(c *checker.Checker, symbol *ast.Symbol) bool {
 	return false
 }
 
-// isClosedClassDeclaration reports whether symbol declares a class that may
-// be closed: an error declaration in a .vibe file, the class a declaration
-// file writes for one, or a class of the pinned effect.
-func isClosedClassDeclaration(c *checker.Checker, symbol *ast.Symbol) bool {
+// openClassReason returns why the class that symbol declares is not closed,
+// as a note for EK4701, or "" when it may be: an error declaration in a .vibe
+// file, a class that a declaration file marks as a compiled error
+// declaration with the runtime's ErrorBrand, or an error class of the pinned
+// effect, one that extends its YieldableError (D407).
+func openClassReason(c *checker.Checker, symbol *ast.Symbol) string {
+	const open = " so a value of its type need not pass its instanceof test, and its arm removes nothing (D428)."
 	declaration := symbol.ValueDeclaration()
 	file := ast.GetSourceFileOfNode(declaration)
 	switch {
-	case file == nil:
-		return false
-	case isVibeLangFile(file):
-		form, _ := errorFormOf(declaration)
-		return form != errorFormNone
-	case !file.IsDeclarationFile:
-		return false // a class a .ts file declares
+	case file != nil && isVibeLangFile(file):
+		if form, _ := errorFormOf(declaration); form != errorFormNone {
+			return ""
+		}
+		return "{0} is a class, not an error declaration," + open
+	case file == nil || !file.IsDeclarationFile || c.Program().IsSourceFileDefaultLibrary(file.PathKey()):
+		// A class a .ts file or JavaScript's library declares, Error included.
+		return "{0} is declared in TypeScript, not by an error declaration," + open
 	case packageNameOf(c, file) == "effect":
-		return true
+		if extendsYieldableError(c, c.GetDeclaredTypeOfSymbol(symbol), 0) {
+			return ""
+		}
+		return "{0} is a class of effect that does not extend its error base, YieldableError," + open
+	case hasErrorMarker(c, symbol):
+		return ""
 	}
-	return isCompiledErrorDeclaration(c, symbol)
+	return "{0}'s declaration file does not mark it as a compiled error declaration with the runtime's ErrorBrand," + open
 }
 
-// isCompiledErrorDeclaration reports whether symbol is the class that a
-// declaration file writes for an error declaration: a declared class with a
-// private member, as the error brand is written (#private), whose instances
-// are errors with a _tag.
-func isCompiledErrorDeclaration(c *checker.Checker, symbol *ast.Symbol) bool {
-	declaration := symbol.ValueDeclaration()
-	if !ast.IsClassDeclaration(declaration) || ast.GetClassExtendsHeritageElement(declaration) == nil {
+// hasErrorMarker reports whether the class that symbol declares carries the
+// marker of a compiled error declaration (D407): a namespace merged with the
+// class whose type-only member $error is vibelang-runtime's ErrorBrand, as
+// the declaration file of an error declaration writes it. A subclass does
+// not inherit a namespace member, so only the class itself can be marked.
+func hasErrorMarker(c *checker.Checker, symbol *ast.Symbol) bool {
+	marker := c.GetMergedSymbol(symbol).Exports()[errorMarkerName]
+	if marker == nil || marker.Flags()&ast.SymbolFlagsTypeAlias == 0 {
 		return false
 	}
-	private := false
-	for _, member := range declaration.Members() {
-		if name := member.Name(); name != nil && ast.IsPrivateIdentifier(name) {
-			private = true
-			break
+	t := c.GetDeclaredTypeOfSymbol(marker)
+	if t == nil || t.ObjectFlags()&checker.ObjectFlagsReference == 0 || t.Target() == nil {
+		return false
+	}
+	brand := t.Target().Symbol()
+	if brand == nil || brand.Name() != errorBrandName {
+		return false
+	}
+	for _, declaration := range brand.Declarations() {
+		if file := ast.GetSourceFileOfNode(declaration); file != nil && packageNameOf(c, file) == runtimeModule {
+			return true
 		}
 	}
-	if !private {
+	return false
+}
+
+// extendsYieldableError reports whether t, the instance type of a class or
+// interface of effect, extends effect's YieldableError, through its bases
+// and the members of an intersection a base constructor returns.
+func extendsYieldableError(c *checker.Checker, t *checker.Type, depth int) bool {
+	if t == nil || depth > 8 {
 		return false
 	}
-	instance := c.GetDeclaredTypeOfSymbol(symbol)
-	return c.GetPropertyOfType(instance, "_tag") != nil && c.GetPropertyOfType(instance, "message") != nil
+	yieldable := servicesFor(c).effectExport("Cause", "YieldableError")
+	if yieldable == nil {
+		return false
+	}
+	if t.Flags()&checker.TypeFlagsIntersection != 0 {
+		for _, member := range t.Types() {
+			if extendsYieldableError(c, member, depth+1) {
+				return true
+			}
+		}
+		return false
+	}
+	if t.Flags()&checker.TypeFlagsObject == 0 {
+		return false
+	}
+	if symbol := t.Symbol(); symbol != nil && c.GetMergedSymbol(symbol) == c.GetMergedSymbol(yieldable) {
+		return true
+	}
+	if t.ObjectFlags()&checker.ObjectFlagsReference != 0 && t.Target() != nil && t.Target() != t {
+		return extendsYieldableError(c, t.Target(), depth+1)
+	}
+	for _, base := range c.GetBaseTypes(t) {
+		if extendsYieldableError(c, base, depth+1) {
+			return true
+		}
+	}
+	return false
 }
 
 // declaresOwnMatcher reports whether constructor, a class's static side,

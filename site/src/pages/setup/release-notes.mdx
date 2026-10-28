@@ -45,6 +45,9 @@ The fixes keep a rewrite only when it adds no compiler error.
 | `module { export const value = 1 }` | EK4408 replaces misleading platform/call errors. Name it: `module helpers { export const value = 1 }`. |
 | A method with a plain return annotation whose body runs an Effect, such as `count(): number { sleep("1 millis"); return 42 }` | EK2003, as for a function. It previously compiled, declared `count(): number`, and returned an unrun Effect to callers that reached it through an interface or from TypeScript. Write its contract, `count(): number!!`, or remove the annotation. A method implementing a plain member such as `[Equal.symbol]` keeps EK4301. |
 | An `await` binding such as `const await = 1` | Rejected in a VibeLang module; rename the binding. It previously compiled despite the reserved word. JavaScript `await` remains available inside TypeScript escapes. |
+| A plain object or default typed with a service's name, such as `const impl: Users = { … }`, or a TypeScript class that `implements Users` | TS2741 or TS2420: a service's name is now its identifier, which only the service carries, so another service with the same members or a structural type no longer stands for it. Type the implementation `Users.Shape`: `const impl: Users.Shape = { … }`, `static readonly default: Flags.Shape = { … }`, `implements Users.Shape`. `Users()` still has the type `Users`. |
+| A `match` without `default` whose arms name classes declared in a `.ts` file, TypeScript-style classes, `Error`, a class with its own `[Symbol.hasInstance]` or `[customMatcher]`, or errors from a declaration file compiled by 0.0.10 | EK4701: such an arm no longer proves the match covers its subject, and the diagnostic's note names each arm that did not count. Add a `default` arm, declare the classes with `error`, or recompile the package that declares them. |
+| An error class from another module, or a TypeScript class with the same tag and fields, passed where an `error` declaration's type is expected | TS2322 or TS2741: an `error` declaration's type is now nominal. Pass an instance of the expected class, or widen the parameter to the union of the classes it accepts. |
 
 Direct platform calls such as `console.log` and `process.env.NAME` were
 already EK4402 in 0.0.10; holding their values and importing Node values
@@ -98,6 +101,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Compiler and diagnostics
 
+- A structural type could stand for a service or an `error` class. A requirement for one service could be relabeled as another and fail at run time with `Service not found`, and a same-shaped object or class could reach a match proven exhaustive and fail every arm. Services and `error` classes are now nominal; see [Upgrade from 0.0.10](#upgrade-from-0010).
 - A non-tail `resume` could receive a value outside its type and crash after only EK2119 warned. EK2119 is now an error; write a success type covering the handler's answers.
 - Providers now remove only services supplied on every path. Invalid providers report EK3207; unions, optional tuple elements and array spreads keep requirements they cannot guarantee, and service defaults are checked against their shape and member contracts.
 - The process.exit and process.exitCode replacements did not state their exit statuses. The diagnostic and table now say to return for 0, fail for 1 or interrupt for 130.
@@ -643,19 +647,6 @@ listed with an upgrade step.
   // fragment
   declare function identity<T>(value: T): T
   identity(savedProgram) // instantiated Effect result can run
-  ```
-
-- **Structural service shapes can erase service identity.** The optional
-  service brand can disappear through an intermediate structural type, letting
-  a program that needs one key be relabeled as needing another. Providing the
-  second key then compiles but fails at runtime. Today, preserve the exact
-  service identifiers in Effect and Layer contracts, avoid widening R through
-  implementation shapes, and provide the key the program actually requests.
-
-  ```vibe
-  // fragment
-  const erased: Effect<number, never, { get(): number!! }> = needsAlpha
-  const claimed: Effect<number, never, Beta> = erased // still needs Alpha
   ```
 
 - **An aliased hatch can pass different arguments from a direct hatch.**
