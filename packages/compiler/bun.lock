@@ -1,0 +1,25 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "vibelang",
+      "devDependencies": {
+        "fast-check": "4.10.2",
+      },
+      "optionalDependencies": {
+        "vibelang-darwin-arm64": "0.0.11",
+        "vibelang-darwin-x64": "0.0.11",
+        "vibelang-linux-arm64": "0.0.11",
+        "vibelang-linux-x64": "0.0.11",
+        "vibelang-win32-arm64": "0.0.11",
+        "vibelang-win32-x64": "0.0.11",
+      },
+    },
+  },
+  "packages": {
+    "fast-check": ["fast-check@4.10.2", "", { "dependencies": { "pure-rand": "^8.0.0" } }, "sha512-iK2f+YrcmoeGqk6fA0ea2bptcu/itMIm4NfEozq6N25+aG6h7s5HZbB/k1aV7b5w5sFLMCbbtRUsTVR+BgC3xw=="],
+
+    "pure-rand": ["pure-rand@8.4.2", "", {}, "sha512-vvuOGgcuPJAirlHvuQw1TrOiw7ptaIXXmIbNuiNOY6lNGJJH49PQ1Kj4nd783nPdQhQdicgOjVI2yI/9BD6/Ng=="],
+  }
+}

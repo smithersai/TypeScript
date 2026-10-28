@@ -110,6 +110,7 @@
     "@effect/platform-node": "4.0.6",
     "@types/node": "26.6.5",
     "effect": "4.0.6",
+    "fast-check": "4.10.2",
     "playwright": "1.64.1",
     "typescript": "5.9.3"
   },
