@@ -408,7 +408,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D448 | A `const` or import alias that names a function keeps its own form; any other function value takes its type's form, read as rule R reads a call of it | `const g = double` had one form from source and another from declarations |  | 13, 14, Appendices |
 | D449 | Rule R reads a type parameter by who declares it: a class's, an interface's, or an alias's uninstantiated, a function's as the completed call that returned the signature bound it | `Effect.fn(name)(body, pipeline)` functions returned their Effect as data | Amended by D458 | 10, 13, 26, 30, Appendices |
 | D450 | A literal's own form is read once, with the parameter types TypeScript assigns; EK1021 where candidates would type it differently and take different forms | TypeScript never types a literal per candidate | Amended by D457 | 13, 27, 28, 30, Appendices |
-| D451 | `using`'s mask records the interruptibility it replaced, and the runtime's interruptible acquisitions run with it | Effect's `restore` is the identity under an outer mask |  | 6, 21, 24, 26, 30 |
+| D451 | `using`'s mask records the interruptibility it replaced, and the runtime's interruptible acquisitions run with it | Effect's `restore` is the identity under an outer mask | Amended by D459 | 6, 21, 24, 26, 30 |
 | D452 | `fork(x)`, `join(x)`, and `await.all(x)` are calls in shape; a runtime namespace member of a keyword or hatch is EK4410 | `fork(x).y` had two parse trees |  | 7, 10, 13, 28, 30, Appendices |
 | D453 | Rule F's destinations: Effect-returning plain functions unlifted, derived element types, contextual propagation, per-element spreads, D430 in a candidate's acceptance | Five cases rule F left wrong or unstated |  | 13, 14, 30 |
 | D454 | Rule R covers union callees and contract-less callback parameters | Neither had a stated reading |  | 13, 30 |
@@ -416,6 +416,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D456 | Statements that contradicted rules or facts | Appendix C and Chapters 3, 10, 12, 13, 15, 24, 27, 28, and 30 |  | 3, 10, 12, 13, 15, 24, 27, 28, 30, Appendices |
 | D457 | Candidates that accept a call's other arguments must type each function literal they reach alike; EK1021 otherwise, whatever forms their destinations accept | Destinations that accept both forms let overload order pick a callback's form |  | 13, 27, 28, 30 |
 | D458 | Rule R reads a type parameter as TypeScript shows it for the call, except one the callee's own signature declares; `AsData<T>` is withdrawn | An alias, an interface, or a class ran differently from the same type written inline |  | 10, 13, 26, 27, 28, 30, Appendices |
+| D459 | While a `using` mask is in force, the runtime keeps the interruptibility the fiber would have without it; VibeLang's masks keep it, and a nested `using` inherits it | A nested `using` recorded the outer mask and kept an interruptible acquisition masked |  | 6, 17, 21, 24, 26, 27, 30, Appendices |
 
 #### Rules of the runtime and compiler
 

@@ -102,7 +102,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | --- | --- | --- |
 | `Effect.scoped` | Changed | A block that declares `using` |
 | `acquireRelease`, `acquireUseRelease` | Changed | `using lock = Effect.acquireRelease(() => acquire(), (l) => release(l))` |
-| Interruptible acquisition | Unchanged | `acquireRelease(…, { interruptible: true })`; `using` keeps the choice (D25) |
+| Interruptible acquisition | Unchanged | `acquireRelease(…, { interruptible: true })`; `using` keeps the choice through the runtime's `acquireRelease`, whose acquire step reads the interruptibility recorded while a `using` mask is in force; Effect's own, called from TypeScript, cannot (D25, D451, D459) |
 | A resource the caller owns | Changed | Acquire without `using`; `Scope` stays in R (D14) |
 | `ensuring`, `onExit`, `onError`, `addFinalizer` | Changed | `finally`; `Effect.onExit(() => f(), (exit) => …)` when the exit matters |
 | `Scope.make`, `close`, `provide` | Unchanged | The same calls |
@@ -212,7 +212,7 @@ On a cause mixing an expected failure and a defect, neither Effect's typed recov
 | `Fiber.join`, `joinAll` | Changed | `join fiber` and `join [a, b]` (D225) |
 | `Fiber.await`, `interrupt`, `interruptAll` | Unchanged | The same calls, or `fiber.await()` and `fiber.interrupt()` |
 | Interruption isn't an error | Changed | `catch` never sees it; `finally` and `using` always run |
-| `uninterruptible`, `uninterruptibleMask`, `interruptibleMask` | Changed | `uninterruptible { … restore { … } }` and `interruptible { … }` blocks, or the prelude functions with a program (D180) |
+| `uninterruptible`, `uninterruptibleMask`, `interruptibleMask` | Changed | `uninterruptible { … restore { … } }` and `interruptible { … }` blocks, or the prelude functions with a program (D180); each is the runtime's recording form, which also keeps the interruptibility a `using` initializer's acquisitions read (D459) |
 | `onInterrupt` | Changed | `Effect.onInterrupt(() => task(), () => Console.log("stopped"))` |
 | `Effect.forever` | Changed | `while (true) tick()` |
 | `Deferred` | Unchanged | `Deferred.make<number>()`, `d.await()` (D227) |
