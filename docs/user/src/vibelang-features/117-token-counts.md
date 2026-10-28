@@ -19,9 +19,9 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,125 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,721 |
-| The skill and the user guide (134 pages) | 247,035 |
-| The user guide alone | 241,910 |
-| The specification (33 chapters) | 173,986 |
+| The skill and the user guide (134 pages) | 247,134 |
+| The user guide alone | 242,009 |
+| The specification (33 chapters) | 174,042 |
 | The decision log, `docs/design/DECISIONS.md` | 112,474 |
 
 ## Effect TypeScript beside VibeLang
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **25,681** |
-| [Release notes](../setup/release-notes.md) | 25,681 |
-| **All 15 pages** | **44,860** |
+| **Upgrade** | **25,780** |
+| [Release notes](../setup/release-notes.md) | 25,780 |
+| **All 15 pages** | **44,959** |
 
 ### Guides
 
@@ -272,8 +272,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | Page | Tokens |
 | --- | ---: |
 | [Introduction](../../../design/src/000-intro.md) | 1,791 |
-| **Part I. The language by example** | **47,918** |
-| [1. A first look](../../../design/src/101-part1-ch01-first-look.md) | 2,169 |
+| **Part I. The language by example** | **47,914** |
+| [1. A first look](../../../design/src/101-part1-ch01-first-look.md) | 2,165 |
 | [2. Functions and calls](../../../design/src/102-part1-ch02-functions.md) | 1,923 |
 | [3. Errors: the E channel](../../../design/src/103-part1-ch03-errors.md) | 5,143 |
 | [4. Dependency injection: the R channel](../../../design/src/104-part1-ch04-di.md) | 6,488 |
@@ -291,7 +291,7 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [15. Which functions compile to plain JavaScript](../../../design/src/215-part2-ch15-direct.md) | 3,142 |
 | [16. Callbacks and higher-order functions](../../../design/src/216-part2-ch16-callbacks.md) | 2,035 |
 | [17. Failures, defects, interruption, and cleanup](../../../design/src/217-part2-ch17-failures.md) | 5,027 |
-| **Part III. The runtime** | **26,085** |
+| **Part III. The runtime** | **26,081** |
 | [18. Why a continuation runtime](../../../design/src/318-part3-ch18-why.md) | 2,258 |
 | [19. The checkout trace, step by step](../../../design/src/319-part3-ch19-trace.md) | 1,583 |
 | [20. The machine](../../../design/src/320-part3-ch20-machine.md) | 3,677 |
@@ -300,9 +300,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [23. Boundaries and finalization](../../../design/src/323-part3-ch23-boundaries.md) | 2,053 |
 | [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 4,547 |
 | [25. Implementation strategies and costs](../../../design/src/325-part3-ch25-strategies.md) | 1,946 |
-| [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 6,597 |
-| **Part IV. The compiler** | **18,528** |
-| [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 4,324 |
+| [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 6,593 |
+| **Part IV. The compiler** | **18,592** |
+| [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 4,388 |
 | [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 14,204 |
 | **Part V. Decisions** | **28,377** |
 | [29. Decisions](../../../design/src/529-part5-ch29-decisions.md) | 22,014 |
@@ -310,6 +310,6 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Appendices** | **19,439** |
 | [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 10,870 |
 | [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,569 |
-| **All 33 pages** | **173,986** |
+| **All 33 pages** | **174,042** |
 
 <!-- token-counts: end -->

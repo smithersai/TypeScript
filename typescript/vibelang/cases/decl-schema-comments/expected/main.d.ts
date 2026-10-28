@@ -1,7 +1,7 @@
 /**
  * The file's header.
  */
-import type { Schema } from "vibelang-runtime";
+import { Schema } from "effect";
 /** The codes. */
 export type Code = typeof Code.Type;
 /** The codes. */

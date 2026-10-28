@@ -385,7 +385,7 @@ func moduleImportDeclarations(f *printer.NodeFactory, imports map[string]*ast.No
 			}
 			bindings = f.NewNamedImports(f.NewNodeList([]*ast.Node{f.NewImportSpecifier(false /*isTypeOnly*/, property, f.NewIdentifier(name))}))
 		}
-		clause := f.NewImportClause(ast.KindTypeKeyword, nil /*name*/, bindings)
+		clause := f.NewImportClause(ast.KindUnknown, nil /*name*/, bindings)
 		statement := f.NewImportDeclaration(nil /*modifiers*/, clause, f.NewStringLiteral(declaration.ModuleSpecifier().Text(), ast.TokenFlagsNone), nil /*attributes*/)
 		statements = append(statements, statement)
 	}

@@ -1,0 +1,8 @@
+// The declaration file names Effect's types through effect's own modules, as
+// typescript/main.ts, the Effect TypeScript this file rewrites, does: never
+// through vibelang-runtime, whose Effect and Scope are aliases.
+export type Scoped = string!Error!Scope
+export type Task = Effect<number, Error>
+export type Run = (scope: Scope) => Effect<void, never, Scope>
+export type Settings = Schema.Schema<number>
+export type Wiring = Layer<Scope>

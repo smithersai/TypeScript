@@ -1,4 +1,4 @@
-import type { Effect } from "vibelang-runtime";
+import { Effect } from "effect";
 export interface SearchApi {
     find(query: string): Effect.Effect<string, never, never>;
 }

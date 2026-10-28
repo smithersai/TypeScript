@@ -1,4 +1,4 @@
-import type { Schema } from "vibelang-runtime";
+import { Schema } from "effect";
 export interface Address extends Schema.Schema.Type<typeof Address> {
 }
 export declare const Address: import("effect/Schema").Struct<{

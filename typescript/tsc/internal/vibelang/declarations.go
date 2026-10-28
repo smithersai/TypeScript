@@ -16,9 +16,13 @@ import (
 // what the source took from the prelude and name its imports by output:
 //
 //	// main.vibe                               // main.d.ts
-//	import { find } from "./users.vibe"        import type { Effect } from "vibelang-runtime";
+//	import { find } from "./users.vibe"        import { Effect } from "effect";
 //	export const one: Effect<number> = …     import { find } from "./users.js";
-//	                                         export declare const one: Effect<number>;
+//	                                         export declare const one: Effect.Effect<number>;
+//
+// Effect's own modules, the prelude's Effect, Layer, Schema and Scope
+// included, come from effect, as an Effect TypeScript file imports them, so a
+// declaration never names the runtime's aliases of Effect's types.
 //
 // Declaration emit asks whether each name a declaration writes is visible;
 // preludeNameVisible says yes for a prelude name and records it, and
@@ -162,6 +166,11 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 		types := &moduleServiceTypes{names: serviceTypes}
 		types.NewTransformer(types.visit, resolver.EmitContext())
 		declarations = types.TransformSourceFile(declarations)
+		// The prelude's types Effect<A, E, R> and Scope are Effect.Effect and
+		// Scope.Scope, which effect declares.
+		aliasTypes := &preludeAliasTypes{refs: refs}
+		aliasTypes.NewTransformer(aliasTypes.visit, resolver.EmitContext())
+		declarations = aliasTypes.TransformSourceFile(declarations)
 		if added := moduleImportDeclarations(resolver.EmitContext().Factory, moduleImports, declarations); len(added) > 0 {
 			statements := resolver.EmitContext().Factory.NewNodeList(append(added, declarations.Statements.Nodes...))
 			statements.Loc = declarations.Statements.Loc
@@ -179,9 +188,13 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 			renamer.NewTransformer(renamer.visit, resolver.EmitContext())
 			declarations = renamer.TransformSourceFile(declarations)
 		}
-		// import type { Option } from "effect"
-		// import type { HttpRouter } from "effect/http"
-		// import type { Effect, Scope } from "vibelang-runtime"
+		// import { Effect, Option, Scope } from "effect"
+		// import { HttpRouter } from "effect/http"
+		// import { Experimental } from "vibelang-runtime"
+		//
+		// Not import type: a declaration file names its imports as the
+		// Effect TypeScript it stands for does, and in a declaration file every
+		// import is a type.
 		f := resolver.EmitContext().Factory
 		var imports []*ast.Node
 		for _, module := range declarationModules(names) {
@@ -197,7 +210,7 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 				specifiers = append(specifiers, f.NewImportSpecifier(false /*isTypeOnly*/, nil /*propertyName*/, f.NewIdentifier(name)))
 			}
 			if len(specifiers) > 0 {
-				clause := f.NewImportClause(ast.KindTypeKeyword, nil /*name*/, f.NewNamedImports(f.NewNodeList(specifiers)))
+				clause := f.NewImportClause(ast.KindUnknown, nil /*name*/, f.NewNamedImports(f.NewNodeList(specifiers)))
 				imports = append(imports, f.NewImportDeclaration(nil /*modifiers*/, clause, f.NewStringLiteral(module, ast.TokenFlagsNone), nil /*attributes*/))
 			}
 		}
@@ -210,10 +223,14 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 }
 
 // declarationModuleOf returns the module a declaration file imports name,
-// a prelude name, effect root export, or subpath module, from: the runtime,
-// effect's root, or the subpath module's package.
+// a prelude name, effect root export, or subpath module, from: effect's root
+// for one of Effect's modules, the runtime for the rest of the prelude, or the
+// subpath module's package.
 func declarationModuleOf(name string) string {
-	if _, isPrelude := preludeModules[name]; isPrelude {
+	if module, isPrelude := preludeModules[name]; isPrelude {
+		if strings.HasPrefix(module, effectRootModule+"/") {
+			return effectRootModule
+		}
 		return runtimeModule
 	}
 	if subpath, ok := effectSubpathNames[name]; ok {
@@ -363,6 +380,35 @@ func (tx *moduleServiceTypes) visit(node *ast.Node) *ast.Node {
 		}
 	}
 	return tx.Visitor().VisitEachChild(node)
+}
+
+// preludeTypeAliases are the prelude names whose type the runtime declares as
+// an alias of a type of the effect module of the same name.
+var preludeTypeAliases = map[string]bool{"Effect": true, "Scope": true}
+
+// preludeAliasTypes writes the prelude's type Effect<A, E, R>, and its type
+// Scope, as the effect module's own type, as Effect TypeScript writes them:
+//
+//	// main.vibe                                        // main.d.ts
+//	export type Scoped = Effect<number, never, Scope>   import { Effect, Scope } from "effect";
+//	                                                    export type Scoped = Effect.Effect<number, never, Scope.Scope>;
+//
+// It runs before preludeRenamer, which may rename the module's name.
+type preludeAliasTypes struct {
+	transformers.Transformer
+	refs map[*ast.Node]bool // the identifiers that write a prelude name
+}
+
+func (tx *preludeAliasTypes) visit(node *ast.Node) *ast.Node {
+	node = tx.Visitor().VisitEachChild(node)
+	if ast.IsTypeReferenceNode(node) {
+		reference := node.AsTypeReferenceNode()
+		if name := reference.TypeName; ast.IsIdentifier(name) && preludeTypeAliases[name.Text()] && tx.refs[tx.EmitContext().MostOriginal(name)] {
+			f := tx.Factory()
+			return f.UpdateTypeReferenceNode(reference, f.NewQualifiedName(name, f.NewIdentifier(name.Text())), reference.TypeArguments)
+		}
+	}
+	return node
 }
 
 // preludeRenamer gives the identifiers that write a prelude name the alias

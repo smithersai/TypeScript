@@ -1,4 +1,4 @@
-import type { Effect } from "vibelang-runtime";
+import { Effect } from "effect";
 declare const UserNotFound_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: "UserNotFound";
 } & Readonly<A>;
@@ -17,10 +17,10 @@ export interface User {
     readonly id: string;
     readonly name: string;
 }
-export declare function find(id: string): Effect<User, UserNotFound, never>;
-export declare function wide(id: string): Effect<string, UserNotFound | Invalid, never>;
-export declare function answer(): Effect<number, never, never>;
-export declare function point(): Effect<{
+export declare function find(id: string): Effect.Effect<User, UserNotFound, never>;
+export declare function wide(id: string): Effect.Effect<string, UserNotFound | Invalid, never>;
+export declare function answer(): Effect.Effect<number, never, never>;
+export declare function point(): Effect.Effect<{
     readonly x: number;
     readonly kind: "point";
 }, never, never>;

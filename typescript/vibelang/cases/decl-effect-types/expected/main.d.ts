@@ -1,4 +1,4 @@
-import type { Effect, Scope } from "vibelang-runtime";
+import { Effect, Scope } from "effect";
 declare const NotFound_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: "NotFound";
 } & Readonly<A>;
@@ -15,7 +15,7 @@ export declare function find(id: string): Effect.Effect<string, NotFound, never>
 export declare function lookup(id: string): import("effect/Effect").Effect<string, NotFound | Timeout, never>;
 export declare function count(): Effect.Effect<number, never, never>;
 export type Finder = (id: string) => Effect.Effect<string, NotFound, never>;
-export type Scoped = Effect.Effect<string, NotFound, Scope>;
+export type Scoped = Effect.Effect<string, NotFound, Scope.Scope>;
 export type Values = ReadonlyArray<Effect.Effect<number, never, never>>;
 export declare function main(): import("effect/Effect").Effect<{
     found: string;

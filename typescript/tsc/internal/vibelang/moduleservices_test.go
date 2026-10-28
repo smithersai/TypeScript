@@ -51,8 +51,8 @@ func TestModuleServiceDeclarations(t *testing.T) {
 	files["/Users/x/src/tsconfig.json"] = `{"compilerOptions":{"strict":true,"target":"ESNext","module":"NodeNext","declaration":true},"files":["main.vibe","prompt.vibe"]}`
 	dts := emitDeclarations(t, files)
 	for _, want := range []string{
-		`import type { FileSystem, Option } from "effect";`,
-		`import type { Control } from "vibelang-runtime";`,
+		`import { FileSystem, Option } from "effect";`,
+		`import { Control } from "vibelang-runtime";`,
 		`name: (fs: FileSystem.FileSystem) => string;`,
 		`experimental: (fs: Control.FileSystem.FileSystem) => string;`,
 		`local: <FileSystem>(fs: FileSystem) => FileSystem;`,

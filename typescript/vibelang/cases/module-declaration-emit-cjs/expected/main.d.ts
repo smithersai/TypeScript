@@ -1,4 +1,4 @@
-import type { Effect } from "vibelang-runtime";
+import { Effect } from "effect";
 import type { Shape } from "./main.vibe.shapes.js";
 import "./main.vibe.setup.js";
 export { clean as tidy, join as pathJoin, prefix as "two words", prefix as "__proto__", default as Counter } from "./main.vibe.text.js";

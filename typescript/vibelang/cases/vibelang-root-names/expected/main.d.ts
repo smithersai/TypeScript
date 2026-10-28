@@ -1,4 +1,4 @@
-import type { Chunk, Option } from "effect";
+import { Chunk, Option } from "effect";
 export declare function firstOf(values: Chunk.Chunk<number>): Option.Option<number>;
 export declare function main(): import("effect/Effect").Effect<{
     doubled: number;

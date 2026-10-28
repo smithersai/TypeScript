@@ -1,4 +1,4 @@
-import type { FileSystem } from "effect";
+import { FileSystem } from "effect";
 export declare function exists(fs: FileSystem.FileSystem, path: string): import("effect/Effect").Effect<boolean, import("effect/PlatformError").PlatformError, never>;
 export declare function read(path: string): import("effect/Effect").Effect<string, import("effect/PlatformError").PlatformError, import("effect/FileSystem").FileSystem>;
 export declare const id: () => import("effect/Effect").Effect<string, import("effect/PlatformError").PlatformError, import("effect/Crypto").Crypto>;

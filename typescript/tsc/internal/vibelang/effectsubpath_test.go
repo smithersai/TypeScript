@@ -129,7 +129,7 @@ func TestDeclarationImportsSubpathModule(t *testing.T) {
 	files[effect+"process/ChildProcess.d.ts"] = "export interface Command { readonly command: string }\nexport declare const make: (command: string) => Command"
 	files["/Users/x/src/main.vibe"] = `export const command: ChildProcess.Command = ChildProcess.make("git")`
 	dts := emitDeclarations(t, files)
-	for _, want := range []string{`import type { ChildProcess } from "effect/process";`, `export declare const command: ChildProcess.Command;`} {
+	for _, want := range []string{`import { ChildProcess } from "effect/process";`, `export declare const command: ChildProcess.Command;`} {
 		if !strings.Contains(dts, want) {
 			t.Fatalf("declaration lacks %q:\n%s", want, dts)
 		}

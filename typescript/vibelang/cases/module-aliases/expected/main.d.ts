@@ -1,5 +1,5 @@
-import type { Chunk, FileSystem, Option } from "effect";
-import type { Prompt } from "effect/ai";
+import { Chunk, FileSystem, Option } from "effect";
+import { Prompt } from "effect/ai";
 export declare function firstOr(values: Chunk.Chunk<number>, fallback: number): Option.Option<number>;
 export declare const spelled: (value: Option.Option<number>) => number;
 export declare const promptAst: () => "Any" | "Arrays" | "BigInt" | "Boolean" | "Declaration" | "Enum" | "Literal" | "Never" | "Null" | "Number" | "ObjectKeyword" | "Objects" | "String" | "Suspend" | "Symbol" | "TemplateLiteral" | "Undefined" | "Union" | "UniqueSymbol" | "Unknown" | "Void";

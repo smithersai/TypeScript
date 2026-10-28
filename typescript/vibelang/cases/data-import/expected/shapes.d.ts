@@ -1,4 +1,4 @@
-import type { Data } from "effect";
+import { Data } from "effect";
 export declare const Shape: Data.TaggedEnum.Constructor<Shape>;
 export type Shape = Data.TaggedEnum<{
     Circle: {

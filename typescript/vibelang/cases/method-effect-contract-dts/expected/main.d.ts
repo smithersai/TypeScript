@@ -1,4 +1,4 @@
-import type { Effect } from "vibelang-runtime";
+import { Effect } from "effect";
 export interface Count {
     readonly n: number;
     readonly "~vibelang/service"?: "method-effect-contract-dts/main#Count";

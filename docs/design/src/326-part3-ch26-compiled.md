@@ -15,7 +15,7 @@ export const displayName = Effect.fnUntraced(function* (id: string) {
 ```
 
 ```ts dts
-import type { Effect } from "vibelang-runtime"
+import { Effect } from "effect"
 export declare const displayName:
   (id: string) => Effect.Effect<string, UserNotFound, Users>
 ```

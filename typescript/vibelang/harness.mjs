@@ -26,6 +26,16 @@
 // expected/messages.txt passes only when each of its lines appears in what
 // tsc printed, which checks a diagnostic's text.
 //
+// A case with a typescript/ directory holding a tsconfig.json is a
+// declaration identity case: typescript/ holds the Effect TypeScript that the
+// case's .vibe sources rewrite, and both must declare the same API. The
+// harness compiles typescript/ with the same compiler and node_modules, and
+// each .d.ts file it emits under typescript/out/ must equal, byte for byte,
+// the case's own .d.ts file of the same path under out/; neither side may
+// have a declaration file the other lacks. Give typescript/tsconfig.json its
+// own outDir, "out". Such a case needs nothing else to compare; it runs only
+// when it also has a run.mjs, an expect-result line or expected/stdout.txt.
+//
 // A case is pending when it has a file named `pending` whose first word names
 // the lane that owns the missing feature and whose rest says what is missing.
 // A pending case runs but never fails the suite; when it passes, the harness
@@ -194,6 +204,42 @@ function readPending(dir) {
 
 const sameSet = (a, b) => a.size === b.size && [...a].every((x) => b.has(x))
 
+// declarationFiles lists the .d.ts files under dir, relative to it.
+function declarationFiles(dir) {
+  if (!fs.existsSync(dir)) return []
+  return fs.readdirSync(dir, { recursive: true }).map(String).filter((file) => /\.d\.[cm]?ts$/.test(file)).sort()
+}
+
+// checkDeclarationIdentity compiles typescript/, the Effect TypeScript that a
+// declaration identity case rewrites, and compares its declaration files with
+// the case's. It resolves with undefined when they are identical.
+async function checkDeclarationIdentity(dir, commands) {
+  const original = path.join(dir, "typescript")
+  fs.rmSync(path.join(original, "out"), { recursive: true, force: true })
+  const compiled = await commands.run(tsc, ["-p", ".", "--pretty", "false"], { phase: "compile typescript", cwd: original, timeout: 120_000 })
+  if (compiled.code !== 0) {
+    return { ok: false, detail: `typescript/ did not compile (exit ${compiled.code})`, log: compiled.stdout + compiled.stderr }
+  }
+  const want = declarationFiles(path.join(original, "out"))
+  const got = declarationFiles(path.join(dir, "out"))
+  if (want.length === 0) return { ok: false, detail: "typescript/ emitted no declaration files", log: compiled.stdout }
+  const missing = want.filter((file) => !got.includes(file))
+  const extra = got.filter((file) => !want.includes(file))
+  if (missing.length > 0 || extra.length > 0) {
+    const parts = [missing.length > 0 && `out/ lacks ${missing.join(" ")}`, extra.length > 0 && `typescript/out/ lacks ${extra.join(" ")}`]
+    return { ok: false, detail: `declaration files differ: ${parts.filter(Boolean).join("; ")}`, log: "" }
+  }
+  for (const file of want) {
+    const a = path.join(original, "out", file)
+    const b = path.join(dir, "out", file)
+    if (fs.readFileSync(a, "utf8") !== fs.readFileSync(b, "utf8")) {
+      const diff = await commands.run("diff", ["-u", a, b], { phase: "compare declarations", cwd: dir, timeout: 10_000 })
+      return { ok: false, detail: `out/${file} declares another API than typescript/out/${file}`, log: diff.stdout }
+    }
+  }
+  return undefined
+}
+
 // check compiles and runs one case. It resolves with { ok, detail, log }.
 async function check(name, commands) {
   const dir = path.join(casesDir, name)
@@ -251,6 +297,15 @@ async function check(name, commands) {
     if (fs.readFileSync(want, "utf8") !== fs.readFileSync(got, "utf8")) {
       const diff = await commands.run("diff", ["-u", want, got], { phase: "compare", cwd: dir, timeout: 10_000 })
       return { ok: false, detail: `out/${file} differs from expected/${file}`, log: diff.stdout }
+    }
+  }
+
+  const identity = fs.existsSync(path.join(dir, "typescript", "tsconfig.json"))
+  if (identity) {
+    const failed = await checkDeclarationIdentity(dir, commands)
+    if (failed) return failed
+    if (!fs.existsSync(path.join(dir, "run.mjs")) && !headers.entry && !fs.existsSync(path.join(expectedDir, "stdout.txt"))) {
+      return { ok: true, detail: "declarations identical to typescript/", log: output }
     }
   }
 

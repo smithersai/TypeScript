@@ -23,52 +23,51 @@ func TestDeclarationImportsComputedKey(t *testing.T) {
 	t.Parallel()
 	even := `{ [customMatcher](subject: unknown) { return typeof subject === "number" && subject % 2 === 0 } }`
 	for _, test := range []struct {
-		name, source string
-		want, avoid  []string
+		name, source      string
+		want, avoid, once []string
 	}{
 		{
 			name:   "exported object",
 			source: `export const Even = ` + even,
-			want:   []string{`import type { customMatcher } from "vibelang-runtime";`, `[customMatcher](subject: unknown): boolean;`},
+			want:   []string{`import { customMatcher } from "vibelang-runtime";`, `[customMatcher](subject: unknown): boolean;`},
 		},
 		{
 			// The parity harness compares unexported bindings through a type alias.
 			name:   "unexported object a type names",
 			source: `const Even = ` + even + `; export type Probe = typeof Even`,
-			want:   []string{`import type { customMatcher } from "vibelang-runtime";`, `[customMatcher](subject: unknown): boolean;`},
+			want:   []string{`import { customMatcher } from "vibelang-runtime";`, `[customMatcher](subject: unknown): boolean;`},
 		},
 		{
 			name:   "object inside another",
 			source: `const Even = ` + even + `; export const matchers = { Even }`,
-			want:   []string{`import type { customMatcher } from "vibelang-runtime";`, `[customMatcher](subject: unknown): boolean;`},
+			want:   []string{`import { customMatcher } from "vibelang-runtime";`, `[customMatcher](subject: unknown): boolean;`},
 		},
 		{
 			// customMatcher comes from the runtime package, which linked
 			// workspaces and the smoke and parity harnesses reach by symlink.
 			name:   "symlinked runtime",
 			source: `export const Even = ` + even,
-			want:   []string{`import type { customMatcher } from "vibelang-runtime";`, `[customMatcher](subject: unknown): boolean;`},
+			want:   []string{`import { customMatcher } from "vibelang-runtime";`, `[customMatcher](subject: unknown): boolean;`},
 		},
 		{
 			name:   "effect root key",
 			source: `export const Shown = { [Inspectable.NodeInspectSymbol]() { return "shown" } }`,
-			want:   []string{`import type { Inspectable } from "effect";`, `[Inspectable.NodeInspectSymbol](): string;`},
+			want:   []string{`import { Inspectable } from "effect";`, `[Inspectable.NodeInspectSymbol](): string;`},
 		},
 		{
 			name:   "beside a well-known symbol key",
 			source: `export const Both = { [Symbol.toPrimitive]() { return 1 }, [customMatcher](subject: unknown) { return subject === 2 } }`,
-			want:   []string{`import type { customMatcher } from "vibelang-runtime";`, `[Symbol.toPrimitive](): number;`, `[customMatcher](subject: unknown): subject is 2;`},
+			want:   []string{`import { customMatcher } from "vibelang-runtime";`, `[Symbol.toPrimitive](): number;`, `[customMatcher](subject: unknown): subject is 2;`},
 		},
 		{
 			name:   "class key",
 			source: `export class Odd { static [customMatcher](subject: unknown) { return subject === 1 } }`,
-			want:   []string{`import type { customMatcher } from "vibelang-runtime";`, `static [customMatcher](subject: unknown)`},
+			want:   []string{`import { customMatcher } from "vibelang-runtime";`, `static [customMatcher](subject: unknown)`},
 		},
 		{
 			name:   "imported key",
 			source: `import { customMatcher } from "vibelang-runtime"; export const Even = ` + even,
-			want:   []string{`import { customMatcher } from "vibelang-runtime";`},
-			avoid:  []string{`import type { customMatcher }`},
+			once:   []string{`import { customMatcher } from "vibelang-runtime";`},
 		},
 		{
 			name:   "key the declaration file does not write",
@@ -101,6 +100,11 @@ func TestDeclarationImportsComputedKey(t *testing.T) {
 			for _, avoid := range test.avoid {
 				if strings.Contains(dts, avoid) {
 					t.Fatalf("declaration has %q:\n%s", avoid, dts)
+				}
+			}
+			for _, once := range test.once {
+				if n := strings.Count(dts, once); n != 1 {
+					t.Fatalf("declaration has %q %d times, want once:\n%s", once, n, dts)
 				}
 			}
 		})
@@ -190,7 +194,7 @@ func TestDeclarationImportsRecycledAnnotation(t *testing.T) {
 		{"arrow", `export const value = (): Effect.Effect<number, never, never> => { return 42 }`, `Effect.Effect<number, never, never>`, true},
 		{"function expression", `export const value = function(): Effect.Effect<number, never, never> { return 42 }`, `Effect.Effect<number, never, never>`, true},
 		{"object method", `export const value = { run(): Effect.Effect<number, never, never> { return 42 } }`, `Effect.Effect<number, never, never>`, true},
-		{"explicit import", `import { Effect } from "effect"; export const value = (): Effect.Effect<number, never, never> => { return 42 }`, `from "effect"`, false},
+		{"explicit import", `import { Effect as E } from "effect"; export const value = (): E.Effect<number, never, never> => { return 42 }`, `import { Effect as E } from "effect";`, false},
 		{"generic shadow", `export const value = <Effect>(x: Effect): Effect => x`, `<Effect>(x: Effect) => Effect`, false},
 		{"namespace shadow", `namespace Effect { export type Effect<A, E, R> = A }; export const value = (): Effect.Effect<number, never, never> => 42`, `Effect.Effect<number, never, never>`, false},
 	} {
@@ -201,7 +205,7 @@ func TestDeclarationImportsRecycledAnnotation(t *testing.T) {
 			if !strings.Contains(dts, test.want) {
 				t.Fatalf("declaration lacks %q:\n%s", test.want, dts)
 			}
-			if got := strings.Contains(dts, `import type { Effect } from "vibelang-runtime";`); got != test.prelude {
+			if got := strings.Contains(dts, `import { Effect } from "effect";`); got != test.prelude {
 				t.Fatalf("prelude import = %v, want %v:\n%s", got, test.prelude, dts)
 			}
 			files["/Users/x/src/main.d.ts"] = dts

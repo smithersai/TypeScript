@@ -1,4 +1,4 @@
-import type { Effect } from "vibelang-runtime";
+import { Effect } from "effect";
 declare const Gone_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: "Gone";
 } & Readonly<A>;
@@ -11,7 +11,7 @@ interface Needed {
 declare const Needed_base: import("vibelang-runtime").ServiceKey<Needed>;
 declare abstract class Needed extends Needed_base {
 }
-export declare function longForm(): Effect<number, Gone, Needed>;
+export declare function longForm(): Effect.Effect<number, Gone, Needed>;
 export declare function shortForm(): Effect.Effect<number, Gone, Needed>;
 export declare function plain(): Effect.Effect<number, never, never>;
 export declare function callerOfLong(): import("effect/Effect").Effect<number, Gone, Needed>;

@@ -1,4 +1,4 @@
-import type { Effect } from "vibelang-runtime";
+import { Effect } from "effect";
 import { Prompt } from "effect/cli";
 export declare const plainBody: (pick: boolean) => Effect.Effect<Prompt.Prompt<string>, never, never>;
 export declare const effectBody: (pick: boolean) => Effect.Effect<Prompt.Prompt<string>, never, never>;

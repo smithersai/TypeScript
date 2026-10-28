@@ -7,7 +7,7 @@ title: "27. Compiler architecture"
 ### 27. Compiler architecture
 
 ```ts [Generated declaration]
-import type { Effect } from "vibelang-runtime"
+import { Effect } from "effect"
 export declare function double(n: number): Effect.Effect<number, never, never>
 export declare namespace double {
   type $plain = (n: number) => number      // the plain marker: a type, no value (D384, D411)
@@ -232,8 +232,12 @@ against it may rely on [Rule] (D366).
    such as a direct variant, a region, or a helper, is a public export.
 4. **Standard TypeScript.** A declaration file is TypeScript that stock
    TypeScript checks with `skipLibCheck: false`: an Effect type is written
-   `Effect.Effect<A, E, R>` or through the runtime's `Effect` alias, never in
-   the `!` form, and no VibeLang keyword appears.
+   `Effect.Effect<A, E, R>`, never in the `!` form, and no VibeLang keyword
+   appears. Effect's own modules, the prelude's `Effect`, `Layer`, `Schema`
+   and `Scope` included, are imported from `effect`, as Effect TypeScript
+   imports them, `import { Effect, Scope } from "effect"`, and their types
+   written as `effect` declares them, `Scope.Scope`, never through the
+   runtime's re-exports or aliases.
 5. **Every nesting level.** A `service`, `control`, `error`, `schema`, or
    `data` declaration emits the same declarations inside a `namespace` as at
    a file's top level. An `error` declaration's class declares its private
@@ -256,7 +260,7 @@ Chapter 4 defines (D361), so ordinary TypeScript can provide the service and
 implement its shape:
 
 ```ts [Generated declaration]
-import type { Effect } from "vibelang-runtime"
+import { Effect } from "effect"
 export interface Users extends Users.Shape, ServiceBrand<"@acme/app/src/users#Users"> {}
 declare const Users_base: import("vibelang-runtime").ServiceKey<Users, Users.Shape>
 export declare abstract class Users extends Users_base {}
@@ -270,7 +274,7 @@ export declare namespace Users {
 A default service uses `ReferenceKey`. A service inside a namespace is written
 the same way inside the namespace's body, without `declare`; the body then
 exports its members explicitly and ends with `export {}`, which keeps the base
-constant out of the namespace's exports. Declaration transforms add type imports
+constant out of the namespace's exports. Declaration transforms add imports
 for prelude names, preserve D12's callback parameters, and write source
 specifiers as `.js` (Chapter 26). TypeScript consumers need only the `.js`,
 `.d.ts`, `effect`, and runtime packages. A TypeScript class implements the

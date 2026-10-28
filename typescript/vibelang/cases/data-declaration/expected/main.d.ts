@@ -1,4 +1,4 @@
-import type { Data } from "effect";
+import { Data } from "effect";
 /** A parcel on its way. */
 export declare const Delivery: Data.TaggedEnum.Constructor<Delivery>;
 /** A parcel on its way. */

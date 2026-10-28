@@ -160,6 +160,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - An error subclass of a generic base, such as `error Child extends Base<number> { own: string }`, failed to compile with TS2345 because its generated constructor dropped the base's type arguments. The constructor now takes what `Base<number>` takes, plus the subclass's fields.
 - A `for concurrent` loop let its body assign a `const` binding, as in `for concurrent (const n of xs) { n = 99 }`, destructured bindings included. Assigning one is now TS2588, as in a `for...of` loop; a `let` binding stays assignable.
 - `join` rejected a dictionary of fibers typed with an index signature, such as `Record<string, Fiber<number>>`, with EK4611, and accepted an object whose index signature also admitted non-fibers, which then failed at runtime. It now checks index signatures as it checks properties.
+- A `.vibe` file's declaration file imported Effect's types from `vibelang-runtime` (`import type { Effect } from "vibelang-runtime"`), so it differed from the declarations of the Effect TypeScript it replaced and made consumers' types depend on the runtime. Declarations now import `Effect`, `Layer`, `Schema` and `Scope` from `effect` and write `Effect.Effect<…>` and `Scope.Scope`, as Effect TypeScript does.
 
 #### Runtime
 

@@ -1,4 +1,4 @@
-import type { $ErrorArgs } from "vibelang-runtime";
+import { $ErrorArgs } from "vibelang-runtime";
 declare const AppError_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: string;
 } & Readonly<A>;
