@@ -1,4 +1,4 @@
-// expect: EK4301
+// expect: EK4301 TS2322 TS2740
 import { Schema, SchemaTransformation } from "effect"
 function double(n: number): number!! { return n * 2 }
 export function main() {

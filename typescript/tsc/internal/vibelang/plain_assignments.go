@@ -9,13 +9,21 @@ import (
 
 func init() { fileChecks = append(fileChecks, checkPlainAssignments) }
 
-// D430 applies at every typed destination, after rule F converts literals.
-// Existing aggregates keep their members' cold representation (D493).
+// D430 applies to a function literal at every typed destination, after rule F
+// converts literals.
 func checkPlainAssignments(c *checker.Checker, file *ast.SourceFile) {
 	a := analyzerFor(c)
 	check := func(value *ast.Node, target *checker.Type) {
 		if mismatch := a.plainAssignmentMismatch(value, target, nil); mismatch != nil {
 			value = mismatch.value
+			// Under written forms (D500) plain_targets.go reports a function
+			// value, a method, and a container of either at its destination
+			// (D430, D512); it leaves a function literal to its destination's
+			// form, which callbacks.go checks only at a call argument. This reports
+			// that literal everywhere else.
+			if !isLambda(value) && !ast.IsFunctionExpression(value) {
+				return
+			}
 			// The callback check already explains plain literal bodies and
 			// named arguments whose candidate rejected their form.
 			if isLambda(value) && a.finalForm(value) == formPlain && (!a.hasContract(value) || !a.canBePlain(value)) || a.finalConversion(value) == convertRejected || ast.IsMethodDeclaration(value) && !a.hasContract(value) {
@@ -60,10 +68,8 @@ func checkPlainAssignments(c *checker.Checker, file *ast.SourceFile) {
 				}
 				check(node.Body(), target)
 			}
-		case ast.KindCallExpression, ast.KindNewExpression:
-			for i, argument := range node.Arguments() {
-				check(argument, c.GetContextualTypeForArgumentAtIndex(node, i))
-			}
+			// A call's literal arguments are callbacks.go's (EK4301 for an
+			// Effect-annotated callback), and its other arguments plain_targets.go's.
 		}
 		return node.ForEachChild(visit)
 	}
@@ -312,8 +318,17 @@ func (a *analyzer) declaredMemberType(t *checker.Type) *checker.Type {
 	return a.checker.NewFunctionType(nil, declared)
 }
 
+// declaresMemberSignature reports whether declaration is a member of a class,
+// an interface, or a type alias's type. A generic alias of a function type,
+// type LazyArg<A> = () => A, is not: TypeScript instantiates A at each use, so
+// LazyArg<Effect<A, E, R>> returns an Effect, which its declaration's A,
+// uninstantiated, would lose.
 func declaresMemberSignature(declaration *ast.Node) bool {
-	for parent := declaration.Parent; parent != nil; parent = parent.Parent {
+	child := declaration
+	for parent := declaration.Parent; parent != nil; child, parent = parent, parent.Parent {
+		if parent.Kind == ast.KindTypeAliasDeclaration && parent.Type() == child {
+			return false
+		}
 		if ast.IsClassLike(parent) || parent.Kind == ast.KindInterfaceDeclaration || parent.Kind == ast.KindTypeAliasDeclaration {
 			return true
 		}
