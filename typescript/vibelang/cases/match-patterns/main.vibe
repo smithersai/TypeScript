@@ -52,11 +52,14 @@ function result(r: Result.Result<number, string>) {
   }
 }
 
+// An array type is not a finite union, so a match over it needs a default
+// arm, though these arms take every array (D346).
 function arrays(xs: ReadonlyArray<number>) {
   return match (xs) {
     when []: "empty";
     when [let only]: `single ${only}`;
     when [let head, ...let tail]: `head ${head} rest ${tail.join(",")}`;
+    default: "not an array";
   }
 }
 

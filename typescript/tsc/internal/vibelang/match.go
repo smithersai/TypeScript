@@ -67,16 +67,30 @@ func checkPatterns(c *checker.Checker, file *ast.SourceFile) {
 	file.AsNode().ForEachChild(visit)
 }
 
-// checkExhaustive reports a match whose subject, a finite union, still has
-// cases at the $noMatch call that ends its arms.
+// checkExhaustive reports a match whose subject still has cases at the
+// $noMatch call that ends its arms. A subject that is a finite union is
+// covered when its arms leave nothing of it. Any other subject is open
+// (D346, D428): string or number without a literal type, unknown, any,
+// object, a type parameter, or a class that is not closed. No literal or
+// open class arm covers it, so it needs a default arm, an arm that matches
+// every value its type has, such as `when String:` over a string or a closed
+// class's arm over an open family's base, or an arm that always matches, as
+// a bind-only arm `when let other:` does.
 func checkExhaustive(c *checker.Checker, file *ast.SourceFile, call *ast.Node) {
 	if afterIrrefutableArm(call) {
 		return
 	}
 	declared, left := matchRemainder(c, call)
+	open := false
+	if declared == nil {
+		if declared, left = matchSubjectTypes(c, call); declared == nil || hasUnconditionalArm(call) {
+			return
+		}
+		open = true
+	}
 	// Flow analysis already reported its complexity limit. Its error sentinel
 	// is neither evidence of a missing case nor a proof of exhaustiveness.
-	if declared == nil || left == c.GetErrorType() || left.Flags()&checker.TypeFlagsNever != 0 {
+	if left == c.GetErrorType() || left.Flags()&checker.TypeFlagsNever != 0 {
 		return
 	}
 	declaredText, leftText := diagnosticUnionText(c, declared), diagnosticUnionText(c, left)
@@ -93,10 +107,54 @@ func checkExhaustive(c *checker.Checker, file *ast.SourceFile, call *ast.Node) {
 		leftText = nested
 	}
 	d := reportAt(c, file, call.Expression().Loc, EK4701, declaredText, leftText)
+	if open {
+		note(d, "{0} is open: it is not a finite union of literals, data variants, and closed classes, so arms over its cases cannot cover it (D346).", declaredText)
+	}
 	for _, why := range uncountedArmNotes(c, file, call) {
 		note(d, why)
 	}
+	if open {
+		note(d, "Add a default arm, or narrow the subject's declared type to the cases the match handles.")
+		return
+	}
 	note(d, "Add an arm for each case that is left, or a default arm.")
+}
+
+// hasUnconditionalArm reports whether an arm of the match that call, its
+// $noMatch call, ends leaves the match whatever the subject is: an arm with
+// no test, such as a bind-only arm `when let other:`, which covers every
+// case as default does.
+func hasUnconditionalArm(call *ast.Node) bool {
+	statement := call.Parent
+	for statement != nil && !ast.IsStatement(statement) {
+		statement = statement.Parent
+	}
+	if statement == nil || statement.Parent == nil || !ast.IsBlock(statement.Parent) {
+		return false
+	}
+	for _, arm := range statement.Parent.AsBlock().Statements.Nodes {
+		if arm == statement {
+			break
+		}
+		if ast.IsBlock(arm) && endsInJump(arm) {
+			return true
+		}
+	}
+	return false
+}
+
+// endsInJump reports whether block's last statement leaves it: a return,
+// throw, break, or continue that no test guards.
+func endsInJump(block *ast.Node) bool {
+	statements := block.AsBlock().Statements.Nodes
+	if len(statements) == 0 {
+		return false
+	}
+	switch statements[len(statements)-1].Kind {
+	case ast.KindReturnStatement, ast.KindThrowStatement, ast.KindBreakStatement, ast.KindContinueStatement:
+		return true
+	}
+	return false
 }
 
 // provenExhaustive reports whether D209 proves that call, the $noMatch call
@@ -144,6 +202,17 @@ func afterIrrefutableArm(call *ast.Node) bool {
 // subject that is an identifier expression has the type its declaration
 // gives it, not the type the subject's capture has (match_capture.go).
 func matchRemainder(c *checker.Checker, call *ast.Node) (declared, left *checker.Type) {
+	declared, left = matchSubjectTypes(c, call)
+	if declared == nil || !isFiniteMatchType(c, declared) {
+		return nil, nil
+	}
+	return declared, left
+}
+
+// matchSubjectTypes returns the declared type of the subject of call, the
+// $noMatch call that ends a match, and its narrowed type there, whatever the
+// declared type is, or nils when the subject has no declaration.
+func matchSubjectTypes(c *checker.Checker, call *ast.Node) (declared, left *checker.Type) {
 	args := call.Arguments()
 	if len(args) != 1 {
 		return nil, nil
@@ -158,7 +227,7 @@ func matchRemainder(c *checker.Checker, call *ast.Node) (declared, left *checker
 		return nil, nil
 	}
 	declared = c.GetTypeOfSymbol(symbol)
-	if declared == nil || !isFiniteMatchType(c, declared) {
+	if declared == nil {
 		return nil, nil
 	}
 	return declared, left

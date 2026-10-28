@@ -1,9 +1,14 @@
 // expect-result: ["other","No match arm matched 2","No match arm matched 2"]
-// A match calls the runtime's $is to test a class pattern and $noMatch when
-// no arm matches. They are the runtime's, whatever the file declares: a
-// module-level or local binding spelled the same is a binding of its own.
+// A match calls the runtime's $is to test a class pattern, and the last arm
+// of a match that covers its subject checks its test with $assertMatch,
+// which calls $noMatch when the subject is outside its type (D405). They are
+// the runtime's, whatever the file declares: a module-level or local binding
+// spelled the same is a binding of its own. A match without default must
+// cover its subject (D346), so the subjects are the literal type 1, and a
+// cast passes 2.
 const $is = (_: unknown, __: unknown): boolean => true
 const $noMatch = (_: unknown): string => "captured"
+const $assertMatch = (_: unknown, __: unknown): void => {}
 
 error Bad { id: string }
 
@@ -11,21 +16,22 @@ function classOf(value: unknown) {
   return match (value) { when Bad: "bad"; default: "other" }
 }
 
-function classify(n: number) {
+function classify(n: 1) {
   return match (n) { when 1: "one" }
 }
 
-function nested(n: number) {
+function nested(n: 1) {
   const $noMatch = (_: unknown): string => "captured"
+  const $assertMatch = (_: unknown, __: unknown): void => {}
   return match (n) { when 1: "one" }
 }
 
 // The unmatched subject is a defect; a hatch reads its message.
 export function main() {
-  const unmatched = sync((outer: (n: number) => string, inner: (n: number) => string) => {
-    const message = (f: (n: number) => string) => {
+  const unmatched = sync((outer: (n: 1) => string, inner: (n: 1) => string) => {
+    const message = (f: (n: 1) => string) => {
       try {
-        return f(2)
+        return f(2 as 1)
       } catch (e) {
         return (e as Error).message
       }

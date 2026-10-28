@@ -174,11 +174,13 @@ function optional(a: { b: number } | undefined): string {
 
 // The subject's declared type, string and Delivery, still decides
 // exhaustiveness (EK4701) and a variant's case (EK4707), not the type its
-// capture narrows to.
+// capture narrows to: string is open, so narrowedFirst's match needs its
+// default arm though x is "a" or "b" there (D346).
 function narrowedFirst(x: string): number {
   if (x !== "a" && x !== "b") return 0
   return match (x) {
     when "a": 1;
+    default: 3;
   }
 }
 

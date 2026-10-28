@@ -1,0 +1,1 @@
+Point is a class, not an error declaration, so a value of its type need not pass its instanceof test, and its arm removes nothing (D428).

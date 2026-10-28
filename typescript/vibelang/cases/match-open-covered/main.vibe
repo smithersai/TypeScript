@@ -1,0 +1,51 @@
+// An open subject (D346) is covered by an arm that matches every value of
+// its type, or by an arm that always matches. `when String:` tests typeof,
+// so it matches every string; a closed class's arm matches every value of
+// an open family's base; a bind-only arm `when let other:` matches whatever
+// is left, as default does.
+error AppError { _tag: string; code: string }
+error Missing extends AppError { path: string }
+
+function text(x: string): string {
+  return match (x) {
+    when String: `text ${x}`;
+  }
+}
+
+function count(x: number): string {
+  return match (x) {
+    when 0: "zero";
+    when Number: "some";
+  }
+}
+
+function family(e: AppError): string {
+  return match (e) {
+    when AppError: e.code;
+  }
+}
+
+function letter(x: string): number {
+  return match (x) {
+    when "a": 1;
+    when let other: other.length;
+  }
+}
+
+function anything(x: unknown): string {
+  return match (x) {
+    when "a": "a";
+    when let other: typeof other;
+  }
+}
+
+// expect-result: {"text":"text t","count":["zero","some"],"family":["m","b"],"letter":[1,3],"anything":["a","number"]}
+export function main() {
+  return {
+    text: text("t"),
+    count: [count(0), count(7)],
+    family: [family(new Missing({ code: "m", path: "/p" })), family(new AppError({ code: "b" }))],
+    letter: [letter("a"), letter("xyz")],
+    anything: [anything("a"), anything(4)]
+  }
+}
