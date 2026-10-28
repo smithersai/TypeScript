@@ -7,8 +7,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 const spliceTarget = "FuzzSplice"
@@ -73,11 +71,8 @@ func spliceSeeds() []string {
 
 // CheckSplice runs FuzzSplice's oracles on one input.
 //
-// It applies the oracles of CheckParse and CheckCompile through the
-// functions they call, with one Gaps for the input. Each of the two finishes
-// its input with Gaps of its own, so calling them in turn would report XPASS
-// for a reproduction whose gap only the other finds; with one Gaps, a corpus
-// line marks its reproduction for XPASS only when no oracle disagrees.
+// It applies parseGaps and compileGaps with one Gaps for the input, so a
+// corpus line marks its reproduction for XPASS only when no oracle disagrees.
 func CheckSplice(t *testing.T, w *Workspace, input string) {
 	var project Project
 	var spliced []string // the .vibe files whose text no case or snippet holds
@@ -136,69 +131,12 @@ func CheckSplice(t *testing.T, w *Workspace, input string) {
 	// FuzzParse's oracles (CheckParse) on each spliced text: a splice makes
 	// a text no case or snippet holds, which FuzzParse never saw.
 	for _, file := range spliced {
-		spliceParseOracles(g, project.Files[file])
+		parseGaps(g, project.Files[file])
 	}
 
 	// FuzzCompile's oracles (CheckCompile) on the project.
-	ctx := t.Context()
-	var a *Compilation
-	var err error
-	within(t, "compile", func() { a, err = w.CompileOrdered(ctx, project, OrderTsc, true) })
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer a.Remove()
-	compile := func(stage string, order Order, singleThreaded bool) *Compilation {
-		var c *Compilation
-		within(t, stage, func() { c = w.CompileIn(ctx, a.Dir, project, order, singleThreaded || pending) })
-		return c
-	}
-	CheckDiagnostics(g, a.Dir, a.Diagnostics, DefaultsApply(project))
-	// As in CheckCompile, the determinism checks compile three more times,
-	// so they run on a third of the inputs, chosen by the input, and on
-	// every corpus file.
-	if key != "" || os.Getenv("VIBELANG_FUZZ_FULL") == "1" || seedHash(input)%3 == 0 {
-		checkDeterminism(t, g, a, compile)
-	}
-	if a.Program != nil && !HasError(a.Diagnostics) {
-		within(t, "outputs", func() {
-			(&OutputChecker{W: w, G: g, Ctx: ctx, Logf: t.Logf}).Check(a)
-		})
-	}
+	compileGaps(t, w, g, project, input)
 	g.FinishInput(t, key)
-}
-
-// spliceParseOracles applies CheckParse's oracles to one text and records
-// what disagrees in g, under FuzzParse's keys. It is CheckParse without the
-// Gaps of its own: the parse is a function of the text (Chapter 27's
-// pipeline starts at the parser), each span lies in the text (D61, D34), a
-// TypeScript tree nests in order (D266), and ESTree is JSON with ranges in
-// the text (Chapter 28 Linting, D277).
-func spliceParseOracles(g *Gaps, source string) {
-	dumps := map[string]string{}
-	for _, k := range parseKinds {
-		var file *ast.SourceFile
-		Within("parse "+k.name, func() { file = parseAs(k, source) })
-		where := strings.TrimPrefix(k.name, "/fuzz/main")
-		if where == ".vibe" {
-			if kind, problem := spanProblem(file, source); problem != "" {
-				g.Add("feature:parse-span-"+kind, "parsed as .vibe: %s", problem)
-			}
-		} else if problem := treeProblem(file, source); problem != "" {
-			kind := strings.TrimPrefix(strings.Fields(problem)[0], "Kind")
-			g.Add("feature:parse-tree-ts:"+kind, "parsed as %s: %s", where, problem)
-		}
-		dumps[k.name] = dumpTree(file)
-	}
-	for i := len(parseKinds) - 1; i >= 0; i-- {
-		k := parseKinds[i]
-		if again := dumpTree(parseAs(k, source)); again != dumps[k.name] {
-			g.Add("feature:parse-determinism", "parsing as %s again gives another tree:\n%s", strings.TrimPrefix(k.name, "/fuzz/main"), firstDifference(dumps[k.name], again))
-		}
-	}
-	for _, name := range []string{"main.vibe", "main.ts"} {
-		checkESTree(g, name, source)
-	}
 }
 
 // TestSpliceMutation checks the splicer itself: an input decides its

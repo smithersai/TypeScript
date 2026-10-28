@@ -157,6 +157,17 @@ func CheckCompile(t *testing.T, w *Workspace, target, archive string) {
 		t.Skipf("pending (%s): %s", entry.Owner, entry.Reason)
 	}
 	defer recoverCompilerPanic(t, target)
+	compileGaps(t, w, g, project, archive)
+	g.FinishInput(t, key)
+}
+
+// compileGaps records FuzzCompile's disagreements in the input's shared
+// Gaps. The key is the original fuzz input, so determinism sampling stays
+// the same for both archives and splice choices. The caller recovers
+// compiler panics and finishes the input after every oracle has run.
+func compileGaps(t *testing.T, w *Workspace, g *Gaps, project Project, key string) {
+	name := corpusFile(t, g.Target)
+	_, pending := Pending(g.Target, "corpus:"+name)
 	ctx := t.Context()
 	var a *Compilation
 	var err error
@@ -177,7 +188,7 @@ func CheckCompile(t *testing.T, w *Workspace, target, archive string) {
 	// reproduces, and on every corpus file; VIBELANG_FUZZ_FULL=1 runs them on
 	// every input. A seed run stays within a minute, and a campaign spends
 	// its time on new inputs.
-	full := key != "" || os.Getenv("VIBELANG_FUZZ_FULL") == "1" || seedHash(archive)%3 == 0
+	full := name != "" || os.Getenv("VIBELANG_FUZZ_FULL") == "1" || seedHash(key)%3 == 0
 
 	// Chapter 28: tsc, the language server and the bundlers see the same
 	// diagnostics, so a compilation is a function of its input: a fresh one
@@ -194,7 +205,6 @@ func CheckCompile(t *testing.T, w *Workspace, target, archive string) {
 			(&OutputChecker{W: w, G: g, Ctx: ctx, Logf: t.Logf}).Check(a)
 		})
 	}
-	g.FinishInput(t, key)
 }
 
 // checkDeterminism compiles the project again, in tsc's order and in the

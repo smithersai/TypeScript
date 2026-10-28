@@ -76,6 +76,14 @@ func CheckParse(t *testing.T, target, source string) {
 		g.Input = "testdata/fuzz/" + target + "/" + name
 	}
 	defer recoverCompilerPanic(t, target)
+	parseGaps(g, source)
+	g.FinishInput(t, key)
+}
+
+// parseGaps records FuzzParse's disagreements in the input's shared Gaps.
+// The caller recovers compiler panics and finishes the input after every
+// oracle has run, including any compilation oracles.
+func parseGaps(g *Gaps, source string) {
 	dumps := map[string]string{}
 	for _, k := range parseKinds {
 		var file *ast.SourceFile
@@ -112,7 +120,6 @@ func CheckParse(t *testing.T, target, source string) {
 	for _, name := range []string{"main.vibe", "main.ts"} {
 		checkESTree(g, name, source)
 	}
-	g.FinishInput(t, key)
 }
 
 // treeProblem returns the first violation of the tree's shape, or "": each
