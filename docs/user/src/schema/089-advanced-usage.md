@@ -6,7 +6,6 @@ The advanced Schema APIs work as in Effect: declarations for opaque runtime valu
 
 ```vibe
 // run: Console.log(readShelf(new Shelf("S-12")).code); try { readShelf({ code: "S-12" }) } catch (error) { Console.log(error._tag) }
-import { Console } from "effect"
 class Shelf {
   constructor(readonly code: string) {}
 }

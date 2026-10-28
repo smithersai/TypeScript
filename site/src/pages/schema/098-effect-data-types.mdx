@@ -10,7 +10,6 @@ Schemas for Effect data types work as in Effect. Runtime collection schemas expe
 ## Building configuration-compatible codecs
 
 ```vibe
-import { Console } from "effect"
 const DispatchConfig = Config.schema(Schema.Struct({
   depot: Schema.String,
   capacity: Schema.Finite

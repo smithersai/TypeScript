@@ -6,7 +6,6 @@ Schema-derived equivalence works exactly as in Effect. It compares decoded value
 
 ```vibe
 // run: Console.log(sameShipment({ reference: "pkg-94", stops: ["east"], extra: 1 }, { reference: "pkg-94", stops: ["east"], extra: 2 })); Console.log(sameShipment({ reference: "pkg-94", stops: ["east"] }, { reference: "pkg-94", stops: ["west"] }))
-import { Console } from "effect"
 schema Shipment {
   reference: string
   stops: ReadonlyArray<string>

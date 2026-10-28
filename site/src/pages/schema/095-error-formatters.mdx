@@ -10,7 +10,6 @@ Schema issue formatters work as in Effect. They render failures as readable stri
 ## Rendering schema issues as readable strings
 
 ```vibe
-import { Console } from "effect"
 const Dispatch = Schema.Struct({
   destination: Schema.String,
   packages: Schema.Int

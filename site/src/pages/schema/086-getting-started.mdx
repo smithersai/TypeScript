@@ -10,7 +10,6 @@ description: "Schema uses the same descriptions and interpreters as in Effect. S
 ## Declaring schemas
 
 ```vibe
-import { Console } from "effect"
 const Shipment = Schema.Struct({
   tracking: Schema.NonEmptyString,
   pieces: Schema.FiniteFromString

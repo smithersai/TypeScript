@@ -10,7 +10,6 @@ Schema classes work as in Effect. A class validates its fields, acts as a codec,
 ## Declaring validated classes
 
 ```vibe
-import { Console } from "effect"
 class Package extends Schema.Class<Package>("Package")({
   reference: Schema.NonEmptyString,
   pieces: Schema.FiniteFromString

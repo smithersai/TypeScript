@@ -6,7 +6,6 @@ Schema constructors work as in Effect. Combine small descriptions into arrays, o
 
 ```vibe
 // run: Console.log(Schema.is(Measurement)(Infinity), Schema.is(UnrestrictedNumber)(Infinity)); Console.log(Schema.is(MarkerSchema)(Marker), Schema.is(MarkerSchema)(Symbol("shipping/marker"))); Console.log(Schema.is(PendingState)("sent"), Schema.is(TrackingCode)("pkg_76"), Schema.is(PrioritySchema)("urgent"))
-import { Console } from "effect"
 const Measurement = Schema.Finite
 const UnrestrictedNumber = Schema.Number
 const Enabled = Schema.Boolean

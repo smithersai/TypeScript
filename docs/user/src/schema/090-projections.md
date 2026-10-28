@@ -6,7 +6,6 @@ Projections work exactly as in Effect: they turn one side of a codec into a sche
 
 ```vibe
 // run: Console.log(inspectCount(4)); for (const value of ["4", 0, 1.5]) { try { inspectCount(value) } catch (error) { Console.log(error._tag) } }
-import { Console } from "effect"
 const CountFromText = Schema.FiniteFromString.check(
   Schema.isInt(), Schema.isGreaterThanOrEqualTo(1)
 )

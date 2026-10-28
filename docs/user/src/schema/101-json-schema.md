@@ -6,7 +6,6 @@ JSON Schema export works as in Effect. It describes the encoded side of a schema
 
 ```vibe
 // run: const document = depotDocument(); Console.log(document.dialect); Console.log(JSON.stringify(document.schema))
-import { Console } from "effect"
 const Depot = Schema.Struct({
   name: Schema.String,
   capacity: Schema.Finite

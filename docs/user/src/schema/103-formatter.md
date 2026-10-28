@@ -6,7 +6,6 @@ Value formatters work exactly as in Effect. A schema-derived formatter renders d
 
 ```vibe
 // run: Console.log(displayDispatch({ depot: "east", counts: [2, 4] }))
-import { Console } from "effect"
 const Dispatch = Schema.Struct({
   depot: Schema.String,
   counts: Schema.Array(Schema.Int)

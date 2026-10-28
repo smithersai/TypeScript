@@ -6,7 +6,6 @@ Schemas for Effect data types work as in Effect. Runtime collection schemas expe
 
 ```vibe
 // run: Console.log(JSON.stringify(configurationExample()))
-import { Console } from "effect"
 const DispatchConfig = Config.schema(Schema.Struct({
   depot: Schema.String,
   capacity: Schema.Finite

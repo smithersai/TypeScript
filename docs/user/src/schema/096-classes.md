@@ -6,7 +6,6 @@ Schema classes work as in Effect. A class validates its fields, acts as a codec,
 
 ```vibe
 // run: const value = readPackage({ reference: "pkg-94", pieces: "2" }); Console.log(value instanceof Package, value.pieces)
-import { Console } from "effect"
 class Package extends Schema.Class<Package>("Package")({
   reference: Schema.NonEmptyString,
   pieces: Schema.FiniteFromString

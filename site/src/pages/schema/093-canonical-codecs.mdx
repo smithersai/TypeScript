@@ -10,7 +10,6 @@ Canonical codec derivation works as in Effect: it preserves a schema's decoded t
 ## Deriving JSON, string-tree, and isomorphism codecs
 
 ```vibe
-import { Console } from "effect"
 const AuditRecord = Schema.Struct({
   created: Schema.Date,
   sequence: Schema.BigInt,

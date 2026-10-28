@@ -6,7 +6,6 @@ Standard Schema adaptation works as in Effect: it exposes a codec to libraries t
 
 ```vibe
 // run: Console.log(standardMetadata()); Console.log(JSON.stringify(DispatchStandard["~standard"].validate({ reference: "pkg-94", count: "2" })))
-import { Console } from "effect"
 const Dispatch = Schema.Struct({
   reference: Schema.NonEmptyString,
   count: Schema.FiniteFromString

@@ -7,7 +7,6 @@
 ```vibe
 // settings.vibe
 // run: Console.log(JSON.stringify(readSettings({ label: "depot" }))); Console.log(Schema.is(Settings)({ label: "depot", hint: undefined }))
-import { Console } from "effect"
 const Settings = Schema.Struct({
   label: Schema.String,
   hint: Schema.optionalKey(Schema.String)

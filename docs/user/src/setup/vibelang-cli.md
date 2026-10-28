@@ -80,7 +80,6 @@ The `start` script runs `dist/main.js`, so create `src/main.vibe`:
 
 ```vibe
 // src/main.vibe
-import { Console } from "effect"
 import { hello } from "./hello.vibe"
 
 export function main() {

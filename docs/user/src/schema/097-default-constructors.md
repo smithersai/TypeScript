@@ -6,7 +6,6 @@ Schema constructors work as in Effect, on decoded values: they apply constructor
 
 ```vibe
 // run: Console.log(JSON.stringify(makeLabels()))
-import { Console } from "effect"
 const Label = Schema.Struct({ text: Schema.NonEmptyString })
 const LabelsById = Schema.Record(Schema.String, Schema.NonEmptyString)
 

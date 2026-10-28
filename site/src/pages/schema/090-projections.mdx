@@ -10,7 +10,6 @@ Projections work exactly as in Effect: they turn one side of a codec into a sche
 ## Projecting a codec to its decoded schema
 
 ```vibe
-import { Console } from "effect"
 const CountFromText = Schema.FiniteFromString.check(
   Schema.isInt(), Schema.isGreaterThanOrEqualTo(1)
 )

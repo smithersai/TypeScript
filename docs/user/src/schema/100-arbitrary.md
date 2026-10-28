@@ -6,7 +6,6 @@ Effect's native `Arbitrary` module derives generators and shrinkers from schemas
 
 ```vibe
 // run: const values = sampleParcels(); Console.log(values.length, values.every(Schema.is(Parcel)))
-import { Console } from "effect"
 const Parcel = Schema.Struct({
   label: Schema.NonEmptyString,
   count: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 24 }))

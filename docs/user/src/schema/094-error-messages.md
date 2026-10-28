@@ -6,7 +6,6 @@ Schema error messages work as in Effect. A `SchemaError` combines a readable mes
 
 ```vibe
 // run: Console.log(explainPackage({ label: 7, pieces: "several" })); Console.log(explainPackage({ label: "crate", pieces: 2 }))
-import { Console } from "effect"
 const Package = Schema.Struct({
   label: Schema.String,
   pieces: Schema.Finite

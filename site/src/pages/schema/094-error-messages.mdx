@@ -10,7 +10,6 @@ Schema error messages work as in Effect. A `SchemaError` combines a readable mes
 ## Understanding default validation messages
 
 ```vibe
-import { Console } from "effect"
 const Package = Schema.Struct({
   label: Schema.String,
   pieces: Schema.Finite

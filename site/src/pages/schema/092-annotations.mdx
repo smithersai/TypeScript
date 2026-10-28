@@ -10,7 +10,6 @@ Annotations work exactly as in Effect: they attach metadata or interpreter hooks
 ## Attaching built-in metadata
 
 ```vibe
-import { Console } from "effect"
 const Destination = Schema.String.annotate({
   message: "Destination must be text"
 }).check(Schema.isNonEmpty({ message: "Choose a destination" })).annotate({

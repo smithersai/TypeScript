@@ -10,7 +10,6 @@ Filters work as in Effect: they add validation without changing the decoded type
 ## Defining predicate-based checks
 
 ```vibe
-import { Console } from "effect"
 const ShelfCode = Schema.String.check(
   Schema.makeFilter((code) => code.startsWith("S-") || "Use an S- shelf code")
 )

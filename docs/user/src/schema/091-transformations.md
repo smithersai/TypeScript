@@ -6,7 +6,6 @@ Transformations work as in Effect: a codec validates one representation, convert
 
 ```vibe
 // run: Console.log(readAvailability("ready"), readAvailability("held")); Console.log(Schema.encodeEffect(Availability)(true))
-import { Console } from "effect"
 const Availability = Schema.Literals(["ready", "held"]).pipe(
   Schema.decodeTo(Schema.Boolean, SchemaTransformation.transform({
     decode: (status) => status === "ready",

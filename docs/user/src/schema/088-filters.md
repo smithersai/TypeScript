@@ -6,7 +6,6 @@ Filters work as in Effect: they add validation without changing the decoded type
 
 ```vibe
 // run: Console.log(readShelf("S-12")); try { readShelf("A-12") } catch (error) { Console.log(error.message) }
-import { Console } from "effect"
 const ShelfCode = Schema.String.check(
   Schema.makeFilter((code) => code.startsWith("S-") || "Use an S- shelf code")
 )

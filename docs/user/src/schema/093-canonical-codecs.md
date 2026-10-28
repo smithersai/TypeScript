@@ -6,7 +6,6 @@ Canonical codec derivation works as in Effect: it preserves a schema's decoded t
 
 ```vibe
 // run: Console.log(JSON.stringify(encodeAudit({ created: new Date("2026-01-02T00:00:00Z"), sequence: 12n, labels: ["fragile"] })))
-import { Console } from "effect"
 const AuditRecord = Schema.Struct({
   created: Schema.Date,
   sequence: Schema.BigInt,

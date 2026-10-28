@@ -10,7 +10,6 @@ Standard Schema adaptation works as in Effect: it exposes a codec to libraries t
 ## Adapting codecs to the standard validation interface
 
 ```vibe
-import { Console } from "effect"
 const Dispatch = Schema.Struct({
   reference: Schema.NonEmptyString,
   count: Schema.FiniteFromString

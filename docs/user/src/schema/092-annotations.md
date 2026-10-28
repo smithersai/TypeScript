@@ -6,7 +6,6 @@ Annotations work exactly as in Effect: they attach metadata or interpreter hooks
 
 ```vibe
 // run: for (const input of [{}, { destination: 1 }, { destination: "" }]) { try { Schema.decodeUnknownEffect(Request)(input) } catch (error) { Console.log(error.message) } }
-import { Console } from "effect"
 const Destination = Schema.String.annotate({
   message: "Destination must be text"
 }).check(Schema.isNonEmpty({ message: "Choose a destination" })).annotate({

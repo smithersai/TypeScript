@@ -7,7 +7,6 @@ Effect's experimental Schema compilers work behind the ordinary Schema APIs. The
 ```vibe
 // schemas/Parcel.vibe
 // run: Console.log(JSON.stringify(readParcel({ reference: "pkg-94", count: 2 }))); try { readParcel({ reference: "pkg-94", count: "2" }) } catch (error) { Console.log(error._tag) }
-import { Console } from "effect"
 export const Parcel = Schema.Struct({
   reference: Schema.String,
   count: Schema.Int

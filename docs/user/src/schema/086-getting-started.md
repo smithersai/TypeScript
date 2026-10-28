@@ -6,7 +6,6 @@
 
 ```vibe
 // run: Console.log(JSON.stringify(receive({ tracking: "box-76", pieces: "2" })))
-import { Console } from "effect"
 const Shipment = Schema.Struct({
   tracking: Schema.NonEmptyString,
   pieces: Schema.FiniteFromString

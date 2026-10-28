@@ -10,7 +10,6 @@ Transformations work as in Effect: a codec validates one representation, convert
 ## Defining reversible infallible conversions
 
 ```vibe
-import { Console } from "effect"
 const Availability = Schema.Literals(["ready", "held"]).pipe(
   Schema.decodeTo(Schema.Boolean, SchemaTransformation.transform({
     decode: (status) => status === "ready",
