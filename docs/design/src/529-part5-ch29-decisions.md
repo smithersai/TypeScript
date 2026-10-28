@@ -4,7 +4,7 @@
 
 ```text
 settled before this document      1-7        the original design decisions
-decisions                         D1-D468    every decision since; a number without a row is unassigned
+decisions                         D1-D489    every decision since; a number without a row is unassigned
 rules of the runtime and compiler P1-P22     adopted by D29, revised by verified counterexamples
 ```
 
@@ -335,7 +335,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D375 | D310-D313 are decided; the platform import is D312's final form | The review of 2026-10-27 |  | 11 |
 | D376 | A block after a call is always its last argument; a block after a dual is TypeScript's error with a note; a next-line block after a statement that ends in a name or a call is EK1022 | Placement by the callee's type broke the rule that call-site syntax decides |  | 5, 13, 28 |
 | D377 | Every literal element of an await operation is deferred by syntax; an element's value, not its type, decides whether it runs or is waited for | D196 read fibers and Deferreds from types | Amended by D394 | 7, 13 |
-| D378 | A call runs when its callee's declared return type, read before instantiation, is definitely an Effect: decision 5's static rule; `identity(program)` returns data | A TypeScript developer expects `identity(x)` to hand back `x`; no inference-driven timing | Amended by D393, D458 | 13, 30 |
+| D378 | A call runs when its callee's declared return type, read before instantiation, is definitely an Effect: decision 5's static rule; `identity(program)` returns data | A TypeScript developer expects `identity(x)` to hand back `x`; no inference-driven timing | Amended by D393, D458, D486 | 13, 30 |
 | D379 | The return boundary's S22-3 and S5-1 are removed: returning an Effect value never runs it; `return p()` | A contract's A decided whether a returned Effect ran |  | 13 |
 | D380 | A function literal prefers the candidate that takes it as a function; opposed preferences are EK1021 | A lambda stays a lambda, as a TypeScript reader expects | Amended by D392 | 13 |
 | D381 | A program is a function with no required parameters | The compiler's zero-required-input rule |  | 13 |
@@ -392,7 +392,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D432 | The prelude's `fork`, `join`, and hatches are used only under their own names; EK4410 | An import alias deferred an argument | Amended by D452 | 1, 7, 10, 13, 28 |
 | D433 | A `fork` of a program value is EK4613 | `fork job` ran nothing |  | 7, 13, 28 |
 | D434 | A written contract names a contract-less callback's channels `E` and `R`; EK2130 | A service member could not pass its callback's channels through | Amended by D455 | 14, 16, 28 |
-| D435 | A type parameter at a destination is read by one ordered rule; `flow` does not compose Effect functions | The table was not total; the `flow` example was EK4301 | Amended by D453 | 13, 30 |
+| D435 | A type parameter at a destination is read by one ordered rule; `flow` does not compose Effect functions | The table was not total; the `flow` example was EK4301 | Amended by D453, D488 | 13, 30 |
 | D436 | EK4802 spares a type parameter the receiving function returns | Programs a caller keeps were rejected | Amended by D463 | 13, 28 |
 | D437 | `p()` on a value typed by a type parameter constrained to an Effect runs it | Two readings |  | 13 |
 | D438 | A declaration that writes no return type is read through the one TypeScript infers | Nothing was written to read | Amended by D449 | 13, Appendices |
@@ -415,16 +415,16 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D455 | EK2130, EK2128, EK4838, and EK1001 cover what their rules meant | Silent shadowing, a continuation moved by `fork`, a fiber bound through a conditional, two codes for one failure |  | 7, 9, 16, 28, 30 |
 | D456 | Statements that contradicted rules or facts | Appendix C and Chapters 3, 10, 12, 13, 15, 24, 27, 28, and 30 |  | 3, 10, 12, 13, 15, 24, 27, 28, 30, Appendices |
 | D457 | Candidates that accept a call's other arguments must type each function literal they reach alike; EK1021 otherwise, whatever forms their destinations accept | Destinations that accept both forms let overload order pick a callback's form | Superseded by D482 | 13, 27, 28, 30 |
-| D458 | Rule R reads a type parameter as TypeScript shows it for the call, except one the callee's own signature declares; `AsData<T>` is withdrawn | An alias, an interface, or a class ran differently from the same type written inline |  | 10, 13, 26, 27, 28, 30, Appendices |
+| D458 | Rule R reads a type parameter as TypeScript shows it for the call, except one the callee's own signature declares; `AsData<T>` is withdrawn | An alias, an interface, or a class ran differently from the same type written inline | Amended by D486 | 10, 13, 26, 27, 28, 30, Appendices |
 | D459 | While a `using` mask is in force, the runtime keeps the interruptibility the fiber would have without it; VibeLang's masks keep it, and a nested `using` inherits it | A nested `using` recorded the outer mask and kept an interruptible acquisition masked | Superseded by D481 | 6, 17, 21, 24, 26, 27, 30, Appendices |
 | D460 | An object literal's methods take a function literal's own form and carry their plain form as `m[$direct]`; a namespace import's member and an anonymous default export keep a function's own form; a `let` does not | Chapters 10, 14 and the function-kinds table called object methods Effect methods; no plain form or signature was stated for them | Amended by D483 | 10, 13, 14, 27, 30, Appendices |
-| D461 | A destination reaches both operands of `??` and `\|\|` and the right operand of `&&` | TypeScript types the left operand of `\|\|` and `??` by the destination too |  | 13, 30 |
+| D461 | A destination reaches both operands of `??` and `\|\|` and the right operand of `&&` | TypeScript types the left operand of `\|\|` and `??` by the destination too | Amended by D488 | 13, 30 |
 | D462 | A parenthesized await operation's literal operand is deferred; `join`'s operand is evaluated, never deferred | The grammar note evaluated `await.all([a(), b()])`'s elements; rule H called `join`'s operand deferred |  | 13, 30, Appendices |
 | D463 | EK4802 covers an Effect-form callback that returns a program where an Effect-returning callback is expected | Adding a log line to `(v) => cached` silently stopped `cached` from running | Amended by D480 | 13, 28, 30 |
 | D464 | `do` blocks and `match` arms own no fibers; `await f` of an owned fiber is EK4609 alone; a capture inside a `fork` operand is EK4838 | The ownership and escape rules left these edges unstated |  | 7, 28, 30 |
 | D465 | An `error` declaration's declaration carries `#private` and a merged-namespace `$error` marker; `effect`'s error classes are those extending `YieldableError` | A declaration consumer could not tell a closed `error` from an open class |  | 3, 14, 26, 27, 30, Appendices |
 | D466 | A service's emitted declaration imports `ServiceBrand` and uses `ServiceKey` or `ReferenceKey`; "only identifiers in R" is assignability | The emitted shape and the R rule's diagnostic were unstated |  | 4, 27, 30 |
-| D467 | A handler's answer type adds `undefined` only for a completion other than by returning | "Ends another way" was loose |  | 9 |
+| D467 | A handler's answer type adds `undefined` only for a completion other than by returning | "Ends another way" was loose | Amended by D487 | 9 |
 | D468 | Statements that contradicted rules or facts | Chapters 2, 5, 6, 10, 13, 15, 27, 28, 30 and the appendices kept text the rules had replaced |  | 2, 5, 6, 10, 13, 15, 27, 28, 30, Intro, Appendices |
 | D469 | A fiber may sit in a literal its region holds only to join it | D409's "a collection" rejected `Fiber.joinAll(fibers)` |  | 7, 28 |
 | D480 | A call whose type is an Effect runs, whatever its callee compiles to; an Effect-form function that returns an Effect value is EK4802 wherever it stands; a program is held by a function written where an Effect type is declared | A plain function returning a program ran by one rule and returned data by four others |  | 13, 15, 28, 30, Appendices |
@@ -433,6 +433,10 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D483 | A function's plain form is part of its type, `Plain<F, C>`, wherever it is held, and every holder has its form; declarations write that type, at any depth | One function was plain or Effect by its holder; a returned object's method had no plain form in declarations |  | 10, 13, 15, 26, 27, 28, 30, Appendices |
 | D484 | A field of an object literal at a protocol key accepts only the plain form and holds the plain function; TypeScript receives it plain | An object literal's `toString` was both plain and cold, so `String(label)` threw a `TypeError` |  | 10, 13, 14, 27, 30, Appendices |
 | D485 | D430's check and a function value's form read a member by its declaration, with its container's type parameters uninstantiated | `Box<Effect<number>>` failed D430 against `{ get(): unknown }` and passed against `Box<unknown>` |  | 13, 14, 30 |
+| D486 | Rule R reads every type parameter but the callee's own as TypeScript shows it for the call; an instantiation expression binds the callee's own as an explicit type argument does | Inside `class Box<T>`, `other.get()` returned data; `identity<X>` held through a `const` ran |  | 13, 30, Appendices |
+| D487 | A handler's answer type gains `undefined` only for a completion that can reach the end normally or by a jump; a `throw` adds nothing | A block that only throws widened H |  | 9, 30 |
+| D488 | A type parameter that only the call's contextual type fixes is read as not an Effect at a destination; a destination reaches a comma's right operand | D435's ordered rule had no bucket for it |  | 13, 30 |
+| D489 | Statements that contradicted rules or facts | Chapter 13's table of what a type decides and rule R's sentence on constructs, the plain-call section's kind, Chapter 26's declaration kinds, the decision ranges, a conformance range, and a `??` example |  | Intro, 13, 26, 29, 30, Appendices |
 
 #### Rules of the runtime and compiler
 
