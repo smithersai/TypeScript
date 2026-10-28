@@ -1,0 +1,2 @@
+go test fuzz v1
+string("import c,000000await !cons,A0%a(0000const 00await!0")

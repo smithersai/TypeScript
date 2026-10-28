@@ -1,0 +1,66 @@
+# Area: rules (FuzzSpecRules, FuzzSpecAllowed). Chapter 28's registry, checked
+# by fault injection. See rules_test.go.
+#
+# Codes no injection can reach from the compiler:
+FuzzSpecRules  ek:EK9100  projector  Chapter 28 (D366, D416): only a renderer other than the compiler, the text projector, reports it; FuzzProjectionSpans' area
+FuzzSpecRules  ek:EK9101  projector  Chapter 28: an editor-only suggestion of the text projector, "not emitted by the CLI"
+#
+# Rules the compiler does not check as Chapter 28 words them (found by TestSpecRules and FuzzSpecRules):
+FuzzSpecRules  ek:EK1001/top-provide-calls  compiler  D282: a provide block at a module's top level draws EK1001 at the block and again at each call inside it, with TS2349 at a service member call; one violation, one diagnostic
+FuzzSpecRules  ek:EK1001/default-parameter  compiler  D350: a parameter default that runs a program, function f(n = load()), draws no EK1001
+FuzzSpecRules  ek:EK1001/static-block  compiler  D282: a class static block that runs a program, static { load() }, draws no EK1001
+FuzzSpecRules  ek:EK3205/entry-needs  compiler  D420: EK3205 is reported as a warning; Chapter 28 makes it an error by default (the registry in diagnostics.go still says warningCategory)
+FuzzSpecRules  ek:EK4409/any-call  compiler  D321: EK4409 is reported as a warning; Chapter 28 makes it an error by default
+FuzzSpecRules  ek:EK4603/await-op-config  compiler  D394: await.all over a non-literal operand whose elements are Configs draws no EK4603
+FuzzSpecRules  ek:EK4802/returned-program  compiler  D321: EK4802 is reported as a warning; Chapter 28 makes it an error by default
+FuzzSpecRules  ek:EK4838/stored-fiber  compiler  D353, D386: an owned fiber passed to a call or stored in a collection, fibers.push(fiber), draws no EK4838
+#
+# Codes Chapter 28 lists after its table with no injection yet:
+FuzzSpecRules  ek:EK1021  rules  Chapter 13 (D380, D392, D422, D450): an overload set whose candidates give a function argument different forms needs an overload fixture this table does not have yet
+FuzzSpecRules  ek:EK1023  rules  Chapter 13 (D382): reported by the 2026-10-27 migration analyzer, which a single compilation does not run
+FuzzSpecRules  ek:EK2128  rules  Chapter 9 (D410, D440): a continuation used outside resume needs a handle(...) fixture this table does not have yet
+FuzzSpecRules  ek:EK2130  rules  Chapter 16 (D434): a contract-less callback's channel name shadowed by a declaration needs a callback fixture this table does not have yet
+FuzzSpecRules  ek:EK4301/contracted-callback  compiler  D421: a callback with an Effect contract, [1, 2].map((n): number!! => n * 2), draws no EK4301; an Effect contract keeps Effect own form whatever the body does
+FuzzSpecRules  ek:EK4408/export-equals  compiler  D283: export = in a module body draws TypeScript's TS1203 in the module's own file instead of EK4408
+FuzzSpecRules  ek:EK4609/await-op-fiber  compiler  D394: an await operation's element of Fiber type, await.all [fiber, load()], draws nothing
+FuzzSpecRules  ek:EK4610/await-op-deferred  compiler  D394: an await operation's element of Deferred type, await.all [deferred, load()], draws nothing
+FuzzSpecRules  ek:EK4704/iterable-array-pattern  compiler  D417: an array pattern over a subject typed Iterable<number> draws nothing
+FuzzSpecRules  ek:EK4802/returned-arm  compiler  D321: EK4802 for a returned conditional's arm is reported as a warning; Chapter 28 makes it an error by default
+FuzzSpecRules  ek:EK4836/effect-provide  compiler  D290: const provided = Effect.provide(Region.name(), RegionLive) in an Effect function draws no EK4836; D290 refuses the fix in an initializer, and Chapter 28 says the warning then stays without a fix
+#
+# Codes Chapter 28 lists after its table that the compiler does not report yet (spec ahead):
+FuzzSpecRules  ek:EK1018/call-to-effect-destination  compiler  D322, D395: const program: Effect<number> = load(), a running call whose destination is an Effect, draws nothing
+FuzzSpecRules  ek:EK1020/new-function  compiler  D327: new on a .vibe function draws TypeScript's TS7009 instead of EK1020
+FuzzSpecRules  ek:EK2129/infer-twice  compiler  D414: number!infer X!infer X draws nothing
+FuzzSpecRules  ek:EK3007/key-with-arguments  compiler  D415: a service key called with arguments, Fn(3), draws TypeScript's TS2348 instead of EK3007
+FuzzSpecRules  ek:EK3208/wire-value  compiler  D363: const w = wire draws nothing
+FuzzSpecRules  ek:EK4410/hatch-value  compiler  D330, D432, D452: const run = sync draws nothing
+FuzzSpecRules  ek:EK4411/hatch-function-expression  compiler  D396: sync(Math.random) draws nothing
+FuzzSpecRules  ek:EK4613/unrun-element  compiler  D394, D433: an await.all element that is a function value, job = () => load(), which the operation would give back unrun, draws nothing
+#
+# The minimal reproduction of each gap above, in testdata/fuzz/FuzzSpecRules/. Its line
+# marks it for XPASS: once the compiler meets the rule there, the input fails until both
+# lines go.
+FuzzSpecRules  corpus:ek1001-default-parameter  compiler  D350: a parameter default that runs a program, function f(n = load()), draws no EK1001
+FuzzSpecRules  corpus:ek1001-static-block  compiler  D282: a class static block that runs a program, static { load() }, draws no EK1001
+FuzzSpecRules  corpus:ek1001-top-provide-calls  compiler  D282: a provide block at a module's top level draws EK1001 at the block and again at each call inside it, with TS2349 at a service member call; one violation, one diagnostic
+FuzzSpecRules  corpus:ek1018-call-to-effect-destination  compiler  D322, D395: const program: Effect<number> = load(), a running call whose destination is an Effect, draws nothing
+FuzzSpecRules  corpus:ek1020-new-function  compiler  D327: new on a .vibe function draws TypeScript's TS7009 instead of EK1020
+FuzzSpecRules  corpus:ek2129-infer-twice  compiler  D414: number!infer X!infer X draws nothing
+FuzzSpecRules  corpus:ek3007-key-with-arguments  compiler  D415: a service key called with arguments, Fn(3), draws TypeScript's TS2348 instead of EK3007
+FuzzSpecRules  corpus:ek3205-entry-needs  compiler  D420: EK3205 is reported as a warning; Chapter 28 makes it an error by default (the registry in diagnostics.go still says warningCategory)
+FuzzSpecRules  corpus:ek3208-wire-value  compiler  D363: const w = wire draws nothing
+FuzzSpecRules  corpus:ek4301-contracted-callback  compiler  D421: a callback with an Effect contract, [1, 2].map((n): number!! => n * 2), draws no EK4301; an Effect contract keeps Effect own form whatever the body does
+FuzzSpecRules  corpus:ek4408-export-equals  compiler  D283: export = in a module body draws TypeScript's TS1203 in the module's own file instead of EK4408
+FuzzSpecRules  corpus:ek4409-any-call  compiler  D321: EK4409 is reported as a warning; Chapter 28 makes it an error by default
+FuzzSpecRules  corpus:ek4410-hatch-value  compiler  D330, D432, D452: const run = sync draws nothing
+FuzzSpecRules  corpus:ek4411-hatch-function-expression  compiler  D396: sync(Math.random) draws nothing
+FuzzSpecRules  corpus:ek4603-await-op-config  compiler  D394: await.all over a non-literal operand whose elements are Configs draws no EK4603
+FuzzSpecRules  corpus:ek4609-await-op-fiber  compiler  D394: an await operation's element of Fiber type, await.all [fiber, load()], draws nothing
+FuzzSpecRules  corpus:ek4610-await-op-deferred  compiler  D394: an await operation's element of Deferred type, await.all [deferred, load()], draws nothing
+FuzzSpecRules  corpus:ek4613-unrun-element  compiler  D394, D433: an await.all element that is a function value, job = () => load(), which the operation would give back unrun, draws nothing
+FuzzSpecRules  corpus:ek4704-iterable-array-pattern  compiler  D417: an array pattern over a subject typed Iterable<number> draws nothing
+FuzzSpecRules  corpus:ek4802-returned-arm  compiler  D321: EK4802 for a returned conditional's arm is reported as a warning; Chapter 28 makes it an error by default
+FuzzSpecRules  corpus:ek4802-returned-program  compiler  D321: EK4802 is reported as a warning; Chapter 28 makes it an error by default
+FuzzSpecRules  corpus:ek4836-effect-provide  compiler  D290: const provided = Effect.provide(Region.name(), RegionLive) in an Effect function draws no EK4836; D290 refuses the fix in an initializer, and Chapter 28 says the warning then stays without a fix
+FuzzSpecRules  corpus:ek4838-stored-fiber  compiler  D353, D386: an owned fiber passed to a call or stored in a collection, fibers.push(fiber), draws no EK4838

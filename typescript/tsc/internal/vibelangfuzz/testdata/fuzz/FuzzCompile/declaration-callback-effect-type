@@ -1,0 +1,2 @@
+go test fuzz v1
+string("-- main.vibe --\nexport function mapAll<A, B>(items: ReadonlyArray<A>, f: (a: A) => B) {\n  const out: B[] = []\n  for (const item of items) out.push(f(item))\n  return out\n}\n")

@@ -67,4 +67,25 @@ echo "test: go test -timeout=20m ./internal/vibelang/"
 (cd "$root/tsc" && CGO_ENABLED=0 go test -timeout=20m -trimpath -gcflags=all=-dwarf=false ./internal/vibelang/ >/dev/null) ||
 	(cd "$root/tsc" && CGO_ENABLED=0 go test -timeout=20m -trimpath -gcflags=all=-dwarf=false ./internal/vibelang/; exit 1)
 
+# The fuzz targets' seed corpus: every oracle runs on the cases, the snippets
+# and the saved reproductions, a pending gap skips, and a fixed one fails as
+# XPASS (internal/vibelangfuzz/testdata/pending/README.md).
+# Parallel declaration emit must not race. Without -race the regression test
+# passes even on the racing code, so it runs under the race detector.
+echo "test: go test -race -run TestDeclarationEmitInParallel ./internal/vibelang/"
+(cd "$root/tsc" && CGO_ENABLED=1 go test -race -count=1 -trimpath -run TestDeclarationEmitInParallel ./internal/vibelang/ >/dev/null) ||
+	(cd "$root/tsc" && CGO_ENABLED=1 go test -race -count=1 -trimpath -run TestDeclarationEmitInParallel ./internal/vibelang/; exit 1)
+
+# The parity target and the declaration consumer compare with the stock
+# TypeScript the mapper pins, installed as CONTRIBUTING.md says.
+ts7_version=$(node -p 'require(process.argv[1]).devDependencies.typescript' "$root/../packages/ts-mapper/package.json")
+ts7_cache="$root/../packages/ts-mapper/test/.cache/typescript-$ts7_version"
+if [ ! -x "$ts7_cache/node_modules/.bin/tsc" ]; then
+	echo "install: typescript@$ts7_version into $ts7_cache"
+	npm install --prefix "$ts7_cache" --no-audit --no-fund --silent "typescript@$ts7_version"
+fi
+echo "test: go test -short ./internal/vibelangfuzz/..."
+(cd "$root/tsc" && CGO_ENABLED=0 VIBELANG_FUZZ_REQUIRE=1 EFFECT_NODE_MODULES=$effect_modules go test -short -timeout=20m -trimpath -gcflags=all=-dwarf=false ./internal/vibelangfuzz/... >/dev/null) ||
+	(cd "$root/tsc" && CGO_ENABLED=0 VIBELANG_FUZZ_REQUIRE=1 EFFECT_NODE_MODULES=$effect_modules go test -short -timeout=20m -trimpath -gcflags=all=-dwarf=false ./internal/vibelangfuzz/...; exit 1)
+
 EFFECT_NODE_MODULES=$effect_modules VIBELANG_RUNTIME=$runtime exec node "$root/vibelang/harness.mjs" "$@"

@@ -1,0 +1,25 @@
+# The compile area's gaps: FuzzCompile, FuzzParse, FuzzConfig and FuzzTypeScriptParity.
+# Each minimized input in testdata/fuzz/<target>/ has a corpus line; the key of the
+# oracle it breaks has a line too, so other inputs that meet the same gap skip.
+# target              key                                        owner     what is missing
+FuzzCompile           corpus:match-flow-limit-cubic              compiler  hang: a match of N literal arms over an N-literal union checks in O(N^3) (500 arms: 0.7 s, 1000: 5.7 s, 2000: 48 s; the same TypeScript switch: 10 ms); the reproduction is case match-flow-limit.fail grown to 3,000 arms, so it outlasts the probe on any host until the check is fixed
+FuzzCompile           ek:EK3205                                  compiler  D420: EK3205 is an error by default; the compiler reports it as a warning (32 seeds)
+FuzzCompile           ek:EK4802                                  compiler  Chapter 28 (D241, D321): EK4802 is an error by default; the compiler reports it as a warning
+FuzzCompile           ek:EK2115                                  compiler  Chapter 28 (D323): EK2115 is retired and its number unused; the compiler still reports it for a factory's call-time body
+FuzzCompile           ek:EK2116                                  compiler  Chapter 28 (D323): EK2116 is retired and its number unused; the compiler still reports it
+FuzzCompile           ek:EK1008                                  compiler  Chapter 28 (D325): EK1008 is retired and its number unused; the compiler still reports it for a pipe topic passed by name
+FuzzCompile           corpus:declaration-callback-effect-type    compiler  Chapter 27 rule 4 (D12, D366): a D12 callback parameter is declared as Effect<B, E, R>, which names the effect namespace as a type (TS2709), not Effect.Effect<B, E, R>
+FuzzCompile           feature:declaration-consumer-TS2709        compiler  Chapter 27 rule 4 (D12, D366): a D12 callback parameter's declaration writes the prelude's Effect<B, E, R>, not Effect.Effect<B, E, R>
+FuzzCompile           corpus:declaration-module-body-ts-specifier compiler D365 (Chapter 26 Modules rule 5): a module declaration's .d.ts keeps the body's "./more.ts", where JavaScript and declarations name "./more.js"
+FuzzCompile           feature:d365-declaration                   compiler  D365 (Chapter 26 Modules rule 5): a module declaration's .d.ts keeps the body's relative .ts specifiers
+FuzzCompile           corpus:declaration-module-body-dispose     compiler  Chapter 27 rules 1 and 4 (D366): a module body's .d.ts uses Symbol.dispose, which only effect's reference to lib esnext.disposable, reached through the prelude's implicit import, declares; a consumer with the project's own lib rejects it (TS2550)
+FuzzCompile           feature:declaration-consumer-TS2550        compiler  Chapter 27 rules 1 and 4 (D366): declarations rely on lib esnext.disposable, which only the prelude's implicit import of effect brought into the program
+FuzzCompile           corpus:source-map-match-end                compiler  D34: the source map of a top-level match maps a segment one character past the end of the .vibe text
+FuzzCompile           feature:source-map-range:one-past-end                   compiler  D34: a top-level match's source map has a segment past the end of the .vibe text
+FuzzParse             corpus:schema-error-extends-span           compiler  Chapter 28 Linting (D61, D277): schema error E extends { … } parses to a CallExpression whose span ends before it starts ([22, 14)), and ESTree inherits the inverted range
+FuzzParse             feature:parse-span-CallExpression          compiler  D61: a schema error's extends clause parses to a CallExpression with an inverted span
+FuzzParse             feature:estree-range-CallExpression        compiler  Chapter 28 Linting (D277): a schema error's extends clause converts to a CallExpression whose range ends before it starts
+FuzzConfig            corpus:ek9100-off                          compiler  Chapter 28 (D366, D416): EK9100 is an error no setting lowers, but "EK9100": "off" is accepted without a diagnostic (core.VibeLangAdjustableCodes lists it)
+FuzzConfig            ek:EK9100                                  compiler  Chapter 28 (D366, D416): the diagnostics setting accepts EK9100, which no setting may lower
+FuzzParse             feature:parse-tree-ts:ExpressionStatement  compiler  D266 (a .ts file parses as TypeScript): `import c,000000await !cons,A0%a(0000const 00await!0` parsed as .ts or .tsx gives an ExpressionStatement [50, 51) that starts before its previous sibling ends at 51; every fork change to the parser is gated on .vibe files, so this is likely typescript-go's own (unverified)
+FuzzParse             corpus:ts-await-bang-sibling-overlap       compiler  D266: the minimal reproduction of feature:parse-tree-ts:ExpressionStatement

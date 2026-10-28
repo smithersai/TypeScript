@@ -1,0 +1,209 @@
+package vibelangfuzz
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
+	"github.com/microsoft/TypeScript/tsc/internal/format"
+	"github.com/microsoft/TypeScript/tsc/internal/ls/lsutil"
+	"github.com/microsoft/TypeScript/tsc/internal/parser"
+	"github.com/microsoft/TypeScript/tsc/internal/vibelangfmt"
+)
+
+// FuzzFormat formats a .vibe source with vibelangfmt.Format, the formatter
+// that dprint's plugin and the language server share (D276), and checks what
+// Chapter 28's "Rewrites keep meaning" (D372) promises of it:
+//
+//   - It never panics or hangs.
+//   - A file with a syntax error fails instead of changing (D276).
+//   - A file it formats still parses without error, and parses to the same
+//     program: vibelangfmt.SameProgram holds, which allows only "whitespace,
+//     line breaks, parentheses that do not change the parse, braces around a
+//     body of one statement, trailing commas, and the order of names inside
+//     one import's braces".
+//   - Comments survive, next to the code they describe.
+//   - Formatting a second time changes nothing ("Idempotence").
+//   - The formatted program is equivalent "with the same types" and reports
+//     no new error: it compiles to the same diagnostic codes and categories.
+//
+// D276 requires syntactically valid files to format; an inability to preserve
+// their program is a tooling gap, rather than a successful formatting result.
+//
+// The TypeScript formatter is the language server's own (internal/format,
+// as format.FormatDocument calls it for a .vibe file); set VIBELANG_DPRINT to
+// a dprint binary to format with dprint and the repository's TypeScript
+// style instead, as vibelangfmt's own tests do.
+func FuzzFormat(f *testing.F) {
+	seen := map[string]bool{}
+	for _, seed := range toolsSample(append(CaseSeeds(), SnippetSeeds()...), 120, 0, nil) {
+		for _, name := range toolsVibeFiles(seed.Files) {
+			if text := seed.Files[name]; !seen[text] {
+				seen[text] = true
+				f.Add(text)
+			}
+		}
+	}
+	w := NewWorkspace(f)
+	formatter := toolsFormatter(f)
+	f.Fuzz(func(t *testing.T, source string) {
+		toolsGuard(t, "FuzzFormat", func() {
+			if len(source) > 24<<10 || toolsLeftOut("FuzzFormat", map[string]string{"main.vibe": source}) {
+				return
+			}
+			var once string
+			var err error
+			toolsRun(t, "FuzzFormat", "format", source, nil, func() { once, err = vibelangfmt.Format("main.vibe", source, formatter) })
+			if syntax := toolsSyntaxError("main.vibe", source); syntax != "" {
+				// D276: "so does a file with a syntax error": it fails.
+				if err == nil && once != source {
+					Gap(t, "FuzzFormat", "format:syntax-error", "a file with a syntax error (%s) was formatted:\n%s\nto:\n%s", syntax, source, once)
+				}
+				return
+			}
+			if err != nil {
+				first := "none"
+				if statements := toolsParse("main.vibe", source).Statements.Nodes; len(statements) > 0 {
+					first = strings.TrimPrefix(statements[0].Kind.String(), "Kind")
+				}
+				Gap(t, "FuzzFormat", "format:refusal:"+first, "D276: the formatter refused a file without syntax errors (%v):\n%s", err, source)
+			}
+			// Chapter 28, "Rewrites keep meaning", and D276: the result parses to
+			// the program the source parses to.
+			if syntax := toolsSyntaxError("main.vibe", once); syntax != "" {
+				Gap(t, "FuzzFormat", "format:parse", "the formatted file has a syntax error (%s):\n%s\nformatted:\n%s", syntax, source, once)
+			}
+			if once != source {
+				before := toolsCompile(t, w, "FuzzFormat", Single(source).Files)
+				defer before.Remove()
+				after := toolsRecompile(t, w, before, Single(once).Files)
+				// D276 and D372: independently compile both projects with the same
+				// configuration. The formatter's own SameProgram guard is secondary.
+				if difference := toolsFormatDifference(before, after); difference != "" {
+					Gap(t, "FuzzFormat", "format:emit", "%s\nsource:\n%s\nformatted:\n%s", difference, source, once)
+				}
+			}
+			if err := vibelangfmt.SameProgram(source, once); err != nil {
+				Gap(t, "FuzzFormat", "format:same-program", "formatting changed the program (%v):\n%s\nformatted:\n%s", err, source, once)
+			}
+			// D372: "Comments survive every rewrite."
+			if lost := toolsLostComments(source, once); len(lost) > 0 {
+				Gap(t, "FuzzFormat", "format:comments", "formatting lost the comments %q:\n%s\nformatted:\n%s", lost, source, once)
+			}
+			if added := toolsLostComments(once, source); len(added) > 0 {
+				Gap(t, "FuzzFormat", "format:comments", "formatting added the comments %q:\n%s\nformatted:\n%s", added, source, once)
+			}
+			if moved := toolsMovedComments(source, once); len(moved) > 0 {
+				Gap(t, "FuzzFormat", "format:comment-neighbors", "D372: formatting moved comments %q:\n%s\nformatted:\n%s", moved, source, once)
+			}
+			// Chapter 28, "Idempotence": formatting a second time changes nothing.
+			var twice string
+			toolsRun(t, "FuzzFormat", "format", once, nil, func() { twice, err = vibelangfmt.Format("main.vibe", once, formatter) })
+			if err != nil {
+				Gap(t, "FuzzFormat", "format:idempotence", "the formatter refuses its own output (%v):\n%s\nformatted:\n%s", err, source, once)
+			} else if twice != once {
+				// The key says whether the TypeScript formatter's own lack of a
+				// fixed point causes it, so that a campaign that knows that gap
+				// still finds VibeLang's.
+				Gap(t, "FuzzFormat", "format:idempotence"+toolsTypeScriptIdempotence(source, formatter), "formatting twice changes the file:\n%s\nonce:\n%s\ntwice:\n%s", source, once, twice)
+			}
+
+		})
+	})
+}
+
+// toolsFormatter returns the TypeScript formatter that the language server
+// gives vibelangfmt.Format (internal/format's formatVibeLangDocument), or
+// dprint when VIBELANG_DPRINT names one.
+func toolsFormatter(tb testing.TB) vibelangfmt.TypeScriptFormatter {
+	if binary := os.Getenv("VIBELANG_DPRINT"); binary != "" {
+		config := filepath.Join(Root(), "typescript/tsc/internal/vibelangfmt/testdata/dprint.json")
+		return func(text string) (string, error) {
+			command := exec.Command(binary, "fmt", "--config", config, "--stdin", "file.ts")
+			command.Stdin = strings.NewReader(text)
+			var stdout, stderr bytes.Buffer
+			command.Stdout, command.Stderr = &stdout, &stderr
+			if err := command.Run(); err != nil {
+				return "", fmt.Errorf("%w: %s", err, stderr.String())
+			}
+			return stdout.String(), nil
+		}
+	}
+	ctx := format.WithFormatCodeSettings(context.Background(), lsutil.GetDefaultFormatCodeSettings(), "\n")
+	return func(text string) (string, error) {
+		projection := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: "/vibelang-format.ts", PathKey: "/vibelang-format.ts"}, text, core.ScriptKindTS)
+		return core.ApplyBulkEdits(text, format.FormatDocument(ctx, projection)), nil
+	}
+}
+
+// toolsFormatDifference compares independently emitted JS token streams and
+// diagnostic codes and categories, as Chapter 28's Formatting (D276, D372)
+// allows layout changes only. Both compilations use the same configuration.
+func toolsFormatDifference(before, after *Result) string {
+	codes := func(r *Result) []string {
+		var codes []string
+		for _, d := range r.Diagnostics {
+			codes = append(codes, fmt.Sprintf("%s%d:%s", d.Source(), d.Code(), d.Category().Name()))
+		}
+		slices.Sort(codes)
+		return codes
+	}
+	if a, b := codes(before), codes(after); !slices.Equal(a, b) {
+		return fmt.Sprintf("formatting changed diagnostics from %v to %v", a, b)
+	}
+	if before.EmitSkipped != after.EmitSkipped {
+		return "formatting changed whether emit was skipped"
+	}
+	js := func(r *Result) map[string][]string {
+		files := map[string][]string{}
+		for name, text := range r.Outputs {
+			if strings.HasSuffix(name, ".js") || strings.HasSuffix(name, ".mjs") || strings.HasSuffix(name, ".cjs") || strings.HasSuffix(name, ".jsx") {
+				files[name] = toolsJSTokens(text)
+			}
+		}
+		return files
+	}
+	a, b := js(before), js(after)
+	if len(a) != len(b) {
+		return "formatting changed the emitted JavaScript files"
+	}
+	for name, tokens := range a {
+		if other, ok := b[name]; !ok || !slices.Equal(tokens, other) {
+			return fmt.Sprintf("formatting changed %s's JavaScript token stream\nbefore: %q\nafter: %q", name, tokens, b[name])
+		}
+	}
+	return ""
+}
+
+// toolsTypeScriptIdempotence returns ":typescript" when formatting is
+// idempotent once the TypeScript formatter runs to its own fixed point:
+// then the second pass's change comes from the TypeScript formatter, not
+// from VibeLang's encoding. It returns "" otherwise.
+func toolsTypeScriptIdempotence(source string, formatter vibelangfmt.TypeScriptFormatter) string {
+	fixpoint := func(text string) (string, error) {
+		for range 8 {
+			next, err := formatter(text)
+			if err != nil || next == text {
+				return next, err
+			}
+			text = next
+		}
+		return text, nil
+	}
+	once, err := vibelangfmt.Format("main.vibe", source, fixpoint)
+	if err != nil {
+		return ""
+	}
+	if twice, err := vibelangfmt.Format("main.vibe", once, fixpoint); err == nil && twice == once {
+		return ":typescript"
+	}
+	return ""
+}

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("-- main.vibe --\nmodule files {\n  export function open() {\n    return { [Symbol.dispose](): void {} }\n  }\n}\nexport { open } from files\nfunction pause() {\n  sleep(\"1 millis\")\n}\n")

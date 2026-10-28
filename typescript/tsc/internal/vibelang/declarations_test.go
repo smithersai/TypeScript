@@ -271,7 +271,8 @@ func TestDeclarationElidesPrivateJSDoc(t *testing.T) {
 // The declaration transforms of a program's files run in parallel and record
 // prelude references in the checker's maps; each transform reads a copy taken
 // under the checker's lock, so a project of many files neither races nor
-// stops with "concurrent map read and map write" (run with -race).
+// stops with "concurrent map read and map write". Only the race detector
+// sees the race reliably, so smoke.sh runs this test with -race.
 func TestDeclarationEmitInParallel(t *testing.T) {
 	t.Parallel()
 	files := computedKeyFiles(false)

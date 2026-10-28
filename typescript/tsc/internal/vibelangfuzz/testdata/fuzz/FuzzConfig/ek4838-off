@@ -1,0 +1,3 @@
+go test fuzz v1
+string("{\"diagnostics\":{\"EK4838\":\"off\"}}")
+string("export function main() {\n  const f = fork sleep(\"1 second\")\n  return f\n}\n")

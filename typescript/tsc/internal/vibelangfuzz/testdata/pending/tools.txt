@@ -1,0 +1,29 @@
+# Gaps between Chapter 28's tooling and the compiler that the tools area's
+# targets (FuzzFormat, FuzzFix, FuzzEditor, FuzzIncremental) found. A crash
+# is keyed crash:<function that panicked>; its minimal reproduction
+# is also listed by corpus file, so that it fails as XPASS once fixed.
+# <target> <key> <owner> <what is missing, with the decision it breaks>
+FuzzEditor crash:ls.getContainingArgumentInfo compiler textDocument/signatureHelp at the closing brace of `error E { a: string }` panics "Debug failure. Not a subspan. Child: KindPropertySignature, parent: KindTypeLiteral": the type literal an error declaration synthesizes does not span its members (Chapter 28, The editor, D32)
+FuzzEditor corpus:signature-help-error-declaration compiler the minimal reproduction of crash:ls.getContainingArgumentInfo
+FuzzEditor crash:ast.SourceFile.GetOrCreateToken compiler textDocument/completion (and signature help) inside the keyword of `service Users { … }` panics "Token cache mismatch: KindClassKeyword != KindIdentifier" in astnav.FindPrecedingToken: the class a service declaration synthesizes caches a class keyword token at the identifier's position (Chapter 28, The editor, D32, D78)
+FuzzEditor corpus:completion-service-keyword compiler the minimal reproduction of crash:ast.SourceFile.GetOrCreateToken
+FuzzEditor editor:parse:Convert-to-a-pipe compiler the refactor "Convert to a pipe" (D245) writes `{ a: 1 } |> String(%) |> Console.log(%)` for the statement `Console.log(String({ a: 1 }))`: an object literal at the start of a statement parses as a block, so the result is a syntax error; every automatic change keeps the program (Chapter 28, Rewrites keep meaning, D372)
+FuzzEditor corpus:convert-to-pipe-object-literal compiler the minimal reproduction of editor:parse:Convert-to-a-pipe
+FuzzEditor editor:quickfix-error:EK4832 compiler the quick fix of EK4832 is offered for `Schema.Struct({ a: Missing.fields.a })`, a field the checker cannot resolve, and writes `schema S { a: Missing.fields.a }`, which adds EK2109; a fix is offered only where the checker proves it keeps the program (Chapter 28, Rewrites keep meaning, D372, D286)
+FuzzEditor corpus:schema-fix-unresolved-field compiler the minimal reproduction of editor:quickfix-error:EK4832
+FuzzFormat format:idempotence:typescript compiler the language server's formatter for .vibe files (internal/format through vibelangfmt.Format, D276's 2026-10-21 note) is not idempotent: `{{0!\n("")}}` formats to a call whose argument line a second pass indents again; with the TypeScript formatter run to its fixed point formatting is idempotent, so the root is typescript-go's continuation indentation, but Chapter 28 ("Idempotence", D372) requires a second pass to change nothing
+FuzzFormat corpus:idempotence-call-on-next-line compiler the minimal reproduction of format:idempotence:typescript
+FuzzFormat corpus:idempotence-remainder-on-next-line compiler a second reproduction of format:idempotence:typescript, with VibeLang syntax: a `%` operand line that a second pass indents again
+FuzzFormat corpus:parser-hang-layer-close-paren compiler hang: the parser never finishes `layer e{)` (or `layer e{]`): parseLayerDeclaration calls parseStatement on a token it never consumes, so vibelang, the formatter and the language server hang on such a file
+FuzzFormat feature:layer-declaration compiler hang: the parser loops on a stray `)` or `]` in a `layer` declaration's body (corpus parser-hang-layer-close-paren), so campaigns leave layer declarations out
+FuzzFix feature:layer-declaration compiler hang: the parser loops on a stray `)` or `]` in a `layer` declaration's body (FuzzFormat corpus parser-hang-layer-close-paren)
+FuzzEditor feature:layer-declaration compiler hang: the parser loops on a stray `)` or `]` in a `layer` declaration's body (FuzzFormat corpus parser-hang-layer-close-paren)
+FuzzIncremental feature:layer-declaration compiler hang: the parser loops on a stray `)` or `]` in a `layer` declaration's body (FuzzFormat corpus parser-hang-layer-close-paren)
+FuzzEditor editor:quickfix-error:EK4835 compiler the quick fix of EK4835 for `fail() |> Effect.catchTag(%, "A", (e) => "a")` writes `(%() catch (e) => match (e) { … })`, calling the pipe's topic, a value since D325, which adds TS2349, TS2339 and EK2001; a quick fix keeps the program and adds no error (Chapter 28, Rewrites keep meaning, D372, D289)
+FuzzEditor corpus:catch-fix-pipe-topic compiler the minimal reproduction of editor:quickfix-error:EK4835
+FuzzFormat format:refusal:ModuleDeclaration compiler D276: the formatter refuses the syntax-error-free parser input `module {}` because its projection requires a module name (corpus refusal-unnamed-module)
+FuzzFormat corpus:refusal-unnamed-module compiler D276: the formatter refuses the syntax-error-free parser input `module {}` because its projection requires a module name
+FuzzEditor editor:empty:hover:Block<Block<LabeledStatement compiler D61/D77: hover returns no contents for a declared function called inside a retired select arm even though the document parses (corpus hover-retired-select)
+FuzzEditor corpus:hover-retired-select compiler D61/D77: hover returns no contents for a declared function called inside a retired select arm even though the document parses
+FuzzFix fix:unapplied:EK2112 compiler Chapter 28 (D216): EK2112 marks a retired spelling "with a quick fix", but `catch (e: Error)` draws it with no quick fix and no explanation, and --fix leaves it (case decl-catch-untagged.fail, corpus typed-catch-error-class)
+FuzzFix corpus:typed-catch-error-class compiler Chapter 28 (D216): the minimal reproduction of fix:unapplied:EK2112

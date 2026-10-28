@@ -1,0 +1,56 @@
+# Pending lines of the spec-program targets (programs_fuzz_test.go).
+#
+# Forms of SKILL.md's table that the generator does not write, and why
+# (TestGeneratorMatchesSpecForms reads these):
+FuzzSpecPrograms  feature:schema-error     programs  not generated: a schema error's observable behavior is a Data.TaggedError's, which "throw" covers; its encoding is Schema's
+FuzzSpecPrograms  feature:service-shape    programs  not generated: service Name: Type changes only the declared shape; "service" covers the calls
+FuzzSpecPrograms  feature:schema           programs  not generated: schema declarations are types and Schema values, with no control flow to observe
+FuzzSpecPrograms  feature:mutable-members  programs  not generated: readonly and mutable members are types only
+FuzzSpecPrograms  feature:spans            programs  not generated: withSpan's spans are not observable in an Outcome or trace without a tracer
+FuzzSpecPrograms  feature:callback-hatch   programs  not generated: callback needs a host callback source, whose timing is nondeterministic
+FuzzSpecPrograms  feature:platform-entry   programs  not generated: the platform entry runs main when Node starts a file, not when a worker imports it
+FuzzSpecPrograms  feature:module-block     programs  not generated: a module block is TypeScript, outside VibeLang's semantics
+#
+# Compiler gaps the generator found. A pending feature stays out of
+# campaigns. Each gap is pending under its oracle's key, which names what
+# disagreed and the feature it needs (<oracle>:<what>/<feature>, see specGaps
+# in programs_fuzz_test.go), so a new disagreement of an input that holds the
+# feature still fails. The corpus line only marks the reproduction, which
+# holds every feature and fails as XPASS once every oracle holds.
+FuzzSpecPrograms  feature:do-match-value               compiler  D187, Appendix grammar: a match expression as a do block's last statement, `do { const a = 1; match (a) { when 1: 2; default: 3; } }`, fails to parse (TS1109, then TS2322 void), though the same statement parses in a function body
+FuzzSpecPrograms  compile:TS1109/do-match-value        compiler  D187, Appendix grammar: a match expression as a do block's last statement fails to parse ("Expression expected")
+FuzzSpecPrograms  compile:TS2322/do-match-value        compiler  D187: after the failed parse the do block's value is void, so a number binding of it draws TS2322
+FuzzSpecPrograms  corpus:do-match-value                compiler  D187, Appendix grammar: a match expression as a do block's last statement fails to parse (TS1109)
+FuzzSpecPrograms  feature:unreachable-code             compiler  D346, D214: an exhaustive match in code after a return draws EK4701 ("E1 is left") and TS2339 on its bindings, because the lowering relies on TypeScript's narrowing, which unreachable code lacks; the spec covers by the subject's declared type
+FuzzSpecPrograms  compile:EK4701/unreachable-code      compiler  D346, D214: an exhaustive match after a statement that always returns draws EK4701, since TypeScript narrows unreachable code to never
+FuzzSpecPrograms  corpus:unreachable-match             compiler  D346, D214: an exhaustive match after a statement that always returns draws EK4701
+FuzzSpecPrograms  feature:narrowed-subject             compiler  D346, D307: `const d: D0 = D0.V0(); match (d) { when D0.V0: 1; when D0.V1 { let x }: x; }` is TS2339 ("Property 'x' does not exist on type 'never'"): the lowering reads a binding off a subject TypeScript has narrowed, by its initializer or (campaign) by an enclosing match's arms over the same subject, where the spec accepts every variant's arm
+FuzzSpecPrograms  compile:TS2339/narrowed-subject      compiler  D346, D307: a variant arm's binding over a subject TypeScript has narrowed is TS2339 on never
+FuzzSpecPrograms  corpus:narrowed-subject              compiler  D346, D307: a variant arm's binding over a subject narrowed by its initializer is TS2339
+FuzzSpecVariants  feature:pipe-self-call               compiler  Ch 5, Ch 13 rule E6, Ch 14 Recursion (D57, D272): `x |> rec0(%)` inside rec0, annotated `number!E` with R left to the fixpoint, is EK2102 ("its contract must write every channel"), while the call `rec0(x)` it means compiles
+FuzzSpecVariants  compile:EK2102/pipe-self-call        compiler  Ch 5, Ch 13 rule E6, Ch 14 (D57): a pipe into the function's own call, `((p0 - 1) |> rec0(%))`, is EK2102 where the call it means is not
+FuzzSpecVariants  corpus:pipe-self-call                compiler  Ch 5, Ch 13 rule E6, Ch 14 (D57): the pipe variant of rec0, `((p0 - 1) |> rec0(%))`, is EK2102
+FuzzSpecVariants  feature:annot-try-do                 compiler  Ch 2 Writing the contract yourself, Ch 14 (D71): writing the inferred contract `number!!` on `function d(p0: number) { try { if (p0 > 0) throw new E1(); return do { const v: number = bump(p0); 0 } } catch (e) { return e._tag.length } }` makes it TS7022 (e is circular) and TS7024, though the function compiles without the annotation
+FuzzSpecVariants  compile:TS7022/annot-try-do          compiler  Ch 2, Ch 14 (D71): with the inferred contract written, a catch binding of a try block that returns a do block is circular (TS7022)
+FuzzSpecVariants  compile:TS7024/annot-try-do          compiler  Ch 2, Ch 14 (D71): with the inferred contract written, a function whose try block returns a do block has an implicit any return type (TS7024)
+FuzzSpecVariants  corpus:annot-try-do                  compiler  Ch 2, Ch 14 (D71): the annot-bang variant writes the inferred number!! on a function whose try block returns a do block, and draws TS7022 and TS7024
+
+# Additional code spans in the Forms table, including constructors and generics.
+FuzzSpecPrograms feature:custom-error-constructor programs not generated: Ch 3, D278: the error model represents fields and inheritance, but no custom constructor body or argument transform
+FuzzSpecPrograms feature:generic-data programs not generated: Ch 11, D307: data declarations in the numeric model have no type parameters
+FuzzSpecPrograms feature:timeout-retry programs not generated: Ch 5: retry is generated, but a deadline around it needs a deterministic test clock that the worker does not provide
+FuzzSpecPrograms feature:fail-cause programs not generated: Ch 17, D406: the model observes Exit but does not bind and re-raise Cause values
+FuzzSpecPrograms feature:throw-cause-invalid programs not generated: Ch 17, D406: throw cause is invalid (EK2140); this generator writes valid programs only
+FuzzSpecPrograms feature:test-block-param programs not generated: Ch 5: it.effect requires a test runner; the worker directly calls exported programs
+FuzzSpecPrograms feature:is-exit programs not generated: Ch 3, D211: is currently narrows error classes; Exit destructuring is generated only by match
+FuzzSpecPrograms feature:is-data programs not generated: Ch 11, D307: data variants are generated as match patterns, not is conditions
+FuzzSpecPrograms feature:join-array programs not generated: Ch 7, D225: the model joins one fiber at a time and has no array-valued join node
+FuzzSpecPrograms feature:fork-detach programs not generated: Ch 7: detached fibers need an explicit shutdown strategy beyond block-owned lifetimes
+FuzzSpecPrograms feature:fork-in programs not generated: Ch 7: the model has no explicit Scope value to transfer ownership to
+FuzzSpecPrograms feature:fork-scoped programs not generated: Ch 7, D408: the model uses block-owned fork, not an explicit caller Scope requirement
+FuzzSpecPrograms feature:await-all-record programs not generated: Ch 7: await elements and bindings are numeric arrays; record shapes are not modeled
+FuzzSpecPrograms feature:interruptible programs not generated: Ch 17, D180: restore regions are generated inside masks, but standalone interruptible regions are not
+FuzzSpecPrograms feature:hatch-promise programs not generated: Ch 10: the synchronous numeric hatch model has no host Promise source
+FuzzSpecPrograms feature:hatch-try-promise programs not generated: Ch 10: the try hatch models synchronous JSON parsing, not a cancellable Promise API
+
+FuzzSpecPrograms  feature:service-identity programs  not generated: Chapter 4 (D361): typing an implementation, a default or a TypeScript class's implements clause as Users.Shape is a type-level rule with no runtime behavior; the generator's layers are typed by inference

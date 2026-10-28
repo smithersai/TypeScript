@@ -1,0 +1,25 @@
+# Pending gaps
+
+Each `.txt` file here lists gaps between the specification and the compiler
+that one area of fuzz targets found, one per line:
+
+```text
+<target> <key> <owner> <what is missing, with the decision it breaks>
+```
+
+`key` names what disagrees: the oracle's own key (such as `feature:<oracle>`,
+`ek:<EK code>` or `crash:<function>`), or `corpus:<file>` for a minimal
+reproduction in `testdata/fuzz/<target>/`. `owner` is `compiler` or
+`projector` for a gap in the product, or the area whose test does not reach
+that part of the specification yet. See `pending.go`.
+
+- An oracle's key skips the disagreement it names. A corpus line never skips
+  anything by itself: it marks its reproduction, and the reproduction fails as
+  XPASS once it meets every oracle. Delete both lines in the change that fixes
+  the gap.
+- A line owned by `compiler` names the chapter or decision it breaks, or the
+  key whose line does. A crash or a hang needs no citation.
+- A hang's reproduction (a reason that starts with `hang`) is skipped by its
+  target. `TestPendingHangs` runs it in a child process with a deadline and
+  fails as XPASS when it finishes.
+- `TestPendingLines` checks all of this.
