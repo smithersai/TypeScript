@@ -1,6 +1,8 @@
 package vibelang
 
 import (
+	"strings"
+
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/astnav"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
@@ -43,7 +45,7 @@ func explainCallPipe(c *checker.Checker, file *ast.SourceFile, all []*ast.Diagno
 			for at := node; at != nil && !isFunctionBoundary(at); at = at.Parent {
 				if first := preludePipeRunningCall(c, at); first != nil {
 					replacement := newDiagnosticAt(optionsFor(c, file), file, d.Loc(), EK4502.With("{0} already ran and returned its success value before pipe received it."), nodeText(file, first))
-					note(replacement, "Pass () => {0} directly to the intended operation, or use |> with %.", nodeText(file, first))
+					note(replacement, "Pass the program to the operation as a function: {0}", pipeStagesFix(file, first, at.Arguments()[1:]))
 					all[i] = replacement
 					break
 				}
@@ -53,12 +55,42 @@ func explainCallPipe(c *checker.Checker, file *ast.SourceFile, all []*ast.Diagno
 		if node != nil && node.Parent != nil {
 			if call := missingCallPipe(c, node.Parent); call != nil {
 				replacement := newDiagnosticAt(optionsFor(c, file), file, d.Loc(), EK4502, nodeText(file, call))
-				note(replacement, "Use |> with % to pass {0} to the intended operation, or pass the call by name to that operation.", nodeText(file, call))
+				var stages []*ast.Node
+				if pipe := node.Parent.Parent; pipe != nil && ast.IsCallExpression(pipe) && pipe.Expression() == node.Parent {
+					stages = pipe.Arguments()
+				}
+				note(replacement, "Pass the program to the operation as a function: {0}", pipeStagesFix(file, call, stages))
 				all[i] = replacement
 			}
 		}
 	}
 	return all
+}
+
+// pipeStagesFix writes the call that passes call's program through stages,
+// data-last calls such as Effect.retry(policy), as functions:
+// Effect.retry(() => f(1), policy). It names the shape instead when a stage
+// is not a call or the result is long.
+func pipeStagesFix(file *ast.SourceFile, call *ast.Node, stages []*ast.Node) string {
+	text := nodeText(file, call)
+	shape := "retry(() => " + shortText(text, "call()") + ", policy)"
+	if len(stages) == 0 {
+		return shape
+	}
+	for _, stage := range stages {
+		if !ast.IsCallExpression(stage) {
+			return shape
+		}
+		arguments := []string{"() => " + text}
+		for _, argument := range stage.Arguments() {
+			arguments = append(arguments, nodeText(file, argument))
+		}
+		text = nodeText(file, stage.Expression()) + "(" + strings.Join(arguments, ", ") + ")"
+	}
+	if len(text) > 100 || strings.ContainsAny(text, "\r\n") {
+		return shape
+	}
+	return text
 }
 
 // fileChecks may already explain an error with an EK diagnostic and cover
