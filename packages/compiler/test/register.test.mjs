@@ -135,6 +135,24 @@ test("reports the compiler's diagnostics when the project does not compile", { s
   assert.match(result.stderr, /bad\.vibe:1:\d+ - error TS2322/)
 })
 
+test("VIBELANG_REGISTER_DEBUG times each compile's stages and, at exit, what the hook took", { skip }, (t) => {
+  const { run } = project(t, {
+    "src/shout.vibe": "export function shout(text: string): string { return text.toUpperCase() }\n",
+    // Emitted as ./shout.js, which the hook resolves to shout.vibe.
+    "src/greet.vibe": "import { shout } from \"./shout.vibe\"\n\nexport function greet(name: string): string { return shout(name) }\n",
+    "src/main.ts": "import { greet } from \"./greet.vibe\"\nconsole.log(greet(\"ada\"))\n"
+  })
+  const result = run("src/main.ts", { VIBELANG_REGISTER_DEBUG: "1" })
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout, "ADA\n")
+  const lines = result.stderr.trim().split("\n")
+  assert.equal(lines.length, 2, result.stderr)
+  assert.match(lines[0], /^vibelang\/register: compiled .*\/tsconfig\.json in \d+ms \(no entry\): lookup \d+ms, snapshot \d+ms, compiler \d+ms, collect \d+ms, store \d+ms; 2 modules, \d+ files read$/)
+  assert.match(lines[1], /^vibelang\/register: 1 project compiled or read from the cache in \d+ms, 2 modules loaded in \d+ms, 1 import resolved to its source in \d+ms$/)
+  const warm = run("src/main.ts", { VIBELANG_REGISTER_DEBUG: "1" })
+  assert.match(warm.stderr, /^vibelang\/register: .*\/tsconfig\.json from the cache in \d+ms$/m)
+})
+
 test("names VIBELANG_PROJECT when the nearest tsconfig does not include a module, and honors it", { skip }, (t) => {
   const { root, run } = project(t, {
     "tsconfig.tools.json": tsconfig(["src/**/*", "tools/**/*"]),

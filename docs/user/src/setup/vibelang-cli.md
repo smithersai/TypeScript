@@ -147,8 +147,9 @@ The first `.vibe` import compiles the project in the nearest `tsconfig.json`.
 The result is cached on disk, so the next process starts in milliseconds until
 a source, a tsconfig, an installed package, or the compiler changes. Set
 `VIBELANG_CACHE_DIR` to move the cache and `VIBELANG_DISABLE_CACHE=1` to turn it
-off. A type error stops the import with the compiler's diagnostics, and a
-stack trace names `.vibe` lines.
+off, and `VIBELANG_REGISTER_DEBUG=1` to print how long each project's compile
+took, stage by stage. A type error stops the import with the compiler's
+diagnostics, and a stack trace names `.vibe` lines.
 
 ## Run sources with Bun
 

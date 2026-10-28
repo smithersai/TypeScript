@@ -14,11 +14,13 @@
 // .vibe module is a module of its own, main.vibe.text.js beside main.vibe for
 // module text (D403); its URL names that file, which is not on disk, and its
 // JavaScript comes from the same compile.
-// VIBELANG_REGISTER_DEBUG=1 reports each project's compile or cache hit.
+// VIBELANG_REGISTER_DEBUG=1 reports each project's compile, with the time of
+// each stage, or its cache hit, and at exit the time the hook took in all.
 import { existsSync, realpathSync, statSync } from "node:fs"
 import * as Module from "node:module"
 import { registerHooks } from "node:module"
 import { dirname, resolve } from "node:path"
+import { performance } from "node:perf_hooks"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { compileProjectSync, formatDiagnostic, moduleDeclarationSource, nearestProject, workspaceProject } from "./project.mjs"
 
@@ -35,6 +37,21 @@ const results = new Map()
 const debug = process.env.VIBELANG_REGISTER_DEBUG
   ? (text) => process.stderr.write(`vibelang/register: ${text}\n`)
   : undefined
+
+// What the hook cost this process, for the debug report at exit: the projects
+// it compiled or read from the cache, the modules it loaded, and the
+// relative imports it resolved to sources.
+const spent = { projects: 0, compile: 0, modules: 0, load: 0, imports: 0, resolve: 0 }
+const since = (started) => performance.now() - started
+if (debug) {
+  process.on("exit", () => {
+    const ms = (value) => `${Math.round(value)}ms`
+    const count = (n, one, many) => `${n} ${n === 1 ? one : many}`
+    debug(`${count(spent.projects, "project", "projects")} compiled or read from the cache in ${ms(spent.compile)}, ` +
+      `${count(spent.modules, "module", "modules")} loaded in ${ms(spent.load)}, ` +
+      `${count(spent.imports, "import resolved to its source", "imports resolved to their sources")} in ${ms(spent.resolve)}`)
+  })
+}
 
 function projectOf(file) {
   if (process.env.VIBELANG_PROJECT) {
@@ -68,8 +85,11 @@ function emitted(file) {
   }
   if (compiled === undefined) {
     const started = Date.now()
+    const clock = performance.now()
     compiled = { started, result: compileProjectSync({ project, debug }), missing: new Set() }
     results.set(project, compiled)
+    spent.projects++
+    spent.compile += since(clock)
   }
   const { result } = compiled
   if (result.errors.length) {
@@ -104,6 +124,7 @@ const compiled = (url) => url.startsWith("file:") && (clean(url).endsWith(".vibe
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    const started = performance.now()
     try {
       return nextResolve(specifier, context)
     } catch (error) {
@@ -113,12 +134,17 @@ registerHooks({
         parent === undefined || !compiled(parent)
       ) throw error
       const target = new URL(specifier, parent)
-      if (moduleOutput(target.href) !== undefined) return { url: target.href, format: "module", shortCircuit: true }
+      const resolved = (result) => {
+        spent.imports++
+        spent.resolve += since(started)
+        return result
+      }
+      if (moduleOutput(target.href) !== undefined) return resolved({ url: target.href, format: "module", shortCircuit: true })
       const path = fileURLToPath(clean(target.href))
       const extension = Object.keys(sources).find((name) => path.endsWith(name))
       for (const replacement of extension === undefined ? [] : sources[extension]) {
         const candidate = path.slice(0, -extension.length) + replacement
-        if (existsSync(candidate)) return nextResolve(pathToFileURL(candidate).href + target.search + target.hash, context)
+        if (existsSync(candidate)) return resolved(nextResolve(pathToFileURL(candidate).href + target.search + target.hash, context))
       }
       throw error
     }
@@ -126,8 +152,12 @@ registerHooks({
   load(url, context, nextLoad) {
     const path = moduleOutput(url) ?? (url.startsWith("file:") && clean(url).endsWith(".vibe") ? fileURLToPath(clean(url)) : undefined)
     if (path === undefined) return nextLoad(url, context)
+    const started = performance.now()
+    const compile = spent.compile
     const { code, map } = emitted(path)
     const inline = Buffer.from(JSON.stringify(map)).toString("base64")
+    spent.modules++
+    spent.load += since(started) - (spent.compile - compile)
     return {
       format: "module",
       // Split, so tools that read this file for its own source map skip the template.

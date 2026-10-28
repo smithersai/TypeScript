@@ -78,7 +78,9 @@ on disk; the hook serves it from the same compile. Diagnostics that stop the
 compile are thrown at the import. The hook turns on Node's source-map support,
 so a stack trace names `.vibe` lines. It needs Node 26 or later, for
 `module.registerHooks`. `VIBELANG_REGISTER_DEBUG=1` prints each project's
-compile time, or that it came from the cache.
+compile time with the time of each stage (the cache lookup, the snapshot of its
+inputs, the compiler, reading its output, and the cache write), or that it came
+from the cache, and at exit the time the hook took in all.
 
 A long-running process compiles a project again when it imports a `.vibe`
 module that changed after the project compiled, or that did not exist yet, so

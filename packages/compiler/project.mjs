@@ -247,22 +247,43 @@ function collect({ status, signal, output }, root, out) {
 
 const elapsed = (started) => `${Math.round(performance.now() - started)}ms`
 
-// Serves a compile from the cache, or runs it and caches its result.
+// Times a compile's stages, in order, for the debug report.
+function stopwatch() {
+  const stages = []
+  return {
+    time(name, work) {
+      const started = performance.now()
+      const done = () => stages.push(`${name} ${elapsed(started)}`)
+      const value = work()
+      if (value instanceof Promise) return value.finally(done)
+      done()
+      return value
+    },
+    toString: () => stages.join(", ")
+  }
+}
+
+// Serves a compile from the cache, or runs it and caches its result. The
+// debug report names the time of each stage: the cache lookup, the snapshot of
+// the inputs, the compiler process, reading its outputs, and the cache write.
 function cached({ project, root, compiler, cache, debug }, run) {
   const started = performance.now()
+  const stages = stopwatch()
   const store = projectCache({ project, root, compiler, cache, debug })
-  const hit = store?.lookup()
+  const hit = stages.time("lookup", () => store?.lookup())
   if (hit?.result) {
     debug(`${project} from the cache in ${elapsed(started)}`)
     return hit.result
   }
-  const snapshot = store?.begin()
+  const snapshot = stages.time("snapshot", () => store?.begin())
   const finish = ({ result, files }) => {
-    store?.store(snapshot, result, files)
-    debug(`compiled ${project} in ${elapsed(started)} (${hit?.miss ?? "cache off"})`)
+    stages.time("store", () => store?.store(snapshot, result, files))
+    const modules = new Set(result.outputs.values()).size
+    debug(`compiled ${project} in ${elapsed(started)} (${hit?.miss ?? "cache off"}): ${stages}; ` +
+      `${modules} ${modules === 1 ? "module" : "modules"}, ${files.length} files read`)
     return result
   }
-  const compiled = run()
+  const compiled = run(stages)
   return compiled instanceof Promise ? compiled.then(finish) : finish(compiled)
 }
 
@@ -286,11 +307,12 @@ export function projectBackend({ root, compiler, cache, debug = () => {} }) {
   }
 
   async function compile(project) {
-    return cached({ project, root, compiler, cache, debug }, async () => {
+    return cached({ project, root, compiler, cache, debug }, async (stages) => {
       // Outside the project: webpack and esbuild rebuild when a directory they resolved through changes.
       const out = mkdtempSync(join(tmpdir(), "vibelang-project-"))
       try {
-        return collect(await run(emitArgs(project, root, out)), root, out)
+        const output = await stages.time("compiler", () => run(emitArgs(project, root, out)))
+        return stages.time("collect", () => collect(output, root, out))
       } finally {
         // Outputs are in memory now. The next compile starts from an empty directory.
         rmSync(out, { recursive: true, force: true })
@@ -306,13 +328,13 @@ export function projectBackend({ root, compiler, cache, debug = () => {} }) {
  * such as Node's synchronous module hooks.
  */
 export function compileProjectSync({ project, root = dirname(project), compiler = findCompiler(root), cache, debug = () => {} }) {
-  return cached({ project, root, compiler, cache, debug }, () => {
+  return cached({ project, root, compiler, cache, debug }, (stages) => {
     const out = mkdtempSync(join(tmpdir(), "vibelang-project-"))
     try {
       const [file, argv] = command(compiler, emitArgs(project, root, out))
-      const run = spawnSync(file, argv, { cwd: root, encoding: "utf8", maxBuffer: 1 << 30 })
+      const run = stages.time("compiler", () => spawnSync(file, argv, { cwd: root, encoding: "utf8", maxBuffer: 1 << 30 }))
       if (run.error) throw new Error(`vibelang: ${run.error.message}\nCompiler: ${compiler}`)
-      return collect({ status: run.status, signal: run.signal, output: run.stdout + run.stderr }, root, out)
+      return stages.time("collect", () => collect({ status: run.status, signal: run.signal, output: run.stdout + run.stderr }, root, out))
     } finally {
       rmSync(out, { recursive: true, force: true })
     }
