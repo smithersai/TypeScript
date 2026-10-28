@@ -10,6 +10,7 @@ A call runs where it stands; only a function literal defers it. Write `retry(() 
 ## Use the forms
 
 - Use VibeLang's form wherever the Effect code has one: `error`, `service`, `schema`, `data`, `match` and `is`, direct calls instead of `Effect.gen` and `yield*`, contracts `A!E!R` instead of `Effect.Effect<A, E, R>`, `throw` and `catch` instead of `Effect.fail` and the catch combinators, `try`/`finally` instead of `ensuring`, `|>` for a pipeline of values, `await.all`, `await.race`, `await.any` and `await.allSettled` for concurrency, `for concurrent(n)` instead of `forEach` with a concurrency option, `fork` and `join` for fibers, `using` for resources, `provide` blocks, and a function literal for a program argument, `withSpan(() => { ... }, "name")`.
+- `vibelang --fix` already wrote, wherever the meaning stays the same, `Effect.gen` bodies in direct style (EK1002), `Match` chains as `match` (EK4839), and `Option` pipelines as methods (EK4840). Where it left one, the diagnostic's `No quick fix:` note says what would change; rewrite it by hand so that it does not: an `Effect.gen(…).pipe(…)` becomes a direct-style body inside each stage's form (`provide L { … }`, `withSpan(() => { … }, "name")`, `x catch (e) => …`); `Effect.fn("name")(function* …)` becomes a function whose body is `withSpan(() => { … }, "name")`; a parameter with a pattern is destructured in the body only when every caller runs the program at once.
 - Write no Effect TypeScript in a `.vibe` file: no `Effect.gen`, `function*` with `yield*`, `pipe(...)` chains of `Effect.map` and `Effect.flatMap`, `Effect.succeed` or `Effect.fail` where the value runs, `Data.TaggedError` or `Context.Service` classes, or `Effect.Effect<...>` types. A warning EK48xx marks each one that `vibelang --fix` did not rewrite.
 - Wrap Effect mindfully. Call an Effect module where VibeLang has no form for the job (`Schema.decodeUnknown`, `Stream.*`, `Schedule.*`, `Layer.*`, `Option.*`, `Array.*`), and never where one exists. Prefer methods on Effect data types: `option.map(f).getOrElse(() => 0)`, `stream.filter(p).take(3)`.
 - Effect's modules are in scope without an import. Remove imports of them, except for a module whose name a JavaScript global takes (`Array`, `String`, `Request`, `Headers`) or that two subpaths share (`Model`, `Prompt`): import that one under another name, `import { Array as Arr } from "effect"`.
@@ -35,7 +36,7 @@ A call runs where it stands; only a function literal defers it. Write `retry(() 
 
 ## Record what the migration teaches
 
-- A rewrite you make by hand that a mechanical rule could make is a codemod gap: record it with its pattern, before and after, so `vibelang --fix` can learn it.
+- A rewrite you make by hand that a mechanical rule could make is a codemod gap: record it with its pattern, before and after, so `vibelang --fix` can learn it. The flow's README lists the known gaps; do not record those again.
 - A VibeLang bug or missing feature is an issue: record it with the smallest source that shows it. Never work around it with a cast, `any`, a hatch or a `module` block; leave the file `.ts`.
 - A lesson about idiomatic VibeLang that this context did not teach is an idiom entry; it becomes a line of this file.
 

@@ -104,6 +104,31 @@ A run's `issues.jsonl` is the input to the loop that improves the flow. The repa
 
 `report.md` lists all three, with the rewrites `--fix` applied and refused, so a run's report says which rule to write next.
 
+### What `--fix` rewrites
+
+| Effect TypeScript | `--fix` writes | Code |
+| --- | --- | --- |
+| `Effect.gen(function* () { … })`, or with `{ self: this }`, as the whole body of an arrow, a function or a method, or where the declared type takes a program, such as `Layer.effect`'s | The body in direct style: `yield* e` becomes the call `e`, `e()` for an Effect value such as a service key, or `throw e` for an error instance; `() => { … }` where a program is expected | EK1002 (D470) |
+| `Match.value(x).pipe(Match.when(…), …, Match.exhaustive)`, `pipe(Match.value(x), …)`, `Match.type<T>().pipe(…)` | `match (x) { when …: …; default: …; }` | EK4839 (D472) |
+| `pipe(x, Option.map(f), Option.getOrElse(g))`, `x.pipe(Option.…)` | `x.map(f).getOrElse(g)`, or `Option.fromNullishOr(x).map(f)` for a value that is not an Option | EK4840 (D473) |
+| Effect error classes, `Context.Service` classes, `Schema.Struct` constants, `Effect.Effect<A, E, R>`, a running `Effect.succeed` or `Effect.fail`, catch combinators, `Effect.withSpan`, `provide` and `provideService` | `error`, `service`, `schema`, `A!E!R`, the value or `throw`, `catch` and `match`, the block forms | EK4830-EK4836 |
+
+Each rewrite keeps the program's meaning and type, or it is not made: the diagnostic it leaves says why in a note that starts `No quick fix:`.
+
+### Known codemod gaps
+
+These patterns have no `--fix` rule yet. The counts are from the four first targets (foldkit, t3code, alchemy and opencode: 44,235 `Effect.gen` sites). A repair records a `codemod-gap` only for a pattern not listed here.
+
+| Pattern | Count | Why there is no rule |
+| --- | --- | --- |
+| `Effect.gen(…).pipe(stage, …)` | 11,397 `Effect.gen` sites (26%) | Each stage has its own form, `provide L { … }`, `withSpan(() => { … }, "name")`, `x catch (e) => …`, `retry(() => …, policy)`; a generic rewrite would nest `() =>` per stage |
+| `Effect.fn("name")(function* (…) { … })` and `Effect.fnUntraced(…)` | 120 of 338 EK1002 sites in the sampled files | `Effect.fn` records a span and the call site's stack frame, which `withSpan(() => { … }, "name")` does not |
+| `const p = Effect.gen(…)`, `return Effect.gen(…)` after other statements, `yield* Effect.gen(…)` | 2,135 `Effect.gen` sites (5%) | A program value: what replaces it depends on every use |
+| A parameter with a default or a pattern, `({ id }) => Effect.gen(…)` | 1,361 (3%) | TypeScript binds it when the function is called, VibeLang when its program runs |
+| A call that builds a program no `yield*` runs, as `yield* load(id).pipe(Effect.retry(policy))` or `Effect.all([a(), b()])` | most of the rest | The call would run where it stands; the call-rule migration (EK1018, EK1023) writes `() =>` |
+| `Match.when` with a predicate or an array pattern, `Match.discriminator`, a handler that builds a program | | No pattern tests the same, or the arm's call would run |
+| An Option stage whose argument is a call, `Option.getOrElse(makeDefault())` | | The chain would evaluate it after the stage before it runs |
+
 ## Tests
 
 ```sh
