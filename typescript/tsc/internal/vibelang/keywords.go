@@ -463,7 +463,7 @@ func (a *analyzer) checkAwaitOperandElements(file *ast.SourceFile, call *ast.Nod
 			// TypeScript accepts these against the operation's declaration,
 			// so EK4603 is the only error. Other types are TypeScript's.
 			d := reportAt(c, file, span, operandDataMessage, c.TypeToString(element), what)
-			note(d, "An element of an operand that is not a literal runs by its type: an Effect runs, and a function with no required parameters becomes a program (D394). Give the elements a program type, or write an array literal, whose elements are programs by syntax.")
+			note(d, "An element of an operand that is not a literal runs by its type: an Effect runs, and a function with no required parameters becomes a program. Give the elements a program type, or write an array literal, whose elements are programs by syntax.")
 		}
 		return
 	}

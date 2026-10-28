@@ -33,7 +33,7 @@ var effectFunctionCallback = EK4301.With("{0} is an Effect function, but {1} cal
 // callsEffectFunction is EK4301's text for a callback that calls an Effect
 // function whose body runs no Effect, which is an Effect function only for
 // want of a return annotation (D500).
-var callsEffectFunction = EK4301.With("this callback calls the Effect function {0}, but {1} calls it synchronously.")
+var callsEffectFunction = EK4301.With("This callback calls the Effect function {0}, but {1} calls it synchronously.")
 
 // noteReturnTypeFix notes on d the return type returnTypeFix writes for
 // helper, when it writes one.
@@ -107,7 +107,7 @@ func (a *analyzer) hasMixedFormCallee(call *ast.Node) bool {
 // effectAnnotatedCallback is EK4301's text for a literal whose Effect
 // annotation makes it an Effect function where only a plain function fits
 // (D500).
-var effectAnnotatedCallback = EK4301.With("this callback is an Effect function, annotated {0}, but {1} calls it synchronously.")
+var effectAnnotatedCallback = EK4301.With("This callback is an Effect function, annotated {0}, but {1} calls it synchronously.")
 
 // pausingMethod is EK4301's text for a method that implements a plain
 // function member, such as Equal.Equal's [Equal.symbol] (D55). {0} is the
@@ -150,7 +150,11 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 						if first != nil && a.runsVariant(first) {
 							message = callsEffectFunction
 						}
-						d := report(c, node, message, pause, calleeName(c, file, call))
+						what := pause
+						if message == callsEffectFunction {
+							what = nodeText(file, ast.GetInvokedExpression(first)) // the Effect function's name
+						}
+						d := report(c, node, message, what, calleeName(c, file, call))
 						if message == callsEffectFunction {
 							a.noteReturnTypeFix(d, a.unannotatedHelperAt(first))
 						}
