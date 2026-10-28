@@ -95,6 +95,9 @@ func (a *analyzer) contextualTypes(node *ast.Node) []*checker.Type {
 	if t == nil {
 		return nil
 	}
+	if parent := node.Parent; parent != nil && (ast.IsPropertyAssignment(parent) || ast.IsShorthandPropertyAssignment(parent) || ast.IsObjectLiteralExpression(parent)) {
+		t = a.declaredMemberType(t)
+	}
 	return withoutOwnType([]*checker.Type{t}, node)
 }
 
@@ -325,7 +328,7 @@ func (a *analyzer) propertyTypes(t *checker.Type, name string, depth int) []*che
 		return nil
 	}
 	if p := a.checker.GetTypeOfPropertyOfType(t, name); p != nil {
-		return []*checker.Type{p}
+		return []*checker.Type{a.declaredMemberType(p)}
 	}
 	if s := a.checker.GetIndexTypeOfType(t, a.checker.GetStringType()); s != nil {
 		return []*checker.Type{s}

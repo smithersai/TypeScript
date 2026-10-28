@@ -148,12 +148,12 @@ func (a *analyzer) plainMemberOwner(method *ast.Node) string {
 	switch parent := method.Parent; {
 	case ast.IsObjectLiteralExpression(parent):
 		if t := c.GetContextualTypeForObjectLiteralElement(method, checker.ContextFlagsSignature); t != nil {
-			expected = append(expected, t)
+			expected = append(expected, a.declaredMemberType(t))
 		}
 	case ast.IsClassLike(parent):
 		for _, heritage := range ast.GetImplementsHeritageClauseElements(parent) {
 			if member := c.GetPropertyOfType(c.GetTypeFromTypeNode(heritage), symbol.Name()); member != nil {
-				expected = append(expected, c.GetTypeOfSymbol(member))
+				expected = append(expected, a.declaredMemberType(c.GetTypeOfSymbol(member)))
 				owners = append(owners, heritage)
 			}
 		}

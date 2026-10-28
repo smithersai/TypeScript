@@ -9545,6 +9545,7 @@ func (c *Checker) isSignatureApplicable(node *ast.Node, args []*ast.Node, signat
 	} else {
 		argCount = len(args)
 	}
+	var checkedArguments []CheckedArgument
 	for i := range argCount {
 		arg := args[i]
 		if !ast.IsOmittedExpression(arg) {
@@ -9559,6 +9560,7 @@ func (c *Checker) isSignatureApplicable(node *ast.Node, args []*ast.Node, signat
 			} else {
 				checkArgType = argType
 			}
+			checkedArguments = append(checkedArguments, CheckedArgument{Node: arg, Type: checkArgType, Target: paramType})
 			effectiveCheckArgumentNode := c.getEffectiveCheckNode(arg)
 			if !c.checkTypeRelatedToAndOptionallyElaborate(checkArgType, paramType, relation, core.IfElse(reportErrors, effectiveCheckArgumentNode, nil), effectiveCheckArgumentNode, headMessage, diagnosticOutput) {
 				c.maybeAddMissingAwaitInfo(arg, checkArgType, paramType, relation, reportErrors, diagnosticOutput)
@@ -9586,7 +9588,7 @@ func (c *Checker) isSignatureApplicable(node *ast.Node, args []*ast.Node, signat
 			return false
 		}
 	}
-	return c.acceptCandidateByHooks(node, signature)
+	return c.acceptCandidateByHooks(node, signature, checkedArguments)
 }
 
 func (c *Checker) maybeAddMissingAwaitInfo(errorNode *ast.Node, source *Type, target *Type, relation *Relation, reportErrors bool, diagnosticOutput *[]*ast.Diagnostic) {

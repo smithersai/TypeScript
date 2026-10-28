@@ -1,0 +1,49 @@
+// expect-result: [0,0,0,6]
+class Counter {
+  n = 5
+  reset() { this.n = 0 }
+}
+interface Resettable { reset(): void }
+interface Box<T> { get(): T }
+class ValueBox<T> {
+  constructor(readonly value: T) {}
+  get(): T { return this.value }
+}
+function plain(): void {}
+class EffectCounter { reset() { sleep("1 millis") } }
+function select(value: Resettable): "plain"
+function select(value: { reset(): void!! }): "effect"
+function select(value: unknown): "plain" | "effect" { return "effect" }
+function cold() {}
+function logged(n: number) { sleep("1 millis"); return n + 1 }
+function resetAll(rs: ReadonlyArray<Resettable>) { for (const r of rs) r.reset() }
+function get(): Resettable { return new Counter() }
+export function main() {
+  const selected: "effect" = select(new EffectCounter())
+  const coldFunctions = [cold]
+  const spreadFunctions: ReadonlyArray<() => void> = [...coldFunctions]
+  const coldObject = { run: cold }
+  const spreadObject: { run(): void } = { ...coldObject }
+  for (const callback of spreadFunctions) callback()
+  spreadObject.run()
+  const c = new Counter()
+  const r: Resettable = c
+  r.reset()
+  resetAll([c])
+  const holder: { mutable r: Resettable } = { r: get() }
+  holder.r = c
+  const effect: (n: number) => number!! = logged
+  const inferred = logged
+  const held = [plain]
+  const callbacks: ReadonlyArray<() => void> = held
+  const object = { run: plain }
+  const acceptedObject: { run(): void } = object
+  for (const callback of callbacks) callback()
+  acceptedObject.run()
+  const fn: () => void = () => {}
+  const literal: { reset(): void } = { reset() { c.n = 0 } }
+  const box: Box<unknown> = new ValueBox(() => logged(1))
+  const accepted: { get(): unknown } = box
+  literal.reset(); fn()
+  return [c.n, c.n, c.n, effect(inferred(4))]
+}

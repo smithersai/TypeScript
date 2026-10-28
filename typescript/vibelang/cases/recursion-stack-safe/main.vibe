@@ -33,6 +33,6 @@ export function main() {
     odd: isOdd(100000),
     sum: sumTo(100000),
     deep: deep(),
-    mapped: [3, 100000].map(countdown)
+    mapped: [3, 100000].map((n) => countdown(n))
   }
 }

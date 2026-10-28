@@ -11,6 +11,6 @@ export function main() {
     namespace: Math.twice(4),
     renamed: renamed(5),
     forwarded: forwarded(6),
-    mapped: [1, 2].map(double)
+    mapped: [1, 2].map((n) => double(n))
   }
 }

@@ -19,7 +19,7 @@ func (a *analyzer) expectsEffect(fn *ast.Node) bool {
 	switch parent := fn.Parent; {
 	case ast.IsObjectLiteralExpression(parent):
 		if t := a.checker.GetContextualTypeForObjectLiteralElement(fn, checker.ContextFlagsSignature); t != nil {
-			expected = append(expected, t)
+			expected = append(expected, a.declaredMemberType(t))
 		}
 	case ast.IsClassLike(parent):
 		name := fn.Name()
@@ -28,7 +28,7 @@ func (a *analyzer) expectsEffect(fn *ast.Node) bool {
 		}
 		for _, heritage := range ast.GetImplementsHeritageClauseElements(parent) {
 			if member := a.checker.GetPropertyOfType(a.checker.GetTypeFromTypeNode(heritage), name.Text()); member != nil {
-				expected = append(expected, a.checker.GetTypeOfSymbol(member))
+				expected = append(expected, a.declaredMemberType(a.checker.GetTypeOfSymbol(member)))
 			}
 		}
 	}

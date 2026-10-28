@@ -128,6 +128,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 - A `var` declaration inside a `do` expression previously compiled with the wrong scope; it now reports `EK1019` and offers `let` instead. Jumps that leave a `do` expression now report `EK1019`.
 
+- Effect functions now report EK4301 when assigned, returned or stored in a typed element that expects a plain function, including members of objects and class instances.
 - A plain call that finds no plain form now fails with a defect naming the function, instead of returning an unrun program.
 - Calling a function selected between a plain helper and a trusted function now gives its value, including at a module's top level and when another function returns the selection.
 - An owned fiber could escape through an assignment, return, call or capture inside an await, fork or concurrent loop operand. The compiler now rejects those escapes while allowing direct reads there.

@@ -73,6 +73,8 @@ An Effect function's callers run it, so they become Effect functions too. A defe
 
 The same holds for a throw expression and for a `match` arm or `do` block that throws. A method's plain return annotation is checked the same way: it is the method's type in the declaration file, so a body that runs an Effect is EK2003 too; write the contract, or leave the method unannotated. A method that implements a plain-function member of a JavaScript protocol, such as `[Equal.symbol]`, is checked against that member instead (EK4301). A plain function calls TypeScript code directly. A call whose contract lists a failure, such as `JSON.parse`, is a typed failure only inside a `try` whose `catch` belongs to the function, which receives it with its type; elsewhere its exception propagates unchanged. Other TypeScript code's exceptions pass through the `catch` unchanged and become defects where they reach an effectful caller; to catch one, use the `try` hatch in an Effect function. Running an Effect inside a plain-annotated function is EK2003 too.
 
+An Effect function cannot stand for a plain function type, even one returning `void`: that is EK4301 at an initializer, assignment, return, property write or typed literal element. This also checks members of objects and class instances. Declare an Effect function type at the destination, or provide a plain function; otherwise a plain caller would receive a program whose work never runs.
+
 ## Trusting a TypeScript function
 
 ```ts

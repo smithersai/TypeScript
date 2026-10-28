@@ -1,7 +1,5 @@
-// A lambda with a contract, Effect<A, E, R>, where only a plain function fits
-// takes the plain form when D10 allows it (D9, D67). It returns A, so
-// Schema.suspend receives a schema, and SchemaTransformation.transform infers
-// its types from A instead of the Effect.
+// A plain return annotation keeps a callback plain. An Effect contract at
+// these destinations is rejected in effect-contract-plain-destinations.fail.
 import { Schema, SchemaTransformation } from "effect"
 
 interface Crate {
@@ -15,12 +13,12 @@ interface CrateWire {
 
 const Crate = Schema.Struct({
   count: Schema.FiniteFromString,
-  children: Schema.Array(Schema.suspend((): Effect<Schema.Codec<Crate, CrateWire>, never, never> => Crate))
+  children: Schema.Array(Schema.suspend((): Schema.Codec<Crate, CrateWire> => Crate))
 })
 
 const SemicolonNumbers = Schema.String.pipe(
   Schema.decodeTo(Schema.Array(Schema.String), SchemaTransformation.transform({
-    decode: (text): Effect<ReadonlyArray<string>, never, never> => text.split(";"),
+    decode: (text): ReadonlyArray<string> => text.split(";"),
     encode: (items) => items.join(";")
   })),
   Schema.decodeTo(Schema.Array(Schema.FiniteFromString))

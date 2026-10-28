@@ -41,10 +41,18 @@ func (c *Checker) enterCallCandidate(call *ast.Node, candidate *Signature) func(
 	}
 }
 
+// CheckedArgument carries the type already checked under the candidate's
+// context, so a filter need not recheck an expression during inference.
+type CheckedArgument struct {
+	Node   *ast.Node
+	Type   *Type
+	Target *Type
+}
+
 // CandidateFilterHook can reject candidate for call after every argument
 // type-checked against it. Overload resolution then treats candidate as if an
 // argument did not match and tries the next one. It returns true to accept.
-type CandidateFilterHook func(c *Checker, call *ast.Node, candidate *Signature) bool
+type CandidateFilterHook func(c *Checker, call *ast.Node, candidate *Signature, arguments []CheckedArgument) bool
 
 var candidateFilterHooks []CandidateFilterHook
 
@@ -55,9 +63,9 @@ func RegisterCandidateFilterHook(hook CandidateFilterHook) {
 	candidateFilterHooks = append(candidateFilterHooks, hook)
 }
 
-func (c *Checker) acceptCandidateByHooks(call *ast.Node, candidate *Signature) bool {
+func (c *Checker) acceptCandidateByHooks(call *ast.Node, candidate *Signature, arguments []CheckedArgument) bool {
 	for _, hook := range candidateFilterHooks {
-		if !hook(c, call, candidate) {
+		if !hook(c, call, candidate, arguments) {
 			return false
 		}
 	}
