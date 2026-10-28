@@ -59,6 +59,8 @@ Everything dprint's TypeScript plugin changes in a `.ts` file: indentation, line
 | `try { } handle A.b(x) { } catch (e) { } finally { }` | Each clause as `} catch (e) {`, after the block before it |
 | `module text { ... }`, `from text`, `import text` | The body exactly as the same statements in a `.ts` file, imports kept in their original order, indented inside the braces; the module's name stays a name after `from` and `import` |
 
+A statement-level `match` keeps its boundary after a statement without a semicolon, including with `semiColons: "asi"`.
+
 Comments and JSDoc stay in place. Formatting is idempotent: a formatted file doesn't change when formatted again.
 
 ## What the formatter refuses

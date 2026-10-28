@@ -249,7 +249,7 @@ func (d *decoder) node(node *ast.Node) error {
 		}
 		d.replace(bracket, end, d.reindent(holder, start))
 	case placeholderMatchHead:
-		return d.match(node, lost)
+		return d.match(node, holder.text != "", lost)
 	case placeholderMatchArm:
 		d.replace(start, end, d.reindent(holder, start))
 	case placeholderBlockHead, placeholderClauseHead:
@@ -397,7 +397,7 @@ func (d *decoder) previousStatement(statement *ast.Node) *ast.Node {
 
 // match decodes the object literal ({ $v: subject, arms }) that stands for a
 // match, whose subject property's name is head.
-func (d *decoder) match(head *ast.Node, lost func() error) error {
+func (d *decoder) match(head *ast.Node, statement bool, lost func() error) error {
 	property := head.Parent
 	if property.Kind != ast.KindPropertyAssignment || property.Name() != head || property.Parent.Kind != ast.KindObjectLiteralExpression {
 		return lost()
@@ -409,6 +409,12 @@ func (d *decoder) match(head *ast.Node, lost func() error) error {
 	}
 	outer := object
 	if outer.Parent.Kind == ast.KindParenthesizedExpression {
+		outer = outer.Parent
+	}
+	if statement {
+		if outer.Parent.Kind != ast.KindVoidExpression {
+			return lost()
+		}
 		outer = outer.Parent
 	}
 	outerStart := d.start(outer)

@@ -490,8 +490,26 @@ func (e *encoder) match(form parser.VibeSyntax) error {
 	if strings.Contains(e.source[form.Open.End():next], "\n") {
 		separator = "\n"
 	}
-	head := e.hold(placeholderMatchHead, "", form.Word.Pos(), 0)
-	e.replace(form.Word.Pos(), form.Left.Pos(), "({"+separator+head+": ")
+	// A statement match lowers to a labeled block. Give its projection a
+	// unary head so an ASI boundary before match cannot become a call of
+	// the preceding expression. Unlike a leading semicolon, void also works
+	// when the match is the unbraced body of an if or loop.
+	statement := false
+	var visit func(*ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		if node.Kind == ast.KindLabeledStatement && scanner.SkipTrivia(e.source, node.Pos()) == form.Word.Pos() {
+			statement = true
+			return true
+		}
+		return node.ForEachChild(visit)
+	}
+	e.file.AsNode().ForEachChild(visit)
+	prefix, marker := "", ""
+	if statement {
+		prefix, marker = "void ", "statement match"
+	}
+	head := e.hold(placeholderMatchHead, marker, form.Word.Pos(), 0)
+	e.replace(form.Word.Pos(), form.Left.Pos(), prefix+"({"+separator+head+": ")
 	if len(form.Arms) == 0 {
 		e.replace(form.Left.End(), form.Open.End(), "")
 	} else {
