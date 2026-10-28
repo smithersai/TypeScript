@@ -59,7 +59,7 @@ Declarations export like TypeScript declarations: `export data Shape { Circle { 
 | `Effect.sync`, `Effect.promise` | `sync(() => f())`, `sync(f())`, `sync(async () => load())` |
 | `Effect.try`, `Effect.tryPromise` | `try((t) => JSON.parse(t), (e) => new Bad({ e }), text)`, `try(async (id, signal) => sdk.get(id, { signal }), (e) => new Bad({ e }), id)`; the second argument is always the error mapper |
 | `Effect.callback` | `callback((resume) => { socket.once("open", resume); return () => socket.off("open", resume) })` |
-| `NodeRuntime.runMain(main.pipe(Effect.provide(NodeServices.layer)))` | `import "vibelang/platform/node"`, then `export function main() { ... }`: runs when Node starts the module, not on import, with the platform layer it needs |
+| `NodeRuntime.runMain(main.pipe(Effect.provide(NodeServices.layer)))` | `import "vibelang/platform/node"`, then `export function main() { ... }` (a function declaration; `export const main = () => …` never runs, `EK4843`): runs when Node starts the module, not on import, with the platform layer it needs |
 | none (VibeLang's own) | `control Approval { approve(r: string): boolean!! }`, then `try { ... } handle Approval.approve(r) { resume(true) }` |
 | none (a TypeScript escape) | `module text { export function clean(s: string): string { ... } }`, `import { clean } from text` |
 

@@ -455,6 +455,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D495 | An inferred plain form is part of a package's public type; `$plainOf` reaches it through a bound or wrapping function, and fails with a defect where there is none; a union of plain members is a plain call | A patch release that added a log line left dependents' `$plainOf` undefined; `bind` and `once` kept `Plain` with no `[$direct]` |  | 13, 15, 26, 27, 30 |
 | D496 | Statements that lagged D480 to D482 | Tables and registry rows called every plain-function call plain; a nested cold form was said to observe alike; EK4802's returned-function exemption was ambiguous |  | Intro, 10, 12, 13, 15, 27, 28, 29, 30, Appendices |
 | D497 | A computed string-literal protocol key is a protocol key; assigning an Effect-form function to a `Plain<F, C>` holder is EK4301, not TS2741; the nested-pattern combination bound is 64 combinations, 8 levels deep | `["toString"]` was unstated; TS2741 named `[$direct]`; "a fixed bound" was unstated |  | 10, 11, 13, 28, 30 |
+| D498 | An exported `const` or `let` named `main` that holds a function is `EK4843`, fixed into `export function main()` | Such a `main` ran nothing |  | 13, 28 |
 
 #### Rules of the runtime and compiler
 
