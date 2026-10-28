@@ -90,7 +90,7 @@ node .smithers/flows/migrate/build-context.mjs --check   # fail when it is stale
 
 ## Each run improves the next
 
-A run's `issues.jsonl` is the input to the loop that improves the flow. The repair agent appends one entry per lesson; setup appends one when setting VibeLang up breaks a target test before any file moves.
+A run's `issues.jsonl` is the input to the loop that improves the flow. The repair agent appends one entry per lesson; setup appends one when setting VibeLang up breaks a target test before any file moves, and still finishes, so no batch is blamed for it. A runner without per-test results, such as `bun test`, is compared by its exit status, and the issue names the logs from before and after.
 
 | Entry | Where it goes |
 | --- | --- |

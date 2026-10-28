@@ -1,6 +1,10 @@
 import assert from "node:assert/strict"
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { test } from "node:test"
-import { compareTests, parseVitestJson, tally, withJsonReporter } from "../lib/tests.mjs"
+import { validateIssue } from "../lib/issues.mjs"
+import { compareTests, parseVitestJson, regressionIssue, runTests, tally, withJsonReporter } from "../lib/tests.mjs"
 
 test("withJsonReporter adds Vitest's JSON reporter only to a Vitest command", () => {
   assert.equal(withJsonReporter("pnpm exec vitest run", "/run/v.json"), "pnpm exec vitest run --reporter=default --reporter=json --outputFile.json='/run/v.json'")
@@ -36,4 +40,41 @@ test("compareTests finds new failures and missing tests, and ignores failures th
 test("without per-test results, only the exit status can regress", () => {
   assert.equal(compareTests({ code: 0, tests: null }, { code: 1, tests: null }).ok, false)
   assert.equal(compareTests({ code: 1, tests: null }, { code: 1, tests: null }).ok, true)
+})
+
+// A real Bun suite, which reports no per-test results: setup used to throw
+// before comparing it, so a regression the setup caused went unrecorded.
+test("a Bun suite that a change breaks is a setup issue with both exits and logs", async () => {
+  const root = mkdtempSync(join(tmpdir(), "migrate-bun-"))
+  try {
+    writeFileSync(join(root, "package.json"), '{ "name": "fixture", "type": "module" }\n')
+    writeFileSync(join(root, "value.ts"), "export const value = 1\n")
+    writeFileSync(join(root, "value.test.ts"), 'import { expect, test } from "bun:test"\nimport { value } from "./value.ts"\ntest("value", () => expect(value).toBe(1))\n')
+    const logs = { before: join(root, "logs/before.log"), after: join(root, "logs/after.log") }
+    const run = (name) => runTests({ command: "bun test", cwd: root, root, jsonFile: join(root, `${name}.json`), log: logs[name] })
+    const before = await run("before")
+    assert.deepEqual([before.code, before.tests], [0, null])
+    const unchanged = { change: "Setting up VibeLang", command: "bun test", cwd: ".", changed: ["value.ts"], before, after: before, comparison: compareTests(before, before), logs }
+    assert.equal(regressionIssue(unchanged), null)
+
+    writeFileSync(join(root, "value.ts"), "export const value = 2\n")
+    const after = await run("after")
+    assert.equal(after.code, 1)
+    const issue = regressionIssue({ ...unchanged, after, comparison: compareTests(before, after) })
+    assert.deepEqual(validateIssue(issue), [])
+    assert.deepEqual([issue.batch, issue.title], ["setup", "Setting up VibeLang makes the target's tests exit 1"])
+    assert.equal(issue.actual, "exit 0 before, exit 1 after; the runner reports no per-test results")
+    assert.equal(issue.repro, `bun test (in .), before and after value.ts; logs ${logs.before} and ${logs.after}`)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("with per-test results, the issue names each new failure and missing test", () => {
+  const before = { code: 0, tests: { "a > x": "passed", "a > y": "passed" } }
+  const after = { code: 1, tests: { "a > x": "failed" } }
+  const issue = regressionIssue({ change: "Upgrading Effect", command: "vitest run", cwd: "pkg", changed: [], before, after, comparison: compareTests(before, after), logs: { before: "b.log", after: "a.log" } })
+  assert.equal(issue.title, "Upgrading Effect fails 2 of the target's tests")
+  assert.equal(issue.actual, "fails: a > x; missing: a > y")
+  assert.equal(issue.repro, "vitest run (in pkg), before and after the change; logs b.log and a.log")
 })

@@ -76,3 +76,25 @@ export function compareTests(baseline, current) {
   const fixed = Object.keys(baseline.tests).filter((n) => baseline.tests[n] === "failed" && current.tests[n] === "passed").sort()
   return { ok: !newFailures.length && !missing.length, newFailures, missing, fixed }
 }
+
+/**
+ * The setup issue for a change that broke the target's tests before any file
+ * moved, or null when nothing regressed. A runner without per-test results,
+ * such as Bun's, is judged by its exit status, and the issue names both logs,
+ * which say which tests fail.
+ */
+export function regressionIssue({ change, command, cwd, changed, before, after, comparison, logs }) {
+  if (comparison.ok) return null
+  const perTest = Boolean(before.tests && after.tests)
+  const count = comparison.newFailures.length + comparison.missing.length
+  return {
+    kind: "issue",
+    batch: "setup",
+    title: perTest ? `${change} fails ${count} of the target's tests` : `${change} makes the target's tests exit ${after.code}`,
+    repro: `${command} (in ${cwd}), before and after ${changed.length ? changed.join(", ") : "the change"}; logs ${logs.before} and ${logs.after}`,
+    expected: "the target's tests pass as they did before the change",
+    actual: perTest
+      ? [...comparison.newFailures.map((n) => `fails: ${n}`), ...comparison.missing.map((n) => `missing: ${n}`)].join("; ")
+      : `exit ${before.code} before, exit ${after.code} after; the runner reports no per-test results`
+  }
+}

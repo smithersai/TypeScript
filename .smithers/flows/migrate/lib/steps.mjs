@@ -10,7 +10,7 @@ import { defaultLimits, draftPlan, planPrompt, validatePlan } from "./plan.mjs"
 import { fixToFixedPoint, keepMutableMembers, renameBatch, rewriteImports, rewriteTotals } from "./codemod.mjs"
 import { check, newErrors, styleProblems, summarize } from "./diagnostics.mjs"
 import { compareDeclarations, emitDeclarations, loadTypeScript } from "./declarations.mjs"
-import { compareTests, runTests } from "./tests.mjs"
+import { compareTests, regressionIssue, runTests } from "./tests.mjs"
 import { countTokens } from "./tokens.mjs"
 import { readIssues } from "./issues.mjs"
 import { repairPrompt } from "./repair.mjs"
@@ -248,19 +248,17 @@ export async function setup(options) {
 
   // The baseline every batch is compared with: the tests with VibeLang set up and nothing migrated.
   const tests = await testRun("baseline")
-  if (tests.code !== 0 && !tests.tests) throw new Error(`the baseline tests do not run (exit ${tests.code}); see ${join(logs, "baseline-tests.log")}`)
   writeJson(join(p.baseline, "tests.json"), { code: tests.code, tests: tests.tests })
+  if (!upstream && tests.code !== 0 && !tests.tests) throw new Error(`the baseline tests do not run (exit ${tests.code}); see ${join(logs, "baseline-tests.log")}`)
   const wiring = upstream ? compareTests(upstream, tests) : null
-  if (wiring && !wiring.ok) {
-    // Setting VibeLang up broke tests before any file moved: record it, so it is not mistaken for a batch's regression.
-    appendJsonl(p.issues, {
-      kind: "issue", batch: "setup",
-      title: `Setting up VibeLang (Effect ${wired.effect}${Object.keys(wired.pins).length > 1 ? " and its packages" : ""}, the Vite plugin) fails ${wiring.newFailures.length + wiring.missing.length} of the target's tests`,
-      repro: `${config.test.command} (in ${config.test.cwd}), before and after setup's changes: ${wired.changed.join(", ")}`,
-      expected: "the target's tests pass as they did before setup",
-      actual: [...wiring.newFailures.map((n) => `fails: ${n}`), ...wiring.missing.map((n) => `missing: ${n}`)].join("; ")
-    })
-  }
+  // Setting VibeLang up broke tests before any file moved: record it, so it is
+  // not mistaken for a batch's regression, and finish setup with its evidence.
+  const issue = wiring && regressionIssue({
+    change: `Setting up VibeLang (Effect ${wired.effect}${Object.keys(wired.pins).length > 1 ? " and its packages" : ""}, the Vite plugin)`,
+    command: config.test.command, cwd: config.test.cwd, changed: wired.changed, before: upstream, after: tests, comparison: wiring,
+    logs: { before: join(logs, "upstream-tests.log"), after: join(logs, "baseline-tests.log") }
+  })
+  if (issue) appendJsonl(p.issues, issue)
 
   const compile = {}
   const declarations = {}
@@ -287,7 +285,7 @@ export async function setup(options) {
     wired,
     upstreamTests: upstream && { code: upstream.code, total: upstream.total, passed: upstream.passed, failed: upstream.failed, skipped: upstream.skipped, ms: upstream.ms },
     tests: { code: tests.code, total: tests.total, passed: tests.passed, failed: tests.failed, skipped: tests.skipped, ms: tests.ms },
-    wiringRegressions: wiring && { newFailures: wiring.newFailures, missing: wiring.missing },
+    wiringRegressions: wiring && { newFailures: wiring.newFailures, missing: wiring.missing, exit: { before: upstream.code, after: tests.code } },
     compile,
     declarations,
     inventory: inventory.summary
