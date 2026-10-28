@@ -1,0 +1,3 @@
+go test fuzz v1
+string("-- main.vibe --\nerror Base { _tag: string }\nerror Sub extends Base { who: string }\nexport function make() {\n  return new Sub({ who: \"x\" })\n}\n")
+[]byte("\x00\x06")
