@@ -1,0 +1,17 @@
+// A service declaration declares what the Effect TypeScript in
+// typescript/main.ts declares, Effect's own Context.Service class, and a
+// body's static readonly key keeps the original's key (D501), from foldkit
+// and alchemy.
+// foldkit: runtime/dispatch.
+/** Effect service tag that provides message dispatching to the view layer. */
+export service Dispatch {
+  static readonly key = "@foldkit/Dispatch"
+  dispatchAsync: (message: unknown) => void!!
+  dispatchSync: (message: unknown) => void
+}
+
+// alchemy: Domain/Telemetry.
+export service Correlation {
+  static readonly key = "alchemy/Domain/Correlation"
+  id: string
+}

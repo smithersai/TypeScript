@@ -152,7 +152,7 @@ func (a *analyzer) plainMemberOwner(method *ast.Node) string {
 		}
 	case ast.IsClassLike(parent):
 		for _, heritage := range ast.GetImplementsHeritageClauseElements(parent) {
-			if member := c.GetPropertyOfType(c.GetTypeFromTypeNode(heritage), symbol.Name()); member != nil {
+			if member := c.GetPropertyOfType(implementedType(c, parent, heritage), symbol.Name()); member != nil {
 				expected = append(expected, a.declaredMemberType(c.GetTypeOfSymbol(member)))
 				owners = append(owners, heritage)
 			}

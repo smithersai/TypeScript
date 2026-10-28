@@ -27,7 +27,7 @@ func (a *analyzer) expectsEffect(fn *ast.Node) bool {
 			return false
 		}
 		for _, heritage := range ast.GetImplementsHeritageClauseElements(parent) {
-			if member := a.checker.GetPropertyOfType(a.checker.GetTypeFromTypeNode(heritage), name.Text()); member != nil {
+			if member := a.checker.GetPropertyOfType(implementedType(a.checker, parent, heritage), name.Text()); member != nil {
 				expected = append(expected, a.declaredMemberType(a.checker.GetTypeOfSymbol(member)))
 			}
 		}

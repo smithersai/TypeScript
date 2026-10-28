@@ -20,7 +20,7 @@ service Reporter {
 
 A service has no superclass or type parameters, and every instance member is abstract. Methods state full contracts, having no body to infer from; `abstract readonly` value members are allowed. Static fields can hold layers or other helpers.
 
-Services are nominal: the compiler derives the key from package, module path, and class name, so two services with identical members are different dependencies. Implement one with an object literal or a class that `implements` it; don't construct, extend, or use `instanceof` on it.
+Services are nominal: the compiler derives the key from package, module path, and class name, so two services with identical members are different dependencies. To keep a key, such as one a `Context.Service` class wrote before migrating, write it in the body: `static readonly key = "app/Users"`. Implement one with an object literal or a class that `implements` it; don't construct, extend, or use `instanceof` on it.
 
 ## Declaring a service of any shape
 
@@ -96,9 +96,9 @@ type SequenceImplementation = Sequence.Shape
 type SameImplementation = Context.Service.Shape<typeof Sequence>
 ```
 
-A service has two types, as an Effect `Context.Key` has. As a type, `Sequence` is the service's identifier: its members plus a brand that only `Sequence` carries, so neither another service with the same members nor a structural type such as `{ next(): number!! }` can stand for it in `R`. `Sequence.Shape`, which Effect spells `Context.Service.Shape<typeof Sequence>`, is the members alone, the type of an implementation. `Layer.succeed`, `Layer.effect`, `provideService`, `provide Sequence = …`, and a default check an implementation against the shape, and `implements Sequence` in a `.vibe` file checks a class against it.
+A service has two types, as an Effect `Context.Key` has, because it is Effect's own `Context.Service` class. As a type, `Sequence` is the service's identifier, which carries its key, so neither another service with the same members nor a structural type such as `{ next(): number!! }` can stand for it in `R`. `Sequence.Shape`, which Effect spells `Context.Service.Shape<typeof Sequence>`, is the members alone, the type of an implementation. `Layer.succeed`, `Layer.effect`, `provideService`, `provide Sequence = …`, and a default check an implementation against the shape, and `implements Sequence` in a `.vibe` file checks a class against it.
 
-`Sequence()` returns the implementation typed as the identifier, so a parameter typed `Sequence` takes it. A plain object has the shape, not the identifier: type a parameter or a default that takes one `Sequence.Shape`, or passing `{ … }` is TS2741. A TypeScript class implements the emitted service with `implements Sequence.Shape`.
+`Sequence()` returns the implementation typed as the shape, as `yield* Sequence` does. Type a parameter or a default that takes an implementation `Sequence.Shape`; a parameter typed `Sequence` takes the identifier, as in Effect TypeScript. A TypeScript class implements the emitted service with `implements Context.Service.Shape<typeof Sequence>`.
 
 Providers infer and check the implementation from the key argument, so most layers don't need either name. At a TypeScript boundary, the shape describes the emitted implementation's Effect-returning methods.
 

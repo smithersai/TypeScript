@@ -1,1 +1,1 @@
-Property '[serviceBrand]' is missing in type 'Shape' but required in type 'B'.
+Type 'Shape' is missing the following properties from type 'B': Service, [ServiceTypeId], key

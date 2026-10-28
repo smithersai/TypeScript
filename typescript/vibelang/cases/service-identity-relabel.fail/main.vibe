@@ -1,6 +1,6 @@
 // expect: EK2002 TS2322
-// A service's identifier is nominal (D361): only a type that carries A's
-// brand is A. Widening A's requirement to a structural type with A's members
+// A service's identifier is nominal (D361, D501): only a type that carries
+// A's key, as Effect's Context.Service class declares it, is A. Widening A's requirement to a structural type with A's members
 // is allowed, but that type is not B either, so providing B leaves it in R
 // and assigning it to a requirement of B is TS2322. Each program used to
 // compile, and the first two died with "Service not found: …#A".

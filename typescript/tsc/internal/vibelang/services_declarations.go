@@ -6,9 +6,10 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/compiler"
 	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
+	"github.com/microsoft/TypeScript/tsc/internal/transformers"
 )
 
-// The declaration file of a service or control class (design D45, D361).
+// The declaration file of a service or control class (design D45, D501).
 // The declaration transform writes the class as it is in source:
 //
 //	export declare abstract class Users {
@@ -16,37 +17,31 @@ import (
 //	    static readonly layer: Layer.Layer<Users, never, never>;
 //	}
 //
-// TypeScript code that imports it must see what the checker sees in .vibe
-// files: an interface for the identifier, which extends the shape and the
-// runtime's brand for the key, merged with a class whose static side is a
-// Context key, the runtime's ServiceKey, and a namespace that holds the
-// shape:
+// TypeScript code that imports it must see what Effect TypeScript declares
+// for class Users extends Context.Service<Users, Shape>()(key) {}, byte for
+// byte, so a migrated library keeps its public declarations (D501): a base
+// constant typed with Effect's ServiceClass, whose shape is the members
+// written in place, and a class that extends it with the static members:
 //
-//	import type { ServiceBrand } from "vibelang-runtime";
-//	export interface Users extends Users.Shape, ServiceBrand<"app/users#Users"> {
-//	}
-//	declare const Users_base: import("vibelang-runtime").ServiceKey<Users, Users.Shape>;
-//	export declare abstract class Users extends Users_base {
+//	declare const Users_base: Context.ServiceClass<Users, "app/users#Users", {
+//	    find(id: string): Effect.Effect<User, UserNotFound, never>;
+//	}>;
+//	export declare class Users extends Users_base {
 //	    static readonly layer: Layer.Layer<Users, never, never>;
 //	}
-//	export declare namespace Users {
-//	    interface Shape {
-//	        find(id: string): Effect.Effect<User, UserNotFound, never>;
-//	    }
-//	}
+//	export {};
 //
-// A service with a static default extends ReferenceKey<Users.Shape> instead.
-// A service of any shape (D281) names its shape in the namespace, type Shape
-// = SearchApi, and its identifier extends the shape only where the shape is
-// an object type: service Prefix: string writes interface Prefix extends
-// ServiceBrand<"app/main#Prefix">. Where a member's type names a type Shape of
-// the file, which the namespace's Shape would hide, the members go in a
-// top-level interface with a fresh name, and the namespace aliases it.
+// The key is the one the body writes, static readonly key = "<key>", which is
+// not a static member of its own, or the derived one. A service of any shape
+// (D281) writes its shape as written. A service with a static default and no
+// other static member is Effect's reference, export declare const Flags:
+// Context.Reference<Shape>; with other static members, its base is the
+// runtime's ReferenceKey<Shape>. A source type Users.Shape is written
+// Context.Service.Shape<typeof Users>, and a class that implements a service
+// in source implements that.
 //
 // A control operation keeps one interface for its members and an optional
-// brand, and its key's base is ServiceKey<Approval>. A class that implements
-// a service in source checks against its shape, so its declaration writes
-// implements Users.Shape.
+// brand, and its key's base is the runtime's ServiceKey<Approval>.
 //
 // A service in a namespace is written the same way inside the namespace's
 // body, which is ambient, so nothing in it says declare. A body whose
@@ -60,9 +55,8 @@ func init() { compiler.RegisterDeclarationTransformerHook(serviceDeclarations) }
 // serviceEmit is what the declaration transform needs to know about one
 // service or control class.
 type serviceEmit struct {
-	key     string
-	kind    classKind
-	members bool // the identifier extends the shape
+	key  string
+	kind classKind
 }
 
 func serviceDeclarations(resolver printer.EmitResolver, file *ast.SourceFile) func(*ast.SourceFile) *ast.SourceFile {
@@ -72,6 +66,7 @@ func serviceDeclarations(resolver printer.EmitResolver, file *ast.SourceFile) fu
 	}
 	emits := map[*ast.Node]*serviceEmit{}
 	implemented := map[*ast.Node]bool{} // implements clause elements that name a service
+	shapes := map[*ast.Node]bool{}      // type references Name.Shape to a service's shape
 	r.WithChecker(func(c *checker.Checker) {
 		s := servicesFor(c)
 		var collect func(statements []*ast.Node)
@@ -79,7 +74,7 @@ func serviceDeclarations(resolver printer.EmitResolver, file *ast.SourceFile) fu
 			for _, statement := range statements {
 				switch kind := classKindOf(statement); kind {
 				case serviceClass:
-					emits[statement] = &serviceEmit{key: s.key(statement), kind: kind, members: serviceShape(statement) == nil || shapeHasMembers(c, s.shapeOf(statement))}
+					emits[statement] = &serviceEmit{key: s.key(statement), kind: kind}
 				case controlClass:
 					emits[statement] = &serviceEmit{key: s.key(statement), kind: kind}
 				default:
@@ -97,22 +92,44 @@ func serviceDeclarations(resolver printer.EmitResolver, file *ast.SourceFile) fu
 			}
 		}
 		collect(file.Statements.Nodes)
+		var visit func(node *ast.Node) bool
+		visit = func(node *ast.Node) bool {
+			if ast.IsTypeReferenceNode(node) && isServiceShapeName(c, node.AsTypeReferenceNode().TypeName) {
+				shapes[node] = true
+			}
+			return node.ForEachChild(visit)
+		}
+		file.AsNode().ForEachChild(visit)
 	})
-	if len(emits) == 0 && len(implemented) == 0 {
+	if len(emits) == 0 && len(implemented) == 0 && len(shapes) == 0 {
 		return nil
 	}
 	ec := resolver.EmitContext()
 	return func(declarations *ast.SourceFile) *ast.SourceFile {
 		e := &serviceEmitter{ec: ec, names: &freshNames{file: file}, emits: emits, implemented: implemented}
 		statements, changed := e.statements(declarations.Statements.Nodes, false /*ambient*/)
+		if e.private && !core.Some(statements, func(s *ast.Node) bool { return ast.IsExportDeclaration(s) || ast.IsExportAssignment(s) }) {
+			// A base constant is not exported, so the file says it is a
+			// module whose other declarations are not, as TypeScript does.
+			f := ec.Factory.AsNodeFactory()
+			statements = append(statements, f.NewExportDeclaration(nil /*modifiers*/, false /*isTypeOnly*/, f.NewNamedExports(f.NewNodeList([]*ast.Node{})), nil /*moduleSpecifier*/, nil /*attributes*/))
+		}
+		if len(shapes) > 0 {
+			rewriter := &shapeReferences{emitter: e, references: shapes}
+			rewriter.NewTransformer(rewriter.visit, ec)
+			list := ec.Factory.NewNodeList(statements)
+			list.Loc = declarations.Statements.Loc
+			declarations = rewriter.TransformSourceFile(ec.Factory.UpdateSourceFile(declarations, list, declarations.EndOfFileToken).AsSourceFile())
+			statements, changed = declarations.Statements.Nodes, changed || rewriter.changed
+		}
 		if !changed {
 			return declarations
 		}
-		if len(e.brands) > 0 {
-			// transformDeclarations, which runs next, imports the brand.
+		if len(e.imports) > 0 {
+			// transformDeclarations, which runs next, imports Context.
 			r.WithChecker(func(c *checker.Checker) {
 				state := preludeStateOf(c)
-				for _, identifier := range e.brands {
+				for _, identifier := range e.imports {
 					recordTypeUse(state, file, identifier)
 				}
 			})
@@ -129,7 +146,24 @@ type serviceEmitter struct {
 	names       *freshNames                // the names that declaration emit adds (hygiene.go)
 	emits       map[*ast.Node]*serviceEmit // service and control classes, by source declaration
 	implemented map[*ast.Node]bool         // implements clause elements that name a service
-	brands      []*ast.Node                // the ServiceBrand identifiers it wrote
+	imports     []*ast.Node                // the Context identifiers it wrote
+	private     bool                       // it wrote an unexported base constant at the top level
+}
+
+// context returns a new identifier Context, effect's module, which
+// transformDeclarations imports.
+func (e *serviceEmitter) context() *ast.Node {
+	identifier := e.ec.Factory.NewIdentifier("Context")
+	e.imports = append(e.imports, identifier)
+	return identifier
+}
+
+// serviceShapeType returns Context.Service.Shape<typeof name>, Effect's name
+// for the shape of the service whose key is name, an entity name.
+func (e *serviceEmitter) serviceShapeType(name *ast.Node) *ast.Node {
+	f := e.ec.Factory
+	shape := f.NewQualifiedName(f.NewQualifiedName(e.context(), f.NewIdentifier("Service")), f.NewIdentifier(serviceShapeName))
+	return f.NewTypeReferenceNode(shape, f.NewNodeList([]*ast.Node{f.NewTypeQueryNode(name, nil /*typeArguments*/)}))
 }
 
 // namespaceBlock returns the body of statement, a namespace declaration,
@@ -171,6 +205,7 @@ func (e *serviceEmitter) statements(statements []*ast.Node, ambient bool) ([]*as
 			for _, statement := range hidden {
 				private[statement] = true
 			}
+			e.private = e.private || !ambient && len(hidden) > 0
 			result = append(result, written...)
 			changed = true
 			continue
@@ -250,70 +285,68 @@ func declareModifiers(f *printer.NodeFactory, ambient, exported bool) []*ast.Nod
 }
 
 // service returns the declarations of a service: declared, the class the
-// declaration transform wrote for class, becomes an interface for its
-// identifier, a `<Name>_base` constant typed with the runtime's key type, a
-// class that extends it with the static members, and a namespace that holds
-// the shape (D361). It also returns the declarations among them that stay
-// unexported, the base constant and a shape's fresh interface. exported says
-// whether the service is exported, and ambient that it is in a namespace's
-// body, where nothing says declare.
+// declaration transform wrote for class, becomes the class Effect TypeScript
+// declares for Context.Service<Name, Shape>()(key), a `<Name>_base` constant
+// typed Context.ServiceClass<Name, key, Shape> and a class that extends it
+// with the static members other than the key (D501), or, for a service with
+// a static default, Effect's reference. It also returns the declarations
+// among them that stay unexported, the base constant. exported says whether
+// the service is exported, and ambient that it is in a namespace's body,
+// where nothing says declare.
 func (e *serviceEmitter) service(declared, class *ast.Node, emit *serviceEmit, ambient, exported bool) ([]*ast.Node, []*ast.Node) {
 	f := e.ec.Factory
 	name := declared.Name().Text()
 	isDefault := ast.HasSyntacticModifier(declared, ast.ModifierFlagsDefault)
 	exported = exported && !isDefault
 	instance, statics := splitMembers(f, declared)
+	statics = withoutStatic(statics, serviceKeyName)
+	shape := writtenShape(declared, class)
+	if shape == nil {
+		shape = f.NewTypeLiteralNode(f.NewNodeList(instance))
+	}
 
 	var result, hidden []*ast.Node
-	var shape *ast.Node // the namespace's Shape
-	if written := writtenShape(declared, class); written != nil {
-		if mentionsName(written, serviceShapeName) {
-			alias := e.names.freshName(name + "_" + serviceShapeName)
-			aliasDeclaration := f.NewTypeAliasDeclaration(nil /*modifiers*/, f.NewIdentifier(alias), nil /*typeParameters*/, written)
-			result, hidden = append(result, aliasDeclaration), append(hidden, aliasDeclaration)
-			written = f.NewTypeReferenceNode(f.NewIdentifier(alias), nil /*typeArguments*/)
-		}
-		shape = f.NewTypeAliasDeclaration(nil /*modifiers*/, f.NewIdentifier(serviceShapeName), nil /*typeParameters*/, written)
-	} else if slicesMentionName(instance, serviceShapeName) {
-		members := e.names.freshName(name + "_" + serviceShapeName)
-		membersDeclaration := f.NewInterfaceDeclaration(nil /*modifiers*/, f.NewIdentifier(members), nil /*typeParameters*/, nil /*heritageClauses*/, f.NewNodeList(instance))
-		result, hidden = append(result, membersDeclaration), append(hidden, membersDeclaration)
-		shape = f.NewTypeAliasDeclaration(nil /*modifiers*/, f.NewIdentifier(serviceShapeName), nil /*typeParameters*/, f.NewTypeReferenceNode(f.NewIdentifier(members), nil /*typeArguments*/))
-	} else {
-		shape = f.NewInterfaceDeclaration(nil /*modifiers*/, f.NewIdentifier(serviceShapeName), nil /*typeParameters*/, nil /*heritageClauses*/, f.NewNodeList(instance))
-	}
-	shapeOf := func() *ast.Node {
-		return f.NewPropertyAccessExpression(f.NewIdentifier(name), nil /*questionDotToken*/, f.NewIdentifier(serviceShapeName), ast.NodeFlagsNone)
-	}
-	shapeType := func() *ast.Node {
-		return f.NewTypeReferenceNode(f.NewQualifiedName(f.NewIdentifier(name), f.NewIdentifier(serviceShapeName)), nil /*typeArguments*/)
-	}
-
-	// interface Users extends Users.Shape, ServiceBrand<"app/users#Users"> {}
-	var heritage []*ast.Node
-	if emit.members {
-		heritage = append(heritage, f.NewExpressionWithTypeArguments(shapeOf(), nil /*typeArguments*/))
-	}
-	brand := f.NewIdentifier(serviceBrandName)
-	e.brands = append(e.brands, brand)
-	heritage = append(heritage, f.NewExpressionWithTypeArguments(brand, f.NewNodeList([]*ast.Node{f.NewLiteralTypeNode(f.NewStringLiteral(emit.key, ast.TokenFlagsNone))})))
-	identifier := f.NewInterfaceDeclaration(exportModifiers(f, exported), f.NewIdentifier(name), nil /*typeParameters*/, f.NewNodeList([]*ast.Node{f.NewHeritageClause(ast.KindExtendsKeyword, f.NewNodeList(heritage))}), f.NewNodeList(nil))
-
-	keyType, keyArguments := "ServiceKey", []*ast.Node{f.NewTypeReferenceNode(f.NewIdentifier(name), nil /*typeArguments*/), shapeType()}
 	if hasStaticDefault(class) {
-		keyType, keyArguments = "ReferenceKey", keyArguments[1:]
+		if others := withoutStatic(statics, "default"); len(others) == 0 {
+			// export declare const Flags: Context.Reference<Shape>
+			reference := f.NewTypeReferenceNode(f.NewQualifiedName(e.context(), f.NewIdentifier("Reference")), f.NewNodeList([]*ast.Node{shape}))
+			declaration := f.NewVariableDeclaration(f.NewIdentifier(name), nil /*exclamationToken*/, reference, nil /*initializer*/)
+			result = append(result, f.NewVariableStatement(f.NewModifierList(declareModifiers(f, ambient, exported)), f.NewVariableDeclarationList(f.NewNodeList([]*ast.Node{declaration}), ast.NodeFlagsConst)))
+		} else {
+			base := keyBase(f, e.names.freshName(name+"_base"), "ReferenceKey", []*ast.Node{shape}, ambient)
+			result, hidden = append(result, base, keyClass(f, declared, base, ambient, exported, true /*abstract*/, statics)), append(hidden, base)
+		}
+	} else {
+		// declare const Users_base: Context.ServiceClass<Users, "key", Shape>
+		arguments := []*ast.Node{
+			f.NewTypeReferenceNode(f.NewIdentifier(name), nil /*typeArguments*/),
+			f.NewLiteralTypeNode(f.NewStringLiteral(emit.key, ast.TokenFlagsNone)),
+			shape,
+		}
+		baseType := f.NewTypeReferenceNode(f.NewQualifiedName(e.context(), f.NewIdentifier("ServiceClass")), f.NewNodeList(arguments))
+		baseName := e.names.freshName(name + "_base")
+		base := f.NewVariableStatement(
+			f.NewModifierList(declareModifiers(f, ambient, false /*exported*/)),
+			f.NewVariableDeclarationList(f.NewNodeList([]*ast.Node{f.NewVariableDeclaration(f.NewIdentifier(baseName), nil /*exclamationToken*/, baseType, nil /*initializer*/)}), ast.NodeFlagsConst),
+		)
+		result, hidden = append(result, base, keyClass(f, declared, base, ambient, exported, false /*abstract*/, statics)), append(hidden, base)
 	}
-	base := keyBase(f, e.names.freshName(name+"_base"), keyType, keyArguments, ambient)
-	result, hidden = append(result, identifier, base, keyClass(f, declared, base, ambient, exported, statics)), append(hidden, base)
-
-	namespaceModifiers := declareModifiers(f, ambient, exported)
-	result = append(result, f.NewModuleDeclaration(f.NewModifierList(namespaceModifiers), ast.KindNamespaceKeyword, f.NewIdentifier(name), nil /*attributes*/, f.NewModuleBlock(f.NewNodeList([]*ast.Node{shape}))))
 	if isDefault {
-		// The interface, the class, and the namespace merge only with the same
-		// export status, so they stay local and the module exports the name.
 		result = append(result, f.NewExportAssignment(nil /*modifiers*/, false /*isExportEquals*/, nil /*type*/, f.NewIdentifier(name)))
 	}
 	return result, hidden
+}
+
+// withoutStatic returns statics without the property named name.
+func withoutStatic(statics []*ast.Node, name string) []*ast.Node {
+	var result []*ast.Node
+	for _, member := range statics {
+		if ast.IsPropertyDeclaration(member) && member.Name() != nil && ast.IsIdentifier(member.Name()) && member.Name().Text() == name {
+			continue
+		}
+		result = append(result, member)
+	}
+	return result
 }
 
 // control returns the declarations of a control operation: an interface for
@@ -336,7 +369,7 @@ func (e *serviceEmitter) control(declared *ast.Node, key string, ambient, export
 	shape := f.NewInterfaceDeclaration(exportModifiers(f, exported), f.NewIdentifier(name), nil /*typeParameters*/, nil /*heritageClauses*/, f.NewNodeList(instance))
 	keyArguments := []*ast.Node{f.NewTypeReferenceNode(f.NewIdentifier(name), nil /*typeArguments*/)}
 	base := keyBase(f, e.names.freshName(name+"_base"), "ServiceKey", keyArguments, ambient)
-	result := []*ast.Node{shape, base, keyClass(f, declared, base, ambient, exported, statics)}
+	result := []*ast.Node{shape, base, keyClass(f, declared, base, ambient, exported, true /*abstract*/, statics)}
 	if isDefault {
 		result = append(result, f.NewExportAssignment(nil /*modifiers*/, false /*isExportEquals*/, nil /*type*/, f.NewIdentifier(name)))
 	}
@@ -381,10 +414,14 @@ func keyBase(f *printer.NodeFactory, base, keyType string, keyArguments []*ast.N
 	)
 }
 
-// keyClass returns the key class: declared, as an abstract class that
-// extends the constant base declares, with only its static members.
-func keyClass(f *printer.NodeFactory, declared, base *ast.Node, ambient, exported bool, statics []*ast.Node) *ast.Node {
-	modifiers := append(declareModifiers(f, ambient, exported), f.NewModifier(ast.KindAbstractKeyword))
+// keyClass returns the key class: declared, as a class, abstract when
+// abstract is set, that extends the constant base declares, with only its
+// static members.
+func keyClass(f *printer.NodeFactory, declared, base *ast.Node, ambient, exported, abstract bool, statics []*ast.Node) *ast.Node {
+	modifiers := declareModifiers(f, ambient, exported)
+	if abstract {
+		modifiers = append(modifiers, f.NewModifier(ast.KindAbstractKeyword))
+	}
 	name := base.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes[0].Name().Text()
 	extends := f.NewHeritageClause(ast.KindExtendsKeyword, f.NewNodeList([]*ast.Node{f.NewExpressionWithTypeArguments(f.NewIdentifier(name), nil /*typeArguments*/)}))
 	return f.UpdateClassDeclaration(declared.AsClassDeclaration(), f.NewModifierList(modifiers), declared.Name(), nil /*typeParameters*/, f.NewNodeList([]*ast.Node{extends}), f.NewNodeList(statics))
@@ -392,7 +429,8 @@ func keyClass(f *printer.NodeFactory, declared, base *ast.Node, ambient, exporte
 
 // implementShapes returns class with each element of its implements clause
 // that names a service, by the source element it came from, written as the
-// service's shape: implements Users becomes implements Users.Shape (D361).
+// service's shape: implements Users becomes implements
+// Context.Service.Shape<typeof Users> (D501).
 func (e *serviceEmitter) implementShapes(class *ast.Node) *ast.Node {
 	f := e.ec.Factory
 	clauses := class.ClassLikeData().HeritageClauses
@@ -411,14 +449,17 @@ func (e *serviceEmitter) implementShapes(class *ast.Node) *ast.Node {
 			if e.implemented[e.ec.MostOriginal(element)] {
 				// Declaration emit writes an element as a type reference or as
 				// the expression it was in source.
+				var name *ast.Node
 				switch {
 				case ast.IsTypeReferenceNode(element):
-					shape := f.NewQualifiedName(element.AsTypeReferenceNode().TypeName, f.NewIdentifier(serviceShapeName))
-					element = f.NewTypeReferenceNode(shape, element.TypeArgumentList())
-					changed = true
-				case ast.IsExpressionWithTypeArguments(element):
-					shape := f.NewPropertyAccessExpression(element.Expression(), nil /*questionDotToken*/, f.NewIdentifier(serviceShapeName), ast.NodeFlagsNone)
-					element = f.NewExpressionWithTypeArguments(shape, element.TypeArgumentList())
+					name = element.AsTypeReferenceNode().TypeName
+				case ast.IsExpressionWithTypeArguments(element) && ast.IsEntityNameExpression(element.Expression()):
+					name = entityNameOf(f, element.Expression())
+				}
+				if name != nil {
+					shape := e.serviceShapeType(name)
+					reference := shape.AsTypeReferenceNode()
+					element = f.NewExpressionWithTypeArguments(entityExpressionOf(f, reference.TypeName), reference.TypeArguments)
 					changed = true
 				}
 			}
@@ -431,6 +472,57 @@ func (e *serviceEmitter) implementShapes(class *ast.Node) *ast.Node {
 	}
 	data := class.AsClassDeclaration()
 	return f.UpdateClassDeclaration(data, class.Modifiers(), class.Name(), class.TypeParameterList(), f.NewNodeList(updated), class.MemberList())
+}
+
+// entityNameOf returns expression, an entity name expression such as a.b,
+// as an entity name.
+func entityNameOf(f *printer.NodeFactory, expression *ast.Node) *ast.Node {
+	if ast.IsPropertyAccessExpression(expression) {
+		return f.NewQualifiedName(entityNameOf(f, expression.Expression()), f.NewIdentifier(expression.Name().Text()))
+	}
+	return f.NewIdentifier(expression.Text())
+}
+
+// entityExpressionOf returns name, an entity name, as an expression.
+func entityExpressionOf(f *printer.NodeFactory, name *ast.Node) *ast.Node {
+	if ast.IsQualifiedName(name) {
+		q := name.AsQualifiedName()
+		return f.NewPropertyAccessExpression(entityExpressionOf(f, q.Left), nil /*questionDotToken*/, f.NewIdentifier(q.Right.Text()), ast.NodeFlagsNone)
+	}
+	return f.NewIdentifier(name.Text())
+}
+
+// isServiceShapeName reports whether name, the name of a type reference in
+// a .vibe file, is Name.Shape for a service key Name, which the checker
+// resolves to the service's shape (resolveServiceShapeName).
+func isServiceShapeName(c *checker.Checker, name *ast.Node) bool {
+	if !ast.IsQualifiedName(name) || name.AsQualifiedName().Right.Text() != serviceShapeName {
+		return false
+	}
+	q := name.AsQualifiedName()
+	return resolveServiceShapeName(c, name, q.Left, q.Right, ast.SymbolFlagsType) != nil
+}
+
+// shapeReferences writes each type reference Name.Shape to a service's shape
+// that the source wrote as Effect's Context.Service.Shape<typeof Name>.
+type shapeReferences struct {
+	transformers.Transformer
+	emitter    *serviceEmitter
+	references map[*ast.Node]bool // the source's references to a service's shape
+	changed    bool
+}
+
+func (tx *shapeReferences) visit(node *ast.Node) *ast.Node {
+	node = tx.Visitor().VisitEachChild(node)
+	if !ast.IsTypeReferenceNode(node) || !tx.references[tx.EmitContext().MostOriginal(node)] {
+		return node
+	}
+	name := node.AsTypeReferenceNode().TypeName
+	if !ast.IsQualifiedName(name) {
+		return node
+	}
+	tx.changed = true
+	return tx.emitter.serviceShapeType(name.AsQualifiedName().Left)
 }
 
 // mentionsName reports whether node has an identifier whose text is name.

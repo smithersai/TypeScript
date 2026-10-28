@@ -1,8 +1,8 @@
 // TypeScript code that imports the .vibe services through their declarations.
-import { Effect, Layer } from "effect"
+import { Context, Effect, Layer } from "effect"
 import { Flags, greet, Users } from "../../out/main.js"
 
-class UsersFake implements Users.Shape {
+class UsersFake implements Context.Service.Shape<typeof Users> {
   readonly source = "fake"
   find(id: string) {
     return Effect.succeed({ id, name: `user ${id}` })

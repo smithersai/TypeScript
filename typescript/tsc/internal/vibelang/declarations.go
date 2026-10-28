@@ -399,11 +399,6 @@ func modulesInScope(c *checker.Checker, state *preludeState, file *ast.SourceFil
 // for one of Effect's modules, the runtime for the rest of the prelude, or the
 // subpath module's package.
 func declarationModuleOf(name string) string {
-	if name == serviceBrandName {
-		// A service's identifier extends the runtime's ServiceBrand (D361),
-		// which only declaration files name.
-		return runtimeModule
-	}
 	if module, isPrelude := preludeModules[name]; isPrelude {
 		if strings.HasPrefix(module, effectRootModule+"/") {
 			return effectRootModule

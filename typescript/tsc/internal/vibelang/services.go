@@ -9,45 +9,42 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
-// Services and control operations (design D1, D2, D41, D45, D361).
+// Services and control operations (design D1, D2, D41, D45, D501).
 //
 // An abstract class in a .vibe file whose instance members are all abstract
 // declares a service, and one that extends Control declares a control
-// operation. A service has two types, as Effect's Context.Key<Identifier,
-// Shape> has (D361). The checker sees a service as this TypeScript would
-// declare it:
+// operation. A service is the class Effect TypeScript writes (D501):
 //
-//	interface Users extends Users.Shape, ServiceBrand<"app/users#Users"> {}
-//	namespace Users {
-//	  interface Shape { find(id: string): Effect<User, UserNotFound, never> }
-//	}
-//	class Users extends Context.Service<Users, Users.Shape> {}
+//	class Users extends Context.Service<Users, {
+//	  find(id: string): Effect<User, UserNotFound, never>
+//	}>()("app/users#Users") {}
 //
-// As a type, Users is the service's identifier: its members plus a required
-// brand whose type is its key, so neither a structural type with the same
-// members nor another service is assignable to it, and a requirement for
-// Users is discharged only by a provider of Users. Users.Shape, the members
-// alone, is the type of an implementation: Layer.succeed(Users, …),
+// As a type, Users is the service's identifier, the instance type of
+// Effect's class, { readonly [ServiceTypeId]: …; readonly key:
+// "app/users#Users"; readonly Service: Shape }: its key's literal type makes
+// it nominal, so neither a structural type nor another service is assignable
+// to it, and a requirement for Users is discharged only by a provider of
+// Users. Users.Shape, Effect's Context.Service.Shape<typeof Users>, the
+// members, is the type of an implementation: Layer.succeed(Users, …),
 // Effect.provideService, and `implements Users` in a .vibe file check against
 // it. As a value, Users is a Context key. In a .vibe function body,
 // Users.find(id) calls a member through the key and Users() returns the
-// implementation, typed as the identifier.
+// implementation, typed as the shape, as `yield* Users` does. The key is
+// derived (D93) unless the body writes static readonly key = "<key>".
 //
 // A control operation keeps one type for both, its interface, with an
 // optional brand that keeps two controls with the same members distinct.
 
-// serviceBrandProperty names the brand of a control operation's interface,
-// and of a service's identifier in a program whose runtime does not declare
-// ServiceBrand.
+// serviceBrandProperty names the brand of a control operation's interface.
 const serviceBrandProperty = "~vibelang/service"
 
-// serviceBrandName is the runtime's type that brands a service's identifier
-// with its key (D361). Its property is a unique symbol the runtime declares
-// as a type only, so no program can name it.
-const serviceBrandName = "ServiceBrand"
+// serviceKeyName names the static member that writes a service's key in its
+// body, static readonly key = "<key>" (D501).
+const serviceKeyName = "key"
 
 // serviceShapeName names a service's shape as a member type of the service:
-// Users.Shape (D361).
+// Users.Shape, which declaration files write Context.Service.Shape<typeof
+// Users> (D501).
 const serviceShapeName = "Shape"
 
 // contextServiceTypeID names the property that every Effect 4 Context key
@@ -194,6 +191,23 @@ func isControlReference(heritage *ast.Node) bool {
 	return ast.IsIdentifier(expression) && expression.Text() == "Control" && heritage.TypeArguments() == nil
 }
 
+// writtenKey returns the key that class's body writes, static readonly key =
+// "<key>" with a string literal, and the member that writes it, or "" and
+// nil (D501). A migrated service keeps its TypeScript original's key so.
+func writtenKey(class *ast.Node) (string, *ast.Node) {
+	for _, member := range class.Members() {
+		if !ast.IsPropertyDeclaration(member) || !ast.IsStatic(member) || !ast.HasSyntacticModifier(member, ast.ModifierFlagsReadonly) {
+			continue
+		}
+		if name := member.Name(); name != nil && ast.IsIdentifier(name) && name.Text() == serviceKeyName {
+			if initializer := member.Initializer(); initializer != nil && ast.IsStringLiteralLike(initializer) {
+				return initializer.Text(), member
+			}
+		}
+	}
+	return "", nil
+}
+
 // hasStaticDefault reports whether class declares `static readonly default`,
 // which makes its key a Context.Reference that needs no provider (D40).
 func hasStaticDefault(class *ast.Node) bool {
@@ -215,9 +229,11 @@ type services struct {
 	keys       map[*ast.Node]string
 	byKey      map[string][]*ast.Node        // every service and control class in the program, by key
 	unprovided map[*checker.Type][]*ast.Node // wire arguments, by a service they need and their wire does not provide
-	shapes     map[*ast.Node]*checker.Type   // service classes, by declaration, and their shapes (D361)
+	shapes     map[*ast.Node]*checker.Type   // service classes, by declaration, and their shapes
 	shapeNames map[*ast.Node]*ast.Symbol     // service classes and the type alias that Name.Shape resolves to
-	brands     map[*ast.Node]*checker.Type   // service classes and the brand their identifiers carry
+	keyShapes  map[*ast.Symbol]*ast.Symbol   // other service keys and the type alias that Name.Shape resolves to
+	instances  map[*ast.Node]*checker.Type   // service classes and their identifiers' base, Effect's instance type
+	owners     map[*checker.Type]string      // the shapes shapeOf built from members, and their services' names
 }
 
 type servicesKey struct{}
@@ -226,7 +242,7 @@ type servicesKey struct{}
 // so they are freed with c.
 func servicesFor(c *checker.Checker) *services {
 	return c.ExtensionState(servicesKey{}, func() any {
-		return &services{checker: c, modules: map[string]*ast.Symbol{}, keys: map[*ast.Node]string{}, shapes: map[*ast.Node]*checker.Type{}, shapeNames: map[*ast.Node]*ast.Symbol{}, brands: map[*ast.Node]*checker.Type{}}
+		return &services{checker: c, modules: map[string]*ast.Symbol{}, keys: map[*ast.Node]string{}, shapes: map[*ast.Node]*checker.Type{}, shapeNames: map[*ast.Node]*ast.Symbol{}, keyShapes: map[*ast.Symbol]*ast.Symbol{}, instances: map[*ast.Node]*checker.Type{}, owners: map[*checker.Type]string{}}
 	}).(*services)
 }
 
@@ -261,13 +277,17 @@ func isEffectModuleFile(file *ast.SourceFile, name string) bool {
 	return strings.HasSuffix(fileName, "/effect/dist/"+name+".d.ts") || strings.HasSuffix(fileName, "/effect/src/"+name+".ts")
 }
 
-// key returns the key of the service that class declares: its package name,
-// its module path within the package, and its name, as in
-// "@acme/app/src/users#Users". A package without a name uses its directory's
-// name, and a file outside every package uses its path from the program's
-// common source directory.
+// key returns the key of the service that class declares: the key its body
+// writes (D501), or else its package name, its module path within the
+// package, and its name, as in "@acme/app/src/users#Users". A package without
+// a name uses its directory's name, and a file outside every package uses its
+// path from the program's common source directory.
 func (s *services) key(class *ast.Node) string {
 	if key, ok := s.keys[class]; ok {
+		return key
+	}
+	if key, _ := writtenKey(class); key != "" {
+		s.keys[class] = key
 		return key
 	}
 	file := ast.GetSourceFileOfNode(class)
@@ -295,17 +315,13 @@ func (s *services) key(class *ast.Node) string {
 }
 
 // classBases is the checker's class base hook. A service class inherits the
-// static side of Context.Service<Self, Self.Shape>, or of
-// Context.Service<never, Self.Shape> when a static default makes its key a
-// reference, and its instances inherit the required brand
-// ServiceBrand<key>, so Self is the identifier: the shape's members and the
-// brand (D361). A service of any shape (D281) has the written shape in place
-// of Self.Shape: service Search: SearchApi inherits Context.Service<Search,
-// SearchApi>, and its instances inherit SearchApi's members and the brand.
-// Where the written shape is not an object type, as for service Prefix:
-// string, the identifier is the brand alone. A control class inherits the
-// static side of Context.Service<Self, Self> and the optional brand
-// { readonly "~vibelang/service"?: key }, and its own extends clause is
+// static side of Context.Service<Self, Shape>, or of Context.Service<never,
+// Shape> when a static default makes its key a reference, and its instances
+// inherit Effect's instance type, ServiceClass.Shape<key, Shape>, so Self is
+// the identifier that Context.Service<Self, Shape>()(key) declares (D501). A
+// service of any shape (D281) has the written shape. A control class
+// inherits the static side of Context.Service<Self, Self> and the optional
+// brand { readonly "~vibelang/service"?: key }, and its own extends clause is
 // ignored.
 func classBases(c *checker.Checker, class *checker.Type) (*checker.Type, *checker.Type) {
 	symbol := class.Symbol()
@@ -331,16 +347,36 @@ func classBases(c *checker.Checker, class *checker.Type) (*checker.Type, *checke
 		identifier = c.GetNeverType()
 	}
 	key := c.NewTypeReference(c.GetDeclaredTypeOfSymbol(service), []*checker.Type{identifier, shape})
-	brand := s.brandOf(declaration)
-	if serviceShape(declaration) != nil && shapeHasMembers(c, shape) {
-		return key, c.GetIntersectionType([]*checker.Type{shape, brand})
-	}
-	return key, brand
+	return key, s.instanceOf(declaration)
 }
 
-// shapeOf returns the shape of the service that class declares (D361): the
-// written type of a service of any shape, or else an object type whose
-// properties are class's instance members, which Users.Shape names.
+// instanceOf returns what the identifier of the service that class declares
+// inherits: Effect's ServiceClass.Shape<key, Shape>, `{ readonly
+// [ServiceTypeId]: …; readonly key: "<key>"; readonly Service: Shape }`, or,
+// where the program's effect does not declare it, { readonly key: "<key>" }.
+func (s *services) instanceOf(class *ast.Node) *checker.Type {
+	if instance, ok := s.instances[class]; ok {
+		return instance
+	}
+	c := s.checker
+	key := c.GetStringLiteralType(s.key(class))
+	var instance *checker.Type
+	if serviceClass := s.effectExport("Context", "ServiceClass"); serviceClass != nil {
+		if shape := c.GetMergedSymbol(serviceClass).Exports()[serviceShapeName]; shape != nil && shape.Flags()&ast.SymbolFlagsInterface != 0 {
+			instance = c.NewTypeReference(c.GetDeclaredTypeOfSymbol(shape), []*checker.Type{key, s.shapeOf(class)})
+		}
+	}
+	if instance == nil {
+		instance = c.NewReadonlyPropertyType(serviceKeyName, key)
+	}
+	s.instances[class] = instance
+	return instance
+}
+
+// shapeOf returns the shape of the service that class declares: the written
+// type of a service of any shape, or else an object type whose properties
+// are class's instance members, which Users.Shape names. It has no alias,
+// so it prints as its members, as Effect TypeScript's shape does.
 func (s *services) shapeOf(class *ast.Node) *checker.Type {
 	if shape, ok := s.shapes[class]; ok {
 		return shape
@@ -361,9 +397,8 @@ func (s *services) shapeOf(class *ast.Node) *checker.Type {
 				members[name] = member
 			}
 		}
-		var alias *ast.Symbol
-		shape, alias = c.NewAliasedObjectType(members, serviceShapeName, symbol)
-		s.shapeNames[class] = alias
+		shape = c.NewObjectType(members)
+		s.owners[shape] = class.Name().Text()
 	}
 	s.shapes[class] = shape
 	return shape
@@ -372,93 +407,53 @@ func (s *services) shapeOf(class *ast.Node) *checker.Type {
 // shapeName returns the type alias that Name.Shape resolves to for the
 // service that class declares.
 func (s *services) shapeName(class *ast.Node) *ast.Symbol {
-	shape := s.shapeOf(class)
 	if alias := s.shapeNames[class]; alias != nil {
 		return alias
 	}
-	alias := s.checker.NewTypeAliasSymbol(serviceShapeName, s.checker.GetSymbolOfDeclaration(class), shape)
+	alias := s.checker.NewTypeAliasSymbol(serviceShapeName, s.checker.GetSymbolOfDeclaration(class), s.shapeOf(class))
 	s.shapeNames[class] = alias
 	return alias
 }
 
-// brandOf returns the brand that the identifier of the service class
-// declares carries: the runtime's ServiceBrand<key>, or, where the program's
-// runtime does not declare ServiceBrand, { readonly "~vibelang/service": key }.
-func (s *services) brandOf(class *ast.Node) *checker.Type {
-	if brand, ok := s.brands[class]; ok {
-		return brand
+// keyShapeName returns the type alias that Name.Shape resolves to for symbol,
+// a class that TypeScript declares as a Context key, such as a
+// Context.Service class: Effect's Context.Service.Shape<typeof Name>, or nil
+// when symbol is not a Context key.
+func (s *services) keyShapeName(symbol *ast.Symbol) *ast.Symbol {
+	if alias, ok := s.keyShapes[symbol]; ok {
+		return alias
 	}
-	c := s.checker
-	key := c.GetStringLiteralType(s.key(class))
-	var brand *checker.Type
-	if module := runtimeModuleSymbol(c, preludeStateOf(c), ast.GetSourceFileOfNode(class)); module != nil {
-		if symbol := c.TryGetMemberInModuleExports(serviceBrandName, module); symbol != nil {
-			if symbol.Flags()&ast.SymbolFlagsAlias != 0 {
-				symbol = c.GetAliasedSymbol(symbol)
-			}
-			if symbol != nil && symbol.Flags()&ast.SymbolFlagsInterface != 0 {
-				brand = c.NewTypeReference(c.GetDeclaredTypeOfSymbol(symbol), []*checker.Type{key})
-			}
-		}
+	var alias *ast.Symbol
+	if _, shape := serviceOfKey(s.checker, s.checker.GetApparentType(s.checker.GetTypeOfSymbol(symbol))); shape != nil {
+		alias = s.checker.NewTypeAliasSymbol(serviceShapeName, symbol, shape)
 	}
-	if brand == nil {
-		brand = c.NewReadonlyPropertyType(serviceBrandProperty, key)
-	}
-	s.brands[class] = brand
-	return brand
-}
-
-// shapeHasMembers reports whether the identifier of a service whose shape is
-// shape has the shape's members (D361): the shape is an object type, or an
-// intersection of them, with no call or construct signature, as an interface
-// can extend. A primitive, a function type, or a union is not.
-func shapeHasMembers(c *checker.Checker, shape *checker.Type) bool {
-	switch {
-	case shape == nil || shape == c.GetErrorType():
-		return false
-	case shape.Flags()&checker.TypeFlagsIntersection != 0:
-		for _, member := range shape.Types() {
-			if !shapeHasMembers(c, member) {
-				return false
-			}
-		}
-		return true
-	case shape.Flags()&checker.TypeFlagsObject == 0:
-		return false
-	}
-	return len(c.GetSignaturesOfType(shape, checker.SignatureKindCall)) == 0 && len(c.GetSignaturesOfType(shape, checker.SignatureKindConstruct)) == 0
-}
-
-// serviceBrandOf returns the brand property of t when t is a service's
-// identifier, or nil.
-func serviceBrandOf(c *checker.Checker, t *checker.Type) *ast.Symbol {
-	if t == nil || t.Flags()&(checker.TypeFlagsObject|checker.TypeFlagsIntersection) == 0 {
-		return nil
-	}
-	for _, property := range c.GetPropertiesOfType(t) {
-		if checker.IsServiceBrandProperty(property) && property.Flags()&ast.SymbolFlagsOptional == 0 {
-			return property
-		}
-	}
-	return nil
+	s.keyShapes[symbol] = alias
+	return alias
 }
 
 // serviceShapeOfIdentifier returns the shape of the service whose identifier
 // is t, the declared type of a service class, or nil when t is not a
-// service's identifier. It reads the shape from the key, so it serves a
-// service a declaration file declares as well as one in source.
+// service's identifier. A class TypeScript declares is a service when its
+// static side is a Context key whose identifier is t, as a Context.Service
+// class's is.
 func serviceShapeOfIdentifier(c *checker.Checker, t *checker.Type) *checker.Type {
 	symbol := t.Symbol()
-	if symbol == nil || symbol.Flags()&ast.SymbolFlagsClass == 0 || serviceBrandOf(c, t) == nil {
+	if symbol == nil || symbol.Flags()&ast.SymbolFlagsClass == 0 {
 		return nil
 	}
-	_, shape := serviceOfKey(c, c.GetApparentType(c.GetTypeOfSymbol(symbol)))
+	if declaration := symbol.ValueDeclaration(); classKindOf(declaration) == serviceClass {
+		return servicesFor(c).shapeOf(declaration)
+	}
+	identifier, shape := serviceOfKey(c, c.GetApparentType(c.GetTypeOfSymbol(symbol)))
+	if identifier != t {
+		return nil
+	}
 	return shape
 }
 
 // implementedServiceShape is the checker's implemented type hook: in a .vibe
 // file, `implements Users` checks the class against Users.Shape, the type of
-// an implementation, since no implementation carries the brand (D361).
+// an implementation, since no implementation carries the key (D501).
 func implementedServiceShape(c *checker.Checker, class *ast.Node, typeNode *ast.Node, t *checker.Type) *checker.Type {
 	if !isVibeLangFile(ast.GetSourceFileOfNode(class)) {
 		return t
@@ -469,10 +464,19 @@ func implementedServiceShape(c *checker.Checker, class *ast.Node, typeNode *ast.
 	return t
 }
 
+// implementedType returns the type that class, a class in a .vibe file, must
+// implement for heritage, an element of its implements clause: the service's
+// shape for a service key, whose identifier has no members of its own (D501).
+func implementedType(c *checker.Checker, class *ast.Node, heritage *ast.Node) *checker.Type {
+	return implementedServiceShape(c, class, heritage, c.GetTypeFromTypeNode(heritage))
+}
+
 // resolveServiceShapeName is the checker's qualified type name hook: as a
-// type, Users.Shape is the shape of the service Users that a .vibe file
-// declares (D361). A service a declaration file declares has a namespace that
-// declares Shape, which TypeScript resolves.
+// type, Users.Shape is the shape of the service Users, Effect's
+// Context.Service.Shape<typeof Users> (D501), whether a .vibe file declares
+// Users or, read from a .vibe file, TypeScript does. A class merged with a
+// namespace keeps TypeScript's resolution, so a namespace that declares Shape
+// still does.
 func resolveServiceShapeName(c *checker.Checker, name *ast.Node, left *ast.Node, right *ast.Node, meaning ast.SymbolFlags) *ast.Symbol {
 	if !ast.IsIdentifier(right) || right.Text() != serviceShapeName {
 		return nil
@@ -481,32 +485,15 @@ func resolveServiceShapeName(c *checker.Checker, name *ast.Node, left *ast.Node,
 	if symbol == nil || symbol.Flags()&ast.SymbolFlagsNamespace != 0 {
 		return nil
 	}
+	s := servicesFor(c)
 	declaration := symbol.ValueDeclaration()
-	if classKindOf(declaration) != serviceClass || declaration.TypeParameters() != nil {
+	if classKindOf(declaration) == serviceClass {
+		return s.shapeName(declaration)
+	}
+	if file := ast.GetSourceFileOfNode(name); file == nil || !isVibeLangFile(file) || symbol.Flags()&ast.SymbolFlagsClass == 0 {
 		return nil
 	}
-	return servicesFor(c).shapeName(declaration)
-}
-
-// serviceIdentifierOfCall returns the identifier of the service that callee,
-// the S of S(), names, when the identifier has the members of what S() yields,
-// shape: S() returns the implementation typed as the identifier, so a
-// parameter typed S takes it (D361). It returns nil for a service whose
-// identifier is its brand alone, such as service Prefix: string, whose S()
-// returns the shape, and for any other key.
-func serviceIdentifierOfCall(c *checker.Checker, callee *ast.Node, shape *checker.Type) *checker.Type {
-	symbol := c.GetSymbolAtLocation(callee)
-	if symbol != nil && symbol.Flags()&ast.SymbolFlagsAlias != 0 {
-		symbol = c.GetAliasedSymbol(symbol)
-	}
-	if symbol == nil || symbol.Flags()&ast.SymbolFlagsClass == 0 {
-		return nil
-	}
-	identifier := c.GetDeclaredTypeOfSymbol(symbol)
-	if serviceBrandOf(c, identifier) == nil || !c.IsTypeAssignableTo(identifier, shape) {
-		return nil
-	}
-	return identifier
+	return s.keyShapeName(symbol)
 }
 
 // serviceOfKey returns the identifier and the shape of the service that t,
@@ -588,18 +575,13 @@ func isEffectValueCallSite(call *ast.Node) bool {
 
 // effectValueCall is the checker's call signatures hook. In a .vibe function
 // body, a value whose type is an Effect, called with no arguments, runs:
-// Users() gives the service's implementation, and Port() reads a Config
-// (design D24). The call gets the signature () => Effect<A, E, R>.
+// Users() gives the service's implementation, typed as its shape (D501), and
+// Port() reads a Config (design D24). The call gets the signature () => Effect<A, E, R>.
 func effectValueCall(c *checker.Checker, call *ast.Node, callee *checker.Type) []*checker.Signature {
 	if !isEffectValueCallSite(call) {
 		return nil
 	}
 	if effect := effectOfValue(c, callee); effect != nil {
-		if channels := c.GetTypeArguments(effect); len(channels) == 3 {
-			if identifier := serviceIdentifierOfCall(c, call.Expression(), channels[0]); identifier != nil {
-				effect = c.NewTypeReference(effect.Target(), []*checker.Type{identifier, channels[1], channels[2]})
-			}
-		}
 		return []*checker.Signature{c.NewCallSignature(effect)}
 	}
 	// FileSystem(): the module's name names its service (D311).

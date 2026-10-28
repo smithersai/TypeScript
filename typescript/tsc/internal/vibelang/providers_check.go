@@ -340,11 +340,15 @@ func containsTypeParameter(t *checker.Type) bool {
 	return false
 }
 
-// serviceNameOf returns the name of the service whose shape t is: its
-// declaration's name, else the name of the type alias that names it, as Probe
-// in type Probe = { … }. It returns "" when t has no name of its own, as an
-// object type literal written in place, whose symbol has an internal name.
+// serviceNameOf returns the name of the service whose shape t is: the
+// service declaration's, Users for Users's members, else its declaration's
+// name, else the name of the type alias that names it, as Probe in type Probe
+// = { … }. It returns "" when t has no name of its own, as an object type
+// literal written in place, whose symbol has an internal name.
 func serviceNameOf(c *checker.Checker, t *checker.Type) string {
+	if owner := servicesFor(c).owners[t]; owner != "" {
+		return owner
+	}
 	if symbol := t.Symbol(); symbol != nil && isWrittenName(symbol.Name()) {
 		return shapeOwnerName(c, symbol)
 	}

@@ -718,19 +718,17 @@ EK1012, EK2004, EK4406 and EK4409 default to `"warning"` and EK4403 to `"error"`
 
 An abstract class in a `.vibe` file whose instance members are all abstract (methods and `abstract readonly` values), with no type parameters, no `implements` clause, and no `extends` clause, declares a service (D1). With `extends Control` instead, it declares a control operation (D2). Static members are allowed. Any other class is ordinary. The code is `services.go` (what the checker sees) and `services_lower.go` (what the lowering emits).
 
-**What the checker sees.** The class means what this TypeScript declares (D45):
+**What the checker sees.** A service means what this Effect TypeScript declares (D501):
 
 ```ts
-interface Users {
+class Users extends Context.Service<Users, {
   find(id: string): Effect<User, UserNotFound, never>
-  readonly "~vibelang/service"?: "app/users#Users"
-}
-class Users extends Context.Service<Users, Users> {}
+}>()("app/users#Users") {}
 ```
 
-The class base hook (`classBases`) gives the class no instance base other than the optional brand, and the static side of `Context.Service<Users, Users>` as its base constructor type. As a value, `Users` is a Context key: `Layer.succeed(Users, …)`, `Effect.provideService`, and `yield* Users` in TypeScript work. As a type, `Users` is the shape: `implements Users` and a parameter typed `Users` mean the members. The brand holds the key, so two services with the same members are different types: providing `Primary` leaves `Replica` in R, and a `Replica` implementation is not a `Primary`. The checker finds `Context.Service` in effect's own declarations (`effect/dist/Context.d.ts`), so a program that does not include effect keeps the class ordinary.
+The class base hook (`classBases`) gives the class the static side of `Context.Service<Users, Shape>` as its base constructor type and Effect's `ServiceClass.Shape<"app/users#Users", Shape>` as its instance base, where `Shape` (`shapeOf`) is an object type of the class's own instance members, without an alias, so it prints as its members. As a value, `Users` is a Context key: `Layer.succeed(Users, …)`, `Effect.provideService`, and `yield* Users` in TypeScript work. As a type, `Users` is the identifier, which carries the key's literal type, so two services with the same members are different types: providing `Primary` leaves `Replica` in R. `Users.Shape` (`resolveServiceShapeName`) is the shape, for a `Context.Service` class TypeScript declares too, and `implements Users` checks a class against it (`implementedServiceShape`); `Users()` has the shape's type. The class keeps its abstract members as declared, so in a `.vibe` file the identifier also has them, which a declaration file's identifier does not. A control operation keeps one interface, its members plus the optional brand `"~vibelang/service"`, and `Context.Service<Approval, Approval>` as its static side. The checker finds `Context.Service` in effect's own declarations (`effect/dist/Context.d.ts`), so a program that does not include effect keeps the class ordinary.
 
-**Keys.** The key joins the nearest `package.json`'s `name` (its directory's name when it has none), the module path within that package without `.vibe`, and the class name: `@acme/app/src/users#Users`. A case directory without a name gives `vibelang-services/main#Users`.
+**Keys.** The key is the body's `static readonly key = "…"` when it writes one with a string literal (`writtenKey`, D501), which the lowering and the declaration file drop as a member. Otherwise it joins the nearest `package.json`'s `name` (its directory's name when it has none), the module path within that package without `.vibe`, and the class name: `@acme/app/src/users#Users`. A case directory without a name gives `vibelang-services/main#Users`.
 
 **What the lowering emits.** The class extends the runtime's key class, and TypeScript's own transform erases the abstract members:
 
@@ -744,20 +742,20 @@ abstract class Users {                           class Users extends runtime.$se
 
 A service with `static readonly default` extends `runtime.$reference(key, () => Flags.default)`, a `Context.Reference` (D40); its static side is `Context.Service<never, Flags>`, so using it adds nothing to R. A control operation extends `runtime.$service(key)` and then registers one kernel operation per abstract method with its declared parameter count, `runtime.$control(Approval, ["approve"], [1])`; the runtime's `handle` provides an implementation whose methods perform those operations, and pads a call's arguments to that count, so a clause receives its continuation after every declared parameter even when the call leaves an optional argument out (-1, for a rest parameter, keeps the arguments as given). Generated code imports `vibelang-runtime` as a namespace under a free name, as it imports `effect/Effect`.
 
-**Declaration files.** The declaration transform writes a service class as the abstract class it is in source, which TypeScript code could only extend. A declaration transformer hook (`services_declarations.go`) rewrites it to what the checker sees: the instance members move into an interface with the brand, a `Users_base` constant gets the runtime's key type, and the class extends it with only its static members:
+**Declaration files.** The declaration transform writes a service class as the abstract class it is in source, which TypeScript code could only extend. A declaration transformer hook (`services_declarations.go`) rewrites it to what TypeScript emits for the Effect TypeScript it stands for (D501): a `Users_base` constant typed with Effect's `ServiceClass`, whose shape is the members written in place, and a class that extends it with only its static members:
 
 ```ts
-export interface Users {
-    find(id: string): Effect.Effect<User, UserNotFound, never>;
-    readonly "~vibelang/service"?: "app/users#Users";
-}
-declare const Users_base: import("vibelang-runtime").ServiceKey<Users>;
-export declare abstract class Users extends Users_base {
+import { Context, Effect, Layer } from "effect";
+declare const Users_base: Context.ServiceClass<Users, "app/users#Users", {
+    find(id: string): Effect.Effect<User, UserNotFound>;
+}>;
+export declare class Users extends Users_base {
     static readonly layer: Layer.Layer<Users, never, never>;
 }
+export {};
 ```
 
-`ServiceKey<I>` is `(abstract new () => {}) & Context.Service<I, I>`, the type of `$service`; a service with a static default extends `ReferenceKey<I>`, the type of `$reference`, a `Context.Reference`. A default-exported service declares the interface and the class locally, because merged declarations must share their export status, and ends with `export default Users`.
+A service with a static default and no other static member is `export declare const Flags: Context.Reference<{ … }>`; with other static members, its base is the runtime's `ReferenceKey<Shape>`. A source type `Users.Shape` and a `.vibe` class's `implements Users` are written `Context.Service.Shape<typeof Users>`. A control operation writes an interface of its members and the brand, and a base of the runtime's `ServiceKey<Approval>`, `(abstract new () => {}) & Context.Service<Approval, Approval>`. A default-exported service declares the class locally and ends with `export default Users`.
 
 **Member calls (D41).** In a `.vibe` function body, a call `S.member(…)` where `S` is a Context key whose service declares `member` looks the service up, then applies the call rule to the member. The member receiver hook (`memberReceiver`) makes the checker read `member` from the service's shape, so a member the service declares wins over the key's own `pipe`, `of`, and `use`. The rule is structural: it covers `.vibe` services, `Context.Service` classes written in TypeScript, and Effect's own services such as `FileSystem` and `Path`.
 

@@ -1,6 +1,6 @@
 // VibeLang code compiled against the declarations alone sees the same two
 // types as code compiled from the source: `implements Users` checks the
-// shape, Users.Shape types a plain object, and Users() is the identifier.
+// shape, Users.Shape types a plain object, and Users() is the shape (D501).
 import { Flags, Prefix, Search, sourceOf, Users } from "../../out/main.js"
 
 class UsersHere implements Users {
@@ -12,7 +12,7 @@ class UsersHere implements Users {
 
 const shaped: Users.Shape = { source: "shaped", find: (id: string) => ({ id, name: id }) }
 
-function describe(users: Users) {
+function describe(users: Users.Shape) {
   return users.source
 }
 

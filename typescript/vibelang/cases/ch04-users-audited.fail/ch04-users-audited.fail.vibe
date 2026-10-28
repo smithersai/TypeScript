@@ -2,7 +2,7 @@
 // Chapter 4 "Requirements that would leak": UsersAudited.find looks up Audit each time it is
 // called, but Users.find's contract allows no call-time requirements.
 // NOTE: findIn and renameIn are unspecified in the proposal; they take the captured Database
-// implementation, typed with the service class name (D1: the class name is the service's shape).
+// implementation, typed with the service's shape, Database.Shape (D501).
 
 class UserNotFound extends TaggedError("UserNotFound")<{ readonly id: string }> {}
 class DbError extends TaggedError("DbError")<{ readonly reason: string }> {}
@@ -27,13 +27,13 @@ abstract class Audit {
   abstract record(entry: string): Effect<void, never, never>
 }
 
-function findIn(db: Database, id: string) {
+function findIn(db: Database.Shape, id: string) {
   const rows = Effect.orDie(() => db.query("select * from users where id = $1", [id]))
   if (rows.length === 0) throw new UserNotFound({ id })
   return rows[0]
 }
 
-function renameIn(db: Database, id: string, name: string) {
+function renameIn(db: Database.Shape, id: string, name: string) {
   Effect.orDie(() => db.execute("update users set name = $1 where id = $2", [name, id]))
 }
 

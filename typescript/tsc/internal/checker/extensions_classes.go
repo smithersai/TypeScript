@@ -104,6 +104,12 @@ func (c *Checker) NewAliasedObjectType(members ast.SymbolTable, aliasName string
 	return t, alias
 }
 
+// NewObjectType returns an anonymous object type whose properties are
+// members, symbols declared elsewhere, such as a class's instance members.
+func (c *Checker) NewObjectType(members ast.SymbolTable) *Type {
+	return c.newAnonymousType(nil, members, nil, nil, nil)
+}
+
 // NewTypeAliasSymbol returns a type alias symbol named name whose declared
 // type is t and whose parent is parent. It is declared nowhere: a hook
 // resolves the name.
@@ -172,24 +178,12 @@ func (c *Checker) resolveQualifiedTypeNameFromHooks(name *ast.Node, left *ast.No
 	return nil
 }
 
-// IsServiceBrandProperty reports whether p is the brand of a VibeLang
-// service's identifier (D361): the property of the runtime's ServiceBrand,
-// whose name is a unique symbol no program can write, or, where the program
-// has no runtime that declares it, the property "~vibelang/service". The
-// brand takes part in typing, but it is not a member that source declares.
+// IsServiceBrandProperty reports whether p is the optional brand of a
+// VibeLang control operation's interface, "~vibelang/service", which keeps two
+// controls with the same members distinct. It takes part in typing, but it
+// is not a member that source declares.
 func IsServiceBrandProperty(p *ast.Symbol) bool {
-	if p.Name() == "~vibelang/service" {
-		return true
-	}
-	if !isLateBoundName(p.Name()) {
-		return false
-	}
-	for _, declaration := range p.Declarations() {
-		if parent := declaration.Parent; parent != nil && ast.IsInterfaceDeclaration(parent) && parent.Name() != nil && parent.Name().Text() == "ServiceBrand" {
-			return true
-		}
-	}
-	return false
+	return p.Name() == "~vibelang/service"
 }
 
 // GetPropertyNameForKnownSymbolName returns the property name of the
@@ -207,4 +201,3 @@ func PropertyNameOfType(t *Type) (string, bool) {
 	}
 	return getPropertyNameFromType(t), true
 }
-

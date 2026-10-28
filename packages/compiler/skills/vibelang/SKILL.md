@@ -27,7 +27,7 @@ Declarations export like TypeScript declarations: `export data Shape { Circle { 
 | `class E extends Data.TaggedError("E")<{ readonly id: string }> {}` | `error E { id: string }`, `error Timeout` |
 | an error class with a constructor, methods or a subclass | `error E { id: string; constructor(raw: string) { super({ id: raw.trim() }) } }`, `error Sub extends Base { path: string }` |
 | `Schema.TaggedError` class | `schema error E { id: string }` |
-| `Context.Service<Users, {...}>()("app/Users")` | `service Users { find(id: string): User!NotFound; region: string }`; as a type, `Users` is the service's identifier, so type an implementation, a default or a TypeScript class's `implements` as `Users.Shape` (a plain object typed `Users` is TS2741) |
+| `Context.Service<Users, {...}>()("app/Users")` | `service Users { static readonly key = "app/Users"; find(id: string): User!NotFound; region: string }` (leave out `key` to derive it); it declares the same class, and as a type `Users` is the service's identifier, so type an implementation or a default as `Users.Shape`; `Users()` is the shape |
 | a service of another shape | `service Prefix: string`, `service Search: SearchApi { static members }`; the type `Search` is the key, so type an implementation `SearchApi`; a shape cannot refer to its service key (EK2103) |
 | `Schema.Struct({...})` and its type | `schema User { id: string; nick?: string; role: "admin" \| "member"; home: Address }` |
 | `Schema.Literals([...])` and its type | `schema Code = "a" \| "b"` |

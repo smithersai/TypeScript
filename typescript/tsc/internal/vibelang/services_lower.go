@@ -151,6 +151,18 @@ func (tx *lowering) visitServiceClass(node *ast.Node) *ast.Node {
 	tx.inEffect = false
 	members := tx.Visitor().VisitNodes(node.MemberList())
 	tx.inEffect = saved
+	if _, written := writtenKey(node); written != nil && members != nil {
+		// static readonly key = "<key>" is the key (D501), not a member.
+		var kept []*ast.Node
+		for _, member := range members.Nodes {
+			if ec.MostOriginal(member) != written {
+				kept = append(kept, member)
+			}
+		}
+		list := f.NewNodeList(kept)
+		list.Loc = members.Loc
+		members = list
+	}
 
 	helper, arguments := "$service", []*ast.Node{f.NewStringLiteral(key, ast.TokenFlagsNone)}
 	if hasStaticDefault(node) {

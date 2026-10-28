@@ -1,5 +1,4 @@
-import { Effect } from "effect";
-import { ServiceBrand } from "vibelang-runtime";
+import { Context, Effect } from "effect";
 declare const NotFound_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: "NotFound";
 } & Readonly<A>;
@@ -7,16 +6,11 @@ declare class NotFound extends NotFound_base<{
     readonly id: string;
 }> {
 }
-interface Users extends Users.Shape, ServiceBrand<"contract-spellings-mixed/main#Users"> {
-}
-declare const Users_base: import("vibelang-runtime").ServiceKey<Users, Users.Shape>;
-declare abstract class Users extends Users_base {
-}
-declare namespace Users {
-    interface Shape {
-        find(id: string): Effect.Effect<string, NotFound>;
-        count(): Effect.Effect<number>;
-    }
+declare const Users_base: Context.ServiceClass<Users, "contract-spellings-mixed/main#Users", {
+    find(id: string): Effect.Effect<string, NotFound>;
+    count(): Effect.Effect<number>;
+}>;
+declare class Users extends Users_base {
 }
 type Lookup = (id: string) => Effect.Effect<string, NotFound, Users>;
 type Counted = Effect.Effect<number>;

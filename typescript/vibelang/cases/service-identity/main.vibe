@@ -1,10 +1,10 @@
-// A service has two types (D361). As a type, its name is the identifier: the
-// shape's members plus a brand that only the service carries. Name.Shape,
-// which Effect spells Context.Service.Shape<typeof Name>, is the members
-// alone, the type of an implementation: providers check an implementation
-// against it, and `implements Name` in a .vibe file checks a class against
-// it. Name() returns the implementation typed as the identifier, so a
-// parameter typed with the service's name takes it.
+// A service has two types (D501), as Effect's Context.Service class has. As a
+// type, its name is the identifier, Effect's instance type, which carries the
+// service's key. Name.Shape, which Effect spells Context.Service.Shape<typeof
+// Name>, is the members, the type of an implementation: providers check an
+// implementation against it, and `implements Name` in a .vibe file checks a
+// class against it. Name() returns the implementation typed as the shape, as
+// `yield* Name` does, so a parameter that takes it is typed Name.Shape.
 error NotFound { id: string }
 
 service Users {
@@ -21,8 +21,8 @@ export interface SearchApi {
   find(query: string): string!!
 }
 
-// Where the shape is an object type, the identifier has its members; where
-// it is not, the identifier is the brand alone and Prefix() is a string.
+// Any type can be a shape: Search() is a SearchApi and Prefix() a string,
+// as Context.Service<Search, SearchApi> and Context.Service<Prefix, string>.
 service Search: SearchApi
 service Prefix: string
 
@@ -42,7 +42,7 @@ function regionOfShape(users: Users.Shape) {
   return users.region
 }
 
-function regionOf(users: Users) {
+function regionOf(users: Users.Shape) {
   return users.region
 }
 
@@ -52,7 +52,7 @@ function lookup(id: string) {
 }
 
 function search(query: string) {
-  const engine: Search = Search()
+  const engine: SearchApi = Search()
   const prefix: string = Prefix()
   return `${prefix}${engine.find(query)}`
 }
