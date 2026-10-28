@@ -44,6 +44,11 @@ The fixes keep a rewrite only when it adds no compiler error.
 | A plain object or default typed with a service's name, such as `const impl: Users = { … }`, or a TypeScript class that `implements Users` | TS2741 or TS2420: a service's name is now its identifier, which only the service carries, so another service with the same members or a structural type no longer stands for it. Type the implementation `Users.Shape`: `const impl: Users.Shape = { … }`, `static readonly default: Flags.Shape = { … }`, `implements Users.Shape`. `Users()` still has the type `Users`. |
 | A `match` without `default` whose arms name classes declared in a `.ts` file, TypeScript-style classes, `Error`, a class with its own `[Symbol.hasInstance]` or `[customMatcher]`, or errors from a declaration file compiled by 0.0.10 | EK4701: such an arm no longer proves the match covers its subject, and the diagnostic's note names each arm that did not count. Add a `default` arm, declare the classes with `error`, or recompile the package that declares them. |
 | An error class from another module, or a TypeScript class with the same tag and fields, passed where an `error` declaration's type is expected | TS2322 or TS2741: an `error` declaration's type is now nominal. Pass an instance of the expected class, or widen the parameter to the union of the classes it accepts. |
+| A block after an Effect dual, such as `withSpan("load") { … }`, `timeout("1 second") { … }` or `semaphore.withPermits(1) { … }` | A block is always its call's last argument, so the callee's type no longer moves it. Write the program first, `withSpan(() => { … }, "load")`, or use the curried form, `semaphore.withPermits(1)(() => { … })`. `vibelang --fix` rewrites each site. Where the appended call still type-checks, it is EK1023. |
+| `() => fork p()`, or a `fork` in an `if` branch or a bare block | A fiber belongs to its innermost named region: a function body (an arrow's expression body included), one loop iteration, a `try`, `catch` or `finally` block, a block that declares `using`, or a `provide` or mask block. `if` branches, bare blocks, `do` blocks and `match` own nothing. Passing an owned fiber out of its region (returning, storing, assigning outside it, or capturing it) is now the error EK4838. Use `Effect.forkScoped(() => p())` for a child the caller's scope owns, or `detach(() => p())`. |
+| `using h = Effect.acquireRelease(() => openDisposable(), release)` with a plain-holder workaround | The acquisition's release is now the only release, so `using` no longer also calls `[Symbol.dispose]()`. Bind the Disposable directly and drop the holder. |
+| `using n = count()` where the value has no disposal method and the initializer needs no `Scope` | TS2850. Bind it with `const`, or acquire it with `acquireRelease` so its release is recorded. |
+| A pause in a `using` initializer, such as a wait in the function that opens the resource | Cancellation now follows Effect. An initializer whose requirements include `Scope`, such as an `acquireRelease` or a function that returns one, runs with the interruptibility in force where the `using` stands, so cancellation reaches its waits. Any other initializer runs masked until its value's release is registered, an interruptible acquisition inside it included. To keep a wait cancellable, acquire the resource with `acquireRelease(…, { interruptible: true })`, which puts `Scope` in the initializer's requirements. |
 
 Direct platform calls such as `console.log` and `process.env.NAME` were
 already EK4402 in 0.0.10; holding their values and importing Node values
@@ -179,6 +184,9 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Runtime
 
+- A `using` resource could leak when an interruption was pending as its acquisition finished. Its release is now registered before the interruption can land.
+- A Disposable acquired by an Effect with its own release was disposed twice by `using`. It is now released once.
+- A fiber returned from a block-bodied arrow was already interrupted, with only a warning. A fiber that escapes the region that owns it is now an error.
 - Experimental platform layers had the same names as Effect's layers and were easy to confuse. Their exports now start with Experimental; see the import repair in [Upgrade from 0.0.10](#upgrade-from-0010).
 - An unhandled typed error from main could print only its tag and omit useful fields. Failure reports now include the error's fields while preserving redaction.
 - Loading the native runtime with an incompatible Effect could fail during module linking before the version check. It now reports the supported Effect version first.
@@ -574,18 +582,6 @@ listed with an upgrade step.
   finally { throw new CleanupError() }
   ```
 
-- **`using` can dispose the same resource twice.** If an acquisition's
-  registered release already calls a Disposable's disposer, `using` also
-  calls `Symbol.dispose` at block exit. Sync and async disposal do not share
-  one ownership rule. Today, return a plain holder from `Effect.acquireRelease`,
-  bind that holder with `using`, and dispose only `holder.value` in the
-  explicit release callback. See also the pending-interruption limitation below.
-
-  ```vibe
-  // fragment
-  using resource = Effect.acquireRelease(() => openDisposable(),
-    (r) => sync((value) => value[Symbol.dispose](), r)) // two disposals
-  ```
 
 - **Module names that differ only in letter case are one module.** A
   module declaration compiles to a file named for it in lower case,
@@ -677,18 +673,6 @@ listed with an upgrade step.
   function closed(): Effect<number, Bad> { return Store.read() } // R = never
   ```
 
-- **Changing an arrow's braces can change a fork's lifetime.**
-  A block-bodied arrow owns its `fork` child and interrupts it on block exit;
-  an expression-bodied arrow uses the caller's Scope. Returning the child
-  can therefore hand back an already interrupted fiber. Today, keep ownership
-  blocks explicit, join children before leaving them, and use
-  `forkIn(scope, program)` with a caller-owned scope for a child that must escape.
-
-  ```vibe
-  // fragment
-  const shortLived = () => { return fork work() }
-  const callerScoped = () => fork work() // different owner
-  ```
 
 - **Timeouts and races can discard cleanup failures.** The promise that
   cleanup failures are preserved applies to local finalization, but pinned
@@ -831,13 +815,7 @@ listed with an upgrade step.
 
 ### Known limitations
 
-- A JavaScript Disposable acquired while interruption is masked can leak if
-  interruption is already pending when the mask ends, before `using`
-  registers disposal (`scopes-using-pending-interrupt`). Use
-  `Effect.acquireRelease` with its default protected acquisition, return a
-  plain holder `{ value: disposable }`, and dispose `holder.value` in
-  the release callback. Bind the holder with `using` to avoid double
-  disposal. See [the pending-interruption limitation and safe pattern](../resource-management/030-scope.md#known-limitation-pending-interruption-and-javascript-disposables).
+
 - Platform checks are static, lint-strength checks, not a sandbox. Aliases
   such as `const g = globalThis; g.process.pid`, calls through `as any`,
   and `Reflect.get` can bypass them. See [the scope of platform checks](../platform/platform-globals.md#limits-of-static-checks).

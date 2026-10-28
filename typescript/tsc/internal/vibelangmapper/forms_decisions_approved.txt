@@ -174,3 +174,4 @@ typescript/vibelang/cases/order-wire-spread-arguments/main.vibe:18:26 block: app
 typescript/vibelang/cases/wire-resolved-callee/main.vibe:13:28 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
 typescript/vibelang/cases/wire-self-input.fail/main.vibe:7:35 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
 typescript/vibelang/cases/wire-spread-unlisted.fail/main.vibe:9:28 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement
+typescript/vibelang/cases/service-identity/main.vibe:62:41 block: applied/program table -> appended/program table # Layer.effect(S, effect) takes the block last as its program; same form, one placement

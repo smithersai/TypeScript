@@ -2547,7 +2547,7 @@ typescript/vibelang/cases/service-identity-dts/consumer/src/use.vibe:13:55 lambd
 typescript/vibelang/cases/service-identity-dts/consumer/src/use.vibe:24:53 lambda plain fallback
 typescript/vibelang/cases/service-identity-dts/main.vibe:17:11 lambda effectFn service
 typescript/vibelang/cases/service-identity/main.vibe:37:51 lambda effectFn annotation
-typescript/vibelang/cases/service-identity/main.vibe:62:41 block applied/program table
+typescript/vibelang/cases/service-identity/main.vibe:62:41 block appended/program table
 typescript/vibelang/cases/service-identity/main.vibe:63:36 lambda effectFn service
 typescript/vibelang/cases/service-identity/main.vibe:73:28 lambda plain fallback
 typescript/vibelang/cases/service-identity/main.vibe:81:26 lambda program table
