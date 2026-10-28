@@ -1,3 +1,2 @@
-Missing is declared in TypeScript, not by an error declaration, so a value of its type need not pass its instanceof test, and its arm removes nothing.
 Picky or a class it extends declares its own [Symbol.hasInstance] or [customMatcher], which may reject a value of its type, so its arm removes nothing.
-Error is declared in TypeScript, not by an error declaration, so a value of its type need not pass its instanceof test, and its arm removes nothing.
+Error is not an error class of effect, so a value of its type need not pass its instanceof test, and its arm removes nothing.

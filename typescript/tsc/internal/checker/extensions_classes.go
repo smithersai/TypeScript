@@ -1,8 +1,6 @@
 package checker
 
 import (
-	"strings"
-
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/diagnostics"
 )
@@ -210,10 +208,3 @@ func PropertyNameOfType(t *Type) (string, bool) {
 	return getPropertyNameFromType(t), true
 }
 
-// IsErrorBrandProperty reports whether p is the private member that a
-// VibeLang error declaration's class has (D407), #vibelang/error, which makes
-// it nominal. It takes part in typing, but it is not a member that source
-// declares.
-func IsErrorBrandProperty(p *ast.Symbol) bool {
-	return IsPrivateIdentifierSymbol(p) && strings.HasSuffix(p.Name(), "@#vibelang/error")
-}

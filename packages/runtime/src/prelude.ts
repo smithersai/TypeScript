@@ -33,25 +33,6 @@ export const TaggedError: typeof Data.TaggedError = ((tag: string) => {
 }) as any
 
 /**
- * The type of an error declaration's marker property. It is declared as a
- * type only and not exported, so no object has the property and no program
- * can name it.
- */
-declare const errorBrand: unique symbol
-
-/**
- * D407: the marker of a compiled error declaration. Its declaration file
- * writes `declare namespace NotFound { type $error = ErrorBrand<"app/errors#NotFound"> }`
- * beside the class, so a consumer of the declarations alone knows the class
- * is an error declaration, a closed class whose arm counts toward a match's
- * exhaustiveness. A class of a declaration file without it is open, and a
- * subclass does not inherit it.
- */
-export interface ErrorBrand<Key extends string> {
-  readonly [errorBrand]: Key
-}
-
-/**
  * D278: the base of `error Name extends Base`, a subclass of Base whose
  * instances carry their own tag and report it as their name, as
  * `Data.TaggedError` does for its own. The declaration's members declare the

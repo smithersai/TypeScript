@@ -1,7 +1,7 @@
-// An error declaration's declaration file writes its private member, #private
-// (D407), so stock TypeScript sees the class as nominal too, and a VibeLang
-// consumer of the declarations counts its arms toward exhaustiveness, as a
-// consumer of the source does. consumer/src does both; run.mjs compiles and
+// An error declaration's declaration file is the Data.TaggedError class's
+// (D501). A VibeLang consumer of the declarations counts its arms toward
+// exhaustiveness, as a consumer of the source does, because the class extends
+// effect's YieldableError. consumer/src does both; run.mjs compiles and
 // runs it.
 export error NotFound { id: string }
 export error Timeout { ms: number }

@@ -1,1 +1,0 @@
-Expired's declaration file does not mark it as a compiled error declaration with the runtime's ErrorBrand, so a value of its type need not pass its instanceof test, and its arm removes nothing.

@@ -1,2 +1,2 @@
 object is open: it is not a finite union of literals, data variants, and closed classes, so arms over its cases cannot cover it.
-Date is declared in TypeScript, not by an error declaration, so a value of its type need not pass its instanceof test, and its arm removes nothing.
+Date is not an error class of effect, so a value of its type need not pass its instanceof test, and its arm removes nothing.

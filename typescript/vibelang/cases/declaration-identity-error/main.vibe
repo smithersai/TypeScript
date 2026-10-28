@@ -1,0 +1,9 @@
+// An error declaration declares what the Effect TypeScript in
+// typescript/main.ts declares, a Data.TaggedError class with no member,
+// marker or namespace of VibeLang (D501), from foldkit managedResource.
+
+// foldkit: managedResource.
+/** A managed resource was read while it was not acquired. */
+export error ResourceNotAvailable { resource: string }
+
+export error Timeout

@@ -1,0 +1,32 @@
+// expect-result: {"vibe":false,"ts":false,"own":"local"}
+// An error declaration's type is structural, as Effect TypeScript's error
+// classes are (D501): another module's error declaration with the same tag
+// and fields, and a TypeScript class with them, are assignable to it. Its
+// identity is its class at run time, so neither value passes NotFound's
+// instanceof test, and a match over NotFound never takes its arm for them.
+import { NotFound as OtherNotFound } from "./other.vibe"
+import { NotFound as TsNotFound } from "./other-ts.ts"
+
+export error NotFound { id: string }
+
+export function fromVibe(e: OtherNotFound): NotFound {
+  return e
+}
+
+export function fromTs(e: TsNotFound): NotFound {
+  return e
+}
+
+function describe(e: NotFound): string {
+  return match (e) {
+    when NotFound: "local";
+  }
+}
+
+export function main() {
+  return {
+    vibe: fromVibe(new OtherNotFound({ id: "1" })) instanceof NotFound,
+    ts: fromTs(new TsNotFound({ id: "2" })) instanceof NotFound,
+    own: describe(new NotFound({ id: "3" }))
+  }
+}

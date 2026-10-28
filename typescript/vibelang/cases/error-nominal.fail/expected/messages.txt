@@ -1,2 +1,0 @@
-Property '#vibelang/error' in type 'NotFound' refers to a different member that cannot be accessed from within type 'NotFound'.
-Property '#vibelang/error' is missing in type

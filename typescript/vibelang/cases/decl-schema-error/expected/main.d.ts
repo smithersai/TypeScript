@@ -1,15 +1,10 @@
 import { Effect, Schema } from "effect";
-import { ErrorBrand } from "vibelang-runtime";
 declare const FsError_base: Schema.Class<FsError, Schema.TaggedStruct<string, {
     readonly method: Schema.String;
     readonly path: Schema.optional<Schema.String>;
 }>, import("effect/Cause").YieldableError>;
 /** The base of a family of file system failures. */
 export declare class FsError extends FsError_base {
-    #private;
-}
-export declare namespace FsError {
-    type $error = ErrorBrand<"decl-schema-error/main#FsError">;
 }
 declare const NotFound_base: Schema.Class<NotFound, Schema.Struct<{
     readonly method: Schema.String;
@@ -18,20 +13,12 @@ declare const NotFound_base: Schema.Class<NotFound, Schema.Struct<{
     attempts: Schema.Number;
 }>, FsError> & Pick<{}, never>;
 export declare class NotFound extends NotFound_base {
-    #private;
-}
-export declare namespace NotFound {
-    type $error = ErrorBrand<"decl-schema-error/main#NotFound">;
 }
 declare const Locked_base: Schema.Class<Locked, Schema.TaggedStruct<"Locked", {
     readonly holder: Schema.String;
 }>, import("effect/Cause").YieldableError>;
 export declare class Locked extends Locked_base {
-    #private;
     describe(): string;
-}
-export declare namespace Locked {
-    type $error = ErrorBrand<"decl-schema-error/main#Locked">;
 }
 export declare function main(): Effect.Effect<{
     tag: "NotFound";

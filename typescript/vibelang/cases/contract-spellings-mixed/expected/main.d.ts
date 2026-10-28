@@ -1,15 +1,11 @@
 import { Effect } from "effect";
-import { ErrorBrand, ServiceBrand } from "vibelang-runtime";
+import { ServiceBrand } from "vibelang-runtime";
 declare const NotFound_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").VoidIfEmpty<{ readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }>) => import("effect/Cause").YieldableError & {
     readonly _tag: "NotFound";
 } & Readonly<A>;
 declare class NotFound extends NotFound_base<{
     readonly id: string;
 }> {
-    #private;
-}
-declare namespace NotFound {
-    type $error = ErrorBrand<"contract-spellings-mixed/main#NotFound">;
 }
 interface Users extends Users.Shape, ServiceBrand<"contract-spellings-mixed/main#Users"> {
 }

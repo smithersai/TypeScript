@@ -46,14 +46,6 @@ const serviceBrandProperty = "~vibelang/service"
 // as a type only, so no program can name it.
 const serviceBrandName = "ServiceBrand"
 
-// errorBrandName is the runtime's type that marks a compiled error
-// declaration's class in its declaration file (D407), as the type of the
-// member errorMarkerName of a namespace merged with the class.
-const (
-	errorBrandName  = "ErrorBrand"
-	errorMarkerName = "$error"
-)
-
 // serviceShapeName names a service's shape as a member type of the service:
 // Users.Shape (D361).
 const serviceShapeName = "Shape"

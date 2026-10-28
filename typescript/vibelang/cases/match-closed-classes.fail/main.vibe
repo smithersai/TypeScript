@@ -1,9 +1,10 @@
 // expect: EK4701
 // A class arm counts toward exhaustiveness only for a closed class (D407,
-// D428): an error declaration, or an error class of effect, that declares no
-// [Symbol.hasInstance] or [customMatcher] of its own. An arm over a class a
-// .ts file declares, over Error, or over a class with its own membership test
-// removes nothing, so each match needs a default arm. Each compiled before.
+// D428, D501): an error class, one that extends effect's YieldableError
+// wherever it is declared, that declares no [Symbol.hasInstance] or
+// [customMatcher] of its own. viaTs's Missing, a Data.TaggedError class of a
+// .ts file, is one. An arm over Error, or over a class with its own
+// membership test, removes nothing, so each match needs a default arm.
 import { Missing } from "./errors.ts"
 
 error Gone { id: string }
