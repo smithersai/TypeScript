@@ -143,7 +143,7 @@ EK1012, EK1016, EK2004, EK3205, EK4403, EK4406, EK4409, EK9100, Effect's languag
 
 ## TypeScript-style Effect code
 
-Effect declarations and combinator calls written in TypeScript's style compile in a `.vibe` file, and draw a warning where VibeLang has a form of its own. Rewrite `Effect.gen` bodies as functions using ordinary calls instead of `yield*`. The warning's quick fix writes that form when it keeps what the program does; otherwise the warning's note says what the form would change, and there is no fix.
+Effect declarations and combinator calls written in TypeScript's style compile in a `.vibe` file, and draw a warning where VibeLang has a form of its own. `Effect.gen` bodies do not compile there (EK1002); [its quick fix](#effectgen-in-direct-style) writes one in direct style. The warning's quick fix writes that form when it keeps what the program does; otherwise the warning's note says what the form would change, and there is no fix.
 
 | Code | TypeScript style | VibeLang form | Quick fix |
 | --- | --- | --- | --- |
@@ -155,6 +155,29 @@ Effect declarations and combinator calls written in TypeScript's style compile i
 | EK4835 | `Effect.catchTag(find(id), "NotFound", (e) => …)` | `find(id) catch (e) => match (e) { when { _tag: "NotFound" }: …; default: throw e; }` | When each handler is an arrow function with one value; merged handlers keep their own bindings |
 | EK4836 | `Effect.withSpan(load(), "load")`, `Effect.provide(main(), AppLive)` | `withSpan(() => load(), "load")`, `provide AppLive { return main() }` | Where a block can stand |
 | EK4837 | `class Failed extends Schema.TaggedError<Failed>()("Failed", { … }) {}` | `error Failed { … }`, which is not a Schema | None; turn the code off where errors are Schemas by design |
+
+### Effect.gen in direct style
+
+EK1002's quick fix writes an `Effect.gen` program in direct style: each `yield* e` becomes the call `e` that runs, `e()` for an Effect value such as a service key or a `Config`, or `throw e` for an error instance:
+
+```ts
+// fragment
+export const greet = (id: string) =>
+  Effect.gen(function* () {
+    const users = yield* Users
+    return `Hello, ${yield* users.find(id)}`
+  })
+```
+
+```vibe
+// fragment
+export const greet = (id: string) => {
+  const users = Users()
+  return `Hello, ${users.find(id)}`
+}
+```
+
+It rewrites `Effect.gen(function* () { … })`, or `Effect.gen({ self: this }, function* () { … })`, that is the whole body of an arrow, a function or a method, and one where the declared type takes a program, such as `Layer.effect`'s second argument, which becomes `() => { … }`. EK1002's note says why there is no fix where the direct style would mean something else: a call the generator makes that builds a program no `yield*` runs, which would run where it stands; `throw` or `try` in the generator, which mean JavaScript exceptions there; `this` without `{ self: this }`, or `arguments`; a parameter with a default or a pattern, which would be bound when the program runs instead of at the call; or a body that runs no Effect, which would turn the function into a plain one. `Effect.gen(…).pipe(…)`, a program held in a `const`, and `Effect.fn` stay for you to rewrite.
 
 Apply every fix in a project, then compile as the rest of the command says:
 

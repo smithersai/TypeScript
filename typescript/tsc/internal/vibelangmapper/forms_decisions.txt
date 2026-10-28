@@ -1768,6 +1768,13 @@ typescript/vibelang/cases/match-unused-names/main.vibe:17:16 lambda plain fallba
 typescript/vibelang/cases/match-unused-names/main.vibe:21:17 lambda dual fallback
 typescript/vibelang/cases/method-plain-annotation-effect.fail/main.vibe:26:3 lambda plain annotation
 typescript/vibelang/cases/methods-optional-chain.fail/main.vibe:5:21 lambda plain fallback
+typescript/vibelang/cases/migrate-effect-gen-fixed/lib.vibe:31:22 lambda choice fallback
+typescript/vibelang/cases/migrate-effect-gen-fixed/lib.vibe:37:26 lambda plain fallback
+typescript/vibelang/cases/migrate-effect-gen-fixed/lib.vibe:38:29 lambda effectFn table
+typescript/vibelang/cases/migrate-effect-gen-fixed/lib.vibe:42:25 lambda choice fallback
+typescript/vibelang/cases/migrate-effect-gen-fixed/lib.vibe:51:3 lambda program table
+typescript/vibelang/cases/migrate-effect-gen-fixed/lib.vibe:53:20 lambda plain fallback
+typescript/vibelang/cases/migrate-effect-gen-fixed/lib.vibe:8:22 lambda choice fallback
 typescript/vibelang/cases/module-aliases/main.vibe:12:24 lambda plain annotation
 typescript/vibelang/cases/module-aliases/main.vibe:12:90 lambda plain table
 typescript/vibelang/cases/module-aliases/main.vibe:14:26 lambda plain fallback

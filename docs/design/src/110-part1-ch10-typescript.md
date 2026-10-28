@@ -47,7 +47,7 @@ error EK1002: Effect.gen expects a JavaScript generator, but in VibeLang functio
     function findName(id: string) { return Users.find(id).name }
 ```
 
-The same EK1002 applies to a `function*` passed to `Option.gen`, `Result.gen`, or another JavaScript generator API, whatever its return annotation (D370). A JavaScript generator is a generator method, or lives in a `module` declaration or a `.ts` file (Chapter 8). Outside a hatch or a `module` body, `async` is EK1003. Use `join` for a fiber and `d.await()` for a Deferred (Chapter 7, D225, D226). Converting a function is mostly deletion, as every chapter of Part I shows. The editor refactor remains a design target (Chapter 28).
+The same EK1002 applies to a `function*` passed to `Option.gen`, `Result.gen`, or another JavaScript generator API, whatever its return annotation (D370). A JavaScript generator is a generator method, or lives in a `module` declaration or a `.ts` file (Chapter 8). Outside a hatch or a `module` body, `async` is EK1003. Use `join` for a fiber and `d.await()` for a Deferred (Chapter 7, D225, D226). Converting a function is mostly deletion, as every chapter of Part I shows. EK1002's quick fix makes that conversion for `Effect.gen` wherever it keeps the program's meaning, and `vibelang --fix` applies it (D470). The editor refactor remains a design target (Chapter 28).
 
 #### Using VibeLang code from TypeScript
 

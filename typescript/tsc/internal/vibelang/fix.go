@@ -650,7 +650,7 @@ func fileFixes(ctx context.Context, program *compiler.Program, file *ast.SourceF
 	only := []lsproto.CodeActionKind{lsproto.CodeActionKindQuickFix}
 	var candidates []fileFix
 	for _, d := range fixable {
-		key := diagnosticSource + strconv.Itoa(int(d.Code())) + ":" + file.Text()[d.Pos():d.End()]
+		key := fixKey(file, d)
 		if refused[key] {
 			continue
 		}

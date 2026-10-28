@@ -263,7 +263,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D288 | A running `Effect.succeed` or `Effect.fail` draws EK4834 | The same |  | 2, 28 |
 | D289 | Effect's catch combinators draw EK4835 | The same |  | 3, 28 |
 | D290 | `Effect.withSpan`, `Effect.provide`, and `Effect.provideService` draw EK4836 | The same | Amended by D376 | 4, 28 |
-| D291 | `vibelang --fix` applies every safe fix to a project | One command migrates a project | Amended by D372 | 28 |
+| D291 | `vibelang --fix` applies every safe fix to a project | One command migrates a project | Amended by D372, D470 | 28 |
 | D292 | The VibeLang skill ships in the `vibelang` package | An agent reads the skill of the installed version |  | 28 |
 | D293 | Both sides of a catch expression take its contextual type | Literal tags stay literal |  | 3 |
 | D294 | An exhaustive match runs its last arm without testing it | A branch no well-typed value reaches | Superseded by D405 | 3, 26 |
@@ -427,6 +427,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D467 | A handler's answer type adds `undefined` only for a completion other than by returning | "Ends another way" was loose | Amended by D487 | 9 |
 | D468 | Statements that contradicted rules or facts | Chapters 2, 5, 6, 10, 13, 15, 27, 28, 30 and the appendices kept text the rules had replaced |  | 2, 5, 6, 10, 13, 15, 27, 28, 30, Intro, Appendices |
 | D469 | A fiber may sit in a literal its region holds only to join it | D409's "a collection" rejected `Fiber.joinAll(fibers)` |  | 7, 28 |
+| D470 | `vibelang --fix` writes `Effect.gen` in direct style where it keeps the meaning | Migrations rewrote the commonest construct by hand |  | 10, 28 |
 | D480 | A call whose type is an Effect runs, whatever its callee compiles to; an Effect-form function that returns an Effect value is EK4802 wherever it stands; a program is held by a function written where an Effect type is declared | A plain function returning a program ran by one rule and returned data by four others |  | 13, 15, 28, 30, Appendices |
 | D481 | `using` is the Effect program a TypeScript developer would write: `Effect.acquireRelease` of the initializer, interruptible for a scoped acquisition and masked otherwise, with no mask or interruptibility record of VibeLang's own; D401's ownership record stays | A release inside an initializer lost its mask; an escaping acquisition left earlier resources unregistered | Amended by D490 | 6, 13, 17, 20, 21, 24, 26, 27, 30, Appendices |
 | D482 | Overloads resolve as TypeScript resolves them: a literal is typed by the first candidate TypeScript checks it against, and no candidates are compared; EK1021 only where lifting or conversion is needed and its candidates disagree; reordering a library's overloads is a stated rough edge | The cross-candidate checks rejected `Effect.tap` and still missed named functions and generic calls at return positions | Amended by D494 | 2, 5, 13, 27, 28, 30 |
