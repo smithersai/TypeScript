@@ -18,15 +18,15 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | Load | Tokens |
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,213 |
-| The skill and the [cheat sheet](115-cheat-sheet.md) | 14,813 |
-| The skill and the user guide (134 pages) | 249,167 |
-| The user guide alone | 243,954 |
-| The specification (33 chapters) | 180,431 |
-| The decision log, `docs/design/DECISIONS.md` | 117,650 |
+| The skill and the [cheat sheet](115-cheat-sheet.md) | 14,953 |
+| The skill and the user guide (134 pages) | 249,395 |
+| The user guide alone | 244,182 |
+| The specification (33 chapters) | 191,263 |
+| The decision log, `docs/design/DECISIONS.md` | 127,626 |
 
 ## Effect TypeScript beside VibeLang
 
-15.0% fewer tokens across 47 pairs in total; VibeLang is longer in 12 pairs. This is the saving over the combined source tokens, not the arithmetic mean of the percentages below.
+14.6% fewer tokens across 47 pairs in total; VibeLang is longer in 13 pairs. This is the saving over the combined source tokens, not the arithmetic mean of the percentages below.
 
 Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript blocks against its VibeLang blocks. A negative saving means the VibeLang snippet is longer.
 
@@ -44,23 +44,23 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | Data types | 41 | 14 | 65.9% |
 | Readonly by default | 14 | 14 | 0.0% |
 | Statements instead of generators | 47 | 46 | 2.1% |
-| Programs passed by name | 28 | 27 | 3.6% |
+| Programs as function literals | 28 | 31 | -10.7% |
 | Providing layers | 36 | 19 | 47.2% |
 | Providing one service | 63 | 49 | 22.2% |
 | Catching by tag | 50 | 49 | 2.0% |
 | Falling back in an expression | 40 | 21 | 47.5% |
 | Catching in an expression | 47 | 41 | 12.8% |
 | Entry point | 22 | 11 | 50.0% |
-| Catch every cause | 49 | 48 | 2.0% |
-| Rethrow a cause | 35 | 49 | -40.0% |
+| Catch every cause | 49 | 50 | -2.0% |
+| Rethrow a cause | 35 | 51 | -45.7% |
 | Run on every exit | 29 | 33 | -13.8% |
-| Exit, yield, and interrupt | 33 | 34 | -3.0% |
+| Exit, yield, and interrupt | 33 | 36 | -9.1% |
 | Interruption | 65 | 58 | 10.8% |
 | No imports from `effect` or its subpath packages | 29 | 14 | 51.7% |
 | A module's name names its export of that name | 63 | 19 | 69.8% |
-| Common functions without the `Effect.` prefix | 43 | 31 | 27.9% |
+| Common functions without the `Effect.` prefix | 43 | 34 | 20.9% |
 | Methods on Effect's data types | 54 | 42 | 22.2% |
-| The pipe operator | 29 | 31 | -6.9% |
+| The pipe operator | 34 | 24 | 29.4% |
 | Throw in an expression | 41 | 30 | 26.8% |
 | Blocks as values | 34 | 46 | -35.3% |
 | Blocks after calls | 77 | 72 | 6.5% |
@@ -69,17 +69,17 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | Match a data type's variants | 29 | 42 | -44.8% |
 | Option, Exit, and Result | 60 | 62 | -3.3% |
 | Test and bind | 44 | 45 | -2.3% |
-| Plain, self-contained TypeScript inside `sync`, `try`, and `callback` | 172 | 251 | -45.9% |
+| Plain, self-contained TypeScript inside `sync`, `try`, and `callback` | 188 | 269 | -43.1% |
 | TypeScript modules inline | 88 | 89 | -1.1% |
 | Fork and join | 43 | 34 | 20.9% |
 | Wait for several | 62 | 57 | 8.1% |
 | First success, expected outcomes | 53 | 48 | 9.4% |
 | Fork a block | 52 | 37 | 28.8% |
-| Detached and scoped fibers | 35 | 45 | -28.6% |
+| Detached and scoped fibers | 35 | 49 | -40.0% |
 | Wait for a Deferred | 30 | 28 | 6.7% |
 | Race | 43 | 56 | -30.2% |
 | A concurrent loop | 40 | 28 | 30.0% |
-| **All 47 entries** | **2,308** | **1,961** | **15.0%** |
+| **All 47 entries** | **2,329** | **1,989** | **14.6%** |
 
 ## Every page
 
@@ -261,55 +261,55 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Control operations and handlers](111-control-operations-and-handlers.md) | 2,027 |
 | [Producers](112-producers.md) | 1,387 |
 | [Building an HTTP API](113-building-an-http-api.md) | 1,375 |
-| [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,755 |
-| [Cheat sheet](115-cheat-sheet.md) | 9,600 |
+| [VibeLang for Effect users](114-vibelang-for-effect-users.md) | 4,843 |
+| [Cheat sheet](115-cheat-sheet.md) | 9,740 |
 | [Pattern matching with match and is](116-match-and-is.md) | 3,918 |
 | [Experimental platform APIs](118-experimental-platform-apis.md) | 3,219 |
-| **All 7 pages** | **26,281** |
+| **All 7 pages** | **26,509** |
 
 ### Specification
 
 | Page | Tokens |
 | --- | ---: |
 | [Introduction](../../../design/src/000-intro.md) | 1,791 |
-| **Part I. The language by example** | **49,063** |
-| [1. A first look](../../../design/src/101-part1-ch01-first-look.md) | 2,165 |
-| [2. Functions and calls](../../../design/src/102-part1-ch02-functions.md) | 1,952 |
+| **Part I. The language by example** | **50,172** |
+| [1. A first look](../../../design/src/101-part1-ch01-first-look.md) | 2,198 |
+| [2. Functions and calls](../../../design/src/102-part1-ch02-functions.md) | 1,990 |
 | [3. Errors: the E channel](../../../design/src/103-part1-ch03-errors.md) | 5,292 |
 | [4. Dependency injection: the R channel](../../../design/src/104-part1-ch04-di.md) | 6,551 |
-| [5. Programs as values: retry, timeout, and pipe](../../../design/src/105-part1-ch05-programs.md) | 3,551 |
-| [6. Resources](../../../design/src/106-part1-ch06-resources.md) | 3,666 |
+| [5. Programs as values: retry, timeout, and pipe](../../../design/src/105-part1-ch05-programs.md) | 3,559 |
+| [6. Resources](../../../design/src/106-part1-ch06-resources.md) | 3,989 |
 | [7. Concurrency](../../../design/src/107-part1-ch07-concurrency.md) | 4,608 |
 | [8. Producers: streams of values](../../../design/src/108-part1-ch08-producers.md) | 1,874 |
-| [9. Handlers: defining your own effects](../../../design/src/109-part1-ch09-handlers.md) | 3,355 |
-| [10. Working with TypeScript](../../../design/src/110-part1-ch10-typescript.md) | 7,085 |
-| [11. The standard library](../../../design/src/111-part1-ch11-stdlib.md) | 5,442 |
-| [12. Questions Effect users ask](../../../design/src/112-part1-ch12-faq.md) | 3,522 |
-| **Part II. The rules** | **33,590** |
-| [13. What a call means](../../../design/src/213-part2-ch13-calls.md) | 18,885 |
-| [14. Contracts and inference](../../../design/src/214-part2-ch14-contracts.md) | 4,301 |
-| [15. Which functions compile to plain JavaScript](../../../design/src/215-part2-ch15-direct.md) | 3,315 |
+| [9. Handlers: defining your own effects](../../../design/src/109-part1-ch09-handlers.md) | 3,393 |
+| [10. Working with TypeScript](../../../design/src/110-part1-ch10-typescript.md) | 7,706 |
+| [11. The standard library](../../../design/src/111-part1-ch11-stdlib.md) | 5,464 |
+| [12. Questions Effect users ask](../../../design/src/112-part1-ch12-faq.md) | 3,548 |
+| **Part II. The rules** | **38,073** |
+| [13. What a call means](../../../design/src/213-part2-ch13-calls.md) | 22,396 |
+| [14. Contracts and inference](../../../design/src/214-part2-ch14-contracts.md) | 5,035 |
+| [15. Which functions compile to plain JavaScript](../../../design/src/215-part2-ch15-direct.md) | 3,490 |
 | [16. Callbacks and higher-order functions](../../../design/src/216-part2-ch16-callbacks.md) | 2,035 |
-| [17. Failures, defects, interruption, and cleanup](../../../design/src/217-part2-ch17-failures.md) | 5,054 |
-| **Part III. The runtime** | **26,083** |
+| [17. Failures, defects, interruption, and cleanup](../../../design/src/217-part2-ch17-failures.md) | 5,117 |
+| **Part III. The runtime** | **26,331** |
 | [18. Why a continuation runtime](../../../design/src/318-part3-ch18-why.md) | 2,258 |
 | [19. The checkout trace, step by step](../../../design/src/319-part3-ch19-trace.md) | 1,583 |
-| [20. The machine](../../../design/src/320-part3-ch20-machine.md) | 3,677 |
-| [21. One-shot ownership and races](../../../design/src/321-part3-ch21-ownership.md) | 1,955 |
+| [20. The machine](../../../design/src/320-part3-ch20-machine.md) | 3,750 |
+| [21. One-shot ownership and races](../../../design/src/321-part3-ch21-ownership.md) | 1,946 |
 | [22. What resume restores](../../../design/src/322-part3-ch22-restore.md) | 1,478 |
 | [23. Boundaries and finalization](../../../design/src/323-part3-ch23-boundaries.md) | 2,053 |
-| [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 4,559 |
+| [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 4,560 |
 | [25. Implementation strategies and costs](../../../design/src/325-part3-ch25-strategies.md) | 1,946 |
-| [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 6,574 |
-| **Part IV. The compiler** | **19,598** |
-| [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 5,234 |
-| [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 14,364 |
-| **Part V. Decisions** | **30,720** |
-| [29. Decisions](../../../design/src/529-part5-ch29-decisions.md) | 22,953 |
-| [30. Risks and experiments](../../../design/src/530-part5-ch30-risks.md) | 7,767 |
-| **Appendices** | **19,586** |
-| [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 10,941 |
-| [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,645 |
-| **All 33 pages** | **180,431** |
+| [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 6,757 |
+| **Part IV. The compiler** | **20,246** |
+| [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 5,758 |
+| [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 14,488 |
+| **Part V. Decisions** | **34,879** |
+| [29. Decisions](../../../design/src/529-part5-ch29-decisions.md) | 24,659 |
+| [30. Risks and experiments](../../../design/src/530-part5-ch30-risks.md) | 10,220 |
+| **Appendices** | **19,771** |
+| [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 11,170 |
+| [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,601 |
+| **All 33 pages** | **191,263** |
 
 <!-- token-counts: end -->

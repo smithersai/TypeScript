@@ -287,7 +287,7 @@ function greetUser(id: string) {
 
 `Effect.fn("name")(body)` adds a named tracing span; a bare function declaration uses `Effect.fnUntraced` by default and loses it. Keep the span with `function f(...) { return withSpan("name") { ... } }`, or `const f = (...) => withSpan("name") { ... }` for an object field or arrow. Put the function's work inside the `withSpan` block; its return value, failures, and requirements flow through.
 
-**Programs passed by name**. A call runs where it stands, and is passed as a program where a parameter expects one.
+**Programs as function literals**. A call runs where it stands; `() =>` makes a program to pass. Passing a call by name, `race(getUser("1"), getUser("2"))`, still compiles but is being retired.
 
 ```ts effect
 // fragment
@@ -299,7 +299,7 @@ const first = yield* Effect.race(getUser("1"), getUser("2"))
 // run: Console.log(fastest().name)
 function fastest() {
   const user = getUser("1")
-  return race(getUser("1"), getUser("2"))
+  return race(() => getUser("1"), () => getUser("2"))
 }
 // Output: Ada
 ```
@@ -447,7 +447,7 @@ NodeRuntime.runMain(main)
 ```
 
 ```vibe es
-// run: Effect.provide(main(), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]))
+// run: Effect.provide(() => main(), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]))
 export function main() {
   log("Hello")
 }
@@ -469,7 +469,7 @@ const safe = (id: string) =>
 ```vibe es
 // run: Console.log(safe("1")); Console.log(safe("missing").includes("NotFound"))
 function safe(id: string) {
-  return match (exit(getUser(id))) {
+  return match (exit(() => getUser(id))) {
     when Exit.Success(let user): user.name;
     when Exit.Failure(let cause): `failed: ${Cause.pretty(cause)}`;
   }
@@ -490,7 +490,7 @@ const logged = getUser("1").pipe(
 ```vibe es
 // run: Console.log(JSON.stringify(logged()))
 function logged() {
-  const outcome = exit(getUser("1"))
+  const outcome = exit(() => getUser("1"))
   if (outcome is Exit.Failure(let cause)) {
     logError(cause)
     return Effect.failCause(cause)
@@ -522,7 +522,7 @@ function tracked() {
 // Output: Ada
 ```
 
-**Exit, yield, and interrupt**. `exit` takes its program by name.
+**Exit, yield, and interrupt**. `exit` takes a program: `exit(() => getUser("1"))`.
 
 ```ts effect
 // fragment
@@ -534,7 +534,7 @@ if (result._tag === "Failure") yield* Effect.interrupt
 ```vibe es
 // run: Console.log(outcome()._tag)
 function outcome() {
-  const result = exit(getUser("1"))
+  const result = exit(() => getUser("1"))
   yieldNow()
   if (result is Exit.Failure) interrupt()
   return result
@@ -632,7 +632,7 @@ const patient = Effect.gen(function* () {
 // run: Console.log(JSON.stringify(patient()))
 function patient() {
   sleep("10 millis")
-  return timeout(retry(getUser("1"), Schedule.recurs(2)), "1 second")
+  return timeout(() => retry(() => getUser("1"), Schedule.recurs(2)), "1 second")
 }
 // Output: {"id":"1","name":"Ada"}
 ```
@@ -658,22 +658,20 @@ function hot() {
 
 A method is a data-first overload: its first parameter is named `self`, ends in `OrOptions`, or is another supported receiver parameter, such as the one in `Cause.findErrorOption(input)`.
 
-**The pipe operator**. `%` is the value on the left; where it lands in a program parameter, the left side is passed as a program.
+**The pipe operator**. `%` is the value on the left. To retry or time out a program, pass it as `() =>`, as in `timeout(() => retry(() => getUser("1"), Schedule.recurs(2)), "1 second")`; passing a topic to `retry` is being retired.
 
 ```ts effect
 // fragment
-const piped = getUser("1").pipe(
-  Effect.retry(Schedule.recurs(2)),
-  Effect.timeout("1 second")
-)
+const user = yield* getUser("1")
+const shout = pipe(user.name, (name) => name.toUpperCase(), (name) => `${name}!`)
 ```
 
 ```vibe es
-// run: Console.log(JSON.stringify(piped()))
-function piped() {
-  return getUser("1") |> retry(%, Schedule.recurs(2)) |> timeout(%, "1 second")
+// run: Console.log(shout())
+function shout() {
+  return getUser("1").name |> %.toUpperCase() |> `${%}!`
 }
-// Output: {"id":"1","name":"Ada"}
+// Output: ADA!
 ```
 
 ## TC39 forms
@@ -893,7 +891,7 @@ import { statfs } from "node:fs/promises"
 const up = Effect.sync(() => uptime())
 const parsed = Effect.try({ try: () => JSON.parse(text), catch: (error) => new BadJson({ error }) })
 const key = Effect.promise(() => crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, false, ["sign"]))
-const free = Effect.tryPromise(async () => (await statfs(path)).bavail)
+const free = Effect.tryPromise({ try: async () => (await statfs(path)).bavail, catch: (error) => new NoDisk({ error }) })
 const tick = Effect.callback<number>((resume) => {
   const listener = (n: number) => resume(Effect.succeed(n))
   ticker.once("tick", listener)
@@ -913,6 +911,7 @@ module node {
 import { EventEmitter, statfs, uptime } from node
 
 error BadJson { error: unknown }
+error NoDisk { error: unknown }
 
 function hatches(text: string, path: string, ticker: EventEmitter) {
   // sync's first argument is plain TypeScript, not VibeLang.
@@ -921,7 +920,7 @@ function hatches(text: string, path: string, ticker: EventEmitter) {
   // sync's first argument is plain TypeScript, not VibeLang.
   const key = sync(async () => crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, false, ["sign"]))
   // try's first argument is plain TypeScript, not VibeLang.
-  const free = try(async (path) => (await statfs(path)).bavail, path)
+  const free = try(async (path) => (await statfs(path)).bavail, (error) => new NoDisk({ error }), path)
   const tick = callback((ticker, resume: Resume<number, never>) => {
     // Plain TypeScript inside this hatch, not VibeLang.
     const listener = (n: number) => resume(n)
@@ -1014,7 +1013,7 @@ function many() {
 // Output: {"user":{"id":"1","name":"Ada"},"orders":1,"pair":{"user":{"id":"1","name":"Ada"},"orders":1}}
 ```
 
-**First success, expected outcomes**. `await.any` waits for the first success. `await.allSettled` returns successes and typed failures as `Result` values, not JavaScript's settlement objects, and never fails with a typed error. Defects and interruption propagate exactly as in `Effect.all` with `mode: "result"`; a cause with no typed failure still propagates. To make every cause data, wrap each element in `exit(...)`.
+**First success, expected outcomes**. `await.any` waits for the first success. `await.allSettled` returns successes and typed failures as `Result` values, not JavaScript's settlement objects, and never fails with a typed error. Defects and interruption propagate exactly as in `Effect.all` with `mode: "result"`; a cause with no typed failure still propagates. To make every cause data, give each element to `exit`: `await.all [exit(() => a()), exit(() => b())]`.
 
 ```ts effect
 // fragment
@@ -1023,7 +1022,7 @@ const outcomes = yield* Effect.all([getUser("1"), getOrders("1")], { concurrency
 ```
 
 ```vibe es
-// run: const value = outcomes(); Console.log(value.fastest.name); Console.log(JSON.stringify(value.results.map((result) => result._tag))); Console.log(JSON.stringify((await.allSettled [getUser("missing"), getOrders("1")]).map((result) => result._tag))); Console.log(Exit.isFailure(exit(await.allSettled [die("defect"), getOrders("1")])))
+// run: const value = outcomes(); Console.log(value.fastest.name); Console.log(JSON.stringify(value.results.map((result) => result._tag))); Console.log(JSON.stringify((await.allSettled [getUser("missing"), getOrders("1")]).map((result) => result._tag))); Console.log(JSON.stringify((await.all [exit(() => die("defect")), exit(() => getOrders("1"))]).map((e) => e._tag)))
 function outcomes() {
   const fastest = await.any [getUser("1"), getUser("2")]
   const results = await.allSettled [getUser("1"), getOrders("1")]
@@ -1032,7 +1031,7 @@ function outcomes() {
 // Output: Ada
 // Output: ["Success","Success"]
 // Output: ["Failure","Success"]
-// Output: true
+// Output: ["Failure","Success"]
 ```
 
 **Fork a block**. The loop stops when the enclosing block exits.
@@ -1071,9 +1070,9 @@ const fiber = yield* Effect.forkIn(getUser("2"), scope)
 ```vibe es
 // run: Console.log(Exit.isFailure(Fiber.await(background())))
 function background() {
-  detach(getUser("1"))
+  detach(() => getUser("1"))
   const scope = Scope.make()
-  const fiber = forkIn(scope, getUser("2"))
+  const fiber = forkIn(scope, () => getUser("2"))
   Scope.close(scope, Exit.void)
   return fiber
 }
@@ -1136,7 +1135,7 @@ yield* Effect.forEach(ids, (id) => Effect.flatMap(getUser(id), (user) => Effect.
 ```
 
 ```vibe es
-// run: Effect.provide(logAll(["1", "2"]), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]))
+// run: Effect.provide(() => logAll(["1", "2"]), Logger.layer([sync(() => Logger.make(({ message }) => console.log(...(message as unknown[]))))]))
 function logAll(ids: string[]) {
   for concurrent(8) (const id of ids) log(getUser(id).name)
 }

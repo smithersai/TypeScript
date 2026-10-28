@@ -12,13 +12,13 @@ function greet(name: string) {
 }
 
 function main() {
-  return retry(greet("Ada"), Schedule.recurs(2))
+  return retry(() => greet("Ada"), Schedule.recurs(2))
 }
 // Output: Hello, Ada
 // Output: Hello, Ada
 ```
 
-Where it stands, `greet("Ada")` runs and returns a string. Passed to `Effect.retry`, whose parameter expects a program, the same call is passed by name, and retry runs it on each attempt. Use `async` and plain `await` only inside a boundary hatch; `await.all`, `await.allSettled`, `await.any`, and `await.race` are VibeLang's concurrent forms.
+Where it stands, `greet("Ada")` runs and returns a string. `() => greet("Ada")` is a program, and retry runs it on each attempt. Passing the call itself, `retry(greet("Ada"), policy)`, still compiles but is being retired. Use `async` and plain `await` only inside a boundary hatch; `await.all`, `await.allSettled`, `await.any`, and `await.race` are VibeLang's concurrent forms.
 
 
 ## Call VibeLang from TypeScript
@@ -80,7 +80,7 @@ Node runs the JavaScript output; importing the `.vibe` source directly with Node
 | `pipe(x, Effect.map(f), Effect.flatMap(g))` | Bind the result, transform it, call the next function |
 | `Option.getOrElse(Option.map(maybe, f), () => 0)` | `maybe.map(f).getOrElse(() => 0)` |
 | `pipe(stream, Stream.filter(p), Stream.take(3))` | `stream.filter(p).take(3)` |
-| `work().pipe(Effect.retry(policy), Effect.timeout("1 second"))` | `work() \|> retry(%, policy) \|> timeout(%, "1 second")` |
+| `work().pipe(Effect.retry(policy), Effect.timeout("1 second"))` | `timeout(() => retry(() => work(), policy), "1 second")` |
 | `Context.Service` | `service Users { find(id: string): User!NotFound }`; call `Users.find(id)` |
 | `const users = yield* Users`; `users.region` | `Users().region` reads a value member; `Users.region` reports EK4503. See [service value members](../requirements-management/025-services.md). |
 | `Layer.effect(Users, Effect.gen(function* () { ... }))` | `Layer.effect(Users) { setup; return { find(id) { ... } } }` |
@@ -89,8 +89,8 @@ Node runs the JavaScript output; importing the `.vibe` source directly with Node
 | `Effect.catchTag(program, "Missing", recover)` | `try { ... } catch (e) { return match (e) { when Missing: ...; default: throw e; } }` |
 | `Effect.catch(program, (e) => recover(e))` | `program catch (e) => recover(e)` |
 | `Effect.orElseSucceed(program, () => value)` | `program catch value` |
-| `Effect.result(program)` (Effect 3: `Effect.either(program)`) | `Effect.result(program())` captures one program's typed failure as a `Result`; match `Result.Success(let value)` or `Result.Failure(let error)`. |
-| `Effect.exit(program)` | `exit(program())` captures its full outcome; match `Exit.Success(let value)` or `Exit.Failure(let cause)`. |
+| `Effect.result(program)` (Effect 3: `Effect.either(program)`) | `Effect.result(() => program())` captures one program's typed failure as a `Result`; match `Result.Success(let value)` or `Result.Failure(let error)`. |
+| `Effect.exit(program)` | `exit(() => program())` captures its full outcome; match `Exit.Success(let value)` or `Exit.Failure(let cause)`. |
 | `Effect.ensuring(program, cleanup)` | `try` / `finally` |
 | `Effect.scoped` with `Effect.acquireRelease` | Acquire with `using` in the block that owns the resource; see the [pending-interruption limitation and holder](../resource-management/030-scope.md#known-limitation-pending-interruption-and-javascript-disposables) |
 | `Effect.forkScoped(program)` | `fork work()` for a child owned by the enclosing block; `fork { ... }` forks a block |
@@ -102,7 +102,7 @@ Node runs the JavaScript output; importing the `.vibe` source directly with Node
 | `Effect.forEach(items, f, { concurrency: 8, discard: true })` | `for concurrent(8) (const item of items) f(item)` |
 | `Effect.sync(() => render())` | `sync(render())` |
 | `Effect.try({ try: () => parse(text), catch: (e) => new BadInput({ e }) })` | `try((text) => parse(text), (e) => new BadInput({ e }), text)` |
-| `Effect.tryPromise((signal) => fetchJson(url, signal))` | `try(async (url, signal) => fetchJson(url, signal), url)` |
+| `Effect.tryPromise({ try: (signal) => fetchJson(url, signal), catch: (e) => new BadFetch({ e }) })` | `try(async (url, signal) => fetchJson(url, signal), (e) => new BadFetch({ e }), url)` |
 | `Effect.promise(() => load())` | `sync(async () => load())` |
 | `Effect.callback((resume) => …resume(Effect.succeed(x))…)` | `callback((resume) => …resume(x)…)` |
 | `Effect.runPromise(program)` in TypeScript | `runPromise(main())` in a `.ts` file or a hatch's body |
@@ -110,7 +110,7 @@ Node runs the JavaScript output; importing the `.vibe` source directly with Node
 
 `await.allSettled` captures typed failures as `Result.fail` and never fails with a typed error. Defects and interruption propagate exactly as in `Effect.all` with `mode: "result"` (D258).
 
-`Effect.result(program())` captures typed failures only. Defects and interruption propagate. `exit(program())` instead captures the full cause in `Exit.Failure`, including defects and interruption.
+`Effect.result(() => program())` captures typed failures only. Defects and interruption propagate. `exit(() => program())` instead captures the full cause in `Exit.Failure`, including defects and interruption.
 
 Use Effect's operators for retries, timeouts, concurrency, and Stream transformations. Statements replace operators that only sequence ordinary work.
 
@@ -129,7 +129,7 @@ function sequential() {
 }
 
 function concurrent() {
-  return all([greet("Ada"), greet("Grace")], { concurrency: 2 })
+  return all([() => greet("Ada"), () => greet("Grace")], { concurrency: 2 })
 }
 // Output: Hello, Ada
 // Output: Hello, Grace
@@ -138,7 +138,7 @@ function concurrent() {
 // Output: [["Hello, Ada","Hello, Grace"],["Hello, Ada","Hello, Grace"]]
 ```
 
-A call whose result type is Effect runs at that point, except where a parameter expects a program, as in `Effect.retry`, `Effect.timeout`, `fork`, and entries in `Effect.all`: there the call is passed by name and runs when the program runs. A program of several statements is a function with no arguments, `() => { ... }`.
+A call whose result type is Effect runs at that point. A function literal is a program: write `() => greet("Ada")` where `Effect.retry`, `Effect.timeout` or an entry of `Effect.all` takes one, and `fork greet("Ada")` forks the call. Passing the call itself to a program parameter still compiles but is being retired. A program of several statements is a function with no arguments, `() => { ... }`.
 
 A held Effect value runs when called with no arguments. Data that Effect can also execute, such as `Config` and `Exit`, stays data until explicitly called. A producer call constructs a lazy Stream; see [Producers](112-producers.md).
 
@@ -174,7 +174,7 @@ export function main() {
 
 Declare functions, services, schemas, and layers at module scope, but run no program there: `const answer = Effect.succeed(1)` is EK1001. An explicitly Effect-typed const, such as `const answer: Effect.Effect<number, never, never> = Effect.succeed(1)`, stores a cold program and runs nothing at import (D262). Export a parameterless `main` instead: the module runs it with `NodeRuntime.runMain` when node starts the module, and importing it runs nothing. To provide layers or runner options, call the runner at the top level yourself, `NodeRuntime.runMain(() => Effect.provide(() => main(), AppLive))`; the module then runs only that.
 
-Every export of Effect's root, including `Console`, `Clock`, `Option`, `Schedule`, and `Stream`, is in scope without an import, along with VibeLang's runtime helpers. JavaScript globals such as `Array` keep their meaning; import Effect's conflicting modules under another name. Subpaths such as `effect/http` still need imports.
+Every export of Effect's root, including `Console`, `Clock`, `Option`, `Schedule`, and `Stream`, is in scope without an import, along with VibeLang's runtime helpers. JavaScript globals such as `Array` keep their meaning; import Effect's conflicting modules under another name. So are the modules of Effect's subpaths, such as `HttpClient` from `effect/http`.
 
 ## Keep platform work in Effect
 
@@ -206,7 +206,7 @@ export function main() {
 
 `"vibelang/platform/node"` provides `NodeServices.layer`, which holds `FileSystem`, `Path`, `Crypto`, `Stdio`, `Terminal`, and `ChildProcessSpawner`; `"vibelang/platform/bun"` provides `BunServices.layer`. `HttpClient`, from `effect/http`, needs `FetchHttpClient.layer` provided inside `main`. [The platform introduction](../platform/105-introduction.md) lists the service for each common Node.js and web call. Don't wrap a platform API that Effect covers in a hatch, a `module`, or a `.ts` adapter. Node's globals and the web's I/O globals are not in scope in `.vibe`, and a `.vibe` file does not import a Node.js module as a value (D310); [Platform globals](../platform/platform-globals.md) answers each one. A `module` block or a `.ts` file imports what Effect lacks, such as the `createServer` that [Building an HTTP API](113-building-an-http-api.md) passes to a server layer.
 
-Inside an Effect function, a plain function from your `.ts` code or a foreign package needs a boundary hatch, `try((text) => parse(text), text)` or `sync(render())`, or a trusted declaration. A platform API that Effect lacks, such as `os.hostname()`, is often one of VibeLang's [experimental platform APIs](118-experimental-platform-apis.md): `Experimental.Process.hostname()`. A hatch's first argument is plain, self-contained TypeScript: `async`, `await`, `throw`, and platform APIs keep their JavaScript meaning there, and `runPromise` or `runFork` leads back in. It reads a `.vibe` value, such as `text`, only as an input: an argument after the function, bound to its first parameter. To trust workspace or other TypeScript packages, set `"vibelang": { "trustedPackages": ["@acme/*"] }` at the top level of `tsconfig.json` (D261, D275). Exceptions from a matching package's synchronous plain calls are defects, its Effects run, and EK4401 does not fire. `trusted(impl, [Errors])` declares a function's expected failures. Effect's own packages are trusted, including `assert` and `expect` re-exported by `@effect/vitest`.
+Inside an Effect function, a plain function from your `.ts` code or a foreign package needs a boundary hatch, `try((text) => parse(text), (e) => new BadInput({ e }), text)` or `sync(render())`, or a trusted declaration. A platform API that Effect lacks, such as `os.hostname()`, is often one of VibeLang's [experimental platform APIs](118-experimental-platform-apis.md): `Experimental.Process.hostname()`. A hatch's first argument is plain, self-contained TypeScript: `async`, `await`, `throw`, and platform APIs keep their JavaScript meaning there, and `runPromise` or `runFork` leads back in. It reads a `.vibe` value, such as `text`, only as an input: an argument after the function, bound to its first parameter. To trust workspace or other TypeScript packages, set `"vibelang": { "trustedPackages": ["@acme/*"] }` at the top level of `tsconfig.json` (D261, D275). Exceptions from a matching package's synchronous plain calls are defects, its Effects run, and EK4401 does not fire. `trusted(impl, [Errors])` declares a function's expected failures. Effect's own packages are trusted, including `assert` and `expect` re-exported by `@effect/vitest`.
 
 ## Trace and debug calls
 
