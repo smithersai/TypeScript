@@ -301,7 +301,8 @@ A default service's key is `ReferenceKey<Users.Shape>` in place of
 the same way inside the namespace's body, without `declare`; the body then
 exports its members explicitly and ends with `export {}`, which keeps the base
 constant out of the namespace's exports. Declaration transforms add imports
-for prelude names, name an effect module that an inferred type comes from
+for prelude names, joining an import of the same module that the file keeps,
+name an effect module that an inferred type comes from
 through the name the source reaches it by, as Effect TypeScript that imports
 the module does (`Option.Option<string>`, not
 `import("effect/Option").Option<string>`; the Effect module always),

@@ -207,8 +207,11 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 		//
 		// Not import type: a declaration file names its imports as the
 		// Effect TypeScript it stands for does, and in a declaration file every
-		// import is a type.
+		// import is a type. A name joins an import of its module that the
+		// file keeps, `import { Array } from "effect"`, where Effect
+		// TypeScript would have imported it too.
 		f := resolver.EmitContext().Factory
+		kept := keptNamedImports(declarations)
 		var imports []*ast.Node
 		for _, module := range declarationModules(names) {
 			var specifiers []*ast.Node
@@ -222,10 +225,15 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 				}
 				specifiers = append(specifiers, f.NewImportSpecifier(false /*isTypeOnly*/, nil /*propertyName*/, f.NewIdentifier(name)))
 			}
-			if len(specifiers) > 0 {
-				clause := f.NewImportClause(ast.KindUnknown, nil /*name*/, f.NewNamedImports(f.NewNodeList(specifiers)))
-				imports = append(imports, f.NewImportDeclaration(nil /*modifiers*/, clause, f.NewStringLiteral(module, ast.TokenFlagsNone), nil /*attributes*/))
+			if len(specifiers) == 0 {
+				continue
 			}
+			if at, ok := kept[module]; ok {
+				declarations = joinImport(f, declarations, at, specifiers)
+				continue
+			}
+			clause := f.NewImportClause(ast.KindUnknown, nil /*name*/, f.NewNamedImports(f.NewNodeList(specifiers)))
+			imports = append(imports, f.NewImportDeclaration(nil /*modifiers*/, clause, f.NewStringLiteral(module, ast.TokenFlagsNone), nil /*attributes*/))
 		}
 		// The list keeps the source range, so the printer still emits the
 		// comments before the file's first statement, such as its header, first.
@@ -233,6 +241,55 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 		statements.Loc = declarations.Statements.Loc
 		return f.UpdateSourceFile(declarations, statements, declarations.EndOfFileToken).AsSourceFile()
 	}
+}
+
+// keptNamedImports returns the index in declarations' statements of the first
+// import of each module that the declaration file keeps with named imports
+// only, `import { Array } from "effect"`, by module.
+func keptNamedImports(declarations *ast.SourceFile) map[string]int {
+	kept := map[string]int{}
+	for i, statement := range declarations.Statements.Nodes {
+		if !ast.IsImportDeclaration(statement) || !ast.IsStringLiteral(statement.ModuleSpecifier()) {
+			continue
+		}
+		clause := statement.AsImportDeclaration().ImportClause
+		if clause == nil || clause.Name() != nil || clause.AsImportClause().PhaseModifier != ast.KindUnknown {
+			continue
+		}
+		if bindings := clause.AsImportClause().NamedBindings; bindings == nil || !ast.IsNamedImports(bindings) {
+			continue
+		}
+		if _, ok := kept[statement.ModuleSpecifier().Text()]; !ok {
+			kept[statement.ModuleSpecifier().Text()] = i
+		}
+	}
+	return kept
+}
+
+// joinImport returns declarations with specifiers added to the named imports
+// of its statement at index at, each before the first one whose name sorts
+// after it, so the import keeps its order.
+func joinImport(f *printer.NodeFactory, declarations *ast.SourceFile, at int, specifiers []*ast.Node) *ast.SourceFile {
+	statement := declarations.Statements.Nodes[at].AsImportDeclaration()
+	clause := statement.ImportClause.AsImportClause()
+	named := clause.NamedBindings.AsNamedImports()
+	elements := slices.Clone(named.Elements.Nodes)
+	for _, specifier := range specifiers {
+		i := slices.IndexFunc(elements, func(e *ast.Node) bool { return e.Name().Text() > specifier.Name().Text() })
+		if i < 0 {
+			i = len(elements)
+		}
+		elements = slices.Insert(elements, i, specifier)
+	}
+	list := f.NewNodeList(elements)
+	list.Loc = named.Elements.Loc
+	bindings := f.UpdateNamedImports(named, list)
+	updated := f.UpdateImportDeclaration(statement, statement.Modifiers(), f.UpdateImportClause(clause, clause.PhaseModifier, clause.Name(), bindings), statement.ModuleSpecifier, statement.Attributes)
+	nodes := slices.Clone(declarations.Statements.Nodes)
+	nodes[at] = updated
+	statements := f.NewNodeList(nodes)
+	statements.Loc = declarations.Statements.Loc
+	return f.UpdateSourceFile(declarations, statements, declarations.EndOfFileToken).AsSourceFile()
 }
 
 // preludeModuleName names module in the declaration file of file, a .vibe

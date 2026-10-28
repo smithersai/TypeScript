@@ -1,0 +1,6 @@
+// A name the declaration file imports joins the import of its module that
+// the file keeps, as typescript/main.ts imports both: one import of effect,
+// not two. Array keeps its import because JavaScript's global takes the name.
+import { Array } from "effect"
+
+export const size = (xs: Array.NonEmptyReadonlyArray<number>): number!! => xs.length

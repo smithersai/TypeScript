@@ -19,9 +19,9 @@ An agent that writes VibeLang loads the skill first: its forms, rules and idioms
 | --- | ---: |
 | The VibeLang skill, `packages/compiler/skills/vibelang/SKILL.md` | 5,213 |
 | The skill and the [cheat sheet](115-cheat-sheet.md) | 14,813 |
-| The skill and the user guide (134 pages) | 249,108 |
-| The user guide alone | 243,895 |
-| The specification (33 chapters) | 180,419 |
+| The skill and the user guide (134 pages) | 249,167 |
+| The user guide alone | 243,954 |
+| The specification (33 chapters) | 180,431 |
 | The decision log, `docs/design/DECISIONS.md` | 117,650 |
 
 ## Effect TypeScript beside VibeLang
@@ -127,9 +127,9 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [Neovim](../setup/neovim.md) | 999 |
 | [Zed](../setup/zed.md) | 431 |
 | [Other editors](../setup/other-editors.md) | 327 |
-| **Upgrade** | **27,209** |
-| [Release notes](../setup/release-notes.md) | 27,209 |
-| **All 15 pages** | **46,408** |
+| **Upgrade** | **27,268** |
+| [Release notes](../setup/release-notes.md) | 27,268 |
+| **All 15 pages** | **46,467** |
 
 ### Guides
 
@@ -301,8 +301,8 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | [24. What Effect provides and what the kernel adds](../../../design/src/324-part3-ch24-effect.md) | 4,559 |
 | [25. Implementation strategies and costs](../../../design/src/325-part3-ch25-strategies.md) | 1,946 |
 | [26. What compiled code must guarantee](../../../design/src/326-part3-ch26-compiled.md) | 6,574 |
-| **Part IV. The compiler** | **19,586** |
-| [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 5,222 |
+| **Part IV. The compiler** | **19,598** |
+| [27. Compiler architecture](../../../design/src/427-part4-ch27-compiler.md) | 5,234 |
 | [28. Tooling](../../../design/src/428-part4-ch28-tooling.md) | 14,364 |
 | **Part V. Decisions** | **30,720** |
 | [29. Decisions](../../../design/src/529-part5-ch29-decisions.md) | 22,953 |
@@ -310,6 +310,6 @@ Each row is one [cheat sheet](115-cheat-sheet.md) entry: its Effect TypeScript b
 | **Appendices** | **19,586** |
 | [A. Evidence index and B. Prior art](../../../design/src/900-appendices.md) | 10,941 |
 | [C. Every Effect feature in VibeLang](../../../design/src/901-appendix-c-coverage.md) | 8,645 |
-| **All 33 pages** | **180,419** |
+| **All 33 pages** | **180,431** |
 
 <!-- token-counts: end -->

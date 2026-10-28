@@ -175,6 +175,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - `Readonly<{ path: string }>` in a `.vibe` file declared `Readonly<{ readonly path: string }>`: the same type, but other declaration text than the TypeScript it replaced. The members of an object type that is `Readonly`'s type argument now declare no `readonly` of their own unless the source writes one.
 - A type that a `.vibe` file's declarations inferred from one of Effect's modules was written as an import type, `import("effect/Option").Option<string>`, where Effect TypeScript that imports `Option` declares `Option.Option<string>`, so removing a prelude module's import, as `--fix` does, changed the declarations. Declarations now name such a module through the name the source writes, the Effect module always, and import it from `effect`; a module the source never names keeps its import type.
 - An Effect type in the `!` form declared every channel, `number!!` as `Effect.Effect<number, never, never>`, where the Effect TypeScript it replaced wrote `Effect.Effect<number>`. Declarations now leave out the empty slots at the end of a `!` form, and dependencies that a return annotation leaves for the body when they come to `never`; a slot the source fills, `never` included, stays.
+- A `.vibe` file that kept an import of `effect`, such as `import { Array } from "effect"`, declared the other names its declarations needed in a second import of `effect`, where the Effect TypeScript it replaced had one. They now join the kept import.
 
 #### Runtime
 
