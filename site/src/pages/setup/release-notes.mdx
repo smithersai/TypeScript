@@ -817,6 +817,23 @@ listed with an upgrade step.
   `5`; under the specification it succeeds with the promise itself. Write the
   function `async` when you mean to wait, which both treat the same way.
 
+- **The specification makes an await element of type `Fiber` or `Deferred` an
+  error; the compiler accepts it.** Today `await.all [f]` waits for a fiber
+  without restarting it, and a Deferred element waits for its value. The
+  specification makes these EK4609 and EK4610. Write `join f` and `d.await()`
+  as the elements, which both treat the same way.
+
+- **The specification rejects a `match` without `default` over an open subject
+  at compile time; the compiler throws when it runs.** Over a non-literal
+  `string`, `unknown`, `any`, a type parameter, a class that is not closed or
+  an open error family's base, a match that no arm fits throws a `TypeError`
+  today. Under the specification it is EK4701. Write a `default` arm, which
+  both accept.
+
+- **The specification makes EK9100 an error that no setting lowers; the
+  compiler warns in the editor only and a project can set it.** Write the type
+  it asks for, which both accept.
+
 ### Known limitations
 
 - A JavaScript Disposable acquired while interruption is masked can leak if
