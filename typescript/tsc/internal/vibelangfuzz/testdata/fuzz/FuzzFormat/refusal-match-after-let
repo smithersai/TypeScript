@@ -1,0 +1,2 @@
+go test fuzz v1
+string("export function main() {\n  let n = 0\n  match (n) {\n    default: n = 1;\n  }\n}\n")

@@ -74,6 +74,19 @@ func FuzzFormat(f *testing.F) {
 				if statements := toolsParse("main.vibe", source).Statements.Nodes; len(statements) > 0 {
 					first = strings.TrimPrefix(statements[0].Kind.String(), "Kind")
 				}
+				// A refusal whose own guard saw the program change names the
+				// change, wherever the file starts.
+				if _, after, ok := strings.Cut(err.Error(), "formatting changed the program: "); ok {
+					if _, change, ok := strings.Cut(after, ": "); ok {
+						change, _, _ = strings.Cut(change, "\n")
+						first = "changed:" + toolsSlug(strings.Map(func(r rune) rune {
+							if r >= '0' && r <= '9' {
+								return -1
+							}
+							return r
+						}, change))
+					}
+				}
 				// A refusal whose TypeScript projection does not parse names the
 				// projection's error, so one known refusal leaves the others checked.
 				if _, after, ok := strings.Cut(err.Error(), "does not parse at "); ok {
