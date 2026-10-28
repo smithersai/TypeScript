@@ -7,12 +7,12 @@ declare const Count_base: import("vibelang-runtime").ServiceKey<Count>;
 export declare abstract class Count extends Count_base {
 }
 export interface CounterApi {
-    count(): Effect.Effect<number, never, never>;
+    count(): Effect.Effect<number>;
     read(): Effect.Effect<number, never, Count>;
     label(): string;
 }
 export declare class Counter {
-    count(): Effect.Effect<number, never, never>;
+    count(): Effect.Effect<number>;
     read(): Effect.Effect<number, never, Count>;
     label(): string;
 }

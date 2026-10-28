@@ -13,7 +13,7 @@ declare abstract class Needed extends Needed_base {
 }
 export declare function longForm(): Effect.Effect<number, Gone, Needed>;
 export declare function shortForm(): Effect.Effect<number, Gone, Needed>;
-export declare function plain(): Effect.Effect<number, never, never>;
+export declare function plain(): Effect.Effect<number>;
 export declare function callerOfLong(): Effect.Effect<number, Gone, Needed>;
 export declare function callerOfShort(): Effect.Effect<number, Gone, Needed>;
 export declare function callerOfPlain(): Effect.Effect<number, never, never>;

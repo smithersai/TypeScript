@@ -1,0 +1,30 @@
+// The ! form's empty slots at its end are Effect's defaults, never, so the
+// declaration file leaves them out, as typescript/main.ts, the Effect
+// TypeScript this file rewrites, writes the types. A slot the source fills
+// stays, never included, and so do dependencies that a return annotation
+// leaves for the body to supply, when they come to something else.
+export type Count = () => number!!
+export type Parse = (text: string) => number!TypeError!
+export type Lookup = (key: string) => string!TypeError
+export type Scoped = string!!Scope
+export type Explicit = number!never!never
+
+export function count(): number!! {
+  return 3
+}
+
+export function parse(text: string): number!TypeError {
+  const n = Number(text)
+  if (Number.isNaN(n)) throw new TypeError(text)
+  return n
+}
+
+export const half = (n: number): number!RangeError => {
+  if (n % 2 === 1) throw new RangeError("odd")
+  return n / 2
+}
+
+export function within(): number!never {
+  Effect.addFinalizer(() => Effect.void)
+  return 1
+}

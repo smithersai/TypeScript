@@ -234,7 +234,12 @@ against it may rely on [Rule] (D366).
    and `Scope` included, are imported from `effect`, as Effect TypeScript
    imports them, `import { Effect, Scope } from "effect"`, and their types
    written as `effect` declares them, `Scope.Scope`, never through the
-   runtime's re-exports or aliases.
+   runtime's re-exports or aliases. A `!` form is written as Effect
+   TypeScript writes it: an empty slot at its end, which is `never`,
+   Effect's default, is left out (`number!!` is `Effect.Effect<number>`,
+   `User!NotFound!` is `Effect.Effect<User, NotFound>`), and so are
+   dependencies that a return annotation leaves for the body to supply
+   when they come to `never`; a slot the source fills stays.
 5. **Every nesting level.** A `service`, `control`, `error`, `schema`, or
    `data` declaration emits the same declarations inside a `namespace` as at
    a file's top level. An `error` declaration's class declares its private

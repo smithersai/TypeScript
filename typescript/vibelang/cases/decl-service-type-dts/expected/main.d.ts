@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect";
 export interface SearchApi {
-    find(query: string): Effect.Effect<string, never, never>;
+    find(query: string): Effect.Effect<string>;
 }
 export interface Search {
     readonly "~vibelang/service"?: "decl-service-type-dts/main#Search";

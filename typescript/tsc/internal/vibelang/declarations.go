@@ -181,6 +181,9 @@ func transformDeclarations(resolver printer.EmitResolver, sourceFile *ast.Source
 		aliasTypes := &preludeAliasTypes{refs: refs}
 		aliasTypes.NewTransformer(aliasTypes.visit, resolver.EmitContext())
 		declarations = aliasTypes.TransformSourceFile(declarations)
+		slots := &emptySlots{}
+		slots.NewTransformer(slots.visit, resolver.EmitContext())
+		declarations = slots.TransformSourceFile(declarations)
 		if added := moduleImportDeclarations(resolver.EmitContext().Factory, moduleImports, declarations); len(added) > 0 {
 			statements := resolver.EmitContext().Factory.NewNodeList(append(added, declarations.Statements.Nodes...))
 			statements.Loc = declarations.Statements.Loc
@@ -619,6 +622,114 @@ func readonlyReferences(c *checker.Checker, file *ast.SourceFile) map[*ast.Node]
 	}
 	file.AsNode().ForEachChild(visit)
 	return references
+}
+
+// emptySlots writes an Effect type that the source writes in the ! form as
+// Effect TypeScript writes it, without the empty slots at its end, which the
+// parser fills with never:
+//
+//	// main.vibe                              // main.d.ts
+//	export type Count = () => number!!        export type Count = () => Effect.Effect<number>;
+//	export type Find = (id: string) => User!NotFound!
+//	                                          export type Find = (id: string) => Effect.Effect<User, NotFound>;
+//	export function find(id: string): User!NotFound { … }
+//	                                          export declare function find(id: string): Effect.Effect<User, NotFound>;
+//
+// The last is a function's return annotation that leaves its dependencies
+// out, so its body supplies them: when they come to never, the declaration
+// leaves them out too. Effect's E and R default to never, so each type is
+// the one the source declares. A slot the source fills, never included,
+// stays.
+type emptySlots struct {
+	transformers.Transformer
+}
+
+func (tx *emptySlots) visit(node *ast.Node) *ast.Node {
+	node = tx.Visitor().VisitEachChild(node)
+	original := tx.EmitContext().MostOriginal(node)
+	switch {
+	case ast.IsTypeReferenceNode(node) && isBangType(original) && len(original.TypeArguments()) == 3:
+		keep := 3
+		for keep > 1 && isEmptySlot(original.TypeArguments()[keep-1]) {
+			keep--
+		}
+		return tx.withArguments(node, keep)
+	case ast.IsFunctionDeclaration(node) || ast.IsMethodDeclaration(node):
+		if node.Type() != nil && ast.IsFunctionLike(original) && infersOmittedDependencies(original) {
+			return tx.withReturnType(node, tx.withoutNeverDependencies(node.Type()))
+		}
+	case ast.IsVariableDeclaration(node):
+		if t := node.Type(); t != nil && ast.IsFunctionTypeNode(t) && t.Type() != nil && ast.IsVariableDeclaration(original) {
+			if fn := original.Initializer(); fn != nil && (ast.IsArrowFunction(fn) || ast.IsFunctionExpression(fn)) && infersOmittedDependencies(fn) {
+				if returned := tx.withoutNeverDependencies(t.Type()); returned != t.Type() {
+					f := tx.Factory()
+					fnType := t.AsFunctionTypeNode()
+					declaration := node.AsVariableDeclaration()
+					return f.UpdateVariableDeclaration(declaration, declaration.Name(), declaration.ExclamationToken,
+						f.UpdateFunctionTypeNode(fnType, fnType.TypeParameters, fnType.Parameters, returned), declaration.Initializer)
+				}
+			}
+		}
+	}
+	return node
+}
+
+// withArguments returns reference, an Effect type with three type arguments,
+// with only its first keep.
+func (tx *emptySlots) withArguments(reference *ast.Node, keep int) *ast.Node {
+	arguments := reference.AsTypeReferenceNode().TypeArguments
+	if keep >= 3 || arguments == nil || len(arguments.Nodes) != 3 {
+		return reference
+	}
+	f := tx.Factory()
+	list := f.NewNodeList(arguments.Nodes[:keep])
+	list.Loc = arguments.Loc
+	return f.UpdateTypeReferenceNode(reference.AsTypeReferenceNode(), reference.AsTypeReferenceNode().TypeName, list)
+}
+
+// withoutNeverDependencies returns t, an inferred Effect type, without its
+// dependencies when they are never.
+func (tx *emptySlots) withoutNeverDependencies(t *ast.Node) *ast.Node {
+	if !ast.IsTypeReferenceNode(t) || len(t.TypeArguments()) != 3 || t.TypeArguments()[2].Kind != ast.KindNeverKeyword {
+		return t
+	}
+	name := t.AsTypeReferenceNode().TypeName
+	if !ast.IsQualifiedName(name) || name.AsQualifiedName().Right.Text() != "Effect" {
+		return t
+	}
+	return tx.withArguments(t, 2)
+}
+
+// withReturnType returns fn, a function or method declaration, with
+// returnType for its return type.
+func (tx *emptySlots) withReturnType(fn *ast.Node, returnType *ast.Node) *ast.Node {
+	if returnType == fn.Type() {
+		return fn
+	}
+	f := tx.Factory()
+	if ast.IsFunctionDeclaration(fn) {
+		d := fn.AsFunctionDeclaration()
+		return f.UpdateFunctionDeclaration(d, d.Modifiers(), d.AsteriskToken, d.Name(), d.TypeParameters, d.Parameters, returnType, d.FullSignature, d.Body)
+	}
+	d := fn.AsMethodDeclaration()
+	return f.UpdateMethodDeclaration(d, d.Modifiers(), d.AsteriskToken, d.Name(), d.PostfixToken, d.TypeParameters, d.Parameters, returnType, d.FullSignature, d.Body)
+}
+
+// isEmptySlot reports whether slot, a type argument of a ! form, is the never
+// the parser wrote for a slot the source leaves empty.
+func isEmptySlot(slot *ast.Node) bool {
+	return slot.Kind == ast.KindNeverKeyword && slot.Flags&ast.NodeFlagsReparsed != 0
+}
+
+// infersOmittedDependencies reports whether fn's return annotation is a !
+// form that leaves its dependencies out for the body to supply, A!E.
+func infersOmittedDependencies(fn *ast.Node) bool {
+	t := fn.Type()
+	if t == nil || !isBangType(t) || len(t.TypeArguments()) != 3 {
+		return false
+	}
+	dependencies := t.TypeArguments()[2]
+	return dependencies.Kind == ast.KindInferType && dependencies.Flags&ast.NodeFlagsReparsed != 0
 }
 
 // preludeTypeAliases are the prelude names whose type the runtime declares as

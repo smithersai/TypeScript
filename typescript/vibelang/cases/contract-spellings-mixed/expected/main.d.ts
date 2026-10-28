@@ -7,7 +7,7 @@ declare class NotFound extends NotFound_base<{
 }> {
 }
 interface Users {
-    find(id: string): Effect.Effect<string, NotFound, never>;
+    find(id: string): Effect.Effect<string, NotFound>;
     count(): Effect.Effect<number>;
     readonly "~vibelang/service"?: "contract-spellings-mixed/main#Users";
 }
@@ -15,7 +15,7 @@ declare const Users_base: import("vibelang-runtime").ServiceKey<Users>;
 declare abstract class Users extends Users_base {
 }
 type Lookup = (id: string) => Effect.Effect<string, NotFound, Users>;
-type Counted = Effect.Effect<number, never, never>;
+type Counted = Effect.Effect<number>;
 export declare function terse(id: string): Effect.Effect<string, NotFound, Users>;
 export declare function spelled(id: string): Effect.Effect<string, NotFound, Users>;
 export declare function guest(lookup: Lookup, id: string): Effect.Effect<string, never, Users>;
