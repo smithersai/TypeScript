@@ -12,6 +12,7 @@ function describe(delivery) {
         }
         {
             {
+                runtime.$assertMatch(Delivery.$is("Sent")($match2), $match2);
                 let tracking = $match2.tracking;
                 return tracking;
             }

@@ -9,53 +9,40 @@ import (
 
 // A match without a default arm ends in $noMatch(subject) (match.go). When
 // D209's proof covers the match, its subject's declared type is a finite
-// union and nothing of it is left after the last arm, so no value of that
-// type reaches $noMatch, and the lowering drops it (D294). It drops the last
-// arm's tests too when the type proves them, as it proves a literal, typeof,
-// in, Array.isArray, length or _tag test:
+// union and nothing of it is left after the last arm, so the lowering drops
+// $noMatch. The last arm is still tested like every other arm, with its
+// reads, matcher calls and comparisons (D405): a literal-typed property may
+// be a getter or a proxy trap, a structural object of a class type is no
+// instance, and a custom matcher may refuse an instance, so a value of the
+// type can fail the test. Each test of the last arm is written as a check
+// that ends the match as $noMatch does when it fails, a defect:
 //
 //	return match (phase) {                 { if (phase === "draft") { return "Draft" } }
-//	  when "draft": "Draft";               { { return "Published" } }
+//	  when "draft": "Draft";               { { runtime.$assertMatch(phase === "published", phase); return "Published" } }
 //	  when "published": "Published";
-//	}
-//
-// A class or a custom matcher, which $is and $extract call, decides at run
-// time what the type does not prove: a structural object of a class type is
-// no instance, and a custom matcher may refuse an instance. Such a value
-// fails an arm that D209 counts as handling it and can reach the last arm.
-// When an arm tests a class or a custom matcher, the last arm keeps its
-// tests, each written as a check that ends the match as $noMatch does when it
-// fails:
-//
-//	return match (e) {                     { if ($is(NotFound, e)) { return "missing" } }
-//	  when NotFound: "missing";            { { runtime.$assertMatch($is(Timeout, e), e); return "retry" } }
-//	  when Timeout: "retry";
 //	}
 //
 // The check is a call, not a branch, so tests that reach every arm still
 // cover every branch. The arm's declarations, its bindings and any extracted
-// values, still run, so its names are bound as before. A test that runs code
-// the type does not prove away, such as a getter that a matcher reads in
-// `when registry.State.Waiting`, is checked the same way, so that code still
-// runs (erasableTest). A match over any other type keeps the tests and
-// $noMatch, which throws the proposal's TypeError at run time.
+// values, still run, so its names are bound as before. A match over any
+// other type keeps $noMatch, which throws the proposal's TypeError at run
+// time.
 
-// exhaustivePlan records what the lowering leaves out of the matches D209
+// exhaustivePlan records what the lowering changes in the matches D209
 // proves exhaustive in one file.
 type exhaustivePlan struct {
 	unreachable map[*ast.Node]bool      // statements that call $noMatch, dropped
-	untested    map[*ast.Node]bool      // if statements of a last arm, emitted as their blocks
 	checked     map[*ast.Node]*ast.Node // if statements of a last arm, emitted as a check against the subject and their blocks
 	kept        bool                    // some $noMatch call stays, so the file imports $noMatch
 }
 
 func newExhaustivePlan() exhaustivePlan {
-	return exhaustivePlan{unreachable: map[*ast.Node]bool{}, untested: map[*ast.Node]bool{}, checked: map[*ast.Node]*ast.Node{}}
+	return exhaustivePlan{unreachable: map[*ast.Node]bool{}, checked: map[*ast.Node]*ast.Node{}}
 }
 
 // planExhaustiveMatch records node, a $noMatch call, and the tests of the
-// last arm before it when D209 proves the match exhaustive: untested, or
-// checked when an arm tests a class or a custom matcher.
+// last arm before it, each checked against the subject, when D209 proves the
+// match exhaustive.
 func (p *exhaustivePlan) planExhaustiveMatch(c *checker.Checker, node *ast.Node) {
 	if patternHelper(node) != "$noMatch" {
 		return
@@ -75,7 +62,6 @@ func (p *exhaustivePlan) planExhaustiveMatch(c *checker.Checker, node *ast.Node)
 	if i < 1 || statements[i-1].Kind != ast.KindBlock {
 		return // no arm, or only the subject's declaration
 	}
-	checked := slices.ContainsFunc(statements[:i], func(statement *ast.Node) bool { return testsByMatcher(c, statement) })
 	subject := node.Arguments()[0]
 	for arm := statements[i-1]; arm.Kind == ast.KindBlock; {
 		body := arm.Statements()
@@ -86,119 +72,9 @@ func (p *exhaustivePlan) planExhaustiveMatch(c *checker.Checker, node *ast.Node)
 		if test.Kind != ast.KindIfStatement || test.AsIfStatement().ElseStatement != nil {
 			return
 		}
-		if checked || !erasableTest(c, test.AsIfStatement().Expression) {
-			p.checked[test] = subject
-		} else {
-			p.untested[test] = true
-		}
+		p.checked[test] = subject
 		arm = test.AsIfStatement().ThenStatement
 	}
-}
-
-// testsByMatcher reports whether statement, an arm of a match, tests the
-// subject with a class or a custom matcher: whether a test in its chain of if
-// statements, or a declaration between them, calls $is or $extract. What the
-// arm runs once it matches doesn't count, nor does the subject's const. A
-// data variant's $is tests a tag, which the type proves as it proves a
-// literal (D307, data.go), and a built-in matcher's is typeof or a guard
-// (match_builtins.go).
-func testsByMatcher(c *checker.Checker, statement *ast.Node) bool {
-	if statement.Kind != ast.KindBlock {
-		return false
-	}
-	for _, s := range statement.Statements() {
-		switch {
-		case s.Kind == ast.KindVariableStatement && callsMatcher(c, s):
-			return true
-		case s.Kind == ast.KindIfStatement && (callsMatcher(c, s.AsIfStatement().Expression) || testsByMatcher(c, s.AsIfStatement().ThenStatement)):
-			return true
-		}
-	}
-	return false
-}
-
-// callsMatcher reports whether node calls $is or $extract, the runtime's
-// tests of a class or a custom matcher, as the parser writes them.
-func callsMatcher(c *checker.Checker, node *ast.Node) bool {
-	if ast.IsCallExpression(node) {
-		callee := node.Expression()
-		if callee.Kind == ast.KindIdentifier && callee.Flags&ast.NodeFlagsReparsed != 0 && (callee.Text() == "$is" || callee.Text() == "$extract") && dataVariantTest(c, node) == "" && !isBuiltinPatternTest(c, node) {
-			return true
-		}
-	}
-	return node.ForEachChild(func(child *ast.Node) bool { return callsMatcher(c, child) })
-}
-
-// erasableTest reports whether leaving out test, a last arm's test that D209
-// proves, leaves out no code: it reads names, literals, and properties that
-// are no accessors, and calls only the guards the parser writes (Array.isArray
-// and the like), a built-in matcher's test (typeof or Option.isSome, which
-// the lowering writes for $is(String, subject) or $is(Option.Some, subject))
-// and a data variant's test of a data type that a stable name holds (D307).
-// Reading a matcher through a getter runs code.
-func erasableTest(c *checker.Checker, node *ast.Node) bool {
-	switch node.Kind {
-	case ast.KindIdentifier, ast.KindThisKeyword, ast.KindTrueKeyword, ast.KindFalseKeyword, ast.KindNullKeyword,
-		ast.KindStringLiteral, ast.KindNumericLiteral, ast.KindBigIntLiteral, ast.KindNoSubstitutionTemplateLiteral:
-		return true
-	case ast.KindParenthesizedExpression, ast.KindTypeOfExpression:
-		return erasableTest(c, node.Expression())
-	case ast.KindPrefixUnaryExpression:
-		return erasableTest(c, node.AsPrefixUnaryExpression().Operand)
-	case ast.KindBinaryExpression:
-		binary := node.AsBinaryExpression()
-		switch binary.OperatorToken.Kind {
-		case ast.KindEqualsEqualsEqualsToken, ast.KindExclamationEqualsEqualsToken, ast.KindGreaterThanEqualsToken,
-			ast.KindAmpersandAmpersandToken, ast.KindBarBarToken, ast.KindInKeyword:
-			return erasableTest(c, binary.Left) && erasableTest(c, binary.Right)
-		}
-	case ast.KindPropertyAccessExpression:
-		return erasableTest(c, node.Expression()) && !readsAccessor(c, c.GetSymbolAtLocation(node.Name()))
-	case ast.KindElementAccessExpression:
-		argument := node.AsElementAccessExpression().ArgumentExpression
-		symbol := c.GetSymbolAtLocation(argument)
-		return erasableTest(c, node.Expression()) && erasableTest(c, argument) && (symbol != nil || argument.Kind == ast.KindNumericLiteral) && !readsAccessor(c, symbol)
-	case ast.KindCallExpression:
-		arguments := node.Arguments()
-		if dataVariantTest(c, node) != "" {
-			return stableValue(c, arguments[0].Expression()) && erasableTest(c, arguments[1])
-		}
-		if isBuiltinPatternTest(c, node) {
-			matcher := arguments[0] // the lowering reads only Option of Option.Some (match_builtins.go)
-			if ast.IsPropertyAccessExpression(matcher) {
-				matcher = matcher.Expression()
-			}
-			return erasableTest(c, matcher) && erasableTest(c, arguments[1])
-		}
-		callee := node.Expression()
-		if !ast.IsPropertyAccessExpression(callee) || callee.Expression().Flags&ast.NodeFlagsReparsed == 0 || !ast.IsIdentifier(callee.Expression()) {
-			return false
-		}
-		for _, argument := range arguments {
-			if !erasableTest(c, argument) {
-				return false
-			}
-		}
-		return true
-	}
-	return false
-}
-
-// readsAccessor reports whether reading the property symbol, which a type
-// may describe through its declarations, can run a getter.
-func readsAccessor(c *checker.Checker, symbol *ast.Symbol) bool {
-	if symbol == nil {
-		return false
-	}
-	if symbol.Flags()&ast.SymbolFlagsAccessor != 0 {
-		return true
-	}
-	for _, declaration := range symbol.Declarations() {
-		if ast.IsAccessor(declaration) {
-			return true
-		}
-	}
-	return false
 }
 
 // withoutUnusedNoMatch removes $noMatch from names, a file's prelude uses,
@@ -210,15 +86,9 @@ func (p *exhaustivePlan) withoutUnusedNoMatch(names []string) []string {
 	return slices.DeleteFunc(names, func(name string) bool { return name == "$noMatch" })
 }
 
-// visitUntestedArm emits test, an if statement of a last arm that cannot
-// fail, as its block.
-func (tx *lowering) visitUntestedArm(test *ast.Node) *ast.Node {
-	return tx.Visitor().VisitNode(test.AsIfStatement().ThenStatement)
-}
-
 // visitCheckedArm emits test, an if statement of a last arm whose tests stay,
 // as its block led by runtime.$assertMatch(test, subject), which ends the
-// match as $noMatch does when the test fails (D294).
+// match as $noMatch does when the test fails (D405).
 func (tx *lowering) visitCheckedArm(test *ast.Node, subject *ast.Node) *ast.Node {
 	f := tx.Factory()
 	statement := test.AsIfStatement()

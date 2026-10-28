@@ -1,0 +1,32 @@
+// An exhaustive match tests its last arm like every other arm (D405): a
+// structurally valid Only whose _tag is a getter is read once, as Effect's
+// own variant test reads it, and a value outside the declared union fails
+// the last arm's test with a defect instead of taking it.
+data Only { One }
+
+let reads = 0
+const counted = { get _tag(): "One" { reads++; return "One" } } as unknown as Only
+
+function only(value: Only) {
+  return match (value) { when Only.One: "one"; }
+}
+
+function phase(value: "draft" | "published") {
+  return match (value) {
+    when "draft": "Draft";
+    when "published": "Published";
+  }
+}
+
+function outcome(program: unknown!unknown) {
+  return match (exit(program)) {
+    when Exit.Success(let value): value;
+    when Exit.Failure(let cause): cause.reasons.map((reason) => reason._tag).join("+");
+  }
+}
+
+// expect-result: {"only":"one","reads":1,"published":"Published","outside":"Die"}
+export function main() {
+  const result = only(counted)
+  return { only: result, reads, published: phase("published"), outside: outcome(phase("archived" as any)) }
+}

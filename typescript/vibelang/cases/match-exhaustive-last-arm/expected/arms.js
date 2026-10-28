@@ -26,6 +26,8 @@ export function phaseLabel$direct(phase) {
         }
         {
             {
+                runtime.$assertMatch($match2
+                    === "published", $match2);
                 return "Published";
             }
         }
@@ -51,6 +53,8 @@ export function width$direct(phase) {
         }
         {
             {
+                runtime.$assertMatch($match3
+                    === "published", $match3);
                 return 9;
             }
         }
@@ -79,6 +83,8 @@ export function record$direct(phase, log) {
         }
         {
             {
+                runtime.$assertMatch($match6
+                    === "published", $match6);
                 log.push("published");
                 break $match5;
             }
@@ -92,7 +98,7 @@ export function describe$direct(failure) {
     {
         const $match8 = failure;
         {
-            if ($is(NotFound, $match8) && typeof $match8 === "object" && $match8
+            if ($is(NotFound, $match8) && (typeof $match8 === "function" || typeof $match8 === "object") && $match8
                 !== null && "id" in
                 $match8) {
                 let id = $match8.id;
@@ -106,7 +112,7 @@ export function describe$direct(failure) {
         }
         {
             {
-                runtime.$assertMatch($is(Denied, $match8) && typeof $match8 === "object" && $match8
+                runtime.$assertMatch($is(Denied, $match8) && (typeof $match8 === "function" || typeof $match8 === "object") && $match8
                     !== null && "user" in
                     $match8, $match8);
                 let user = $match8.user;
@@ -128,6 +134,7 @@ export function greeting$direct(name) {
         }
         {
             {
+                runtime.$assertMatch(Option.isSome($match10), $match10);
                 let n = $match10.value;
                 return `Hello, ${n}`;
             }
@@ -157,6 +164,8 @@ export function announce(arg_1) {
             }
             {
                 {
+                    runtime.$assertMatch($match13
+                        === "published", $match13);
                     yield* Effect.log("published");
                     break $match12;
                 }

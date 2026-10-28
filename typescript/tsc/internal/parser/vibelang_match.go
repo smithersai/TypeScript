@@ -21,7 +21,7 @@ import (
 //
 //	match (e) {                              (() => {
 //	  when NotFound and { let id }:            const $match1 = e
-//	    `no user ${id}`;                       { if ($is(NotFound, $match1) && typeof $match1 === "object" && $match1 !== null && "id" in $match1) { const id = $match1.id; return `no user ${id}` } }
+//	    `no user ${id}`;                       { if ($is(NotFound, $match1) && (typeof $match1 === "function" || typeof $match1 === "object") && $match1 !== null && "id" in $match1) { const id = $match1.id; return `no user ${id}` } }
 //	  when Timeout: "retry";                   { if ($is(Timeout, $match1)) { return "retry" } }
 //	}                                          return $noMatch($match1)
 //	                                         })()
@@ -842,8 +842,14 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 			test(p.matcherTest(pat, path))
 			names = append(names, func() *ast.Node { return p.mString("_tag", at) })
 		} else {
-			typeOf := p.vibelangSpanning(p.factory.NewTypeOfExpression(path()), at)
-			test(p.mBinary(typeOf, ast.KindEqualsEqualsEqualsToken, p.mString("object", at), at))
+			// An object pattern matches an object: typeof "object" or
+			// "function", and not null. It reads no property of a primitive
+			// (D441).
+			// The function test comes first, so an object subject runs
+			// both and coverage sees no untaken branch.
+			isFunction := p.mBinary(p.vibelangSpanning(p.factory.NewTypeOfExpression(path()), at), ast.KindEqualsEqualsEqualsToken, p.mString("function", at), at)
+			isObject := p.mBinary(p.vibelangSpanning(p.factory.NewTypeOfExpression(path()), at), ast.KindEqualsEqualsEqualsToken, p.mString("object", at), at)
+			test(p.mParens(p.mBinary(isFunction, ast.KindBarBarToken, isObject, at), at))
 			test(p.mBinary(path(), ast.KindExclamationEqualsEqualsToken, p.mKeyword(ast.KindNullKeyword, at), at))
 		}
 		for _, clause := range pat.clauses {

@@ -3,9 +3,9 @@ import { $noMatch } from "vibelang-runtime";
 import * as Effect from "effect/Effect";
 import * as runtime from "vibelang-runtime";
 // expect-result: {"phases":["Draft","Review","Published"],"widths":[5,6,9],"logged":["draft","review","published"],"failures":["no user 7","retry","denied Ada"],"greetings":["Hello","Hello, Ada"],"announced":"published","text":"text: hi"}
-// A match without default that D209 proves exhaustive runs its last arm
-// without testing it (D294), or with a check that adds no branch when an arm
-// tests a class: no final if and no $noMatch, after return, inside an
+// A match without default that D209 proves exhaustive tests its last arm
+// with a check that adds no branch (D405): no final if and no $noMatch,
+// after return, inside an
 // expression, as a statement, and in an Effect function, and the last arm
 // still binds its names (arms.vibe, expected/arms.js). Over a type
 // that is not a finite union, a match without default keeps its tests and

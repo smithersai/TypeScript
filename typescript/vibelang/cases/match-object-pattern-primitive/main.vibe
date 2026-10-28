@@ -1,0 +1,19 @@
+// An object pattern matches only an object, a value whose typeof is "object"
+// or "function" and that is not null, and reads no property of a primitive
+// (D441): a getter on String.prototype never runs for a string subject.
+let reads = 0
+Object.defineProperty(String.prototype, "size", { get() { reads++; return 3 }, configurable: true })
+
+function size(value: unknown) {
+  return match (value) {
+    when { size: let n }: n;
+    default: -1;
+  }
+}
+
+// expect-result: {"string":-1,"number":-1,"null":-1,"object":2,"function":4,"reads":0}
+export function main() {
+  const sized = (() => 0) as unknown as { mutable size: number }
+  sized.size = 4
+  return { string: size("abc"), number: size(5), null: size(null), object: size({ size: 2 }), function: size(sized), reads }
+}

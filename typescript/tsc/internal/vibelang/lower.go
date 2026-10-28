@@ -191,8 +191,6 @@ func (tx *lowering) visitNode(node *ast.Node) *ast.Node {
 		return tx.visitGuardedLink(node)
 	case tx.plan.unreachable[node]:
 		return nil // the $noMatch of a match D209 proves exhaustive (D294, match_lower.go)
-	case tx.plan.untested[node]:
-		return tx.visitUntestedArm(node)
 	case tx.plan.checked[node] != nil:
 		return tx.visitCheckedArm(node, tx.plan.checked[node])
 	case node.Kind == ast.KindShorthandPropertyAssignment && tx.plan.conversionOf(node.Name()) != convertNone:

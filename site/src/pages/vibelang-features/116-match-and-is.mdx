@@ -78,7 +78,7 @@ function shape(value: ReadonlyArray<number> | { kind: string; size?: number }) {
 // Output: ["empty","one: 2","2 then 2 more","box of 5","point with 1 more keys","other"]
 ```
 
-An object pattern checks only the properties it names, and `...let rest` collects the others. A property that is not a valid name needs quotes, `{ "content-type": let type }`, and a computed key must be a name or a literal, `{ [key]: let value }`.
+An object pattern matches only an object or a function, never a primitive, and reads no property of a primitive: `{ length: let n }` does not match a string. It checks only the properties it names, and `...let rest` collects the others. A property that is not a valid name needs quotes, `{ "content-type": let type }`, and a computed key must be a name or a literal, `{ [key]: let value }`.
 
 ## Option, Exit, Result, and primitives
 
@@ -279,7 +279,7 @@ function describe(failure: Missing | Other) {
 error EK4701: This match does not handle every case of Missing | Other: Other is left.
 ```
 
-A match that handles every case needs no `default`, and tests that reach every arm cover every branch. When its arms test only literals, shapes, `String` and the other primitive classes, `Option`, `Exit` or `Result`, its last arm runs without testing its pattern, though code the pattern runs, such as a getter that returns its matcher, still runs; a value outside the declared type, which only an unsound cast or `any` can produce, takes it, so write `default: throw …` to reject one at run time instead. A class, a custom matcher or another named matcher decides at run time what a type can't prove: a structural object of a class type is no instance. When an arm tests one, the last arm keeps its test without adding a branch, and a value that fails it throws a `TypeError`.
+A match that handles every case needs no `default`, and tests that reach every arm cover every branch. Its last arm is still tested like every other arm, with the same reads, without adding a branch: a value outside the declared type, which only an unsound cast or `any` can produce, or a structural object of a class type, which is no instance, fails the test and throws a `TypeError`.
 
 For any other type, a match without `default` that no arm fits throws a `TypeError` when it runs, as the proposal specifies.
 
@@ -298,7 +298,6 @@ For any other type, a match without `default` that no arm fits throws a `TypeErr
 ## Not yet supported
 
 - Array patterns match arrays only, not other iterables.
-- Object patterns do not match primitives, so `{ length: let n }` does not match a string.
 - An extractor with a custom matcher types its bindings loosely; a class or a listed matcher types them exactly.
 - `is` bindings are not in scope in an `else` branch or after the statement.
 - A match inside a larger expression runs its arms in their own function, so an arm there cannot `yield`. A match after `return` or as a statement can.

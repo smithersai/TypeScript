@@ -1,6 +1,6 @@
 // Every match here is one D209 proves exhaustive, so this module never
-// imports $noMatch (D294). The last arm runs without a test, except in
-// describe, whose arms test classes: its last arm keeps them as a check.
+// imports $noMatch. The last arm keeps its tests as a check that adds no
+// branch (D405).
 export type Phase = "draft" | "review" | "published"
 
 export error NotFound { id: string }

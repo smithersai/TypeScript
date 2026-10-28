@@ -1,6 +1,6 @@
-// D294: tests that reach every arm of a match D209 proves exhaustive cover
-// every branch, whether its last arm runs untested (literals, Option) or
-// keeps its tests as a check (a class or a custom matcher). run.mjs runs
+// Tests that reach every arm of a match D209 proves exhaustive cover every
+// branch: its last arm keeps its tests as a check that adds none (D405), and
+// an object pattern tests a function first. run.mjs runs
 // every arm under V8 block coverage and prints what no call reached.
 export type Phase = "draft" | "published"
 
