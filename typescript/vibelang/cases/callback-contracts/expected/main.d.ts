@@ -6,9 +6,9 @@ declare class NotFound extends NotFound_base<{
     readonly id: string;
 }> {
 }
-export declare function mapAll<A, B, E = never, R = never>(items: ReadonlyArray<A>, f: (a: A) => Effect<B, E, R>): Effect.Effect<B[], E, R>;
+export declare function mapAll<A, B, E = never, R = never>(items: ReadonlyArray<A>, f: (a: A) => Effect.Effect<B, E, R>): Effect.Effect<B[], E, R>;
 export declare function mapSafe<A, B>(items: ReadonlyArray<A>, f: (a: A) => Effect.Effect<B, never, never>): Effect.Effect<B[], never, never>;
-export declare function withRetry<A, E = never, R = never>(times: number, program: () => Effect<A, E, R>): Effect.Effect<A, E, R>;
+export declare function withRetry<A, E = never, R = never>(times: number, program: () => Effect.Effect<A, E, R>): Effect.Effect<A, E, R>;
 export declare function main(): Effect.Effect<{
     names: string[];
     sizes: number[];

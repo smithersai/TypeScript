@@ -1,0 +1,15 @@
+// A callback parameter without a contract gains E and R (D68), and the
+// declaration file writes its type as Effect TypeScript does,
+// Effect.Effect<B, E, R>. A bare Effect<B, E, R> names effect's Effect
+// module, which stock TypeScript rejects as a type (TS2709).
+// typescript/main.ts declares the same API, and consumer/ compiles against
+// out/main.d.ts with skipLibCheck off and runs it.
+export function mapAll<A, B>(items: ReadonlyArray<A>, f: (a: A) => B) {
+  const out: B[] = []
+  for (const item of items) out.push(f(item))
+  return out
+}
+
+export function twice(f: () => number) {
+  return f() + f()
+}

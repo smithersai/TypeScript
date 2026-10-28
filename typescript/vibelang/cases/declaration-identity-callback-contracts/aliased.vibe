@@ -1,0 +1,7 @@
+// A file that imports effect's Effect module under another name declares
+// the callback's Effect through that name, as it declares the return type.
+import { Effect as Eff } from "effect"
+
+export function plusOne(f: () => number) {
+  return f() + 1
+}

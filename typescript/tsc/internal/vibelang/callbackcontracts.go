@@ -208,7 +208,7 @@ func declareCallbackContracts(resolver printer.EmitResolver, sourceFile *ast.Sou
 		statements := make([]*ast.Node, 0, len(declarations.Statements.Nodes))
 		r.WithChecker(func(c *checker.Checker) {
 			a := analyzerFor(c)
-			effectName := preludeEffectName(c, sourceFile)
+			effectName := preludeEffectName(c, sourceFile, declarations)
 			for _, statement := range declarations.Statements.Nodes {
 				source := ec.MostOriginal(statement)
 				s := (*callbackContracts)(nil)
@@ -270,51 +270,55 @@ func (a *analyzer) declareContracts(f *printer.NodeFactory, declaration *ast.Nod
 }
 
 // preludeEffectName returns a function that writes the name of the Effect
-// type in sourceFile's declaration file: Effect from the prelude, which the
-// prelude transform then imports, or Effect.Effect when the source imports
-// effect's Effect module under that name.
-func preludeEffectName(c *checker.Checker, sourceFile *ast.SourceFile) func() *ast.Node {
+// type in declarations, the declaration file of sourceFile, as Effect
+// TypeScript writes it (Chapter 27, declaration rule 4): E.Effect where the
+// declaration file keeps an import of effect's Effect module under the name
+// E, as the return type the declaration emitter wrote does, and otherwise the
+// prelude's Effect, which preludeAliasTypes writes Effect.Effect and the
+// prelude transform imports from effect.
+func preludeEffectName(c *checker.Checker, sourceFile *ast.SourceFile, declarations *ast.SourceFile) func() *ast.Node {
+	module := effectModuleImportName(declarations)
 	return func() *ast.Node {
 		f := ast.NewNodeFactory(ast.NodeFactoryHooks{})
-		if bindsName(sourceFile, "Effect") {
-			return f.NewQualifiedName(f.NewIdentifier("Effect"), f.NewIdentifier("Effect"))
+		if module != "" {
+			return f.NewQualifiedName(f.NewIdentifier(module), f.NewIdentifier("Effect"))
 		}
-		state := preludeStateOf(c)
-		if state.typeUses[sourceFile] == nil {
-			state.typeUses[sourceFile] = map[string]bool{}
-		}
-		state.typeUses[sourceFile]["Effect"] = true
-		return f.NewIdentifier("Effect")
+		name := f.NewIdentifier("Effect")
+		recordTypeUse(preludeStateOf(c), sourceFile, name)
+		return name
 	}
 }
 
-// bindsName reports whether file's own imports bind name.
-func bindsName(file *ast.SourceFile, name string) bool {
-	for _, statement := range file.Statements.Nodes {
-		if statement.Kind != ast.KindImportDeclaration {
+// effectModuleImportName returns the name under which declarations, a
+// declaration file, imports effect's Effect module: E in
+// import { Effect as E } from "effect" or import * as E from "effect/Effect",
+// or "" when it keeps no such import.
+func effectModuleImportName(declarations *ast.SourceFile) string {
+	for _, statement := range declarations.Statements.Nodes {
+		if !ast.IsImportDeclaration(statement) || !ast.IsStringLiteral(statement.ModuleSpecifier()) {
 			continue
 		}
 		clause := statement.AsImportDeclaration().ImportClause
-		if clause == nil {
+		if clause == nil || clause.AsImportClause().NamedBindings == nil {
 			continue
 		}
-		if clause.Name() != nil && clause.Name().Text() == name {
-			return true
-		}
 		bindings := clause.AsImportClause().NamedBindings
-		switch {
-		case bindings == nil:
+		switch module := statement.ModuleSpecifier().Text(); {
 		case ast.IsNamespaceImport(bindings):
-			if bindings.Name().Text() == name {
-				return true
+			if module == effectRootModule+"/Effect" {
+				return bindings.Name().Text()
 			}
-		default:
-			for _, element := range bindings.AsNamedImports().Elements.Nodes {
-				if element.Name().Text() == name {
-					return true
+		case module == effectRootModule:
+			for _, specifier := range bindings.AsNamedImports().Elements.Nodes {
+				imported := specifier.Name()
+				if property := specifier.PropertyName(); property != nil {
+					imported = property
+				}
+				if imported.Text() == "Effect" {
+					return specifier.Name().Text()
 				}
 			}
 		}
 	}
-	return false
+	return ""
 }
