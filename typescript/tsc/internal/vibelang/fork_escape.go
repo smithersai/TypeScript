@@ -153,15 +153,10 @@ func (f *fiberFlow) reads(symbols []*ast.Symbol) []*ast.Node {
 
 // use returns where value, the fork or a read of a binding that holds its
 // fiber, goes that it may not, or nil. A function that refers to it captures
-// it, unless the function is a fork's operand or a for concurrent body; a
-// value anywhere in a fork's operand, an await operation's operand, or such a
-// body stays in the region.
+// it, unless the parser wrote it for a fork block or a for concurrent body.
 func (f *fiberFlow) use(value *ast.Node) *fiberEscape {
 	for n := value; n != f.region && n.Parent != nil; n = n.Parent {
-		if f.inRegionCall(n) {
-			return nil
-		}
-		if isFunctionBoundary(n) && n != value && !isRegionTransparent(n) {
+		if isFunctionBoundary(n) && n != value && !isRegionTransparent(n) && !(isProgramArrow(n) && f.inRegionCall(n)) {
 			if isProgramArrow(n) && n.Body() != nil && ast.IsBlock(n.Body()) {
 				return &fiberEscape{at: value, how: "captured by a block param", captured: true}
 			}
@@ -171,7 +166,7 @@ func (f *fiberFlow) use(value *ast.Node) *fiberEscape {
 	return f.flow(value)
 }
 
-// inRegionCall reports whether n is the operand of a fork, the operand of an
+// inRegionCall reports whether n is the direct operand of a fork or an
 // await operation, or the body of a for concurrent loop, each of which
 // finishes before the region does.
 func (f *fiberFlow) inRegionCall(n *ast.Node) bool {
@@ -196,6 +191,9 @@ func (f *fiberFlow) flow(value *ast.Node) *fiberEscape {
 	for {
 		if n == f.region {
 			return &fiberEscape{at: n, how: "returned from that " + f.noun()} // an arrow's expression body
+		}
+		if f.inRegionCall(n) {
+			return nil
 		}
 		parent := n.Parent
 		if parent == nil {
@@ -292,18 +290,19 @@ func (f *fiberFlow) collection(literal *ast.Node, kind string) *fiberEscape {
 }
 
 // literalStays reports whether literal, an array or object literal that holds
-// an owned fiber, stays in the region with it: it is the operand of join or
-// an argument of a Fiber function whose result holds no Fiber, or a const or
-// let of the region holds it and every read of that binding, of which there
-// is at least one, is such an operand (fibers-join-record). A literal held
-// and never read that way, as in `const all = [fiber]; all.length`, is
+// an owned fiber, stays in the region with it: it is a concurrent operand,
+// the operand of join or an argument of a Fiber function whose result holds
+// no Fiber, or a const or let of the region holds it and every read of that
+// binding, of which there is at least one, is such an operand
+// (fibers-join-record). A literal held and never read that way, as in
+// `const all = [fiber]; all.length`, is
 // stored in a collection.
 func (f *fiberFlow) literalStays(literal *ast.Node) bool {
 	outer := literal
 	for outer.Parent != nil && ast.IsParenthesizedExpression(outer.Parent) {
 		outer = outer.Parent
 	}
-	if f.joinsOperand(outer) {
+	if f.joinsOperand(outer) || f.inRegionCall(outer) {
 		return true
 	}
 	declaration := outer.Parent
