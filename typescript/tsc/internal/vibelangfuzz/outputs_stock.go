@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -43,7 +44,9 @@ var stockTypeScript = sync.OnceValues(func() (string, error) {
 
 var stockCode = regexp.MustCompile(`\b(?:error|warning) TS(\d+):`)
 
-func (oc *OutputChecker) checkStockConsumer(dir string) {
+// inputs are the declaration files the project supplies itself, which the
+// mirror copies beside the emitted ones.
+func (oc *OutputChecker) checkStockConsumer(dir string, inputs []string) {
 	tsc, err := stockTypeScript()
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) || os.Getenv("VIBELANG_FUZZ_REQUIRE") == "1" {
@@ -79,6 +82,12 @@ func (oc *OutputChecker) checkStockConsumer(dir string) {
 		}
 		reported = true
 		if strings.Contains(line, "/node_modules/") {
+			continue
+		}
+		// So is an error inside a declaration file the project supplies, such
+		// as a case's stub of a package the harness does not install: the
+		// compiler did not write it.
+		if slices.ContainsFunc(inputs, func(input string) bool { return strings.HasPrefix(line, input+"(") }) {
 			continue
 		}
 		oc.G.Add("feature:declaration-consumer-TS"+match[1], "Chapter 27 rules 1 and 4 (D366): stock TypeScript rejected the emitted declarations and calls: %s\n%.1000s", line, out)

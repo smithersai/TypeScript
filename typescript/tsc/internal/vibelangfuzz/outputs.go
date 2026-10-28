@@ -656,7 +656,7 @@ func (oc *OutputChecker) checkConsumer(c *Compilation, declarations []string) {
 	}
 	// The native fork and stock TypeScript check the same isolated consumer.
 	// An unavailable stock compiler skips only that half, with a reason.
-	oc.checkStockConsumer(filepath.Join(c.Dir, mirror))
+	oc.checkStockConsumer(filepath.Join(c.Dir, mirror), inputs)
 	consumerResult, err := oc.W.checkFiles(oc.Ctx, filepath.Join(c.Dir, mirror), append([]string{"__consumer.mts"}, declarations...))
 	if err != nil {
 		oc.G.Add("feature:declaration-consumer", "Chapter 27 rule 4: the consumer did not compile: %v", err)

@@ -555,6 +555,10 @@ var ruleInjections = []*ruleInjection{
 		Text:  "export function label$$(status: Status$$): string {\n  return ⟦Match.value(status).pipe(\n    Match.when(\"idle\", () => \"Idle\"),\n    Match.orElse((other) => \"Other \" + other),\n  )⟧;\n}"},
 	{Code: 4840, Name: "option-pipeline", Quote: "whose every stage is a function of the `Option` module", Slots: top,
 		Text: "export const name$$ = (nick: Option.Option<string>) => ⟦pipe(nick, Option.map((s) => s.trim()), Option.getOrElse(() => \"anon\"))⟧;"},
+	{Code: 4841, Name: "schema-alias", Quote: "a schema constant other than a `Schema.Struct` whose type alias", Slots: top,
+		Text: "export type Id$$ = typeof Id$$.Type;\nexport const Id$$ = Schema.String;"},
+	{Code: 4842, Name: "global-import", Quote: "an import that binds one of Effect's modules under the name of a JavaScript global", Slots: top,
+		Text: "import { ⟦Array⟧ } from \"effect\";\nexport const firstTwo$$ = (values: ReadonlyArray<number>) => Array.take(values, 2);"},
 
 	// More clauses of the rows above, each a form of its own.
 	{Code: 1003, Name: "await-using", Quote: "`async`, `for await`, or `await using`", Slots: effectOnly,
