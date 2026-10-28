@@ -175,12 +175,17 @@ local function assert_captures(buf, tokens)
   assert(#wrong == 0, table.concat(wrong, "; "))
 end
 
-check("parse: no ERROR or MISSING node in any fixture source", function()
+check("parse: fixture sources have their expected syntax", function()
   for name in vim.fs.dir(vim.fs.joinpath(project, "src")) do
     if name:match("%.vibe$") then
       local text = table.concat(vim.fn.readfile(vim.fs.joinpath(project, "src", name)), "\n")
       local root = vim.treesitter.get_string_parser(text, "vibe"):parse()[1]:root()
-      assert(not root:has_error(), name .. " has an ERROR or MISSING node")
+      if name == "malformed-pipe.vibe" then
+        -- This LSP recovery fixture deliberately has no pipe topic/left operand.
+        assert(root:has_error(), name .. " must retain its intentional parse error")
+      else
+        assert(not root:has_error(), name .. " has an ERROR or MISSING node")
+      end
     end
   end
 end)
