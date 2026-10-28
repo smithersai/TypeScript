@@ -179,6 +179,11 @@ func init() {
 	fileChecks = append(fileChecks, checkInvocationRuns)
 }
 
+// structuredResult is EK4301's text for a statement that discards a call's
+// result, an Effect subtype that stays data until it is called (D24). {0} is
+// "This call" or "This tag", {1} whose result it is.
+var structuredResult = EK4301.With("{0} returns an Effect subtype, which stays data until it is called, so this statement discards {1} result without running it.")
+
 // D24 keeps structured Effect results as data. Discarding a call or template
 // statement must ask rather than silently leaving a SQL migration cold.
 func checkInvocationRuns(c *checker.Checker, file *ast.SourceFile) {
@@ -193,13 +198,17 @@ func checkInvocationRuns(c *checker.Checker, file *ast.SourceFile) {
 					statement = statement.Parent
 				}
 				if isStructuredEffectResult(c, t) && statement != nil && ast.IsExpressionStatement(statement) {
+					text := shortText(nodeText(file, node), "this result")
 					if ast.IsCallExpression(node) {
-						report(c, node, EK4301.With("This call returns an Effect subtype kept as data (D24). Call the result explicitly to run it, or annotate the return type as Effect<A, E, R>."))
+						d := report(c, node, structuredResult, "This call", "its")
+						note(d, "Call the result to run it, {0}(), or write the return type of what it calls as A!E!R, which runs the call where it stands.", text)
 					} else {
-						report(c, node, EK4301.With("This tag returns an Effect subtype kept as data (D24). Call the template result explicitly to run it, or annotate the tag's return type as Effect<A, E, R>."))
+						d := report(c, node, structuredResult, "This tag", "the template's")
+						note(d, "Call the result to run it, {0}(), or write the tag's return type as A!E!R, which runs the template where it stands.", text)
 					}
 				} else if ast.IsTaggedTemplateExpression(node) && isEffectType(c, t) && !inLowerableBody(node) && !atTopLevel(node) {
-					report(c, node, EK4301.With("This tagged template runs an Effect, but this position cannot run a program. Move it into an Effect function body."))
+					d := report(c, node, EK4301.With("This tagged template runs an Effect, but this position can't run one."))
+					note(d, "Move it into an Effect function's body.")
 				}
 			}
 		}

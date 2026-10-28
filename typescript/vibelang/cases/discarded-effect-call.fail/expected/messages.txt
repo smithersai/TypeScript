@@ -1,1 +1,2 @@
-Call the result explicitly to run it, or annotate the return type as Effect<A, E, R>.
+This call returns an Effect subtype, which stays data until it is called, so this statement discards its result without running it.
+Call the result to run it, Exit.fail("discarded")(), or write the return type of what it calls as A!E!R, which runs the call where it stands.

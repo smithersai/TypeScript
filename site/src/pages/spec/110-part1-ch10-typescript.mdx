@@ -248,8 +248,9 @@ const users = ids.map((id) => Users.find(id))      // rejected
 ```
 
 ```text
-error EK4301: this callback can pause (Users.find), but Array.prototype.map calls it
-  synchronously. Use Effect.forEach(ids, (id) => Users.find(id)) or a for...of loop.
+error EK4301: This callback can't run Users.find(id), an Effect: Array.prototype.map
+  calls it synchronously, as a plain function.
+  Use Effect.forEach(ids, (id) => Users.find(id)) or a for...of loop.
 ```
 
 Effect's own combinators, such as `Effect.forEach`, expect callbacks that return Effects, so VibeLang callbacks work there; Chapter 16 gives the rules for higher-order functions.

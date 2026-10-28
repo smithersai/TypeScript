@@ -15,19 +15,25 @@ import (
 // operation, and a VibeLang function passed by name that can pause, are
 // EK4301:
 //
-//	error EK4301: this callback can pause (Users.find), but Array.prototype.map calls it synchronously.
+//	error EK4301: This callback can't run Users.find(id), an Effect: Array.prototype.map calls it synchronously, as a plain function.
 //	  Use Effect.forEach(ids, (id) => Users.find(id)) or a for...of loop.
 
 func init() {
 	fileChecks = append(fileChecks, checkCallbacks)
 }
 
-// pausingCallback is EK4301's text for a lambda, which names what pauses.
-var pausingCallback = EK4301.With("this callback can pause ({0}), but {1} calls it synchronously.")
+// pausingCallback is EK4301's text for a lambda. {0} says what it can't do,
+// such as "run find(id), an Effect", and {1} names the callee.
+var pausingCallback = EK4301.With("This callback can't {0}: {1} calls it synchronously, as a plain function.")
 
 // pausingMethod is EK4301's text for a method that implements a plain
-// function member, such as Equal.Equal's [Equal.symbol] (D55).
-var pausingMethod = EK4301.With("{0} can pause ({1}), but {2} declares it as a plain function, which its callers call synchronously.")
+// function member, such as Equal.Equal's [Equal.symbol] (D55). {0} is the
+// method, {1} what it can't do, {2} the member's owner.
+var pausingMethod = EK4301.With("{0} can't {1}: {2} declares it as a plain function, which its callers call synchronously.")
+
+// inlineCallbackNote explains why a callback parameter accepts a callback
+// that runs Effects (D12, D68). {0} is the parameter.
+const inlineCallbackNote = "{0} has no Effect contract, so it accepts a callback that runs Effects. Give {0} a named function type, such as type Body<A> = () => A, which accepts only plain functions"
 
 func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 	a := analyzerFor(c)
@@ -41,7 +47,8 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 					if sig := a.candidateOf(call); sig != nil {
 						e := a.expectationAt(call, sig, path, node)
 						if e.plainFn && !e.effectFn {
-							report(c, node, EK4301.With("{0} returns a program and has no plain variant, but {1} expects a plain function."), functionDisplayName(node), calleeName(c, file, call))
+							d := report(c, node, EK4301.With("{0} returns a program, but {1} expects a plain function, which returns a value."), upperFirst(functionDisplayName(node)), calleeName(c, file, call))
+							note(d, "Run the program and return its value, or pass a function that returns the program as a value.")
 						}
 					}
 				}
@@ -51,7 +58,7 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 			// before the downstream contract/channel errors, in either form.
 			// Keep D56's form finalization ahead of body inspection.
 			if f := a.finalForm(node); !a.reportBoundaryCallback(file, node) && f == formPlain {
-				if pause := a.pauseText(file, node); pause != "" {
+				if pause := a.pauseWhat(file, node); pause != "" {
 					call, _ := ownerCall(node)
 					if !reportTracedCallback(c, file, call, node) {
 						d := report(c, node, pausingCallback, pause, calleeName(c, file, call))
@@ -63,7 +70,7 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 									for _, callback := range c.GetSignaturesOfType(expected, checker.SignatureKindCall) {
 										if a.isBareTypeParameter(c.GetReturnTypeOfSignature(callback)) {
 											if pause := a.firstPause(node); pause != nil {
-												note(d, "To return the program instead of running it, return a function with no parameters: () => {0}. Visitor spelling: () => () => {0}.", nodeText(file, pause))
+												note(d, "To collect the program instead of running it, return a function: {0}() => {1}", callbackHead(file, node), nodeText(file, pause))
 											}
 										}
 									}
@@ -78,8 +85,9 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 			}
 		case node.Kind == ast.KindMethodDeclaration && isLowerable(node):
 			if owner := a.plainMemberOwner(node); owner != "" {
-				if pause := a.pauseText(file, node); pause != "" {
-					report(c, node.Name(), pausingMethod, nodeText(file, node.Name()), pause, owner)
+				if pause := a.pauseWhat(file, node); pause != "" {
+					d := report(c, node.Name(), pausingMethod, nodeText(file, node.Name()), pause, owner)
+					note(d, "Compute what it needs before building the object, and keep {0} plain.", nodeText(file, node.Name()))
 				} else {
 					a.reportFailingMethod(file, node, owner) // D282 (plain_failures.go)
 				}
@@ -94,7 +102,7 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 				}
 				d := report(c, node, EK4301, node.Text(), calleeName(c, file, call))
 				if a.isCallbackParameterValue(node) {
-					note(d, "{0} has no contract, so it accepts any callback, including one that pauses. Call it in a for...of loop, or give it a named function type such as a type alias, which takes only plain functions.", node.Text())
+					note(d, inlineCallbackNote+", or call it in a for...of loop.", node.Text())
 				} else {
 					note(d, "Use {0} or a for...of loop.", forEachFix(c, file, call, node))
 				}
@@ -118,8 +126,8 @@ func (a *analyzer) reportBoundaryCallback(file *ast.SourceFile, fn *ast.Node) bo
 	}
 	name := nodeText(file, pause.Expression())
 	call, _ := ownerCall(fn)
-	d := report(c, pause, pausingCallback, name, calleeName(c, file, call))
-	note(d, "{0} has an inline callback type, which accepts callbacks that can pause (D12/D68). Give {0} a named function type, such as type Body<A> = () => A, to keep it plain inside {1}.", name, calleeName(c, file, call))
+	d := report(c, pause, pausingCallback, "call "+name+", which can run Effects", calleeName(c, file, call))
+	note(d, inlineCallbackNote+", to call it inside {1}.", name, calleeName(c, file, call))
 	return true
 }
 
@@ -160,17 +168,17 @@ func (a *analyzer) plainMemberOwner(method *ast.Node) string {
 	return "its contextual type"
 }
 
-// pauseText names what makes fn compile to frames, for EK4301: the callee of
-// its first call that performs an Effect operation, else its first using
-// declaration, which needs a Scope region (D54), such as "using conn"; ""
-// when neither does.
-func (a *analyzer) pauseText(file *ast.SourceFile, fn *ast.Node) string {
-	if pause := a.firstPause(fn); pause != nil {
-		return nodeText(file, ast.GetInvokedExpression(pause))
+// pauseWhat says what fn, which must be plain, can't do, for EK4301: run its
+// first call that performs an Effect operation, "run find(id), an Effect",
+// else declare its first using declaration, which needs a Scope region (D54),
+// "declare using conn, which needs a Scope"; "" when it does neither.
+func (a *analyzer) pauseWhat(file *ast.SourceFile, fn *ast.Node) string {
+	if pause := a.firstEffectRun(fn); pause != nil {
+		return "run " + messageCallText(file, pause) + ", an Effect"
 	}
 	if list := firstUsing(fn); list != nil {
 		if declarations := list.AsVariableDeclarationList().Declarations.Nodes; len(declarations) > 0 {
-			return "using " + nodeText(file, declarations[0].Name())
+			return "declare using " + nodeText(file, declarations[0].Name()) + ", which needs a Scope"
 		}
 	}
 	return ""
@@ -206,11 +214,11 @@ func pausingCallbackFix(c *checker.Checker, file *ast.SourceFile, call *ast.Node
 	if call != nil {
 		if signature := c.GetResolvedSignature(call); signature != nil {
 			if fn := implementationOf(signature.Declaration()); fn != nil && isLowerable(fn) {
-				parameter := "its callback"
+				parameter := "callback"
 				if _, path := ownerCall(callback); len(path) == 1 && path[0].argument < len(fn.Parameters()) {
 					parameter = nodeText(file, fn.Parameters()[path[0].argument].Name())
 				}
-				return format("{0} calls {1} as a plain function. Give {0} a contract that runs {1}: {1}: () => A!E!R, with E and R added to {0}'s return type, as in …!E!R.", []any{nodeText(file, call.Expression()), parameter})
+				return format("Give {0}'s parameter an Effect contract, so {0} runs it: {1}: () => A!E!R, with E and R in {0}'s return type.", []any{nodeText(file, call.Expression()), parameter})
 			}
 		}
 	}
@@ -219,12 +227,26 @@ func pausingCallbackFix(c *checker.Checker, file *ast.SourceFile, call *ast.Node
 
 // forEachFix writes the Effect.forEach call that replaces call, a call such
 // as ids.map(f) whose callback f can pause, when the object call's callee
-// belongs to is iterable, and else names Effect.forEach.
+// belongs to is iterable, and else names Effect.forEach. A long callback is
+// written by its parameters, (id) => { … }.
 func forEachFix(c *checker.Checker, file *ast.SourceFile, call *ast.Node, callback *ast.Node) string {
 	if receiver := receiverOf(call); receiver != nil && c.IteratedType(c.GetTypeAtLocation(receiver)) != nil {
-		return "Effect.forEach(" + nodeText(file, receiver) + ", " + nodeText(file, callback) + ")"
+		return "Effect.forEach(" + shortText(nodeText(file, receiver), "items") + ", " + shortText(nodeText(file, callback), callbackHead(file, callback)+"{ … }") + ")"
 	}
 	return "Effect.forEach"
+}
+
+// callbackHead writes callback's parameters as the start of an arrow,
+// "(id) => ", for a message that shows the callback's shape.
+func callbackHead(file *ast.SourceFile, callback *ast.Node) string {
+	if !ast.IsFunctionLike(callback) {
+		return "() => "
+	}
+	var parameters []string
+	for _, parameter := range callback.Parameters() {
+		parameters = append(parameters, nodeText(file, parameter))
+	}
+	return shortText("("+strings.Join(parameters, ", ")+") => ", "(…) => ")
 }
 
 // receiverOf returns the object that call's callee belongs to, ids in

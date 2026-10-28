@@ -96,7 +96,7 @@ export const object: Plain = {
 		t.Fatalf("EK4301 at %d methods, want both: %v", len(failing), failing)
 	}
 	for _, text := range failing {
-		if !strings.Contains(text, "call can fail with Error, but Plain declares it as a plain function, which never fails.") && !strings.Contains(text, "call can fail with Error, but its contextual type declares it as a plain function, which never fails.") {
+		if !strings.Contains(text, "call can't throw Error: Plain declares it as a plain function, which never fails.") && !strings.Contains(text, "call can't throw Error: its contextual type declares it as a plain function, which never fails.") {
 			t.Errorf("EK4301 text: %s", text)
 		}
 	}

@@ -1,3 +1,3 @@
-p can pause, but ReadonlyArray.prototype.find calls it synchronously.
-compare can pause, but Array.prototype.sort calls it synchronously.
-p has no contract, so it accepts any callback, including one that pauses. Call it in a for...of loop, or give it a named function type such as a type alias, which takes only plain functions.
+p can't be passed to ReadonlyArray.prototype.find: it runs Effects, and ReadonlyArray.prototype.find calls it synchronously, as a plain function.
+compare can't be passed to Array.prototype.sort: it runs Effects, and Array.prototype.sort calls it synchronously, as a plain function.
+p has no Effect contract, so it accepts a callback that runs Effects. Give p a named function type, such as type Body<A> = () => A, which accepts only plain functions, or call it in a for...of loop.

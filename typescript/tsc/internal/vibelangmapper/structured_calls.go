@@ -34,6 +34,6 @@ func (p *projector) discardedStructuredCall(call *ast.Node) {
 		outer = outer.Parent
 	}
 	if outer.Parent != nil && ast.IsExpressionStatement(outer.Parent) {
-		p.fiberDiagnostic(call, 4301, "This call returns an Effect subtype kept as data (D24). Call the result explicitly to run it, or annotate the return type as Effect<A, E, R>.")
+		p.fiberDiagnostic(call, 4301, "This call returns an Effect subtype, which stays data until it is called, so this statement discards its result without running it. Call the result to run it, or write the return type of what it calls as A!E!R.")
 	}
 }

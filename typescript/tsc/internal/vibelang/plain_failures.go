@@ -98,19 +98,12 @@ func (a *analyzer) firstFailureSource(fn *ast.Node) *ast.Node {
 // nil, looking inside throw expressions and do blocks as firstFailureSource
 // does.
 func (a *analyzer) firstEffectRun(fn *ast.Node) *ast.Node {
-	var first *ast.Node
-	a.forEachRunningCallInBody(fn, func(call *ast.Node) bool {
-		if !a.performs(call) {
-			return false
+	first := a.firstPause(fn)
+	if arrow := invokedArrow(first); arrow != nil {
+		if inner := a.firstEffectRun(arrow); inner != nil {
+			return inner
 		}
-		first = call
-		if arrow := invokedArrow(call); arrow != nil {
-			if inner := a.firstEffectRun(arrow); inner != nil {
-				first = inner
-			}
-		}
-		return true
-	})
+	}
 	return first
 }
 
@@ -230,12 +223,12 @@ var plainContractFailureFix = &ls.CodeFixProvider{
 
 // failingCallback is EK4301's text for a lambda that can fail where a plain
 // function is expected. {0} is the failures, {1} the callee.
-var failingCallback = EK4301.With("this callback can fail with {0}, but {1} calls it synchronously, and a plain function never fails.")
+var failingCallback = EK4301.With("This callback can't throw {0}: {1} calls it synchronously, as a plain function, which never fails.")
 
 // failingMethod is EK4301's text for a method that can fail and implements a
 // plain-function member. {0} is the method, {1} the failures, {2} the member's
 // owner.
-var failingMethod = EK4301.With("{0} can fail with {1}, but {2} declares it as a plain function, which never fails.")
+var failingMethod = EK4301.With("{0} can't throw {1}: {2} declares it as a plain function, which never fails.")
 
 // escapingFailures returns the expected failures that can escape fn's body,
 // as one type, or nil when none can.
@@ -263,6 +256,7 @@ func (a *analyzer) reportFailingCallback(file *ast.SourceFile, fn *ast.Node, cal
 	if call != nil {
 		note(d, "Use {0} or a for...of loop.", forEachFix(c, file, call, fn))
 	}
+	note(d, "Or catch the failure inside the callback.")
 	return true
 }
 
@@ -274,7 +268,8 @@ func (a *analyzer) reportFailingMethod(file *ast.SourceFile, fn *ast.Node, owner
 		return
 	}
 	if failures := a.escapingFailures(fn); failures != nil {
-		report(a.checker, fn.Name(), failingMethod, nodeText(file, fn.Name()), a.checker.TypeToString(failures), owner)
+		d := report(a.checker, fn.Name(), failingMethod, nodeText(file, fn.Name()), a.checker.TypeToString(failures), owner)
+		note(d, "Catch the failure inside {0}, or check before building the object.", nodeText(file, fn.Name()))
 	}
 }
 

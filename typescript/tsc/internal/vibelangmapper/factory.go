@@ -411,6 +411,6 @@ func (p *projector) rejectFactoryCallback(node *ast.Node, d Decision) {
 		}
 	}
 	if r.isFactory(fn) {
-		p.diagnostics = append(p.diagnostics, Diagnostic{Start: p.tokenStart(node), Length: node.End() - p.tokenStart(node), Code: 4301, Message: "This factory returns a program and has no plain variant, but this position expects a plain function."})
+		p.diagnostics = append(p.diagnostics, Diagnostic{Start: p.tokenStart(node), Length: node.End() - p.tokenStart(node), Code: 4301, Message: "This factory returns a program, but this position expects a plain function, which returns a value."})
 	}
 }

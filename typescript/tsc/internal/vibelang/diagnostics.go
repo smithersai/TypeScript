@@ -176,7 +176,7 @@ var (
 	// EK4202: a TypeScript function whose R holds a control operation. {0} is the function, {1} the control.
 	EK4202 = message(4202, errorCategory, "{0} is a TypeScript function whose requirements include the control operation {1}.")
 	// EK4301: a callback that can pause or fail where a plain function is expected. {0} is the callback, {1} the callee.
-	EK4301 = message(4301, errorCategory, "{0} can pause, but {1} calls it synchronously.")
+	EK4301 = message(4301, errorCategory, "{0} can't be passed to {1}: it runs Effects, and {1} calls it synchronously, as a plain function.")
 	// EK4401: a plain TypeScript call with no boundary or trusted contract. {0} is the function.
 	EK4401 = message(4401, errorCategory, "{0} is a plain TypeScript function, and nothing says what its exceptions mean.")
 	// EK4402: a Node.js or browser API, used or imported as a value. {0} is the API.

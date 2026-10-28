@@ -5,3 +5,6 @@ validate can't throw Invalid: its return annotation, string, makes it a plain fu
 orThrow can't throw Invalid: its return annotation, string, makes it a plain function, which never fails.
 viaDo can't throw Invalid: its return annotation, number, makes it a plain function, which never fails.
   Or fail with a defect instead: die(new Invalid({ value: String(n) })), annotated number!!
+This callback can't throw Invalid: Array.prototype.map calls it synchronously, as a plain function, which never fails.
+  Use Effect.forEach(["a", ""], (value) => { … }) or a for...of loop.
+  Or catch the failure inside the callback.

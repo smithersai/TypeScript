@@ -1,3 +1,4 @@
-body has an inline callback type
+This callback can't call body, which can run Effects: Effect.try calls it synchronously, as a plain function.
+body has no Effect contract, so it accepts a callback that runs Effects.
 Give body a named function type
 such as type Body<A> = () => A
