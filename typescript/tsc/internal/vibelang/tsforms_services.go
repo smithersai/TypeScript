@@ -139,6 +139,13 @@ func serviceClassRewrite(c *checker.Checker, file *ast.SourceFile, class *ast.No
 	if !strings.HasPrefix(text[start:], "class") {
 		return nil
 	}
+	// A shape on lines of its own, as in Context.Service<\n  X,\n  {…}\n>, is
+	// indented deeper than the class; the declaration's body takes the
+	// class's indentation.
+	classIndent, shapeIndent := lineIndent(text, start), lineIndent(text, nodeStart(file, shape))
+	if len(shapeIndent) > len(classIndent) && strings.HasPrefix(shapeIndent, classIndent) {
+		body = dedentText(body, len(shapeIndent)-len(classIndent))
+	}
 	declaration := "service " + name + " " + body
 	rewrite := withImportRemovals(c, file, &formRewrite{
 		edits:       []sourceEdit{{start, class.End(), declaration}},
