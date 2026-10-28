@@ -7,7 +7,7 @@ FuzzSpecPrograms  feature:service-shape    programs  not generated: service Name
 FuzzSpecPrograms  feature:schema           programs  not generated: schema declarations are types and Schema values, with no control flow to observe
 FuzzSpecPrograms  feature:mutable-members  programs  not generated: readonly and mutable members are types only
 FuzzSpecPrograms  feature:spans            programs  not generated: withSpan's spans are not observable in an Outcome or trace without a tracer
-FuzzSpecPrograms  feature:callback-hatch   programs  not generated: callback needs a host callback source, whose timing is nondeterministic
+FuzzSpecPrograms  feature:callback-hatch   programs  not generated: Ch 10 (D230): callback's register function hands resume to a host source, a timer, an event or a socket, so when it resumes against the program's other fibers depends on the host; the generated hatches finish before they return or wait for a promise that is already settled
 FuzzSpecPrograms  feature:platform-entry   programs  not generated: the platform entry runs main when Node starts a file, not when a worker imports it
 FuzzSpecPrograms  feature:module-block     programs  not generated: a module block is TypeScript, outside VibeLang's semantics
 #
@@ -27,6 +27,12 @@ FuzzSpecPrograms  corpus:unreachable-match             compiler  D346, D214: an 
 FuzzSpecPrograms  feature:narrowed-subject             compiler  D346, D307: `const d: D0 = D0.V0(); match (d) { when D0.V0: 1; when D0.V1 { let x }: x; }` is TS2339 ("Property 'x' does not exist on type 'never'"): the lowering reads a binding off a subject TypeScript has narrowed, by its initializer or (campaign) by an enclosing match's arms over the same subject, where the spec accepts every variant's arm
 FuzzSpecPrograms  compile:TS2339/narrowed-subject      compiler  D346, D307: a variant arm's binding over a subject TypeScript has narrowed is TS2339 on never
 FuzzSpecPrograms  corpus:narrowed-subject              compiler  D346, D307: a variant arm's binding over a subject narrowed by its initializer is TS2339
+FuzzSpecPrograms  feature:do-yield                     compiler  Ch 13 rule L5 (D187), Ch 8: a yield inside a do block of a producer, `function* gen0(p0: number) { for (let i1 = 0; i1 < 2; i1++) { const v2: number = do { yield 0; 0 } } }`, is TS1163 ("A 'yield' expression is only allowed in a generator body"), though a do block is evaluated where it stands and rule L5 rejects only break, continue, var and return in it
+FuzzSpecPrograms  compile:TS1163/do-yield              compiler  Ch 13 rule L5 (D187): a yield inside a producer's do block is TS1163
+FuzzSpecPrograms  compile:TS1214/do-yield              compiler  Ch 13 rule L5 (D187): `do { yield (0 + 0); 0 }` in a producer is TS1214 ("'yield' is a reserved word in strict mode"), read as a call of an identifier
+FuzzSpecPrograms  compile:TS2304/do-yield              compiler  Ch 13 rule L5 (D187): `do { yield (0 + 0); 0 }` in a producer is TS2304 ("Cannot find name 'yield'"), read as a call of an identifier
+FuzzSpecPrograms  corpus:do-yield                      compiler  Ch 13 rule L5 (D187): the do-yield focus yields inside a do block of gen0 and draws TS1163
+FuzzSpecVariants  compile:TS7024/hatch-promise         compiler  Ch 2 Writing the contract yourself, Ch 14 (D71): the annot-bang, annot-effect and combined variants of FuzzSpecVariants seed 16 under -short (VIBELANG_FUZZ_SEED=v16; seed 31 without -short) write the inferred contract on f11, which holds an async sync hatch, and draw TS7024 at its last return, though the base print compiles; an unfinished minimization pointed at `sync(async (a, b) => ...)` inside a provide block's return, but no hand-written reduction reproduces it yet
 FuzzSpecVariants  feature:pipe-self-call               compiler  Ch 5, Ch 13 rule E6, Ch 14 Recursion (D57, D272): `x |> rec0(%)` inside rec0, annotated `number!E` with R left to the fixpoint, is EK2102 ("its contract must write every channel"), while the call `rec0(x)` it means compiles
 FuzzSpecVariants  compile:EK2102/pipe-self-call        compiler  Ch 5, Ch 13 rule E6, Ch 14 (D57): a pipe into the function's own call, `((p0 - 1) |> rec0(%))`, is EK2102 where the call it means is not
 FuzzSpecVariants  corpus:pipe-self-call                compiler  Ch 5, Ch 13 rule E6, Ch 14 (D57): the pipe variant of rec0, `((p0 - 1) |> rec0(%))`, is EK2102
@@ -35,22 +41,9 @@ FuzzSpecVariants  compile:TS7022/annot-try-do          compiler  Ch 2, Ch 14 (D7
 FuzzSpecVariants  compile:TS7024/annot-try-do          compiler  Ch 2, Ch 14 (D71): with the inferred contract written, a function whose try block returns a do block has an implicit any return type (TS7024)
 FuzzSpecVariants  corpus:annot-try-do                  compiler  Ch 2, Ch 14 (D71): the annot-bang variant writes the inferred number!! on a function whose try block returns a do block, and draws TS7022 and TS7024
 
-# Additional code spans in the Forms table, including constructors and generics.
-FuzzSpecPrograms feature:custom-error-constructor programs not generated: Ch 3, D278: the error model represents fields and inheritance, but no custom constructor body or argument transform
-FuzzSpecPrograms feature:generic-data programs not generated: Ch 11, D307: data declarations in the numeric model have no type parameters
-FuzzSpecPrograms feature:timeout-retry programs not generated: Ch 5: retry is generated, but a deadline around it needs a deterministic test clock that the worker does not provide
-FuzzSpecPrograms feature:fail-cause programs not generated: Ch 17, D406: the model observes Exit but does not bind and re-raise Cause values
+# Additional code spans in the Forms table that the generator does not write.
+FuzzSpecPrograms feature:timeout-retry programs not generated: Ch 5: retry is generated, but whether a deadline around it fires depends on the wall clock against the work's own speed, since the worker runs no test clock; a deadline that cannot fire leaves retry's result as it is
 FuzzSpecPrograms feature:throw-cause-invalid programs not generated: Ch 17, D406: throw cause is invalid (EK2140); this generator writes valid programs only
 FuzzSpecPrograms feature:test-block-param programs not generated: Ch 5: it.effect requires a test runner; the worker directly calls exported programs
-FuzzSpecPrograms feature:is-exit programs not generated: Ch 3, D211: is currently narrows error classes; Exit destructuring is generated only by match
-FuzzSpecPrograms feature:is-data programs not generated: Ch 11, D307: data variants are generated as match patterns, not is conditions
-FuzzSpecPrograms feature:join-array programs not generated: Ch 7, D225: the model joins one fiber at a time and has no array-valued join node
-FuzzSpecPrograms feature:fork-detach programs not generated: Ch 7: detached fibers need an explicit shutdown strategy beyond block-owned lifetimes
-FuzzSpecPrograms feature:fork-in programs not generated: Ch 7: the model has no explicit Scope value to transfer ownership to
-FuzzSpecPrograms feature:fork-scoped programs not generated: Ch 7, D408: the model uses block-owned fork, not an explicit caller Scope requirement
-FuzzSpecPrograms feature:await-all-record programs not generated: Ch 7: await elements and bindings are numeric arrays; record shapes are not modeled
-FuzzSpecPrograms feature:interruptible programs not generated: Ch 17, D180: restore regions are generated inside masks, but standalone interruptible regions are not
-FuzzSpecPrograms feature:hatch-promise programs not generated: Ch 10: the synchronous numeric hatch model has no host Promise source
-FuzzSpecPrograms feature:hatch-try-promise programs not generated: Ch 10: the try hatch models synchronous JSON parsing, not a cancellable Promise API
 
 FuzzSpecPrograms  feature:service-identity programs  not generated: Chapter 4 (D361): typing an implementation, a default or a TypeScript class's implements clause as Users.Shape is a type-level rule with no runtime behavior; the generator's layers are typed by inference

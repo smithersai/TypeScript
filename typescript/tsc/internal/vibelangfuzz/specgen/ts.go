@@ -29,7 +29,7 @@ func PrintEffect(p *Program) string {
 	t := &tsPrinter{p: p}
 	w := &t.w
 	w.line("// @ts-nocheck")
-	w.line(`import { Context, Data, Deferred, Effect, Exit, Fiber, Layer, Option } from "effect"`)
+	w.line(`import { Context, Data, Deferred, Effect, Exit, Fiber, Layer, Option, Scope } from "effect"`)
 	w.line("const trace: string[] = []")
 	if p.HasCount {
 		w.line("let counter = 0")
@@ -44,6 +44,12 @@ func PrintEffect(p *Program) string {
 			for _, f := range e.Fields {
 				w.line("    this.%s = args.%s", f, f)
 			}
+			w.line("  }")
+			w.line("}")
+		case e.Ctor:
+			w.line("class %s extends Data.TaggedError(%q)<{ readonly %s: number }> {", e.Name, e.Name, e.Fields[0])
+			w.line("  constructor(raw) {")
+			w.line("    super({ %s: raw * 2 + 1 })", e.Fields[0])
 			w.line("  }")
 			w.line("}")
 		default:
@@ -140,13 +146,26 @@ func (t *tsPrinter) program(body []Stmt, ctx tsCtx) string {
 	return gen
 }
 
-// forks reports whether a body forks a fiber outside a nested function-like
-// body or using block, which owns its own.
+// forks reports whether a body forks a fiber, or declares using beside the
+// fibers it owns, outside a nested function-like body or using block, which
+// owns its own: such a body is a Scope region (D408).
 func forks(ss []Stmt) bool {
 	for _, s := range ss {
 		switch s := s.(type) {
-		case *Fork, *MaskFork:
+		case *Fork, *MaskFork, *UsingDecl:
 			return true
+		case *JoinAll:
+			if len(s.Elems) > 0 {
+				return true
+			}
+			continue
+		case *Lifetime:
+			continue
+		case *ExitIs:
+			if forks(s.Then) {
+				return true
+			}
+			continue
 		case *UsingBlock, *Retry, *ForConcurrent:
 			continue
 		case *Await:
@@ -355,6 +374,16 @@ func (t *tsPrinter) stmt(s Stmt, ctx tsCtx) {
 			els = append(els, t.awaitElem(el))
 		}
 		list := "[" + strings.Join(els, ", ") + "]"
+		if len(s.Keys) > 0 {
+			// Ch 7 (D196): await.all { x: a() } is Effect.all over a record.
+			var props, binds []string
+			for i, k := range s.Keys {
+				props = append(props, k+": "+els[i])
+				binds = append(binds, k+": "+s.Names[i])
+			}
+			w.line(`const { %s } = yield* Effect.all({ %s }, { concurrency: "unbounded" })`, strings.Join(binds, ", "), strings.Join(props, ", "))
+			break
+		}
 		switch s.Op {
 		case "all":
 			w.line(`const [%s] = yield* Effect.all(%s, { concurrency: "unbounded" })`, strings.Join(s.Names, ", "), list)
@@ -422,6 +451,54 @@ func (t *tsPrinter) stmt(s Stmt, ctx tsCtx) {
 		w.line("}")
 	case *Yield:
 		w.line("yield* $emit(%s)", t.expr(s.Value))
+	case *MakeDeferred:
+		w.line("const %s = yield* Deferred.make()", s.Name)
+	case *Signal:
+		w.line("yield* Deferred.succeed(%s, undefined)", s.Ready)
+	case *AwaitReady:
+		w.line("yield* Deferred.await(%s)", s.Ready)
+	case *Never:
+		w.line("yield* Effect.never")
+	case *Interrupt:
+		w.line("yield* Fiber.interrupt(%s)", s.Fiber)
+	case *Interruptible:
+		// Ch 17 interruption rule (D180): Effect.interruptible, whose
+		// statements stay code of the enclosing function.
+		t.region("Effect.interruptible("+t.program(s.Body, nested)+")", ctx)
+	case *UsingDecl:
+		r := s.Res
+		w.line("const %s = yield* Effect.acquireRelease(%s(%s), (held) => %s(held))", r.Name, r.Acq.Name, t.expr(r.Arg), r.Rel.Name)
+	case *JoinAll:
+		t.joinAll(s)
+	case *Lifetime:
+		t.lifetime(s, ctx)
+	case *ExitIs:
+		var prog string
+		if s.Call != nil {
+			prog = t.value(s.Call)
+		} else {
+			prog = t.program(s.Body, tsCtx{top: true})
+		}
+		w.line("const %s = yield* Effect.exit(%s)", s.Name, prog)
+		if s.Success {
+			w.line("if (Exit.isSuccess(%s)) {", s.Name)
+			w.line("  const %s = %s.value", s.Bind, s.Name)
+		} else {
+			w.line("if (Exit.isFailure(%s)) {", s.Name)
+			w.line("  const %s = %s.cause", s.Bind, s.Name)
+		}
+		t.block(s.Then, ctx)
+		if s.FailCause {
+			// Ch 17 throw rule (D406): Effect.failCause fails with every
+			// reason the cause holds.
+			w.line("  yield* Effect.failCause(%s)", s.Bind)
+		}
+		w.line("}")
+	case *DataIs:
+		// Ch 11: Delivery.$is("Sent") is `d is Delivery.Sent`.
+		w.line("if (%s.$is(%q)(%s)) {", s.Variant.Data.Name, s.Variant.Name, s.Var)
+		t.block(s.Then, ctx)
+		w.line("}")
 	case *rawStmt:
 		w.line("%s", s.text)
 	case *rawRegion:
@@ -437,6 +514,94 @@ type rawRegion struct{ effect func() string }
 
 func (*rawStmt) isStmt()   {}
 func (*rawRegion) isStmt() {}
+
+// joinAll prints `join` of several fibers as Chapter 7 gives it: every
+// fiber's value in order, failing fast with the first fiber's whole cause to
+// fail, after interrupting every fiber (interruptAll requests all, then
+// waits for all, D354) and waiting for their cleanup (D225). Keys change
+// nothing here: the values are destructured in order.
+func (t *tsPrinter) joinAll(s *JoinAll) {
+	w := &t.w
+	list := "[" + strings.Join(s.Fibers, ", ") + "]"
+	if s.Literal != "" {
+		var elems []string
+		for _, f := range s.Elems {
+			elems = append(elems, "yield* Effect.forkScoped("+t.value(f.Call)+")")
+		}
+		w.line("const %s = [%s]", s.Literal, strings.Join(elems, ", "))
+		list = s.Literal
+	}
+	join := fmt.Sprintf("yield* Effect.onError(Fiber.joinAll(%s), () => Fiber.interruptAll(%s))", list, list)
+	if len(s.Names) == 0 {
+		w.line("%s", join)
+		return
+	}
+	w.line("const [%s] = %s", strings.Join(s.Names, ", "), join)
+}
+
+// lifetime prints a fiber whose lifetime its form names: detach is
+// Effect.forkDetach, forkIn is Effect.forkIn in a Scope from Scope.make that
+// Scope.close ends, and Effect.forkScoped inside Effect.scoped is itself
+// (Ch 7, D170; SKILL.md's Forms table).
+func (t *tsPrinter) lifetime(s *Lifetime, ctx tsCtx) {
+	w := &t.w
+	var prog string
+	if s.Call != nil {
+		prog = t.value(s.Call)
+	} else {
+		prog = t.program(s.Hold, tsCtx{top: true})
+	}
+	switch s.Kind {
+	case "detach":
+		if s.Hold != nil {
+			w.line("const %s = yield* Deferred.make()", s.Ready)
+		}
+		w.line("const %s = yield* Effect.forkDetach(%s)", s.Fiber, prog)
+		if s.Hold != nil {
+			w.line("yield* Deferred.await(%s)", s.Ready)
+		}
+		t.stmts(s.Between, ctx)
+		if s.Hold != nil {
+			w.line("yield* Fiber.interrupt(%s)", s.Fiber)
+			w.line("trace.push(%q)", s.Fiber+":ended")
+		} else {
+			w.line("const %s = yield* Fiber.join(%s)", s.Value, s.Fiber)
+		}
+	case "forkIn":
+		w.line("const %s = yield* Scope.make()", s.Scope)
+		if s.Hold != nil {
+			w.line("const %s = yield* Deferred.make()", s.Ready)
+		}
+		w.line("const %s = yield* Effect.forkIn(%s, %s)", s.Fiber, prog, s.Scope)
+		if s.Hold != nil {
+			w.line("yield* Deferred.await(%s)", s.Ready)
+		}
+		t.stmts(s.Between, ctx)
+		if s.Hold == nil {
+			w.line("const %s = yield* Fiber.join(%s)", s.Value, s.Fiber)
+		}
+		w.line("yield* Scope.close(%s, Exit.void)", s.Scope)
+		if s.Hold != nil {
+			w.line("trace.push(%q)", s.Fiber+":closed")
+		}
+	case "forkScoped":
+		var body []Stmt
+		if s.Hold != nil {
+			body = append(body, &rawStmt{fmt.Sprintf("const %s = yield* Deferred.make()", s.Ready)})
+		}
+		body = append(body, &rawStmt{fmt.Sprintf("const %s = yield* Effect.forkScoped(%s)", s.Fiber, prog)})
+		if s.Hold != nil {
+			body = append(body, &rawStmt{fmt.Sprintf("yield* Deferred.await(%s)", s.Ready)})
+		}
+		body = append(body, s.Between...)
+		if s.Hold != nil {
+			body = append(body, &Return{Value: s.Result})
+		} else {
+			body = append(body, &rawStmt{fmt.Sprintf("return yield* Fiber.join(%s)", s.Fiber)})
+		}
+		w.line("const %s = yield* Effect.scoped(%s)", s.Value, t.program(body, tsCtx{top: true}))
+	}
+}
 
 func (t *tsPrinter) awaitElem(el *AwaitElem) string {
 	switch {
@@ -533,6 +698,9 @@ func (t *tsPrinter) expr(x Expr) string {
 		return "(" + t.cond(x.C) + " ? " + t.expr(x.V) + " : undefined)"
 	case *ErrNew:
 		fields := x.Err.AllFields()
+		if x.Err.Ctor {
+			return "new " + x.Err.Name + "(" + t.expr(x.Fields[0]) + ")"
+		}
 		if len(fields) == 0 {
 			return "new " + x.Err.Name + "()"
 		}
@@ -542,12 +710,29 @@ func (t *tsPrinter) expr(x Expr) string {
 		}
 		return "new " + x.Err.Name + "({ " + strings.Join(parts, ", ") + " })"
 	case *Sync:
+		if x.Async {
+			// Ch 10 (D439): an async hatch function is called with its
+			// inputs and an AbortSignal, and its promise is awaited as
+			// Effect.promise awaits one; a rejection is a defect.
+			if len(x.Inputs) == 0 {
+				return "(yield* Effect.promise((signal) => (async () => " + x.Body + ")(signal)))"
+			}
+			return "(yield* ((a, b) => Effect.promise((signal) => (async (a, b) => " + x.Body + ")(a, b, signal)))(" + t.args(x.Inputs) + "))"
+		}
 		if len(x.Inputs) == 0 {
 			return "(yield* Effect.sync(() => " + x.Body + "))"
 		}
 		return "(yield* ((a, b) => Effect.sync(() => " + x.Body + "))(" + t.args(x.Inputs) + "))"
 	case *TryHatch:
+		if x.Async {
+			// Ch 10 (D231, D439): Effect.tryPromise, the mapper as catch.
+			return fmt.Sprintf("(yield* ((s) => Effect.tryPromise({ try: (signal) => (async (s) => Number(JSON.parse(s)))(s, signal), catch: (cause) => %s }))(%q + %s))", t.expr(x.Err), x.Prefix, t.expr(x.Input))
+		}
 		return fmt.Sprintf("(yield* ((s) => Effect.try({ try: () => Number(JSON.parse(s)), catch: (cause) => %s }))(%q + %s))", t.expr(x.Err), x.Prefix, t.expr(x.Input))
+	case *DataField:
+		return x.Var + "." + x.Field
+	case *Reasons:
+		return x.Var + `.reasons.map((r) => r._tag).join("+")`
 	case *OptionNew:
 		return "(" + t.cond(x.C) + " ? Option.some(" + t.expr(x.V) + ") : Option.none())"
 	case *DataNew:
@@ -643,9 +828,12 @@ func (t *tsPrinter) match(m *Match) string {
 			binds = append(binds, fmt.Sprintf("const %s = %s.cause", a.Binds[0], s))
 		}
 		var body string
-		if a.Throw != nil {
+		switch {
+		case a.Throw != nil:
 			body = "return yield* Effect.fail(" + t.expr(a.Throw) + ")"
-		} else {
+		case a.FailCause:
+			body = "return yield* Effect.failCause(" + a.Binds[0] + ")"
+		default:
 			body = "return " + t.expr(a.Body)
 		}
 		if a.Guard != nil {

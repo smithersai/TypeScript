@@ -10,6 +10,10 @@ import (
 // state, at most one element of an await operation can finish first or fail,
 // and an interrupted fiber is interrupted only after a Deferred handshake.
 
+// MaskBytes is the length of an input's swarm mask, which follows its focus
+// byte.
+var MaskBytes = (len(Features) + 7) / 8
+
 // costLimit bounds the calls one run of main makes, so a program finishes in
 // well under a second.
 const costLimit = 3000
@@ -48,8 +52,16 @@ type gctx struct {
 	producer bool     // may yield (Ch 8)
 	simple   bool     // no region statements: a do block's or a finally's body
 	dead     bool     // dead code: may also call Effect functions that fail with nothing and need nothing
-	depth    int
-	mult     int // how often this code runs per run of its function
+	// owns is set directly in the block of a region that owns its fibers
+	// and using declarations without doubt (Ch 7 Ownership, D408): a
+	// function body, a try, catch or using block, a provide or
+	// uninterruptible block. A held fiber that its region's exit interrupts,
+	// and a using declaration beside it, go only there.
+	owns bool
+	// inDo is set inside a do block, where a yield is the do-yield feature.
+	inDo  bool
+	depth int
+	mult  int // how often this code runs per run of its function
 }
 
 func (x gctx) nested() gctx {
@@ -57,6 +69,7 @@ func (x gctx) nested() gctx {
 	x.muts = slices.Clone(x.muts)
 	x.datas = slices.Clone(x.datas)
 	x.depth++
+	x.owns = false
 	return x
 }
 
@@ -69,6 +82,7 @@ func (x gctx) program() gctx {
 	y.ret = true
 	y.control = false
 	y.producer = false
+	y.owns = true
 	return y
 }
 
@@ -94,6 +108,7 @@ func (x gctx) quietProgram() gctx {
 func (x gctx) region() gctx {
 	y := x.nested()
 	y.loop = false
+	y.owns = true
 	return y
 }
 
@@ -111,7 +126,8 @@ func (g *generator) local(prefix string) string {
 }
 
 // Generate builds a program from fuzz bytes. Its first byte selects the focus
-// feature, which the program always holds; the next six bytes its swarm mask.
+// feature, which the program always holds; the next bytes its swarm mask,
+// one bit per feature, eight features a byte.
 // A feature that pending names is left out, and the focus moves to the next
 // feature that is not pending.
 func Generate(data []byte, pending map[string]bool) *Program {
@@ -127,12 +143,12 @@ func Generate(data []byte, pending map[string]bool) *Program {
 		}
 	}
 	p.Focus = Features[focus].Name
-	var mask uint64
-	for i := 0; i < 6; i++ {
-		mask |= uint64(g.c.byte()) << (8 * i)
+	mask := make([]byte, MaskBytes)
+	for i := range mask {
+		mask[i] = g.c.byte()
 	}
 	for i, f := range Features {
-		if _, skip := pending[f.Name]; mask&(1<<i) != 0 && !skip {
+		if _, skip := pending[f.Name]; mask[i/8]&(1<<(i%8)) != 0 && !skip {
 			p.Enabled[f.Name] = true
 		}
 	}
@@ -161,6 +177,9 @@ func (g *generator) declare() {
 	if g.c.chance(2) {
 		g.errs = append(g.errs, &ErrorDecl{Name: "E2", Fields: []string{"n"}})
 	}
+	if g.on("custom-error-constructor") {
+		g.errs = append(g.errs, &ErrorDecl{Name: "E3", Fields: []string{"n"}, Ctor: true})
+	}
 	p.Errors = append(p.Errors, g.errs...)
 	if g.on("error-family") {
 		base := &ErrorDecl{Name: "B0", Fields: []string{"code"}, IsBase: true}
@@ -168,8 +187,8 @@ func (g *generator) declare() {
 		g.family = []*ErrorDecl{base, sub}
 		p.Errors = append(p.Errors, base, sub)
 	}
-	if g.on("match-data") || g.on("narrowed-subject") {
-		d := &DataDecl{Name: "D0"}
+	if g.on("match-data") || g.on("narrowed-subject") || g.on("is-data") || g.on("generic-data") {
+		d := &DataDecl{Name: "D0", Generic: g.on("generic-data")}
 		d.Variants = []*DataVariant{{Data: d, Name: "V0"}, {Data: d, Name: "V1", Fields: []string{"x"}}, {Data: d, Name: "V2", Fields: []string{"x", "y"}}}
 		g.data = d
 		p.Datas = append(p.Datas, d)
@@ -199,6 +218,9 @@ func (g *generator) anyError() *ErrorDecl {
 }
 
 func (g *generator) newErr(ctx gctx, e *ErrorDecl) *ErrNew {
+	if e.Ctor {
+		g.use("custom-error-constructor")
+	}
 	n := &ErrNew{Err: e}
 	for range e.AllFields() {
 		n.Fields = append(n.Fields, g.atom(ctx))
@@ -226,7 +248,7 @@ func (g *generator) helpers() {
 			&Return{Value: &Counter{}},
 		}})
 	}
-	if g.on("using") {
+	if g.on("using") || g.on("held-fiber") || g.on("cause-mix") {
 		g.acq = g.addFunc(&Func{Name: "acq", Params: []string{"n"}, Kind: kindAcquire, Body: []Stmt{
 			&Trace{Label: "acq", Values: []Expr{&Ref{"n"}}},
 			&Return{Value: &Ref{"n"}},
@@ -235,7 +257,8 @@ func (g *generator) helpers() {
 			&Trace{Label: "rel", Values: []Expr{&Ref{"n"}}},
 		}})
 	}
-	if g.on("await-all") || g.on("await-allsettled") || g.on("await-race") || g.on("await-any") || g.on("for-concurrent") || g.on("fork-join") || g.on("fork-block") {
+	if g.on("await-all") || g.on("await-allsettled") || g.on("await-race") || g.on("await-any") || g.on("for-concurrent") || g.on("fork-join") || g.on("fork-block") ||
+		g.on("join-array") || g.on("fork-detach") || g.on("fork-in") || g.on("fork-scoped") || g.on("await-all-record") || g.on("cause-mix") {
 		ctx := gctx{vars: []string{"n"}, quiet: true, ret: true, mult: 1}
 		ok := &Func{Name: "qOk", Params: []string{"n"}, Kind: kindQuiet, Export: true, NeverFails: true}
 		ctx.fn = ok
@@ -275,7 +298,7 @@ func (g *generator) helpers() {
 		}
 		g.recFn = g.addFunc(f)
 	}
-	if g.on("producer") {
+	if g.on("producer") || g.on("do-yield") {
 		f := &Func{Name: "gen0", Params: []string{"p0"}, Kind: kindProducer, Export: true}
 		ctx := gctx{fn: f, vars: []string{"p0"}, producer: true, mult: 4}
 		i := g.local("i")
@@ -283,6 +306,10 @@ func (g *generator) helpers() {
 		loopCtx.vars = append(loopCtx.vars, i)
 		loopCtx.loop = true
 		loop := &For{Var: i, N: 2 + g.c.intn(3)}
+		if g.on("do-yield") {
+			g.use("do-yield")
+			loop.Body = append(loop.Body, &Let{Name: g.local("v"), Init: &Do{Body: []Stmt{&Yield{Value: g.arith(loopCtx, 1)}}, Value: &Num{0}}})
+		}
 		loop.Body = append(loop.Body, g.stmts(loopCtx, g.c.intn(2))...)
 		loop.Body = append(loop.Body, &Yield{Value: g.arith(loopCtx, 1)})
 		if g.c.chance(3) {
@@ -348,7 +375,7 @@ func (g *generator) function() {
 	for i := 0; i <= g.c.intn(2); i++ {
 		f.Params = append(f.Params, fmt.Sprintf("p%d", i))
 	}
-	ctx := gctx{fn: f, vars: slices.Clone(f.Params), ret: true, mult: 1}
+	ctx := gctx{fn: f, vars: slices.Clone(f.Params), ret: true, mult: 1, owns: true}
 	f.Body = g.body(ctx, 1+g.c.intn(4))
 	g.addFunc(f)
 }
@@ -357,7 +384,7 @@ func (g *generator) function() {
 // the rest needs, so its R is empty, as the entry requires (Ch 13, EK3205).
 func (g *generator) main() {
 	f := &Func{Name: "main", Export: true}
-	ctx := gctx{fn: f, ret: true, mult: 1}
+	ctx := gctx{fn: f, ret: true, mult: 1, owns: true}
 	body := g.feature(ctx, g.p.Focus)
 	for _, s := range body {
 		g.declared(&ctx, s)
@@ -530,6 +557,14 @@ func (g *generator) trim(ss []Stmt) []Stmt {
 			s.Block = g.trim(s.Block)
 		case *Retry:
 			s.Body = g.trim(s.Body)
+		case *Interruptible:
+			s.Body = g.trim(s.Body)
+		case *ExitIs:
+			s.Body, s.Then = g.trim(s.Body), g.trim(s.Then)
+		case *DataIs:
+			s.Then = g.trim(s.Then)
+		case *Lifetime:
+			s.Hold, s.Between = g.trim(s.Hold), g.trim(s.Between)
 		case *Mask:
 			s.Body, s.Restore, s.After = g.trim(s.Body), g.trim(s.Restore), g.trim(s.After)
 			// The restore block and the statements after it follow the
@@ -583,6 +618,8 @@ func exits(s Stmt) bool {
 		return blockExits(s.Body)
 	case *Mask:
 		return blockExits(s.Body) || blockExits(s.Restore) || blockExits(s.After)
+	case *Interruptible:
+		return blockExits(s.Body)
 	}
 	return false
 }
@@ -608,6 +645,12 @@ func (g *generator) declared(ctx *gctx, s Stmt) {
 	case *Await:
 		if s.Op != "allSettled" {
 			ctx.vars = append(ctx.vars, s.Names...)
+		}
+	case *JoinAll:
+		ctx.vars = append(ctx.vars, s.Names...)
+	case *Lifetime:
+		if s.Value != "" {
+			ctx.vars = append(ctx.vars, s.Value)
 		}
 	}
 }
@@ -674,7 +717,28 @@ func (g *generator) stmt(ctx gctx) []Stmt {
 		{g.on("uninterruptible") && region && !ctx.producer && !ctx.control, func() []Stmt { return g.feature(ctx, "uninterruptible") }},
 		{g.on("mask-interrupt") && fresh, func() []Stmt { return g.feature(ctx, "mask-interrupt") }},
 		{g.on("producer") && fresh && ctx.mult < 20, func() []Stmt { return g.feature(ctx, "producer") }},
-		{ctx.producer, func() []Stmt { return []Stmt{&Yield{Value: g.expr(ctx, 1)}} }},
+		{ctx.producer, func() []Stmt {
+			if ctx.inDo {
+				g.use("do-yield")
+			}
+			return []Stmt{&Yield{Value: g.expr(ctx, 1)}}
+		}},
+		{g.on("join-array") && fresh, func() []Stmt { return g.feature(ctx, "join-array") }},
+		{g.on("fork-detach") && fresh, func() []Stmt { return g.feature(ctx, "fork-detach") }},
+		{g.on("fork-in") && fresh, func() []Stmt { return g.feature(ctx, "fork-in") }},
+		{g.on("fork-scoped") && fresh, func() []Stmt { return g.feature(ctx, "fork-scoped") }},
+		{g.on("await-all-record") && fresh, func() []Stmt { return g.feature(ctx, "await-all-record") }},
+		{g.on("interruptible") && region && !ctx.producer && !ctx.control, func() []Stmt { return g.feature(ctx, "interruptible") }},
+		{(g.on("is-exit") || g.on("fail-cause")) && !ctx.plain && !ctx.quiet, func() []Stmt {
+			if g.on("fail-cause") && (!g.on("is-exit") || g.c.chance(2)) {
+				return g.feature(ctx, "fail-cause")
+			}
+			return g.feature(ctx, "is-exit")
+		}},
+		{g.on("is-data") && g.data != nil && !ctx.quiet, func() []Stmt { return g.feature(ctx, "is-data") }},
+		{g.on("custom-error-constructor") && region && !ctx.producer && !ctx.quiet, func() []Stmt { return g.feature(ctx, "custom-error-constructor") }},
+		{g.on("held-fiber") && fresh, func() []Stmt { return g.heldFork(ctx, "") }},
+		{g.on("cause-mix") && fresh, func() []Stmt { return g.feature(ctx, "cause-mix") }},
 	}
 	var live []option
 	for _, o := range options {
@@ -854,6 +918,8 @@ func (g *generator) expr(ctx gctx, depth int) Expr {
 		{g.on("throw-expression") && effect, func() Expr { return g.feature1(ctx, "throw-expression", depth) }},
 		{g.on("hatch-sync") && effect, func() Expr { return g.feature1(ctx, "hatch-sync", depth) }},
 		{g.on("hatch-try") && effect, func() Expr { return g.feature1(ctx, "hatch-try", depth) }},
+		{g.on("hatch-promise") && effect, func() Expr { return g.feature1(ctx, "hatch-promise", depth) }},
+		{g.on("hatch-try-promise") && effect, func() Expr { return g.feature1(ctx, "hatch-try-promise", depth) }},
 	}
 	var live []option
 	for _, o := range options {
@@ -982,15 +1048,27 @@ func (g *generator) feature1(ctx gctx, name string, depth int) Expr {
 		c := g.local("c")
 		inner := ctx.nested()
 		inner.vars = append(inner.vars, v)
+		failure := &Arm{Case: "Failure", Binds: []string{c}}
+		if g.on("fail-cause") && g.c.chance(3) {
+			// Ch 17, D406: the arm rethrows the whole cause.
+			g.use("fail-cause")
+			failure.FailCause = true
+		} else {
+			failure.Body = g.expr(ctx, depth-1)
+		}
 		return &Match{Kind: matchExit, Subject: call, Arms: []*Arm{
 			{Case: "Success", Binds: []string{v}, Body: g.expr(inner, depth-1)},
-			{Case: "Failure", Binds: []string{c}, Body: g.expr(ctx, depth-1)},
+			failure,
 		}}
 	case "do-block":
 		inner := ctx.nested()
 		inner.simple = true
 		inner.ret = false
 		inner.loop = false
+		inner.inDo = true
+		if !g.on("do-yield") {
+			inner.producer = false
+		}
 		d := &Do{Body: g.stmts(inner, 1+g.c.intn(2))}
 		for _, s := range d.Body {
 			g.declared(&inner, s)
@@ -1043,6 +1121,14 @@ func (g *generator) feature1(ctx gctx, name string, depth int) Expr {
 			prefix = "x"
 		}
 		return &TryHatch{Prefix: prefix, Input: g.expr(ctx, depth-1), Err: &ErrNew{Err: g.errs[0], Fields: []Expr{&Num{g.c.intn(6)}}}}
+	case "hatch-promise":
+		return g.promiseHatch(ctx, depth)
+	case "hatch-try-promise":
+		prefix := ""
+		if g.c.chance(2) {
+			prefix = "x"
+		}
+		return &TryHatch{Prefix: prefix, Input: g.expr(ctx, depth-1), Err: &ErrNew{Err: g.errs[0], Fields: []Expr{&Num{g.c.intn(6)}}}, Async: true}
 	}
 	panic("feature1: " + name)
 }
@@ -1212,6 +1298,9 @@ func (g *generator) feature(ctx gctx, name string) []Stmt {
 		if decl.Narrow {
 			g.use("narrowed-subject")
 		}
+		if g.data.Generic {
+			g.use("generic-data")
+		}
 		inner := ctx
 		inner.datas = append(slices.Clone(ctx.datas), d)
 		return []Stmt{decl, &Let{Name: g.local("v"), Init: g.feature1(inner, "match-data", 2)}}
@@ -1224,6 +1313,9 @@ func (g *generator) feature(ctx gctx, name string) []Stmt {
 		d := g.local("d")
 		v0 := g.data.Variants[0]
 		decl := &Let{Name: d, Data: g.data, Init: &DataNew{V: v0}, Narrow: true}
+		if g.data.Generic {
+			g.use("generic-data")
+		}
 		m := &Match{Kind: matchData, Subject: &DataRef{d}}
 		for _, vr := range g.data.Variants {
 			arm := &Arm{Variant: vr, Binds: vr.Fields, Fields: vr.Fields}
@@ -1244,6 +1336,10 @@ func (g *generator) feature(ctx gctx, name string) []Stmt {
 		inner.simple = true
 		inner.ret = false
 		inner.loop = false
+		inner.inDo = true
+		if !g.on("do-yield") {
+			inner.producer = false
+		}
 		d := &Do{Body: g.stmts(inner, 1)}
 		for _, s := range d.Body {
 			g.declared(&inner, s)
@@ -1417,7 +1513,9 @@ func (g *generator) feature(ctx gctx, name string) []Stmt {
 		inner := ctx.region()
 		m := &Mask{Body: g.stmts(inner, 1+g.c.intn(2))}
 		if g.c.chance(2) {
-			m.Restore = g.stmts(inner, 1)
+			restore := inner
+			restore.owns = false
+			m.Restore = g.stmts(restore, 1)
 		}
 		if g.c.chance(2) {
 			m.After = g.stmts(inner, 1)
@@ -1453,6 +1551,10 @@ func (g *generator) feature(ctx gctx, name string) []Stmt {
 		body = append(body, &Assign{Name: acc, Op: "+=", Value: &Ref{x}})
 		loop.Body = body
 		return []Stmt{&Let{Name: acc, Mutable: true, Init: &Num{0}}, loop}
+	case "do-yield":
+		return g.feature(ctx, "producer")
+	case "join-array", "fork-detach", "fork-in", "fork-scoped", "await-all-record", "interruptible", "fail-cause", "is-exit", "is-data", "custom-error-constructor", "generic-data", "hatch-promise", "hatch-try-promise", "held-fiber", "cause-mix":
+		return g.runtimeFeature(ctx, name)
 	}
 	panic("feature: " + name)
 }

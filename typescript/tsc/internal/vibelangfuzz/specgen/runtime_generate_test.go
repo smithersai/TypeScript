@@ -73,3 +73,119 @@ func TestRuntimeSuccessTypes(t *testing.T) {
 		}
 	}
 }
+
+// runtimeInputs returns n inputs that focus on feature, with every feature
+// of the swarm mask enabled and the rest random.
+func runtimeInputs(feature string, n int) [][]byte {
+	random := rand.New(rand.NewPCG(3, 11))
+	var out [][]byte
+	for i := 0; i < n; i++ {
+		data := make([]byte, 400)
+		data[0] = byte(FeatureIndex(feature))
+		for j := 1; j < len(data); j++ {
+			data[j] = byte(random.IntN(256))
+		}
+		out = append(out, data)
+	}
+	return out
+}
+
+// TestRuntimeHeldRegion checks that the held-fiber focus writes, in one
+// program, what Chapter 7 Ownership and Chapter 17's finalization rule
+// order: a try region that owns a forked fiber holding a using resource
+// and a finally, waits for it, and exits, with a catch and a finally around
+// it; and that across inputs the fiber also waits under a mask with
+// restore and the region also holds using declarations beside it.
+func TestRuntimeHeldRegion(t *testing.T) {
+	seen := map[string]bool{}
+	for _, data := range runtimeInputs("held-fiber", 60) {
+		p := Generate(data, nil)
+		found := false
+		walkStmts(p.Main.Body, func(s Stmt) {
+			try, ok := s.(*Try)
+			if !ok || try.Catch == nil || try.Finally == nil {
+				return
+			}
+			for i, b := range try.Body {
+				f, ok := b.(*Fork)
+				if !ok || !heldBody(f.Block) {
+					continue
+				}
+				hold := f.Block[0].(*Try)
+				if hold.Finally == nil {
+					continue
+				}
+				walkStmts(hold.Body, func(s Stmt) {
+					if u, ok := s.(*UsingBlock); ok && len(u.Res) > 0 {
+						found = true
+					}
+					if m, ok := s.(*Mask); ok && m.Restore != nil {
+						seen["restore"] = true
+					}
+				}, nil)
+				for j, d := range try.Body {
+					if _, ok := d.(*UsingDecl); ok {
+						seen[map[bool]string{true: "using before", false: "using after"}[j < i]] = true
+					}
+				}
+			}
+		}, nil)
+		if !found {
+			t.Fatalf("input %x holds no region with a held fiber:\n%s", data, PrintVibe(p, VibeOptions{}))
+		}
+	}
+	for _, want := range []string{"restore", "using before", "using after"} {
+		if !seen[want] {
+			t.Errorf("no input writes a held fiber with %s", want)
+		}
+	}
+}
+
+// TestRuntimeCauseMix checks that the cause-mix focus writes each
+// combination Chapter 17 Combining causes names: a failure and a defect in
+// parallel await.all branches, one of them in an interrupted branch's
+// finally (D305); a failure in a try block and a throw or a defect in its
+// finally; and a joined fiber interrupted while its finally throws, which a
+// catch recovers (D306).
+func TestRuntimeCauseMix(t *testing.T) {
+	seen := map[string]bool{}
+	for _, data := range runtimeInputs("cause-mix", 60) {
+		p := Generate(data, nil)
+		walkStmts(p.Main.Body, func(s Stmt) {
+			switch s := s.(type) {
+			case *ExitIs:
+				walkStmts(s.Body, func(s Stmt) {
+					a, ok := s.(*Await)
+					if !ok || a.Op != "all" {
+						return
+					}
+					for _, el := range a.Elems {
+						if heldBody(el.Body) {
+							fin := el.Body[0].(*Try).Finally
+							switch fin[len(fin)-1].(type) {
+							case *Throw, *Die:
+								seen["parallel"] = true
+							}
+						}
+					}
+				}, nil)
+			case *Try:
+				if len(s.Body) == 1 {
+					if inner, ok := s.Body[0].(*Try); ok && inner.Finally != nil && s.Catch != nil {
+						seen["finalizer"] = true
+					}
+					if x, ok := s.Body[0].(*ExprStmt); ok {
+						if _, ok := x.X.(*Join); ok && s.Catch != nil {
+							seen["joined"] = true
+						}
+					}
+				}
+			}
+		}, nil)
+	}
+	for _, want := range []string{"parallel", "finalizer", "joined"} {
+		if !seen[want] {
+			t.Errorf("no cause-mix input writes the %s combination", want)
+		}
+	}
+}

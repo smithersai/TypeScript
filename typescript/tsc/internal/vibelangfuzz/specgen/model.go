@@ -85,6 +85,25 @@ var Features = []Feature{
 	{"do-match-value", "Ch 13 Blocks as values (D187), Appendix grammar: a do block's last statement may be a match expression"},
 	{"narrowed-subject", "Ch 3 Matching (D346), Ch 11 (D307): a match over a local that TypeScript has narrowed by its initializer"},
 	{"module-graph", "Ch 26 Modules, Ch 27 rule 1: calls and all contract channels cross two or three mutually importing modules"},
+	// The fiber, interruption and cause forms below were added after the
+	// features above, at the end, so an input's focus byte keeps its
+	// feature.
+	{"join-array", "Ch 7 Background work (D225, D354, D469): join [a, b], join { a, b } and a joined array literal fail fast and interrupt the other fibers"},
+	{"fork-detach", "Ch 7 (D170): detach(() => p()) starts a fiber that no region owns"},
+	{"fork-in", "Ch 7 (D170): forkIn(scope, () => p()) ties a fiber to a Scope the program closes"},
+	{"fork-scoped", "Ch 7 (D408): Effect.forkScoped(() => p()) ties a fiber to the caller's Scope, here Effect.scoped's"},
+	{"await-all-record", "Ch 7 Await operations (D196): await.all over an object literal keeps its keys"},
+	{"interruptible", "Ch 17 interruption rule (D180, D490): interruptible { } is Effect.interruptible, also under a mask and in cleanup"},
+	{"fail-cause", "Ch 17 throw rule (D406): Effect.failCause(cause) fails with every reason of an exit's cause"},
+	{"is-exit", "Ch 3 Matching (D208, D211): if (x is Exit.Failure(let cause)) and Exit.Success(let v)"},
+	{"is-data", "Ch 11 Data types (D211, D307): if (d is D.Variant) narrows to the variant"},
+	{"custom-error-constructor", "Ch 3 Error classes and families (D278): an error's own constructor calls super with its fields"},
+	{"generic-data", "Ch 11 Data types (D307): a data declaration with a type parameter"},
+	{"hatch-promise", "Ch 10 (D439): sync(async (inputs) => ...) waits for a resolved or rejected promise, as Effect.promise"},
+	{"hatch-try-promise", "Ch 10 (D231, D439): try(async ...) maps a rejection with its mapper, as Effect.tryPromise"},
+	{"held-fiber", "Ch 7 Ownership (D408), Ch 6 (D401, D481), Ch 17 finalization and interruption rules: a fiber holding using resources, a mask and a finally is interrupted at its region's exit or by interrupt, and every cleanup runs once, in order"},
+	{"cause-mix", "Ch 17 Combining causes (D305, D306): a failure and a defect in parallel branches and in a finalizer, and catch around an interrupted fiber's join"},
+	{"do-yield", "Ch 13 rule L5 (D187), Ch 8 (D370): a yield inside a do block of a producer, since a do block is evaluated where it stands"},
 }
 
 // FeatureIndex returns a feature's index in Features, or -1.
@@ -174,6 +193,10 @@ type ErrorDecl struct {
 	Fields []string // number fields
 	Base   *ErrorDecl
 	IsBase bool
+	// Ctor gives the class its own constructor, `constructor(raw: number)
+	// { super({ n: raw * 2 + 1 }) }`, so `new E(raw)` takes one argument
+	// and sets its one field from it (Ch 3, D278).
+	Ctor bool
 }
 
 // AllFields returns the fields a constructor takes: the base's, then its own
@@ -199,6 +222,9 @@ func (e *ErrorDecl) IsA(o *ErrorDecl) bool {
 type DataDecl struct {
 	Name     string
 	Variants []*DataVariant
+	// Generic declares a type parameter T, which the variants' first field
+	// has, and every use writes D<number> (Ch 11, D307).
+	Generic bool
 }
 
 type DataVariant struct {
@@ -381,16 +407,21 @@ type (
 		Fields []Expr
 	}
 	// Sync is the sync hatch: with Inputs, `sync((a, b) => Body, ...inputs)`;
-	// without, the single expression `sync(Body)` (D396).
+	// without, the single expression `sync(Body)` (D396). Async writes the
+	// function async, `sync(async (a, b) => Body, ...inputs)` or
+	// `sync(async () => Body)`, whose promise the hatch waits for (D439).
 	Sync struct {
 		Inputs []Expr
 		Body   string
+		Async  bool
 	}
-	// TryHatch is `try((s: string) => Number(JSON.parse(s)), (e) => Err, Prefix + Input)`.
+	// TryHatch is `try((s: string) => Number(JSON.parse(s)), (e) => Err, Prefix + Input)`,
+	// or with Async `try(async (s: string) => ..., ...)` (D439).
 	TryHatch struct {
 		Prefix string // "" parses, anything else fails
 		Input  Expr
 		Err    *ErrNew
+		Async  bool
 	}
 	OptionNew struct {
 		C *Cond
@@ -419,6 +450,11 @@ type (
 	// Paren parenthesizes an expression, so a statement does not start with
 	// a keyword.
 	Paren struct{ X Expr }
+	// DataField reads a field of a data local that `is` has narrowed.
+	DataField struct{ Var, Field string }
+	// Reasons is `Var.reasons.map((r) => r._tag).join("+")`, the tags of a
+	// cause's reasons in order, a string (Ch 17 Exits and causes).
+	Reasons struct{ Var string }
 )
 
 func (*Num) isExpr()       {}
@@ -450,6 +486,8 @@ func (*DataRef) isExpr()   {}
 func (*TagOf) isExpr()     {}
 func (*TraceLen) isExpr()  {}
 func (*Paren) isExpr()     {}
+func (*DataField) isExpr() {}
+func (*Reasons) isExpr()   {}
 
 // A Cond is a comparison, `L Op R`.
 type Cond struct {
@@ -482,6 +520,9 @@ type Arm struct {
 	Body     Expr
 	// Throw makes the arm's body `throw new ...` instead of Body.
 	Throw *ErrNew
+	// FailCause makes an Exit.Failure arm's body `Effect.failCause(cause)`
+	// of its binding (Ch 17, D406).
+	FailCause bool
 }
 
 // Statements.
@@ -575,11 +616,13 @@ type (
 		Block []Stmt
 	}
 	// Await is `const [Names...] = await.Op [elems]`, or
-	// `const Names[0] = await.Op [elems]` for race and any.
+	// `const Names[0] = await.Op [elems]` for race and any. Keys makes an
+	// all's operand an object literal, `const { k: v } = await.all { k: el }`.
 	Await struct {
 		Op    string // all, allSettled, race, any
 		Names []string
 		Elems []*AwaitElem
+		Keys  []string
 	}
 	ForConcurrent struct {
 		N     int
@@ -614,6 +657,71 @@ type (
 		Cell string
 	}
 	Yield struct{ Value Expr }
+	// MakeDeferred is `const Name = Deferred.make<void>()`.
+	MakeDeferred struct{ Name string }
+	// Signal is `Deferred.succeed(Ready, undefined)`.
+	Signal struct{ Ready string }
+	// AwaitReady is `Ready.await()` (D227).
+	AwaitReady struct{ Ready string }
+	// Never is `Effect.never()`, where a held fiber waits until something
+	// interrupts it.
+	Never struct{}
+	// Interrupt is `Fiber.interrupt()`, which waits for the fiber's cleanup.
+	Interrupt struct{ Fiber string }
+	// Interruptible is `interruptible { Body }` (Ch 17, D180).
+	Interruptible struct{ Body []Stmt }
+	// UsingDecl is a `using` declaration directly in a region's block, so
+	// the region releases it in reverse order with the fibers it owns
+	// (Ch 7 Ownership, Ch 6).
+	UsingDecl struct{ Res *Resource }
+	// JoinAll joins several fibers at once (D225): the forks Fibers names,
+	// or, with Literal, the array literal `const Literal = [fork ..., ...]`
+	// of Elems that it binds first (D469). Keys makes the operand an object
+	// literal. Names destructures the values; without names it is a
+	// statement.
+	JoinAll struct {
+		Fibers  []string
+		Literal string
+		Elems   []*Fork
+		Keys    []string
+		Names   []string
+	}
+	// Lifetime starts a fiber whose lifetime the program names (Ch 7, D170,
+	// D408): Kind "detach", "forkIn" (in the Scope it makes and closes) or
+	// "forkScoped" (inside Effect.scoped, whose result Value binds). A Call
+	// fiber is joined into Value; a Hold fiber signals Ready and waits, and
+	// the end of its lifetime interrupts it. Between runs before the join or
+	// the end.
+	Lifetime struct {
+		Kind    string
+		Fiber   string
+		Scope   string
+		Ready   string
+		Call    Expr
+		Hold    []Stmt
+		Between []Stmt
+		Value   string
+		Result  Expr // a Hold fiber's Effect.scoped result
+	}
+	// ExitIs binds `const Name = exit(() => Call)`, or the exit of Body's
+	// program, then tests it with `is` (D208, D211): Exit.Success(let Bind)
+	// or Exit.Failure(let Bind). Then runs in the narrowed branch;
+	// FailCause ends it with `Effect.failCause(Bind)` (D406).
+	ExitIs struct {
+		Name      string
+		Call      Expr
+		Body      []Stmt
+		Success   bool
+		Bind      string
+		Then      []Stmt
+		FailCause bool
+	}
+	// DataIs is `if (Var is D.Variant) { Then }` (D211, D307).
+	DataIs struct {
+		Var     string
+		Variant *DataVariant
+		Then    []Stmt
+	}
 )
 
 type Resource struct {
@@ -659,3 +767,14 @@ func (*Mask) isStmt()          {}
 func (*MaskFork) isStmt()      {}
 func (*ForOfProducer) isStmt() {}
 func (*Yield) isStmt()         {}
+func (*MakeDeferred) isStmt()  {}
+func (*Signal) isStmt()        {}
+func (*AwaitReady) isStmt()    {}
+func (*Never) isStmt()         {}
+func (*Interrupt) isStmt()     {}
+func (*Interruptible) isStmt() {}
+func (*UsingDecl) isStmt()     {}
+func (*JoinAll) isStmt()       {}
+func (*Lifetime) isStmt()      {}
+func (*ExitIs) isStmt()        {}
+func (*DataIs) isStmt()        {}

@@ -277,8 +277,79 @@ func (in *inferer) stmt(s Stmt) effects {
 	case *Yield:
 		eff.join(in.expr(s.Value))
 		eff.Effect = true
+	case *MakeDeferred, *Signal, *AwaitReady, *Never, *Interrupt:
+		eff.Effect = true
+	case *Interruptible:
+		eff.join(in.stmts(s.Body))
+		eff.Effect = true
+	case *UsingDecl:
+		eff.join(in.expr(s.Res.Arg))
+		eff.join(in.call(s.Res.Acq))
+		eff.join(in.call(s.Res.Rel))
+		eff.Effect = true
+	case *JoinAll:
+		// D225: join fails with any joined fiber's failure; a fork adds
+		// only its program's R (Ch 7).
+		for _, f := range s.Elems {
+			prog := in.fork(f)
+			eff.R.union(prog.R)
+			eff.E.union(prog.E)
+			eff.Cost += prog.Cost
+		}
+		for _, f := range s.Fibers {
+			eff.E.union(in.fibers[f].E)
+		}
+		eff.Effect = true
+	case *Lifetime:
+		var prog effects
+		if s.Call != nil {
+			prog = in.expr(s.Call)
+		} else {
+			prog = in.stmts(s.Hold)
+		}
+		eff.R.union(prog.R)
+		eff.Cost += prog.Cost
+		if s.Call != nil {
+			// The fiber is joined, so its failures reach the caller.
+			eff.E.union(prog.E)
+		}
+		eff.join(in.stmts(s.Between))
+		if s.Result != nil {
+			eff.join(in.expr(s.Result))
+		}
+		eff.Effect = true
+	case *ExitIs:
+		// exit holds every reason, so the program's E stays inside it,
+		// unless Effect.failCause rethrows the cause (D406).
+		var prog effects
+		if s.Call != nil {
+			prog = in.expr(s.Call)
+		} else {
+			prog = in.stmts(s.Body)
+		}
+		eff.R.union(prog.R)
+		eff.Cost += prog.Cost
+		if s.FailCause {
+			eff.E.union(prog.E)
+		}
+		eff.join(in.stmts(s.Then))
+		eff.Effect = true
+	case *DataIs:
+		eff.join(in.stmts(s.Then))
 	}
 	return eff
+}
+
+// fork is the effects of a fork's program, recorded for a later join.
+func (in *inferer) fork(f *Fork) effects {
+	var prog effects
+	if f.Call != nil {
+		prog = in.expr(f.Call)
+	} else {
+		prog = in.stmts(f.Block)
+	}
+	in.fibers[f.Name] = prog
+	return prog
 }
 
 func (in *inferer) cond(c *Cond) effects {
@@ -308,7 +379,7 @@ func (in *inferer) call(f *Func) effects {
 func (in *inferer) expr(x Expr) effects {
 	eff := newEffects()
 	switch x := x.(type) {
-	case nil, *Num, *Ref, *Counter, *Topic, *TagLen, *ErrField, *DataRef, *TagOf, *TraceLen:
+	case nil, *Num, *Ref, *Counter, *Topic, *TagLen, *ErrField, *DataRef, *TagOf, *TraceLen, *DataField, *Reasons:
 	case *YieldNow:
 		eff.Effect = true
 	case *Paren:
@@ -376,6 +447,13 @@ func (in *inferer) expr(x Expr) effects {
 			eff.R.union(prog.R)
 			eff.Cost += prog.Cost
 			eff.Effect = true
+			for _, a := range x.Arms {
+				if a.FailCause {
+					// D406: Effect.failCause(cause) fails with E of the
+					// exit's program.
+					eff.E.union(prog.E)
+				}
+			}
 		case matchError:
 			subject = x.Subject.(*Ref).Name
 			remaining = in.vars[subject]
@@ -464,8 +542,11 @@ func SuccessType(f *Func) string {
 				numeric = true
 			}
 			// These bodies return to their own program, not the owning function.
-			switch stmt.(type) {
-			case *Fork, *Retry, *ForConcurrent, *MaskFork:
+			switch s := stmt.(type) {
+			case *Fork, *Retry, *ForConcurrent, *MaskFork, *Lifetime, *JoinAll:
+				continue
+			case *ExitIs:
+				visit(s.Then)
 				continue
 			}
 			forEachBlock(stmt, visit)

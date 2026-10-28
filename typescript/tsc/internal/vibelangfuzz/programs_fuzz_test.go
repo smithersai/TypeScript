@@ -69,7 +69,7 @@ func specSeeds(minimalEvery, richEvery int) [][]byte {
 	var seeds [][]byte
 	r := rand.New(rand.NewPCG(1, 2))
 	for i := range specgen.Features {
-		rich := []byte{byte(i), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+		rich := append([]byte{byte(i)}, bytes.Repeat([]byte{0xff}, specgen.MaskBytes)...)
 		for j := 0; j < 1500; j++ {
 			rich = append(rich, byte(r.IntN(256)))
 		}
@@ -753,9 +753,7 @@ func TestSpecProgramDir(t *testing.T) {
 	files := map[string]string{}
 	hex := os.Getenv("VIBELANG_FUZZ_PROGRAM_HEX")
 	if seed := os.Getenv("VIBELANG_FUZZ_SEED"); seed != "" {
-		var i int
-		fmt.Sscanf(seed, "%d", &i)
-		hex = fmt.Sprintf("%x", specProgramSeeds()[i])
+		hex = specSeedHex(seed)
 	}
 	if hex != "" {
 		var data []byte
@@ -816,19 +814,31 @@ func TestSpecProgramDir(t *testing.T) {
 	}
 }
 
+// specSeedHex is the hex of seed number seed of FuzzSpecPrograms, or of
+// FuzzSpecVariants when it starts with "v", as -short or not chooses them.
+func specSeedHex(seed string) string {
+	seeds := specProgramSeeds()
+	if rest, ok := strings.CutPrefix(seed, "v"); ok {
+		seed, seeds = rest, specVariantSeeds()
+	}
+	var i int
+	fmt.Sscanf(seed, "%d", &i)
+	return fmt.Sprintf("%x", seeds[i])
+}
+
 // TestSpecMinimize shrinks the generator input VIBELANG_FUZZ_PROGRAM_HEX
 // while the failure VIBELANG_FUZZ_MINIMIZE names persists: "diag:<code>" for
 // an error diagnostic of that code, "mismatch" for VibeLang and its Effect
 // reading ending differently, or "variant:<name>" for a variant ending
 // differently from the base print, or "variant:<name>:diag:<code>" for an
 // error in that variant. It logs the smallest input and its program, for a
-// corpus file.
+// corpus file. VIBELANG_FUZZ_MINIMIZE_LEAVE=pending leaves out the pending
+// features, as a seed or campaign input does; a corpus reproduction leaves
+// out none, so check the result without it before saving it.
 func TestSpecMinimize(t *testing.T) {
 	hex, want := os.Getenv("VIBELANG_FUZZ_PROGRAM_HEX"), os.Getenv("VIBELANG_FUZZ_MINIMIZE")
 	if seed := os.Getenv("VIBELANG_FUZZ_SEED"); seed != "" {
-		var i int
-		fmt.Sscanf(seed, "%d", &i)
-		hex = fmt.Sprintf("%x", specProgramSeeds()[i])
+		hex = specSeedHex(seed)
 	}
 
 	if corpus := os.Getenv("VIBELANG_FUZZ_CORPUS"); corpus != "" {
@@ -854,8 +864,12 @@ func TestSpecMinimize(t *testing.T) {
 		Missing(t, "%v", err)
 	}
 	defer node.Close()
+	var leaveOut map[string]bool
+	if os.Getenv("VIBELANG_FUZZ_MINIMIZE_LEAVE") == "pending" {
+		leaveOut = specPendingFeatures(specTargetPrograms, specTargetVariants)
+	}
 	fails := func(data []byte) bool {
-		p := specgen.Generate(data, nil)
+		p := specgen.Generate(data, leaveOut)
 		files := specgen.PrintVibeFiles(p, specgen.VibeOptions{}, "main.vibe")
 		files["ref.ts"] = specgen.PrintEffect(p)
 		variant, isVariant := strings.CutPrefix(want, "variant:")
@@ -864,7 +878,7 @@ func TestSpecMinimize(t *testing.T) {
 			if name, diag, ok := strings.Cut(variant, ":"); ok {
 				variant, want = name, diag
 			}
-			for _, v := range specgen.Variants(p, p.Rest, nil) {
+			for _, v := range specgen.Variants(p, p.Rest, leaveOut) {
 				if v.Name == variant {
 					files["v.vibe"] = v.Source
 				}
@@ -934,11 +948,11 @@ func TestSpecMinimize(t *testing.T) {
 			}
 		}
 	}
-	p := specgen.Generate(data, nil)
+	p := specgen.Generate(data, leaveOut)
 	shown := specgen.PrintVibe(p, specgen.VibeOptions{})
 	if variant, ok := strings.CutPrefix(want, "variant:"); ok {
 		variant, _, _ = strings.Cut(variant, ":")
-		for _, v := range specgen.Variants(p, p.Rest, nil) {
+		for _, v := range specgen.Variants(p, p.Rest, leaveOut) {
 			if v.Name == variant {
 				shown += "-- variant " + v.Name + " --\n" + v.Source
 			}

@@ -77,21 +77,41 @@ func PrintVibe(p *Program, o VibeOptions) string {
 		if e.Base != nil {
 			head += " extends " + e.Base.Name
 		}
+		if e.Ctor {
+			// D278: an error's own constructor calls super with its fields.
+			w.line("%s {", head)
+			for _, m := range members {
+				w.line("  %s", m)
+			}
+			w.line("  constructor(raw: number) {")
+			w.line("    super({ %s: raw * 2 + 1 })", e.Fields[0])
+			w.line("  }")
+			w.line("}")
+			continue
+		}
 		if len(members) > 0 {
 			head += " { " + strings.Join(members, "; ") + " }"
 		}
 		w.line("%s", head)
 	}
 	for _, d := range p.Datas {
-		w.line("%sdata %s {", declaration, d.Name)
+		params := ""
+		if d.Generic {
+			params = "<T>"
+		}
+		w.line("%sdata %s%s {", declaration, d.Name, params)
 		for _, vr := range d.Variants {
 			if len(vr.Fields) == 0 {
 				w.line("  %s", vr.Name)
 				continue
 			}
 			var fs []string
-			for _, f := range vr.Fields {
-				fs = append(fs, f+": number")
+			for i, f := range vr.Fields {
+				if d.Generic && i == 0 {
+					fs = append(fs, f+": T")
+				} else {
+					fs = append(fs, f+": number")
+				}
 			}
 			w.line("  %s { %s }", vr.Name, strings.Join(fs, "; "))
 		}
@@ -206,6 +226,20 @@ func forEachBlock(s Stmt, fn func([]Stmt)) {
 		fn(s.After)
 	case *ForOfProducer:
 		fn(s.Body)
+	case *Interruptible:
+		fn(s.Body)
+	case *JoinAll:
+		for _, f := range s.Elems {
+			fn(f.Block)
+		}
+	case *Lifetime:
+		fn(s.Hold)
+		fn(s.Between)
+	case *ExitIs:
+		fn(s.Body)
+		fn(s.Then)
+	case *DataIs:
+		fn(s.Then)
 	}
 }
 
@@ -321,11 +355,11 @@ func (v *vibePrinter) stmt(s Stmt) {
 		// another literal type-checks (TS2367).
 		typ := ": number"
 		if s.Data != nil {
-			typ = ": " + s.Data.Name
+			typ = ": " + dataType(s.Data)
 		}
 		init := v.expr(s.Init)
 		if s.Data != nil && !s.Narrow {
-			init = "(" + init + " as " + s.Data.Name + ")"
+			init = "(" + init + " as " + dataType(s.Data) + ")"
 		}
 		w.line("%s %s%s = %s", kw, v.name(s.Name), typ, init)
 	case *Reset:
@@ -449,6 +483,16 @@ func (v *vibePrinter) stmt(s Stmt) {
 			els = append(els, v.awaitElem(el))
 		}
 		op := "await." + s.Op + " [" + strings.Join(els, ", ") + "]"
+		if len(s.Keys) > 0 {
+			// Ch 7 (D196): an object operand keeps its keys.
+			var props, binds []string
+			for i, k := range s.Keys {
+				props = append(props, k+": "+els[i])
+				binds = append(binds, k+": "+v.name(s.Names[i]))
+			}
+			w.line("const { %s } = await.%s { %s }", strings.Join(binds, ", "), s.Op, strings.Join(props, ", "))
+			break
+		}
 		switch s.Op {
 		case "all":
 			var names []string
@@ -518,8 +562,175 @@ func (v *vibePrinter) stmt(s Stmt) {
 		w.line("}")
 	case *Yield:
 		w.line("yield %s", v.expr(s.Value))
+	case *MakeDeferred:
+		w.line("const %s = Deferred.make<void>()", v.name(s.Name))
+	case *Signal:
+		w.line("Deferred.succeed(%s, undefined)", v.name(s.Ready))
+	case *AwaitReady:
+		w.line("%s.await()", v.name(s.Ready))
+	case *Never:
+		w.line("Effect.never()")
+	case *Interrupt:
+		w.line("%s.interrupt()", v.name(s.Fiber))
+	case *Interruptible:
+		w.line("interruptible {")
+		v.block(s.Body)
+		w.line("}")
+	case *UsingDecl:
+		r := s.Res
+		w.line("using %s = Effect.acquireRelease(() => %s(%s), (held) => %s(held))", v.name(r.Name), r.Acq.Name, v.expr(r.Arg), r.Rel.Name)
+	case *JoinAll:
+		v.joinAll(s)
+	case *Lifetime:
+		v.lifetime(s)
+	case *ExitIs:
+		name := v.name(s.Name)
+		if s.Call != nil {
+			w.line("const %s = exit(() => %s)", name, v.expr(s.Call))
+		} else {
+			w.line("const %s = exit(() => {", name)
+			v.block(s.Body)
+			w.line("})")
+		}
+		pattern := "Failure"
+		if s.Success {
+			pattern = "Success"
+		}
+		w.line("if (%s is Exit.%s(let %s)) {", name, pattern, v.name(s.Bind))
+		v.block(s.Then)
+		if s.FailCause {
+			w.line("  Effect.failCause(%s)", v.name(s.Bind))
+		}
+		w.line("}")
+	case *DataIs:
+		w.line("if (%s is %s.%s) {", v.name(s.Var), s.Variant.Data.Name, s.Variant.Name)
+		v.block(s.Then)
+		w.line("}")
 	default:
 		panic(fmt.Sprintf("vibe stmt %T", s))
+	}
+}
+
+// dataType is a data declaration as a type: a generic one is D<number>.
+func dataType(d *DataDecl) string {
+	if d.Generic {
+		return d.Name + "<number>"
+	}
+	return d.Name
+}
+
+// joinAll prints a join of several fibers (Ch 7, D225, D469).
+func (v *vibePrinter) joinAll(s *JoinAll) {
+	w := &v.w
+	var operand string
+	switch {
+	case s.Literal != "":
+		var elems []string
+		for _, f := range s.Elems {
+			elems = append(elems, "fork "+v.expr(f.Call))
+		}
+		w.line("const %s = [%s]", v.name(s.Literal), strings.Join(elems, ", "))
+		operand = v.name(s.Literal)
+	case len(s.Keys) > 0:
+		var props []string
+		for i, k := range s.Keys {
+			props = append(props, k+": "+v.name(s.Fibers[i]))
+		}
+		operand = "{ " + strings.Join(props, ", ") + " }"
+	default:
+		var names []string
+		for _, f := range s.Fibers {
+			names = append(names, v.name(f))
+		}
+		operand = "[" + strings.Join(names, ", ") + "]"
+	}
+	switch {
+	case len(s.Names) == 0:
+		w.line("join %s", operand)
+	case len(s.Keys) > 0:
+		var binds []string
+		for i, k := range s.Keys {
+			binds = append(binds, k+": "+v.name(s.Names[i]))
+		}
+		w.line("const { %s } = join %s", strings.Join(binds, ", "), operand)
+	default:
+		var names []string
+		for _, n := range s.Names {
+			names = append(names, v.name(n))
+		}
+		w.line("const [%s] = join %s", strings.Join(names, ", "), operand)
+	}
+}
+
+// program prints a fiber's program as a function literal: `() => call`, or
+// `() => {` and its body, ending the line with tail.
+func (v *vibePrinter) programArg(head string, call Expr, body []Stmt, tail string) {
+	w := &v.w
+	if call != nil {
+		w.line("%s() => %s%s", head, v.expr(call), tail)
+		return
+	}
+	w.line("%s() => {", head)
+	v.block(body)
+	w.line("}%s", tail)
+}
+
+// lifetime prints a fiber whose lifetime its form names (Ch 7, D170, D408).
+func (v *vibePrinter) lifetime(s *Lifetime) {
+	w := &v.w
+	fiber := v.name(s.Fiber)
+	switch s.Kind {
+	case "detach":
+		if s.Hold != nil {
+			w.line("const %s = Deferred.make<void>()", v.name(s.Ready))
+		}
+		v.programArg("const "+fiber+" = detach(", s.Call, s.Hold, ")")
+		if s.Hold != nil {
+			w.line("%s.await()", v.name(s.Ready))
+		}
+		v.stmts(s.Between)
+		if s.Hold != nil {
+			w.line("%s.interrupt()", fiber)
+			w.line("trace.push(%q)", s.Fiber+":ended")
+		} else {
+			w.line("const %s: number = join %s", v.name(s.Value), fiber)
+		}
+	case "forkIn":
+		scope := v.name(s.Scope)
+		w.line("const %s = Scope.make()", scope)
+		if s.Hold != nil {
+			w.line("const %s = Deferred.make<void>()", v.name(s.Ready))
+		}
+		v.programArg("const "+fiber+" = forkIn("+scope+", ", s.Call, s.Hold, ")")
+		if s.Hold != nil {
+			w.line("%s.await()", v.name(s.Ready))
+		}
+		v.stmts(s.Between)
+		if s.Hold == nil {
+			w.line("const %s: number = join %s", v.name(s.Value), fiber)
+		}
+		w.line("Scope.close(%s, Exit.void)", scope)
+		if s.Hold != nil {
+			w.line("trace.push(%q)", s.Fiber+":closed")
+		}
+	case "forkScoped":
+		w.line("const %s: number = Effect.scoped(() => {", v.name(s.Value))
+		w.indent++
+		if s.Hold != nil {
+			w.line("const %s = Deferred.make<void>()", v.name(s.Ready))
+		}
+		v.programArg("const "+fiber+" = Effect.forkScoped(", s.Call, s.Hold, ")")
+		if s.Hold != nil {
+			w.line("%s.await()", v.name(s.Ready))
+		}
+		v.stmts(s.Between)
+		if s.Hold != nil {
+			w.line("return %s", v.expr(s.Result))
+		} else {
+			w.line("return join %s", fiber)
+		}
+		w.indent--
+		w.line("})")
 	}
 }
 
@@ -686,6 +897,9 @@ func (v *vibePrinter) expr(x Expr) string {
 		return "(" + v.cond(x.C) + " ? " + v.expr(x.V) + " : undefined)"
 	case *ErrNew:
 		fields := x.Err.AllFields()
+		if x.Err.Ctor {
+			return "new " + x.Err.Name + "(" + v.expr(x.Fields[0]) + ")"
+		}
 		if len(fields) == 0 {
 			return "new " + x.Err.Name + "()"
 		}
@@ -695,12 +909,26 @@ func (v *vibePrinter) expr(x Expr) string {
 		}
 		return "new " + x.Err.Name + "({ " + strings.Join(parts, ", ") + " })"
 	case *Sync:
+		if x.Async {
+			if len(x.Inputs) == 0 {
+				return "sync(async () => " + x.Body + ")"
+			}
+			return "sync(async (a, b) => " + x.Body + ", " + v.args(x.Inputs) + ")"
+		}
 		if len(x.Inputs) == 0 {
 			return "sync(" + x.Body + ")"
 		}
 		return "sync((a, b) => " + x.Body + ", " + v.args(x.Inputs) + ")"
 	case *TryHatch:
-		return fmt.Sprintf("try((s: string) => Number(JSON.parse(s)), (cause) => %s, %q + %s)", v.expr(x.Err), x.Prefix, v.expr(x.Input))
+		async := ""
+		if x.Async {
+			async = "async "
+		}
+		return fmt.Sprintf("try(%s(s: string) => Number(JSON.parse(s)), (cause) => %s, %q + %s)", async, v.expr(x.Err), x.Prefix, v.expr(x.Input))
+	case *DataField:
+		return v.name(x.Var) + "." + x.Field
+	case *Reasons:
+		return v.name(x.Var) + `.reasons.map((r) => r._tag).join("+")`
 	case *OptionNew:
 		return "(" + v.cond(x.C) + " ? Option.some(" + v.expr(x.V) + ") : Option.none())"
 	case *DataNew:
@@ -766,9 +994,12 @@ func (v *vibePrinter) match(m *Match) string {
 			pat = "Exit." + a.Case + "(let " + v.name(a.Binds[0]) + ")"
 		}
 		body := ""
-		if a.Throw != nil {
+		switch {
+		case a.Throw != nil:
 			body = "throw " + v.expr(a.Throw)
-		} else {
+		case a.FailCause:
+			body = "Effect.failCause(" + v.name(a.Binds[0]) + ")"
+		default:
 			body = v.expr(a.Body)
 		}
 		arms = append(arms, "when "+pat+": "+body+";")

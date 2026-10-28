@@ -117,6 +117,17 @@ func walkStmt(s Stmt, stmt func(Stmt), expr func(Expr)) {
 		}
 	case *Yield:
 		e(s.Value)
+	case *UsingDecl:
+		e(s.Res.Arg)
+	case *JoinAll:
+		for _, f := range s.Elems {
+			e(f.Call)
+		}
+	case *Lifetime:
+		e(s.Call)
+		e(s.Result)
+	case *ExitIs:
+		e(s.Call)
 	}
 	forEachBlock(s, func(b []Stmt) { walkStmts(b, stmt, expr) })
 }
@@ -249,6 +260,17 @@ func declaredNames(ss []Stmt) []string {
 			names = append(names, s.Ready, s.Fiber)
 		case *ForOfProducer:
 			names = append(names, s.Var)
+		case *MakeDeferred:
+			names = append(names, s.Name)
+		case *UsingDecl:
+			names = append(names, s.Res.Name)
+		case *JoinAll:
+			names = append(names, s.Literal)
+			names = append(names, s.Names...)
+		case *Lifetime:
+			names = append(names, s.Fiber, s.Scope, s.Ready, s.Value)
+		case *ExitIs:
+			names = append(names, s.Name, s.Bind)
 		case *Provide:
 			for _, pr := range s.Providers {
 				for _, m := range pr.Impl.Methods {
@@ -290,9 +312,28 @@ func referencedNames(ss []Stmt) []string {
 			names = append(names, s.Var)
 		case *MaskFork:
 			names = append(names, s.Ready, s.Fiber)
+		case *Signal:
+			names = append(names, s.Ready)
+		case *AwaitReady:
+			names = append(names, s.Ready)
+		case *Interrupt:
+			names = append(names, s.Fiber)
+		case *JoinAll:
+			names = append(names, s.Fibers...)
+			names = append(names, s.Literal)
+		case *Lifetime:
+			names = append(names, s.Fiber, s.Scope, s.Ready)
+		case *ExitIs:
+			names = append(names, s.Name, s.Bind)
+		case *DataIs:
+			names = append(names, s.Var)
 		}
 	}, func(x Expr) {
 		switch x := x.(type) {
+		case *DataField:
+			names = append(names, x.Var)
+		case *Reasons:
+			names = append(names, x.Var)
 		case *Ref:
 			names = append(names, x.Name)
 		case *DataRef:
@@ -375,6 +416,10 @@ func withDeadCode(p *Program, c *chooser) *Program {
 	q := *p
 	q.Funcs = nil
 	g := &generator{c: *c, p: &q}
+	if len(p.Datas) > 0 {
+		// A data local declared before the dead code may be its subject.
+		g.data = p.Datas[0]
+	}
 	for _, f := range p.Funcs {
 		if f.Kind == kindProducer || f.Kind == kindAcquire || f.Kind == kindRelease || len(f.Body) == 0 {
 			q.Funcs = append(q.Funcs, f)
@@ -452,9 +497,18 @@ func extractable(f *Func, body []Stmt, start, end int) bool {
 	run := body[start:end]
 	jumps := false
 	walkStmts(run, func(s Stmt) {
-		switch s.(type) {
+		switch s := s.(type) {
 		case *Return, *Break, *Continue, *Yield, *Handle:
 			jumps = true
+		case *UsingDecl:
+			// The region that owns a using declaration or a held fiber
+			// releases it when it exits (Ch 7 Ownership, D408), so moving
+			// it into a function of its own would end it earlier.
+			jumps = true
+		case *Fork:
+			if heldBody(s.Block) {
+				jumps = true
+			}
 		}
 	}, nil)
 	if jumps {
@@ -473,6 +527,18 @@ func extractable(f *Func, body []Stmt, start, end int) bool {
 		}
 	}
 	return true
+}
+
+// heldBody reports whether a fork's block waits in Effect.never(), so only
+// an interruption ends it.
+func heldBody(ss []Stmt) bool {
+	found := false
+	walkStmts(ss, func(s Stmt) {
+		if _, ok := s.(*Never); ok {
+			found = true
+		}
+	}, nil)
+	return found
 }
 
 // Declarations: the type oracle reads each exported function's contract from
