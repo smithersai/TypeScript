@@ -98,8 +98,9 @@ var (
 	EK2001 = message(2001, errorCategory, "{0} can escape {1}, but {2}.")
 	// EK2002: a requirement escapes the written contract. {0} is the function, {1} the requirement, {2} the contract's R.
 	EK2002 = message(2002, errorCategory, "{0} needs {1}, but its contract says R = {2}.")
-	// EK2003: a plain return annotation on a function whose body runs an Effect (D67) or can fail (D282). {0} is the annotation, {1} the function.
-	EK2003 = message(2003, errorCategory, "{0} is a plain return annotation, but {1} runs Effects, so it returns an Effect.")
+	// EK2003: a plain return annotation on a function whose body runs an Effect (D67) or can fail (D282). {0} is the function, {1} the annotation.
+	// plain_failures.go names the call or the throw when it can.
+	EK2003 = message(2003, errorCategory, "{0} can't run Effects: its return annotation, {1}, makes it a plain function, which runs no Effects.")
 	// EK2004: an Effect try block with E = never; defects pass through.
 	EK2004 = message(2004, warningCategory, "this try block runs Effects but has no expected errors; defects pass through this catch.")
 	// EK2005: a resumeWith program that needs a service or fails outside the operation's contract. {0} is what it needs.

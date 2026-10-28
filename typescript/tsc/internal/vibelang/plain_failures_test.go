@@ -1,6 +1,7 @@
 package vibelang
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -31,6 +32,18 @@ func TestPlainContractFailureFix(t *testing.T) {
 			"error Invalid { value: string }\nerror Missing\nexport function check(value: string | undefined): string {\n  if (value === undefined) throw new Missing()\n  if (value === \"\") throw new Invalid({ value })\n  return value\n}",
 			"Write string!Invalid | Missing!",
 			"error Invalid { value: string }\nerror Missing\nexport function check(value: string | undefined): string!Invalid | Missing! {\n  if (value === undefined) throw new Missing()\n  if (value === \"\") throw new Invalid({ value })\n  return value\n}",
+		},
+		{
+			"runs an Effect",
+			"export function greet(name: string): number {\n  Console.log(name)\n  return name.length\n}",
+			"Write number!!",
+			"export function greet(name: string): number!! {\n  Console.log(name)\n  return name.length\n}",
+		},
+		{
+			"needs a service",
+			"service Count { value: number }\nexport function read(): number {\n  return Count().value\n}",
+			"Write number!!Count",
+			"service Count { value: number }\nexport function read(): number!!Count {\n  return Count().value\n}",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -91,5 +104,56 @@ func TestPlainContractWithoutFailureHasNoFix(t *testing.T) {
 		if d.Category() == diagnostics.CategoryError {
 			t.Errorf("a plain function whose catch handles its throw: %s", d.String())
 		}
+	}
+}
+
+// EK2003 leads with what the plain function can't do and names the function
+// and what it throws or runs, then says why: its return annotation. Its notes
+// give every way out as code, the Effect contract first.
+func TestPlainContractMessages(t *testing.T) {
+	for _, test := range []struct{ name, source, want string }{
+		{
+			"throw",
+			"export function knownTags(ok: boolean): ReadonlySet<string> {\n  if (!ok) throw new Error(\"bad\")\n  return new Set([\"a\"])\n}",
+			"knownTags can't throw Error: its return annotation, ReadonlySet<string>, makes it a plain function, which never fails.\n" +
+				"Make it an Effect function: ReadonlySet<string>!Error!\n" +
+				"Or fail with a defect instead: die(new Error(\"bad\")), annotated ReadonlySet<string>!!\n" +
+				"Or escape to TypeScript: move knownTags to a .ts file or a module block, or wrap the throw in sync(() => { … }), annotated ReadonlySet<string>!!",
+		},
+		{
+			"throw expression",
+			"error Missing\nexport const first = (xs: ReadonlyArray<string>): string => xs[0] ?? throw new Missing()",
+			"first can't throw Missing: its return annotation, string, makes it a plain function, which never fails.\n" +
+				"Make it an Effect function: string!Missing!\n" +
+				"Or fail with a defect instead: die(new Missing()), annotated string!!\n" +
+				"Or escape to TypeScript: move first to a .ts file or a module block, or wrap the throw in sync(() => { … }), annotated string!!",
+		},
+		{
+			"failing call",
+			"error Missing\nexport function find(ok: boolean): number!Missing! {\n  if (!ok) throw new Missing()\n  return 1\n}\nexport function count(): number {\n  return find(true)\n}",
+			"count can't run find(true), an Effect that can fail with Missing: its return annotation, number, makes it a plain function, which runs no Effects.\n" +
+				"Make it an Effect function: number!Missing!\n" +
+				"Or remove the annotation to infer the whole contract.",
+		},
+		{
+			"service",
+			"service Count { value: number }\nexport function read(): number {\n  return Count().value\n}",
+			"read can't run Count(), an Effect: its return annotation, number, makes it a plain function, which runs no Effects.\n" +
+				"Make it an Effect function: number!!Count\n" +
+				"Or remove the annotation to infer the whole contract.",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			program, file, _, _ := editorProgram(t, test.source)
+			var got []string
+			for _, d := range program.GetSemanticDiagnostics(t.Context(), file) {
+				if d.Code() == EK2003.Code {
+					got = append(got, diagnosticWithNotes(d))
+				}
+			}
+			if len(got) != 1 || got[0] != test.want {
+				t.Fatalf("EK2003 messages:\n%s\nwant:\n%s", strings.Join(got, "\n---\n"), test.want)
+			}
+		})
 	}
 }

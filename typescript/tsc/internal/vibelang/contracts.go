@@ -3,7 +3,6 @@ package vibelang
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
-	"github.com/microsoft/TypeScript/tsc/internal/scanner"
 )
 
 // Contracts.
@@ -232,8 +231,6 @@ func checkContracts(c *checker.Checker, file *ast.SourceFile) {
 
 func (a *analyzer) checkContract(file *ast.SourceFile, fn *ast.Node) {
 	c := a.checker
-	annotation := fn.Type()
-	written := scanner.GetTextOfNode(annotation)
 	k := a.contractOf(fn)
 	switch {
 	case k == nil:
@@ -248,9 +245,7 @@ func (a *analyzer) checkContract(file *ast.SourceFile, fn *ast.Node) {
 		// plain-function member, such as Equal.symbol, is checked against
 		// that member instead (EK4301, D55).
 		if !a.canBePlain(fn) && (fn.Kind != ast.KindMethodDeclaration || a.plainMemberOwner(fn) == "") {
-			d := report(c, annotation, EK2003, written, functionDisplayName(fn))
-			note(d, "Write {0} to check that it cannot fail and needs nothing, or {1} to name its errors and infer its dependencies.", bangText(written, "never", "never"), bangText(written, "Errors"))
-			note(d, "Or remove the annotation to infer the whole contract.")
+			a.reportRunningPlainContract(fn)
 		}
 		return
 	}
@@ -348,7 +343,6 @@ func contractText(c *checker.Checker, contract *checker.Type, channel int, extra
 	}
 	return bangText(texts...)
 }
-
 
 // functionDisplayName names fn in a diagnostic: its name, the name of the
 // variable it initializes, or "this function".

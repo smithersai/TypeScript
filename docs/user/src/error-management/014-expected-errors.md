@@ -51,7 +51,7 @@ function quantityOr(text: string, fallback: number): number {
 // Output: 0
 ```
 
-A failure that can escape a plain function is EK2003, and the quick fix writes the Effect contract:
+A failure that can escape a plain function is EK2003. The message names the function and what it throws, then lists the ways out, and the quick fix writes the first, the Effect contract:
 
 ```vibe
 // expect-error: EK2003
@@ -63,10 +63,13 @@ function quantity(text: string): number {
 ```
 
 ```text
-error EK2003: number is a plain return annotation, but quantity can fail with InvalidQuantity, and a plain function never fails.
-  Write number!InvalidQuantity! to make it an Effect function that fails with InvalidQuantity.
-  Or throw inside a hatch, whose TypeScript keeps JavaScript's throw: sync makes the exception a defect (number!!), and try makes it an UnknownError.
+error EK2003: quantity can't throw InvalidQuantity: its return annotation, number, makes it a plain function, which never fails.
+  Make it an Effect function: number!InvalidQuantity!
+  Or fail with a defect instead: die(new InvalidQuantity({ text })), annotated number!!
+  Or escape to TypeScript: move quantity to a .ts file or a module block, or wrap the throw in sync(() => { … }), annotated number!!
 ```
+
+An Effect function's callers run it, so they become Effect functions too. A defect is for a failure no caller should handle: `catch` never receives one. In a `.ts` file or a `module` block, `throw` is JavaScript's, and a `sync` hatch turns that exception into a defect.
 
 The same holds for a throw expression and for a `match` arm or `do` block that throws. A method's plain return annotation is checked the same way: it is the method's type in the declaration file, so a body that runs an Effect is EK2003 too; write the contract, or leave the method unannotated. A method that implements a plain-function member of a JavaScript protocol, such as `[Equal.symbol]`, is checked against that member instead (EK4301). A plain function calls TypeScript code directly. A call whose contract lists a failure, such as `JSON.parse`, is a typed failure only inside a `try` whose `catch` belongs to the function, which receives it with its type; elsewhere its exception propagates unchanged. Other TypeScript code's exceptions pass through the `catch` unchanged and become defects where they reach an effectful caller; to catch one, use the `try` hatch in an Effect function. Running an Effect inside a plain-annotated function is EK2003 too.
 

@@ -2,6 +2,7 @@ package vibelang
 
 import (
 	"context"
+	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
@@ -24,14 +25,115 @@ import (
 // function calls throws is not a typed failure: it propagates unchanged and
 // becomes a defect where it reaches an effectful caller.
 
-// plainContractFailure is EK2003's text for a function with a plain return
-// annotation whose body can fail. {0} is the annotation, {1} the function, and
-// {2} the failures that can escape it.
-var plainContractFailure = EK2003.With("{0} is a plain return annotation, but {1} can fail with {2}, and a plain function never fails.")
+// EK2003's texts lead with what the plain function can't do, name the
+// function and what it throws or runs, then say why: its return annotation.
+// The notes give each way out as code, the likely one first.
+var (
+	// plainContractThrow: a throw escapes. {0} is the function, {1} what it
+	// throws, {2} the annotation.
+	plainContractThrow = EK2003.With("{0} can't throw {1}: its return annotation, {2}, makes it a plain function, which never fails.")
+	// plainContractRun: a call runs an Effect. {0} is the function, {1} the
+	// call, {2} the annotation.
+	plainContractRun = EK2003.With("{0} can't run {1}, an Effect: its return annotation, {2}, makes it a plain function, which runs no Effects.")
+	// plainContractFailingRun: a call runs an Effect that can fail. {0} is the
+	// function, {1} the call, {2} its failures, {3} the annotation.
+	plainContractFailingRun = EK2003.With("{0} can't run {1}, an Effect that can fail with {2}: its return annotation, {3}, makes it a plain function, which runs no Effects.")
+	// plainContractFailure: a failure escapes from another source. {0} is the
+	// function, {1} the failures, {2} the annotation.
+	plainContractFailure = EK2003.With("{0} can't fail with {1}: its return annotation, {2}, makes it a plain function, which never fails.")
+)
 
 func init() {
 	ls.RegisterCodeFixProvider(plainContractFailureFix)
 	fileChecks = append(fileChecks, checkPlainCodeThrows)
+}
+
+// upperFirst returns a description that starts a message, such as "this
+// function" or "the constructor of Port", with its first letter in upper
+// case. Code, such as a function's name, keeps its case.
+func upperFirst(text string) string {
+	if strings.HasPrefix(text, "this ") || strings.HasPrefix(text, "the ") {
+		return strings.ToUpper(text[:1]) + text[1:]
+	}
+	return text
+}
+
+// typeListText returns the union of types as TypeScript writes it, or "never"
+// for none.
+func typeListText(c *checker.Checker, types []*checker.Type) string {
+	if len(types) == 0 {
+		return "never"
+	}
+	return c.TypeToString(c.GetUnionType(types))
+}
+
+// plainEffectContract returns the Effect contract that makes fn, whose plain
+// return annotation is written, an Effect function with the failures and
+// requirements its body adds: `number` becomes `number!Invalid!`, or
+// `number!!Users` for a body that needs Users.
+func (a *analyzer) plainEffectContract(fn *ast.Node, written string) string {
+	info := a.flowOf(fn.Body())
+	return bangText(written, typeListText(a.checker, info.errors), typeListText(a.checker, info.requirements))
+}
+
+// firstFailureSource returns the throw operand or call in fn's body that adds
+// its first expected failure, or nil. A throw expression or a do block, which
+// the parser writes as an invoked arrow, gives the throw or call inside it.
+func (a *analyzer) firstFailureSource(fn *ast.Node) *ast.Node {
+	info := a.flowOf(fn.Body())
+	for i, t := range info.errors {
+		if source := info.errorSources[i]; t != nil && t.Flags()&checker.TypeFlagsNever == 0 && source != nil {
+			if arrow := invokedArrow(source); arrow != nil {
+				if inner := a.firstFailureSource(arrow); inner != nil {
+					return inner
+				}
+			}
+			return source
+		}
+	}
+	return nil
+}
+
+// firstEffectRun returns the first call in fn's body that runs an Effect, or
+// nil, looking inside throw expressions and do blocks as firstFailureSource
+// does.
+func (a *analyzer) firstEffectRun(fn *ast.Node) *ast.Node {
+	var first *ast.Node
+	a.forEachRunningCallInBody(fn, func(call *ast.Node) bool {
+		if !a.performs(call) {
+			return false
+		}
+		first = call
+		if arrow := invokedArrow(call); arrow != nil {
+			if inner := a.firstEffectRun(arrow); inner != nil {
+				first = inner
+			}
+		}
+		return true
+	})
+	return first
+}
+
+// invokedArrow returns the arrow that call invokes in place, (() => { … })(),
+// the form a throw expression or a do block parses into, or nil.
+func invokedArrow(call *ast.Node) *ast.Node {
+	if call == nil || !ast.IsCallExpression(call) || len(call.Arguments()) != 0 {
+		return nil
+	}
+	if callee := ast.SkipParentheses(call.Expression()); callee.Kind == ast.KindArrowFunction && callee.Body() != nil {
+		return callee
+	}
+	return nil
+}
+
+// messageCallText returns call's source text for a message, or its callee
+// with (…) when the call is long or spans lines.
+func messageCallText(file *ast.SourceFile, call *ast.Node) string {
+	callee := "this call"
+	if ast.IsCallExpression(call) {
+		callee = shortText(nodeText(file, call.Expression()), "this call") + "(…)"
+	}
+	return shortText(nodeText(file, call), callee)
 }
 
 // plainFailures returns the expected failures that can escape the body of fn,
@@ -56,17 +158,52 @@ func (a *analyzer) reportFailingPlainContract(fn *ast.Node) bool {
 		return false
 	}
 	c := a.checker
+	file := ast.GetSourceFileOfNode(fn)
 	annotation := fn.Type()
 	written := scanner.GetTextOfNode(annotation)
 	errors := c.TypeToString(failures)
-	d := report(c, annotation, plainContractFailure, written, functionDisplayName(fn), errors)
-	note(d, "Write {0} to make it an Effect function that fails with {1}.", bangText(written, errors), errors)
-	note(d, "Or throw inside a hatch, whose TypeScript keeps JavaScript's throw: sync makes the exception a defect ({0}), and try makes it an UnknownError.", bangText(written, "never", "never"))
+	name := functionDisplayName(fn)
+	contract := a.plainEffectContract(fn, written)
+	source := a.firstFailureSource(fn)
+	switch {
+	case source != nil && source.Parent != nil && source.Parent.Kind == ast.KindThrowStatement:
+		d := report(c, annotation, plainContractThrow, upperFirst(name), errors, written)
+		note(d, "Make it an Effect function: {0}", contract)
+		note(d, "Or fail with a defect instead: die({0}), annotated {1}", shortText(nodeText(file, source), "error"), bangText(written))
+		note(d, "Or escape to TypeScript: move {0} to a .ts file or a module block, or wrap the throw in sync(() => { … }), annotated {1}", name, bangText(written))
+	case source != nil && ast.IsCallExpression(source) && a.runs(source):
+		d := report(c, annotation, plainContractFailingRun, upperFirst(name), messageCallText(file, source), errors, written)
+		note(d, "Make it an Effect function: {0}", contract)
+		note(d, "Or remove the annotation to infer the whole contract.")
+	default:
+		d := report(c, annotation, plainContractFailure, upperFirst(name), errors, written)
+		note(d, "Make it an Effect function: {0}", contract)
+		note(d, "Or catch the failure inside {0}.", name)
+	}
 	return true
 }
 
-// plainContractFailureFix writes the Effect contract that EK2003's
-// plainContractFailure offers: `: string` becomes `: string!Invalid!`.
+// reportRunningPlainContract reports EK2003 at the plain return annotation of
+// fn, whose body runs an Effect but cannot fail.
+func (a *analyzer) reportRunningPlainContract(fn *ast.Node) {
+	c := a.checker
+	file := ast.GetSourceFileOfNode(fn)
+	annotation := fn.Type()
+	written := scanner.GetTextOfNode(annotation)
+	name := functionDisplayName(fn)
+	var d *ast.Diagnostic
+	if call := a.firstEffectRun(fn); call != nil {
+		d = report(c, annotation, plainContractRun, upperFirst(name), messageCallText(file, call), written)
+	} else {
+		d = report(c, annotation, EK2003, upperFirst(name), written)
+	}
+	note(d, "Make it an Effect function: {0}", a.plainEffectContract(fn, written))
+	note(d, "Or remove the annotation to infer the whole contract.")
+}
+
+// plainContractFailureFix writes the Effect contract that EK2003 offers: `:
+// string` becomes `: string!Invalid!` for a body that can fail, and `:
+// number!!` for one that runs an Effect.
 var plainContractFailureFix = &ls.CodeFixProvider{
 	Source:     diagnosticSource,
 	ErrorCodes: []int32{EK2003.Code},
@@ -77,13 +214,13 @@ var plainContractFailureFix = &ls.CodeFixProvider{
 		if annotation == nil {
 			return nil, nil
 		}
+		fn := annotation.Parent
+		if isPlainGenerator(fn) || fn.Body() == nil {
+			return nil, nil // a generator's way out is a producer or a module block
+		}
 		c, done := fix.Program.GetTypeCheckerForFile(ctx, fix.SourceFile)
 		defer done()
-		failures := analyzerFor(c).plainFailures(annotation.Parent)
-		if failures == nil {
-			return nil, nil
-		}
-		contract := bangText(scanner.GetTextOfNode(annotation), c.TypeToString(failures))
+		contract := analyzerFor(c).plainEffectContract(fn, scanner.GetTextOfNode(annotation))
 		return []*ls.CodeAction{{
 			Description: "Write " + contract,
 			Changes:     replaceRange(fix, nodeStart(fix.SourceFile, annotation), annotation.End(), contract),
@@ -207,23 +344,24 @@ func forEachEscapingThrowIn(root *ast.Node, cb func(throw *ast.Node)) {
 // A throw that the code's own catch handles stays inside it.
 
 // plainCodeFailure is EK2003's text for a throw that can escape a constructor,
-// an accessor or a static block. {0} is what it throws, {1} names the code.
-var plainCodeFailure = EK2003.With("This throw fails with {0}, but {1} runs as plain JavaScript, which never fails.")
+// an accessor or a static block. {0} names the code, {1} is what it throws,
+// and {2} the kind of code.
+var plainCodeFailure = EK2003.With("{0} can't throw {1}: {2} runs as plain JavaScript, which never fails.")
 
 // topLevelFailure is EK1001's text for a throw that can escape a module's top
-// level.
-var topLevelFailure = EK1001.With("This throw fails a program, but a module's top level is not inside one.")
+// level. {0} is what it throws.
+var topLevelFailure = EK1001.With("A module's top level can't throw {0}: it runs as plain JavaScript, which never fails.")
 
 // moduleThrowNote names the escape for code that must throw a JavaScript
-// exception.
-const moduleThrowNote = "Code that must throw a JavaScript exception, such as a test's throwing getter, belongs in a module declaration, whose TypeScript keeps JavaScript's throw (D283)."
+// exception, such as a test's throwing getter.
+const moduleThrowNote = "Or escape to TypeScript, whose throw is JavaScript's: move the code to a module block or a .ts file."
 
 // checkPlainCodeThrows reports each throw that can escape a module's top level
 // (EK1001) or a constructor, accessor or static block (EK2003) in file.
 func checkPlainCodeThrows(c *checker.Checker, file *ast.SourceFile) {
 	a := analyzerFor(c)
 	forEachEscapingThrowIn(file.AsNode(), func(throw *ast.Node) {
-		d := report(c, throw, topLevelFailure)
+		d := report(c, throw, topLevelFailure, c.TypeToString(a.thrownType(throw)))
 		note(d, "Throw inside a function that a program runs, such as main.")
 		note(d, moduleThrowNote)
 	})
@@ -241,14 +379,22 @@ func checkPlainCodeThrows(c *checker.Checker, file *ast.SourceFile) {
 			if body != nil {
 				forEachEscapingThrowIn(body, func(throw *ast.Node) {
 					failure := c.TypeToString(a.thrownType(throw))
-					d := report(c, throw, plainCodeFailure, failure, plainCodeName(node))
+					kind := map[ast.Kind]string{ast.KindConstructor: "a constructor", ast.KindClassStaticBlockDeclaration: "a static block"}[node.Kind]
+					if kind == "" {
+						kind = "an accessor"
+					}
+					d := report(c, throw, plainCodeFailure, upperFirst(plainCodeName(node)), failure, kind)
 					switch node.Kind {
 					case ast.KindConstructor:
-						note(d, "Check before constructing, in a function whose Effect contract names {0}.", failure)
+						if class := node.Parent; class != nil && class.Name() != nil {
+							note(d, "Check before constructing, in an Effect function that can fail with {0}, such as static make(…): {1}", failure, bangText(nodeText(file, class.Name()), failure))
+						} else {
+							note(d, "Check before constructing, in an Effect function that can fail with {0}.", failure)
+						}
 					case ast.KindClassStaticBlockDeclaration:
 						note(d, "Throw inside a function that a program runs, such as main.")
 					default:
-						note(d, "Write a method instead, whose Effect contract can name {0}.", failure)
+						note(d, "Write a method instead: an Effect method can fail with {0}.", failure)
 					}
 					note(d, moduleThrowNote)
 				})

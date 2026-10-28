@@ -1,3 +1,7 @@
-string is a plain return annotation, but validate can fail with Invalid, and a plain function never fails.
-  Write string!Invalid! to make it an Effect function that fails with Invalid.
-  Or throw inside a hatch, whose TypeScript keeps JavaScript's throw: sync makes the exception a defect (string!!), and try makes it an UnknownError.
+validate can't throw Invalid: its return annotation, string, makes it a plain function, which never fails.
+  Make it an Effect function: string!Invalid!
+  Or fail with a defect instead: die(new Invalid({ value })), annotated string!!
+  Or escape to TypeScript: move validate to a .ts file or a module block, or wrap the throw in sync(() => { … }), annotated string!!
+orThrow can't throw Invalid: its return annotation, string, makes it a plain function, which never fails.
+viaDo can't throw Invalid: its return annotation, number, makes it a plain function, which never fails.
+  Or fail with a defect instead: die(new Invalid({ value: String(n) })), annotated number!!

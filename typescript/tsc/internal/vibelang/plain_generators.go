@@ -20,9 +20,9 @@ import (
 // driven by generator.throw(), belongs in a module block (D283) or a .ts file.
 
 // plainGeneratorFailure is EK2003's text for a generator with a JavaScript
-// iterator annotation whose body can fail. {0} is the annotation, {1} the
-// generator, and {2} the failures that can escape it.
-var plainGeneratorFailure = EK2003.With("{0} is a JavaScript iterator annotation, but {1} can fail with {2}, and a plain generator never fails.")
+// iterator annotation whose body can fail. {0} is the generator, {1} the
+// failures that can escape it, and {2} the annotation.
+var plainGeneratorFailure = EK2003.With("{0} can't throw {1}: its return annotation, {2}, makes it a JavaScript generator, which never fails.")
 
 func init() {
 	fileChecks = append(fileChecks, checkPlainGenerators)
@@ -66,9 +66,9 @@ func checkPlainGenerators(c *checker.Checker, file *ast.SourceFile) {
 			var thrown []*checker.Type
 			forEachEscapingThrow(node, func(throw *ast.Node) { thrown = append(thrown, a.thrownType(throw)) })
 			if len(thrown) > 0 {
-				d := report(c, node.Type(), plainGeneratorFailure, nodeText(file, node.Type()), functionDisplayName(node), c.TypeToString(c.GetUnionType(thrown)))
-				note(d, "Remove the annotation to make it a Stream producer, whose throws fail the Stream.")
-				note(d, "Or write a generator that speaks a JavaScript protocol by throwing in a module block or a .ts file.")
+				d := report(c, node.Type(), plainGeneratorFailure, upperFirst(functionDisplayName(node)), c.TypeToString(c.GetUnionType(thrown)), nodeText(file, node.Type()))
+				note(d, "Remove the annotation to make it a producer, a Stream whose throw fails the Stream.")
+				note(d, "Or escape to TypeScript, whose throw is JavaScript's: move {0} to a module block or a .ts file.", functionDisplayName(node))
 			}
 		}
 		return node.ForEachChild(visit)
