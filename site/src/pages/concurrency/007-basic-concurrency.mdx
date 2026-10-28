@@ -58,13 +58,13 @@ function cancelWork() {
 
 ```vibe
 function cancelWithCleanup() {
-  const worker = fork(() => Effect.onInterrupt(() => {
+  const worker = fork Effect.onInterrupt(() => {
     try {
       sleep("1 minute")
     } finally {
       Console.log("released worker resources")
     }
-  }, () => Console.log("worker cancelled")))
+  }, () => Console.log("worker cancelled"))
   sleep("10 millis")
   worker.interrupt()
 }

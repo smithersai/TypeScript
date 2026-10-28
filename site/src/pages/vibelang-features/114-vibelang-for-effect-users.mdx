@@ -73,7 +73,7 @@ Node runs the JavaScript output; importing the `.vibe` source directly with Node
 
 ### Services and errors from TypeScript
 
-A service gives TypeScript two types, as Effect's `Context.Service` does. `Users` is the service's identifier: its members plus a brand that only the service carries, so a structural object can't stand for it. `Users.Shape` is the members alone. Implement a service in TypeScript with `implements Users.Shape`, provide it with `Layer.succeed(Users, impl)`, and read it with `yield* Users`. An `error` class is nominal: only its own instances are assignable to it, and `Effect.catchTag` catches it by its tag.
+A service is Effect's own `Context.Service` class, so TypeScript sees the same two types. `Users` is the service's identifier, which carries its key, so a structural object can't stand for it. `Users.Shape`, which TypeScript spells `Context.Service.Shape<typeof Users>`, is the members. Implement a service in TypeScript with `implements Context.Service.Shape<typeof Users>`, provide it with `Layer.succeed(Users, impl)`, and read it with `yield* Users`. An `error` class is the class `Data.TaggedError` declares, and `Effect.catchTag` catches it by its tag.
 
 ```vibe
 // users.vibe
@@ -83,10 +83,10 @@ export service Users { find(id: string): string!NotFound; region: string }
 
 ```ts
 // live.ts
-import { Effect, Layer } from "effect"
+import { Context, Effect, Layer } from "effect"
 import { NotFound, Users } from "./users.vibe"
 
-class UsersImpl implements Users.Shape {
+class UsersImpl implements Context.Service.Shape<typeof Users> {
   readonly region = "eu"
   find(id: string): Effect.Effect<string, NotFound> {
     return id === "1" ? Effect.succeed("Ada") : Effect.fail(new NotFound({ id }))
@@ -102,7 +102,7 @@ console.log(Effect.runSync(program.pipe(Effect.provide(Layer.succeed(Users, new 
 // Output: no user 2
 ```
 
-The emitted declarations say the same to a package's consumers: a service is `interface Users extends Users.Shape, ServiceBrand<...>` with its key, and an `error` class carries a private member, with the brands imported from `vibelang-runtime`.
+The emitted declarations are the ones the Effect TypeScript writes, so a library migrated to VibeLang keeps its `.d.ts`: a service declares `class Users extends Context.Service<Users, { … }>()(key)`, a schema `const User = Schema.Struct(…)` and `type User = typeof User.Type`, and an `error` the `Data.TaggedError` class. A migrated service keeps its key with `static readonly key = "app/Users"` in its body.
 
 ## Translate the idioms
 

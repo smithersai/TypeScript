@@ -46,15 +46,34 @@ The fixes keep a rewrite only when it adds no compiler error.
 | A `module` declaration whose code relies on running before the file's other imports, or an importer that relies on an exported `let` keeping its first value | Each module declaration the file imports is now a JavaScript module of its own, `main.vibe.text.js` beside `main.js`. It runs in its place among the file's imports, after its own imports, and imports of its exports are live bindings; before, every module's imports ran first and an import kept the value the export had when the module ran. Its `import.meta` is its own file's. Order the imports as the code needs them, and ship the `main.vibe.*.js` files with `main.js`. |
 | A method with a plain return annotation whose body runs an Effect, such as `count(): number { sleep("1 millis"); return 42 }` | EK2003, as for a function. It previously compiled, declared `count(): number`, and returned an unrun Effect to callers that reached it through an interface or from TypeScript. Write its contract, `count(): number!!`, or remove the annotation. A method implementing a plain member such as `[Equal.symbol]` keeps EK4301. |
 | An `await` binding such as `const await = 1` | Rejected in a VibeLang module; rename the binding. It previously compiled despite the reserved word. JavaScript `await` remains available inside TypeScript escapes. |
-| A plain object or default typed with a service's name, such as `const impl: Users = { … }`, or a TypeScript class that `implements Users` | TS2741 or TS2420: a service's name is now its identifier, which only the service carries, so another service with the same members or a structural type no longer stands for it. Type the implementation `Users.Shape`: `const impl: Users.Shape = { … }`, `static readonly default: Flags.Shape = { … }`, `implements Users.Shape`. `Users()` still has the type `Users`. |
-| A `match` without `default` whose arms name classes declared in a `.ts` file, error or not, TypeScript-style or other classes that are not `error` declarations, `Error`, a class with its own `[Symbol.hasInstance]` or `[customMatcher]`, or errors from a declaration file compiled by 0.0.10 | EK4701: such an arm no longer proves the match covers its subject, and the diagnostic's note names each arm that did not count. Add a `default` arm, declare the classes with `error`, or recompile the package that declares them. |
+| A plain object, default or parameter typed with a service's name, such as `const impl: Users = { … }` or `function f(users: Users)` given `Users()`, or a TypeScript class that `implements Users` | TS2739 or TS2420: a service's name is now its identifier, Effect's `Context.Service` instance type, which carries its key, so another service with the same members or a structural type no longer stands for it. Type the implementation `Users.Shape`: `const impl: Users.Shape = { … }`, `static readonly default: Flags.Shape = { … }`, `function f(users: Users.Shape)`. `Users()` has the type `Users.Shape`, as `yield* Users` has. TypeScript writes `implements Context.Service.Shape<typeof Users>`. |
+| A package compiled by 0.0.10 that exports a `service` declaration | Its declaration file declared `interface Users`, a key typed with the runtime's `ServiceKey` and a `namespace Users { interface Shape }`; it now declares what Effect TypeScript does, `declare const Users_base: Context.ServiceClass<Users, "<key>", { … }>` and `class Users extends Users_base`, and a service with only a default `const Flags: Context.Reference<{ … }>`. `.vibe` code doesn't change. Recompile the package; TypeScript that wrote `Users.Shape` writes `Context.Service.Shape<typeof Users>`. A `Context.Service` class migrated to a `service` keeps its key with `static readonly key = "…"`. |
+| A `match` without `default` whose arms name classes that are not error classes (classes that don't extend `effect`'s `YieldableError`), `Error`, or a class with its own `[Symbol.hasInstance]` or `[customMatcher]` | EK4701: such an arm no longer proves the match covers its subject, and the diagnostic's note names each arm that did not count. Add a `default` arm, or declare the classes with `error` or `Data.TaggedError`. An error class counts wherever it is declared, a `.ts` file or a declaration file included. |
 | A `match` without `default` over a `string` or `number` without a literal type, `unknown`, `any`, `object`, an array, or a type parameter, such as `match (x: string) { when "a": 1; }` | EK4701: such a subject is open, so its arms cannot cover it; the match previously compiled and threw a `TypeError` when no arm matched. Add a `default` arm, a bind-only arm such as `when let other:`, an arm that matches every value such as `when String:`, or narrow the subject's declared type to the literals the match handles. |
-| An error class from another module, or a TypeScript class with the same tag and fields, passed where an `error` declaration's type is expected | TS2322 or TS2741: an `error` declaration's type is now nominal. Pass an instance of the expected class, or widen the parameter to the union of the classes it accepts. |
+| A package compiled by 0.0.10 that exports an `error` declaration | Its declaration file now declares exactly what `class E extends Data.TaggedError("E")<{ … }> {}` declares. `.vibe` code doesn't change. Recompile the package so its `.d.ts` matches. |
 | A block after an Effect dual, such as `withSpan("load") { … }`, `timeout("1 second") { … }` or `semaphore.withPermits(1) { … }` | A block is always its call's last argument, so the callee's type no longer moves it. Write the program first, `withSpan(() => { … }, "load")`, or use the curried form, `semaphore.withPermits(1)(() => { … })`. `vibelang --fix` rewrites each site. Where the appended call still type-checks, it is EK1023. |
 | `() => fork p()`, or a `fork` in an `if` branch or a bare block | A fiber belongs to its innermost named region: a function body (an arrow's expression body included), one loop iteration, a `try`, `catch` or `finally` block, a block that declares `using`, or a `provide` or mask block. `if` branches, bare blocks, `do` blocks and `match` own nothing. Passing an owned fiber out of its region (returning, storing, assigning outside it, or capturing it) is now the error EK4838. Use `Effect.forkScoped(() => p())` for a child the caller's scope owns, or `detach(() => p())`. |
 | `using h = Effect.acquireRelease(() => openDisposable(), release)` with a plain-holder workaround | The acquisition's release is now the only release, so `using` no longer also calls `[Symbol.dispose]()`. Bind the Disposable directly and drop the holder. |
+| A package compiled by 0.0.10 that exports a `schema` declaration | Its declaration file declared the type as `interface User extends Schema.Schema.Type<typeof User> {}`; it now declares what Effect TypeScript does, the constant and then `type User = typeof User.Type`. `.vibe` code doesn't change. Recompile the package so its `.d.ts` matches. A TypeScript consumer can no longer merge declarations into the type, as with Effect's own alias. |
 | `using n = count()` where the value has no disposal method and the initializer needs no `Scope` | TS2850. Bind it with `const`, or acquire it with `acquireRelease` so its release is recorded. |
+| A call that runs in a getter, a setter, a parameter default, a constructor, a static block or a class field with no type, such as `get next() { return seven() }` or `function later(program = seven())`, which held the program it built | `EK1001`: that code runs as plain JavaScript, so the call cannot run there. Delay it with a function, `() => seven()`, and call that where the program runs, or give a class field an Effect type, `program: number!! = seven()`, which still holds the program. |
+| `const spawn = fork`, `const run = sync`, an import that renames `fork`, `join`, `sync`, `try` or `callback`, or `R.fork(x)` through a namespace import of the runtime | EK4410: a call spelled otherwise read its first operand by a binding its reader cannot see, so `spawn(work())` deferred `work()`. Call each under its own name where it runs; to pass forking as a function, write `(job: () => A!E!R) => fork job()`. In a `module` block the runtime's functions stay ordinary values. |
 | A pause in a `using` initializer, such as a wait in the function that opens the resource | Cancellation now follows Effect. Every initializer runs with the interruptibility in force where the `using` stands, whether or not it requires `Scope`, so cancellation reaches its waits and `using` registers nothing. A `timeout` around `using db = openDb()` now ends at its deadline instead of waiting for `openDb`. To wait one out, write `using db = Effect.acquireDisposable(() => openDb())`: its acquisition holds cancellation off, and `using` adds no second release. |
+| A function without a return annotation that plain code calls or passes, such as `function double(n: number) { return n * 2 }` in `xs.map(double)`, at a module's top level, in a getter, or in a function annotated `: number` | EK4301, EK1001 or EK2003: a function without a return annotation is an Effect function, whatever its body does (a ruling marked controversial). It was plain when its body ran no Effect. Write its return type, `double(n: number): number`, or `: infer _` to keep the type TypeScript infers from the body. The diagnostic's quick fix writes it, `: T` when the type is short and `: infer _` otherwise, on the helper and the unannotated helpers it calls, and `vibelang --fix` writes it on every such helper that is not exported. TypeScript callers now receive the annotated function's plain signature, and an unannotated function's Effect signature. |
+| A literal with no declared destination, such as `const half = (n: number) => n / 2` or `const api = { triple(n: number) { return n * 3 } }`, used from plain code or from TypeScript | An Effect function, as a declaration is: write `(n: number): number => n / 2`. A literal where a declared type gives it a form, as `xs.map((x) => x + 1)` does, still takes that form; a method named `toString`, `toJSON`, `valueOf`, `then` or a well-known symbol is plain. |
+| A callback parameter written without a contract, `f: (a: A) => B`, that receives a function that runs Effects | It means what TypeScript means, a plain callback, so passing an Effect function is EK4301 and the parameter no longer gains `E` and `R`. Declare the channels the callback may have: `mapAll<A, B, E, R>(items: ReadonlyArray<A>, f: (a: A) => B!E!R)`. |
+| A literal at a destination that accepts a value or an Effect, such as `retry`'s `while: (e) => boolean \| Effect<boolean>`, whose body runs an Effect | EK4301: such a literal is plain unless its annotation says otherwise. Write `(e): boolean!! => …`. |
+| A literal with an Effect contract where only a plain function fits, such as `Schema.suspend((): Codec<A>!! => A)` | EK4301; it previously compiled as a plain function returning the contract's success value. Write the plain type, `(): Codec<A> => A`. |
+| A package compiled from VibeLang whose consumers call its plain functions from Effect code | Its build now writes `vibelang.manifest.json` beside its declarations, listing each declaration file emitted from a `.vibe` file. A consumer trusts each listed module as a package in `trustedPackages`, so a call of its plain function is no longer EK4401. Publish the manifest with the declarations: add it to `files` in `package.json`. Stock TypeScript ignores it. |
+| An unannotated function that returns a program it holds or receives, such as `const make = (n: number) => { const p: number!! = () => n; return p }` | EK4802, as an Effect function returning a program. Write `: infer _`: the function is plain, a VibeLang call of it runs the program it returns, and a TypeScript caller receives the program unrun. |
+| A function value whose type returns an Effect, passed where only a plain function fits: `xs.map(pick)` with `function pick(p: number!!): infer _ { return p }`, a TypeScript function declared to return an `Effect`, or a call's result such as `try(f, makeMapper(), x)` whose function is an unannotated literal | EK4301: a function value has the form its type gives, so `map` would collect programs it never runs, as it would for an Effect function. To collect the programs as data, write a literal: `xs.map((p): infer _ => p)`. To run them, use `Effect.forEach(xs, pick)`. Give a returned literal a plain return annotation, `(reason: unknown): Bad => new Bad({ reason })`. |
+| A function value whose return type may be an Effect, a union such as `number \| Effect<void>`, passed where only a plain function fits, as in `xs.map(both)` with `const both: () => number \| Effect<void> = tick` | EK4301: the receiver would drop the program the function may return. Keep it at a destination that accepts both, or pass the Effect function to an Effect API such as `Effect.forEach`. |
+| An Effect function held where a declared type makes it plain: `runAll(fs)` with `fs = [tick, tick]` and `runAll(fs: ReadonlyArray<() => unknown>)`, `const cb: (n: number) => void = logged`, an object such as `{ onSave(doc: string) { … } }` passed as `{ onSave(doc: string): void }`, or `const r: Resettable = new Counter()` whose unannotated `reset()` is an Effect method | EK4301: the caller of the plain type would drop the program unrun. These compiled before; only an Effect function passed by name or in an array written at the call was caught. Annotate the function or method with its plain return type, `(): void`; write `class Counter implements Resettable`, which makes `reset()` plain; or declare the destination to return an Effect, `() => void!!`. |
+| A function literal passed where the parameter type is `Function` or a type parameter constrained to a plain function type, as React's `useCallback<T extends Function>` and lodash's `once<T extends (...args: any) => any>` declare | The literal is a plain function, as TypeScript types it, where it was an Effect function: a TypeScript caller of `useCallback`'s result now runs its body, and a body that runs an Effect there, `useCallback((e) => Console.log(e), [])`, is EK4301. Run the Effect elsewhere, or keep it at a destination typed to return an Effect. |
+| A TypeScript caller of a `trusted(impl, [Errors])` value, such as `Effect.runSync(rows())`, or a `.vibe` file that passes one to `map` | `trusted` now returns one plain function of `impl`'s type, carrying its classes as `f[$errors]`: a TypeScript call returns what `impl` returns and throws what it throws, so drop the `Effect.runSync`. A VibeLang call still makes a listed exception an expected failure. `lines.map(slugify)` passes a value with an empty list and is EK4301 for one with listed classes; use `Effect.forEach(lines, slugify)` there. |
+| `fork job`, `fork(() => work())` or `await.all [job]`, where `job` is an Effect or a function with no required parameters | EK4613: the operand is a program by syntax whose result is its value, so the new fiber or the element would give `job` back unrun; it previously ran it. Write `fork job()`, `fork work()` or `await.all [job()]`; `vibelang --fix` writes these. |
+| `await.all [fiber]` or `await.race [ready]`, an element that is a `Fiber` or a `Deferred` | EK4609 or EK4610: an element's result is its value, never waited for again. Write `join fiber` or `ready.await()` as the element. The operation no longer interrupts a fiber you hand it when another element fails or wins; the fiber's region interrupts it when the region ends. |
+| `await.all exits`, an operand that is not a literal whose element type is an `Exit`, a `Config`, or a union with a member that is not a program | EK4603: such an operand runs each element by its static type, and an `Exit` is data. It previously ran each `Exit` as an Effect. Give the elements a program type, or write an array literal, whose elements are programs by syntax. |
 
 Direct platform calls such as `console.log` and `process.env.NAME` were
 already EK4402 in 0.0.10; holding their values and importing Node values
@@ -98,6 +117,17 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 - In a project that emits declarations, `vibelang --fix` changed the declaration files: it removed an import such as `import * as Schema from "effect/Schema"` that an export's type used, and rewrote `Effect.Effect<void, never, never>` as `void!!`, which dropped the `never` arguments. It now keeps such an import and writes `void!never!never` in an exported statement, so the declarations stay the TypeScript's.
 - In a project that emits declarations, `vibelang --fix` rewrote an exported `Schema.Struct` constant that had no type of its name as a `schema` declaration, which added `export type Name = typeof Name.Type` to the declaration file. EK4832 now leaves such a constant; with its type written beside it, the pair still becomes `export schema Name { … }`.
+- The experimental TypeScript mapper reported `EK9001` for imports from inline modules. It now reports `EK9100` for inline modules and their imports, explaining that they require building with `vibelang`.
+
+- The experimental TypeScript mapper required a `$plain` member on exported functions with an Effect return contract, rejecting valid assignments to `typeof f`. Their projected types now keep only the Effect contract.
+
+- The specification assigned the exported `const main` warning to `EK1016`; it now uses `EK4843`, matching the compiler warning and quick fix.
+
+- A nested module type such as `Layer<HttpClient>` could emit a declaration with an unqualified inner type. Declarations now qualify nested module types too, such as `Layer.Layer<HttpClient.HttpClient>`.
+
+
+- Unrelated baseline type errors could prevent Bun, Node and bundler loaders from loading a clean `.vibe` module. Loaders now reject only errors in the source they load and project-wide errors.
+
 - Under `bun --preload vibelang/bun`, a TypeScript module that imported `./x.js` failed with `Cannot find module` when `x.ts` had been replaced by `x.vibe`. Bun now loads `x.vibe`; an existing `x.ts` still wins.
 - `vibelang/bun` and `vibelang/register` refused a project with `"composite": true` with `TS6304` and `TS6379`. They now compile it.
 - Tree-sitter rejected block-param calls named `error`, such as `error{}`; it now accepts them as the compiler does.
@@ -124,6 +154,11 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 - A `var` declaration inside a `do` expression previously compiled with the wrong scope; it now reports `EK1019` and offers `let` instead. Jumps that leave a `do` expression now report `EK1019`.
 
+- A running call used as a bare statement in a constructor, static block, getter or setter now reports `EK1001` and explains that the surrounding code runs as plain JavaScript.
+- Running calls in getters, setters and parameter defaults now report `EK1001` instead of silently returning or storing an unrun Effect, including defaults of Effect functions.
+- Effect functions now report EK4301 when assigned, returned or stored in a typed element that expects a plain function, including members of objects and class instances.
+- A plain call that finds no plain form now fails with a defect naming the function, instead of returning an unrun program.
+- An owned fiber could escape through an assignment, return, call or capture inside an await, fork or concurrent loop operand. The compiler now rejects those escapes while allowing direct reads there.
 - Repeated calls along a chain of functions without written contracts could make the compiler run out of memory. Inferred error and service channels now keep each type once, so repeated calls no longer multiply inference work.
 - A `module` declaration's exports were copies: after `bump()` changed an exported `let count`, the file and its re-exports still read `0`, and the module's imports ran before the file's earlier imports. Each module declaration the file imports now compiles to a JavaScript module of its own, `main.vibe.text.js` beside `main.js`, so its exports are live bindings and it runs in import order; `vibelang/register`, `vibelang/bun`, `vibelang-vite` and `vibelang-unplugin` load it from the file's compile.
 - Quick fixes dropped the comments inside what they rewrote: a comment in an error's field list or before an `Effect.succeed` argument disappeared. Fixes now keep those comments, and a rewrite that cannot keep its comments is not offered.
@@ -138,8 +173,13 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Compiler and diagnostics
 
+- A call of a union of a plain function and an Effect function, such as `(flag ? double : Math.abs)(3)` with `double` unannotated, compiled and gave the Effect function's program back unrun when it was chosen. It is now EK4301; annotate `double` or call each function where it is chosen.
+- A `schema` declaration's `.d.ts` declared an interface, `interface User extends Schema.Schema.Type<typeof User> {}`, before the constant, so a library that rewrote `const User = Schema.Struct(…)` and `type User = typeof User.Type` as a `schema` changed its public declarations. It now declares the constant and then `type User = typeof User.Type`, byte for byte what the Effect TypeScript declares.
+- A function's form followed its body: adding a log call to an unannotated exported helper changed its declaration from plain to Effect and broke callers compiled earlier, a callback type written in place accepted Effect callbacks while the same type through an alias did not, and an unannotated protocol method such as `static [customMatcher]()` or `[Symbol.dispose]()` that ran an Effect returned it unrun. A function's form is now written: a plain return annotation or `: infer _` makes it plain, a function without one is an Effect function, a literal takes its destination's form, and a callback type means what TypeScript means; see [Upgrade from 0.0.10](#upgrade-from-0010).
 - A match whose last arm only binds the value, `when let other: …`, reported EK4701 over a union of literals or tags as if that arm handled no case. Such an arm now handles every case, as `default` does.
-- A structural type could stand for a service or an `error` class. A requirement for one service could be relabeled as another and fail at run time with `Service not found`, and a same-shaped object or class could reach a match proven exhaustive and fail every arm. Services and `error` classes are now nominal; see [Upgrade from 0.0.10](#upgrade-from-0010).
+- A structural type could stand for a service. A requirement for one service could be relabeled as another and fail at run time with `Service not found`. Services are now nominal by their key; see [Upgrade from 0.0.10](#upgrade-from-0010).
+- A `service` declaration's `.d.ts` declared VibeLang's own interface, runtime key type and `Shape` namespace, and its key was always derived, so a library that rewrote a `Context.Service` class as a `service` changed its public declarations and its key (foldkit's `Dispatch`, alchemy's `Correlation`). It now declares Effect's own `Context.Service` class, byte for byte what the TypeScript declared, and `static readonly key = "…"` in the body keeps the original key, which the `Context.Service` quick fix and `vibelang --fix` now write.
+- An `error` declaration's `.d.ts` declared VibeLang's own `#private` member and a `namespace E { type $error = ErrorBrand<…> }` marker beside the class, so a library that rewrote a `Data.TaggedError` class as an `error` changed its public declarations. It now declares exactly what the `Data.TaggedError` class declares, and a match counts an arm over any error class extending `YieldableError` toward exhaustiveness, wherever the class is declared.
 - A `match` without `default` over an open subject, such as a `string` without a literal type, `unknown`, or a class that is not an `error` declaration, compiled and threw a `TypeError` when no arm matched. It is now EK4701; see [Upgrade from 0.0.10](#upgrade-from-0010).
 - A non-tail `resume` could receive a value outside its type and crash after only EK2119 warned. EK2119 is now an error; write a success type covering the handler's answers.
 - A `using` initializer that was not a single call, such as `flag ? acquire() : acquire()`, `(acquire(), handle())` or `wrap(acquire())`, ran its inner acquisitions in the caller's scope. `using` disposed the value a second time, the acquisition's release ran after the block, and the function falsely needed `Scope` (EK2002 or EK3205). The whole initializer now runs in the block's scope, so each resource is released once, when the block exits.
@@ -220,6 +260,19 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - A type that a `.vibe` file's declarations inferred from one of Effect's modules was written as an import type, `import("effect/Option").Option<string>`, where Effect TypeScript that imports `Option` declares `Option.Option<string>`, so removing a prelude module's import, as `--fix` does, changed the declarations. Declarations now name such a module through the name the source writes, the Effect module always, and import it from `effect`; a module the source never names keeps its import type.
 - An Effect type in the `!` form declared every channel, `number!!` as `Effect.Effect<number, never, never>`, where the Effect TypeScript it replaced wrote `Effect.Effect<number>`. Declarations now leave out the empty slots at the end of a `!` form, and dependencies that a return annotation leaves for the body when they come to `never`; a slot the source fills, `never` included, stays.
 - A `.vibe` file that kept an import of `effect`, such as `import { Array } from "effect"`, declared the other names its declarations needed in a second import of `effect`, where the Effect TypeScript it replaced had one. They now join the kept import.
+- A `.vibe` function with a callback parameter that has no contract, such as `mapAll<A, B>(items: ReadonlyArray<A>, f: (a: A) => B)`, declared the callback as `(a: A) => Effect<B, E, R>`, which names `effect`'s `Effect` module rather than its type, so stock TypeScript rejected the declaration file with `TS2709`, and with `skipLibCheck` on a TypeScript caller could pass a plain function that then failed with `Not a valid effect`. Declarations now write `Effect.Effect<B, E, R>`, through the file's own import of `Effect` when it has one, as Effect TypeScript does.
+- A method with a plain return annotation that called itself, such as `size(): number { return 1 + (this.next ? this.next.size() : 0) }`, a recursive `toString(): string` or `static depth(n: number): number`, or two such methods that called each other, was rejected with `EK2003`, as if its call of itself ran an Effect. Such a method now compiles to a plain method, and a synchronous callback can call it.
+- `new` on a function declared in a `.vibe` file, such as `new make()`, reported only TypeScript's `TS7009`, and through a cast, `new (make as any)()`, or under `@ts-ignore` it compiled and returned the function's program instead of an object it constructed. It is now `EK1020`, which names the function and says to declare a class; a function of a `module` declaration keeps TypeScript's meaning.
+- Calling a service key with arguments, such as `Fn(3)` for `service Fn: (n: number) => number`, reported TypeScript's `TS2348`, which suggested `new`, itself an error for a service. It is now `EK3007`, which says that `Fn()` returns the implementation, and its quick fix writes `Fn()(3)`.
+- `EK4836` did not warn at `Effect.withSpan(() => load(id), "load")`, whose program is already an arrow, or at an `Effect.provide` or `Effect.provideService` call that did not stand as a statement or a return, such as `const user = Effect.provide(() => load(), AppLive)`. Both now warn: the first's quick fix writes the prelude's `withSpan(() => load(id), "load")`, and the second says why it has no fix.
+- The `Effect.catchTag`, `Effect.catchTags`, `Effect.catch` and `Effect.provide` quick fixes wrote a program passed as an arrow, `Effect.catchTag(() => load(id), "Gone", …)`, as that arrow called in place: `((() => load(id))()) catch (e) => …`. They now write the call it returns, `load(id) catch (e) => …`, which means the same.
+- An inferred type that the compiler reached through the runtime's alias of `Effect`, such as the type of `export const idE = identity<Effect<number>>`, was declared as `import("vibelang-runtime").Effect<number, never, never>`, so TypeScript consumers' types depended on the runtime. Declarations now write it `Effect.Effect<number, never, never>`, imported from `effect`.
+- `vibelang --fix` and the editor's quick fixes walked the whole file once per fix to find the imports the fix left unused, so the time to fix a large file with many TypeScript-style forms grew with the number of fixes times the file's size. They now read one index of the file's names per check.
+- A `const` that held an arrow with a plain return annotation, such as `const countdown = (n: number): number => n === 0 ? 0 : countdown(n - 1)`, died with `RangeError: Maximum call stack size exceeded` when it recursed deeply, where a function declaration completes. It now recurses as a function declaration does, continuing on heap frames past the stack's depth.
+- A call that runs an Effect in a generator method, such as `*items() { yield load(2) }` in a class or an object literal, compiled and yielded the program unrun. It is now `EK2003`, since a generator method is a JavaScript generator, whose body is plain code; yield a program, `() => load(2)`, to hand one out.
+- `export const main = () => { … }` compiled, but no host ran it, since only a function declaration named `main` is an entry, so the program printed nothing. It now draws `EK4843`, a warning whose quick fix writes `export function main() { … }`.
+- A function you declared named `fork` captured the keyword form: with `function fork(x: number)`, `fork slow()` called that function, so `join` of its number was EK4611. `fork x` and `fork { … }` now always start a fiber; only the call form `fork(x)` calls your function.
+- `join(fiber)` with parentheses was TS2304, an unknown name. It now joins the fiber, as `join fiber` does, and `join([a, b])` keeps the shape; a function you declare named `join` makes it an ordinary call of yours.
 - Clearer messages for a plain function that throws or runs an Effect (EK2003). The message led with the annotation, `number is a plain return annotation, but quantity can fail with InvalidQuantity`, offered only the contract and a hatch, and for a function that runs an Effect suggested `number!Errors!`, which closes `R`, so a function that needed a service got EK2002 next. It now leads with the rule, `quantity can't throw InvalidQuantity` or `read can't run Count(), an Effect`, names the throw or the call, and lists each way out as code: the Effect contract with the channels the body adds, `number!!Count` included, which the quick fix also writes for a function that runs an Effect; `die(…)` under `number!!`; or a `.ts` file, a `module` block or a `sync` hatch. A throw that escapes a constructor, an accessor, a static block, a JavaScript generator or a module's top level reads the same way, and its note no longer cites a decision number.
 - Clearer messages for a callback that runs an Effect or throws where a plain function is expected (EK4301). The message said `this callback can pause (find)`, its fix pasted the whole callback into `Effect.forEach(…)`, however long, and its notes cited decision numbers and a "Visitor spelling". It now says what the callback can't do and why, `This callback can't run find(id), an Effect: ReadonlyArray.prototype.map calls it synchronously, as a plain function`, writes a long callback as `(id) => { … }` in the fix, and shows the one spelling that returns the program, `(id) => () => find(id)`. A callback that throws also suggests catching inside it, a function passed by name says it `can't be passed to` the callee, and a discarded Effect subtype, such as an SQL statement, says the statement discards it and shows the call that runs it.
 - Clearer messages for a `match` that leaves a case (EK4701), a call of a callback parameter that can fail (EK2001), a `pipe` whose first argument changed meaning (EK1023), and the content mapper's errors. Their notes cited the decision log by number and spoke of a program "by look-ahead". They now say the same in the docs' words, and EK1023 shows the code that keeps the old meaning: `const first: A!E!R = () => …`.
@@ -230,6 +283,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Runtime
 
+- A `provide Key = value { … }` block built a one-service Layer on every pass, with a new Scope and Layer MemoMap around its statements, so a hot path paid about five times the cost of `Effect.provideService` and a layer the block's statements provided was memoized with the caller's layers. A `Key = value` provider now provides its service as `Effect.provideService` does; only a layer the block lists builds one.
 - A `using` whose initializer did not require `Scope`, such as `using db = openDb()` where `openDb` waits and returns a Disposable, held cancellation off until `openDb` finished, so a `timeout` around it waited for the whole wait. Every initializer now runs with the interruptibility around the `using`, as `yield*` runs it, so the deadline ends the wait and nothing is disposed.
 - A Disposable acquired by an Effect with its own release was disposed twice by `using`. It is now released once.
 - A fiber returned from a block-bodied arrow was already interrupted, with only a warning. A fiber that escapes the region that owns it is now an error.
@@ -246,6 +300,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - In a function that compiles to plain JavaScript, a `finally` block that crashed while another failure was in flight kept only the first: a TypeScript caller saw one exception, and an Effect caller one defect. The exception that leaves is now a `SuppressedError` whose `error` is the cleanup's and whose `suppressed` is the first, and an Effect caller sees both defects in order, as in a function that compiles to an Effect.
 - A `for...of` loop whose body or destructuring crashed over an iterator whose `return()` then threw too kept only the body's defect, as JavaScript's loop does, in plain code and in Effect functions alike. The loop now fails with both, in order.
 - A failed `join` or `await.all`, or a decided `await.race`, interrupted the other fibers one at a time and waited for each one's cleanup before interrupting the next, so it hung when one fiber's cleanup waited for a sibling's. It now interrupts them all at once, as `Fiber.interruptAll` does, then waits for their cleanup.
+- A program holding an await operation over an operand that is not a literal, such as `const p: number[]!! = await.all items`, read `items` once, when the program was built, and reused that reading on every run. Each run now reads the operand afresh, as `Effect.all` does.
 
 #### Editor and language server
 
@@ -260,9 +315,10 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 #### Tooling and bundlers
 
+- Typed ESLint rules read a `.vibe` module's types as unresolved from a `.ts` file, because typescript-eslint's TypeScript cannot load `.vibe`, so rules such as `@typescript-eslint/no-unnecessary-type-assertion` reported code that `vibelang -p` accepts. `vibelang/eslint` now exports `typedProgram`, a program for typescript-eslint's `parserOptions.programs` in which each `.vibe` module, another workspace package's included, reads as the declaration `vibelang` writes for it.
 - EK4831's quick fix kept the deeper indentation of a `Context.Service` shape whose type arguments stood on lines of their own, so the `service` declaration's members and closing brace stood one level too deep. They now take the declaration's indentation.
 - Code migrated from TypeScript kept `import { Array } from "effect"`, which hides JavaScript's `Array` in a `.vibe` file, for you to rename by hand. An import of Effect's `Array`, `String`, `Number`, `Boolean`, `Function`, `Symbol`, `BigInt` or `RegExp` module under that name now draws EK4842, whose quick fix imports it as `Arr`, `Str`, `Num`, `Bool`, `Fn`, `Sym`, `Big` or `Regex` and renames its uses.
-- `vibelang --fix` left a schema constant and its type alias, such as `type Kind = typeof Kind.Type` just before `const Kind = Schema.Literals(["a", "b"])`, for you to rewrite. They now draw EK4841, whose quick fix writes the schema alias `schema Kind = "a" | "b"`. A constant written before its type keeps its form, because the alias's declaration file lists the type first.
+- `vibelang --fix` left a schema constant and its type alias, such as `const Kind = Schema.Literals(["a", "b"])` just before `type Kind = typeof Kind.Type`, for you to rewrite. They now draw EK4841, whose quick fix writes the schema alias `schema Kind = "a" | "b"`. A type written before its constant keeps its form, because the alias's declaration file lists the constant first.
 - A `--fix` rewrite that left two names of one import unused, such as `Option` and `pipe`, was refused with TS1005 because its two removals overlapped. The import list is now written once with the names it keeps.
 - `vibelang --fix` left `pipe(x, Option.map(f), Option.getOrElse(g))` pipelines for you to rewrite with Option's methods. They now draw EK4840, whose quick fix writes `x.map(f).getOrElse(g)` through the same data-first functions.
 - `vibelang --fix` left Effect `Match` chains, `Match.value(x).pipe(Match.when(…), …, Match.exhaustive)`, for you to rewrite as a `match` expression. They now draw EK4839, whose quick fix writes the `match` wherever its arms test and give the same, with the chain's type.
@@ -329,6 +385,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - The Vue and Svelte guides said an excluded VibeLang test fails with ENOENT. They now show the project-include error and the glob that repairs it.
 - The Vue build guide omitted unresolved imports alongside vue-tsc's rewrite errors. It now identifies TS2307 for ./todos.vibe in runtime.ts and TodoBoard.vue.
 - The late diagnostic reference omitted statement, escaping-fiber and mapper guidance. It now explains EK1017, EK4838 and the editor-only EK9101 with their repairs.
+- Calling a program value whose type is an Effect intersected with other members, such as an Alchemy Worker (`Effect<Worker> & Named<...>`), reported `TS2349`. The call now runs the program, as it does for a plain `Effect`.
 - Compiling a project of several `.vibe` files with declarations on could stop with "fatal error: concurrent map read and map write", because the declaration files of different files were written in parallel over shared state. Each file now works from its own copy, and the compiler finishes.
 - An unfinished top-level `await` statement in a module, such as `export {}; await + f(const 0 await !x`, parsed its last tokens twice, into two overlapping statements. The parser now keeps one.
 - Formatting a file twice could indent a line again when the first format moved a statement onto a line of its own and the statement continued on the next line: a call's arguments, as in `{{0!\n("")}}`, a binary operator, as in `{{x\n+ y}}`, or a `%` operand. The first format now gives the final indentation.
@@ -403,8 +460,9 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
 - A `sync` or `try` hatch returning a scalar-or-Promise union can hand back
   an unresolved Promise despite a scalar result type; ordinary data with a
   non-callable `then` property can instead be treated as a Promise and crash.
-  Use an async callback for mixed returns, or the runtime hatch adapter
-  imported under an alias for data with a `then` field.
+  Use an async callback for mixed returns; for data with a `then` field,
+  call the runtime's `sync` from a `module` block, where it is an ordinary
+  function.
 - `try(evaluate, makeMapper(), input())` can run `input()` before
   `makeMapper()`. Evaluate the mapper and inputs into locals in written order
   before calling the hatch.
@@ -414,11 +472,6 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
 - `for concurrent(limit()) (const item of items())` can evaluate `items()`
   before `limit()`, even selecting an old collection and skipping work.
   Evaluate the limit into a local before the loop.
-- A call of a plain function that returns a program it was given, such as
-  `pick(load)` with `function pick(p: number!!) { return p }`, gives back
-  the program unrun instead of running it once, and the same call at a
-  module's top level compiles instead of failing with EK1001. Call the
-  result, `pick(load)()`, and drop that extra call once this is fixed.
 - A function with an Effect contract whose body compiles to plain
   JavaScript, such as `function twice(n: number): number!! { return n * 2 }`
   or `(x): number!! => x + 1`, is accepted where only a plain function fits:
@@ -460,11 +513,6 @@ These bugs were found and confirmed and are being fixed; please don't re-report 
   cleanup waits for another child's cleanup: children are interrupted one at
   a time. Avoid dependencies between sibling finalizers; when managing fibers
   explicitly, `Fiber.interruptAll` signals them together.
-- Holding `const p: number[]!! = await.all items` can iterate `items` while
-  constructing the program and reuse that snapshot on every run. The same
-  issue affects `await.allSettled`, `await.race` and `await.any`. Wrap the
-  whole await expression in a block program so it is constructed afresh per run
-  (see Known design issues).
 - `using` looks up `Symbol.dispose` or `Symbol.asyncDispose` again at cleanup
   time. Replacing the method, or using a getter that returns different methods,
   can run the wrong disposer. Keep the disposal method stable for the lifetime
@@ -667,33 +715,6 @@ listed with an upgrade step.
   `main.vibe.state.js`, so `module State` and `module state` in one file are
   EK4408, unlike two bindings. Today, use names that differ by more than case.
 
-- **An open error family does not get exhaustive matching.** Covering the
-  subclasses you know does not close a base family; a match without `default`
-  can compile and turn an unhandled expected error into a `TypeError` defect.
-  An empty typed error channel does not rule out defects. Today, add a
-  base-family arm or `default: throw e` to rethrow unmatched errors, or expose
-  an explicit closed union when exhaustive recovery is required.
-
-  ```vibe
-  // fragment
-  try { work() } catch (e) { return match (e) {
-    when KnownError: 1; // another subclass of the family can arrive
-  } }
-  ```
-
-- **Extracting a callback type alias changes what callbacks are accepted.**
-  An inline function type without a contract gains effect polymorphism;
-  an alias of the same TypeScript type stays plain and can reject a callback
-  that pauses or needs a service. Today, write the callback's `A!E!R` contract
-  explicitly in reusable types and keep synchronous callbacks plain.
-
-  ```vibe
-  // fragment
-  type Fn = (n: number) => number
-  function inline(f: (n: number) => number) { return f(1) }
-  function aliased(f: Fn) { return f(1) } // different callback contract
-  ```
-
 - **A generic return type can decide whether a result runs.** Calls whose
   instantiated return type is Effect run their result, while mixed unions
   and structured Effect subtypes can remain data; an optional call has its
@@ -706,21 +727,6 @@ listed with an upgrade step.
   // fragment
   declare function identity<T>(value: T): T
   identity(savedProgram) // instantiated Effect result can run
-  ```
-
-- **An aliased hatch can pass different arguments from a direct hatch.**
-  Direct `sync`/`try` calls use types to choose signal injection and mapper
-  positions; their first-class runtime values cannot see those types. An
-  optional numeric parameter can receive an AbortSignal through an alias.
-  Today, use direct hatch syntax with explicit inputs and a callback whose
-  parameters unambiguously accept them; declare a signal parameter only when
-  intended, and keep `try`'s mapper explicitly second.
-
-  ```vibe
-  // fragment
-  sync(nativeAsyncWithOptionalNumber, 1) // optional number stays undefined
-  const h = sync
-  h(nativeAsyncWithOptionalNumber, 1) // optional number can get a signal
   ```
 
 - **A plain return annotation changes foreign-call failure handling.**
@@ -875,27 +881,9 @@ listed with an upgrade step.
   `5`; under the specification it succeeds with the promise itself. Write the
   function `async` when you mean to wait, which both treat the same way.
 
-- **The specification makes an await element of type `Fiber` or `Deferred` an
-  error; the compiler accepts it.** Today `await.all [f]` waits for a fiber
-  without restarting it, and a Deferred element waits for its value. The
-  specification makes these EK4609 and EK4610. Write `join f` and `d.await()`
-  as the elements, which both treat the same way.
-
-- **The specification rejects a `match` without `default` over an open subject
-  at compile time; the compiler throws when it runs.** Over a non-literal
-  `string`, `unknown`, `any`, a type parameter, a class that is not closed or
-  an open error family's base, a match that no arm fits throws a `TypeError`
-  today. Under the specification it is EK4701. Write a `default` arm, which
-  both accept.
-
 - **The specification makes EK9100 an error that no setting lowers; the
   compiler warns in the editor only and a project can set it.** Write the type
   it asks for, which both accept.
-
-- **The specification reads `fork(x)` and `join(x)` as `fork x` and `join x`;
-  the compiler reads them as calls.** Today `join(f)` is TS2304 and
-  `fork(work())` passes a fiber to a call, which EK4838 rejects. Write the
-  keyword forms, `fork work()` and `join f`, which both treat the same way.
 
 ### Known limitations
 

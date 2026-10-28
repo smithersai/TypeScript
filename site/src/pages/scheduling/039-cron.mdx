@@ -73,10 +73,10 @@ function preview() {
 ```vibe
 function runApplication() {
   const rule = Effect.fromResult(Cron.parse("*/10 * * * *", "UTC"))
-  const reports = fork(() => Effect.schedule(
+  const reports = fork Effect.schedule(
     () => Console.log("report tick"),
     Schedule.cron(rule)
-  ))
+  )
 
   sleep("30 seconds") // Stand-in for the application's active lifetime.
   reports.interrupt()
