@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -372,8 +373,11 @@ func migrationRuleDeclarations(t *testing.T, dir string, codes []int32) map[stri
 		}
 	}
 	out := map[string]string{}
+	var mutex sync.Mutex // a program's files emit in parallel
 	program.Emit(t.Context(), compiler.EmitOptions{WriteFile: func(name tspath.RootedFilePath, text string, _ *compiler.WriteFileData) error {
 		if strings.HasSuffix(name.AsString(), ".d.ts") {
+			mutex.Lock()
+			defer mutex.Unlock()
 			out[filepath.Base(name.AsString())] = text
 		}
 		return nil

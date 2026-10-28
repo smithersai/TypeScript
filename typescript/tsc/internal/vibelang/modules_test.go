@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/microsoft/TypeScript/tsc/internal/bundled"
@@ -133,7 +134,10 @@ func TestModuleDeclarationSourceMap(t *testing.T) {
 		}
 		program := compiler.NewProgram(compiler.ProgramOptions{Config: config, Host: compiler.NewCompilerHost(fileSystem, bundled.LibPath(), nil, nil, nil)})
 		outputs := map[string]string{}
+		var mutex sync.Mutex // a program's files emit in parallel
 		result := program.Emit(t.Context(), compiler.EmitOptions{WriteFile: func(name tspath.RootedFilePath, text string, _ *compiler.WriteFileData) error {
+			mutex.Lock()
+			defer mutex.Unlock()
 			outputs[filepath.Base(string(name))] = text
 			return nil
 		}})
