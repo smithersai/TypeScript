@@ -59,7 +59,7 @@ configuration.
 The starter pins `effect`, `@effect/platform-node`, and `@effect/vitest` to
 4.0.6, and Vitest to 5.0.5. The runtime checks Effect's version on load. The
 compiler is the TypeScript 7.1 checker, with ordinary TypeScript semantics for
-`.ts` files (D30), and emits ordinary `.d.ts` declarations, which import the runtime's `AsData` type where a signature needs it (D426), a `.ts` source's included.
+`.ts` files (D30), and emits ordinary `.d.ts` declarations, a `.ts` source's included, which need no VibeLang type to keep a call's reading (D458).
 
 `vibelang` accepts TypeScript compiler flags: bare `vibelang` checks and emits,
 `--noEmit` checks, `--watch` watches, and `-b` builds references. The same

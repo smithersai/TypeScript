@@ -184,11 +184,10 @@ against it may rely on [Rule] (D366).
    the same producer value a VibeLang caller receives: a TypeScript consumer
    pulls it through the adapter, and a VibeLang consumer of the declaration
    that iterates it with `for...of` runs it on the loop's fiber, as a source
-   consumer does (Chapter 10, D402). Where declaration emit writes a
-   signature from an inferred type, and rule R reads a call of it as data in
-   the source while the type it writes is definitely an Effect, it writes
-   that return type as `AsData<T>`, so the consumer's call returns data too
-   (Chapter 13, D426).
+   consumer does (Chapter 10, D402). Declaration emit writes a signature
+   from an inferred type as TypeScript infers it, which is the type rule R
+   reads in the source, so the consumer's call runs or returns data as the
+   source's does, with no alias (Chapter 13, D458).
 2. **More conservative, never different.** A declaration cannot prove what a
    body does: that a plain function never throws, or that a function whose R
    names a control operation never moves it to another fiber. A consumer that
@@ -259,7 +258,7 @@ generic callbacks, services and providers, data variants, and error families,
 and, for the rules the third review added, an Effect-annotated and an eligible
 unannotated function passed to `map`, a contextually typed `(x) => x.run()`,
 a class with plain methods, and exported compositions and extracted methods
-(D421, D422, D426, D431).
+(D421, D422, D431, D458).
 
 Services emit as runtime key classes with the identifier and shape that
 Chapter 4 defines (D361), so ordinary TypeScript can provide the service and

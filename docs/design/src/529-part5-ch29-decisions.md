@@ -335,7 +335,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D375 | D310-D313 are decided; the platform import is D312's final form | The review of 2026-10-27 |  | 11 |
 | D376 | A block after a call is always its last argument; a block after a dual is TypeScript's error with a note; a next-line block after a statement that ends in a name or a call is EK1022 | Placement by the callee's type broke the rule that call-site syntax decides |  | 5, 13, 28 |
 | D377 | Every literal element of an await operation is deferred by syntax; an element's value, not its type, decides whether it runs or is waited for | D196 read fibers and Deferreds from types | Amended by D394 | 7, 13 |
-| D378 | A call runs when its callee's declared return type, read before instantiation, is definitely an Effect: decision 5's static rule; `identity(program)` returns data | A TypeScript developer expects `identity(x)` to hand back `x`; no inference-driven timing | Amended by D393 | 13, 30 |
+| D378 | A call runs when its callee's declared return type, read before instantiation, is definitely an Effect: decision 5's static rule; `identity(program)` returns data | A TypeScript developer expects `identity(x)` to hand back `x`; no inference-driven timing | Amended by D393, D458 | 13, 30 |
 | D379 | The return boundary's S22-3 and S5-1 are removed: returning an Effect value never runs it; `return p()` | A contract's A decided whether a returned Effect ran |  | 13 |
 | D380 | A function literal prefers the candidate that takes it as a function; opposed preferences are EK1021 | A lambda stays a lambda, as a TypeScript reader expects | Amended by D392 | 13 |
 | D381 | A program is a function with no required parameters | The compiler's zero-required-input rule |  | 13 |
@@ -350,7 +350,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D390 | A factory has no VibeLang form: TypeScript, a `module` declaration, or a plain function returning a function | Every candidate made a type decide when code runs |  | 5, 10 |
 | D391 | `fork` and `join` are contextual keywords: `fork(e)` is the keyword with a parenthesized operand unless `fork` resolves to a binding the program declares; the await operations take a parenthesized operand too | Parentheses must not turn a deferred operand into a running call; recognition by binding (rule H) | Amended by D432, D443, D452 | 7, 13 |
 | D392 | A function argument takes its own form, plain or Effect, and the order of overloads never chooses it; overloads resolve as TypeScript would, lifting only when no candidate accepts the own form; EK1021 for disagreement | Overload order decided whether a TypeScript API received a plain function or a cold program | Amended by D421, D422, D450, D457 | 2, 13, 27, 28 |
-| D393 | Rule R reads every type parameter in scope uninstantiated; no subtype of `Effect` is definitely an Effect | "Before instantiation" did not say which type parameters | Amended by D426, D435, D449 | 13 |
+| D393 | Rule R reads every type parameter in scope uninstantiated; no subtype of `Effect` is definitely an Effect | "Before instantiation" did not say which type parameters | Amended by D426, D435, D449, D458 | 13 |
 | D394 | An await operation adopts nothing at run time: literal elements are programs by syntax, non-literal operands are typed; EK4613 | `isEffect` is true for `Exit`, `Config`, errors, and keys | Amended by D433 | 7, 13, 28 |
 | D395 | A destination's `null` and `undefined` are ignored; "an Effect" is rule R's; a call whose value is a program is not EK1018 | The function-values table was not total |  | 13, 28 |
 | D396 | A hatch's first argument is a function literal or a single expression, by syntax; EK4411 | "A function" was undefined | Amended by D432 | 10, 28 |
@@ -383,7 +383,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D423 | Only a literal converts element by element; a spread writes the traversal | A parameter type made a call drain an iterable | Amended by D453 | 5, 13, 27, Appendices |
 | D424 | JavaScript's own `for...of` needs the combining close helper; no entry check | A late `return()` and an extra lookup escaped the check |  | 8, 17, 26 |
 | D425 | `using` holds interruption off unless its value can only be a primitive | A `Disposable` typed `object` was unmasked | Amended by D451 | 6, 13, 26 |
-| D426 | Declaration emit keeps a call's data provenance with `AsData<T>` | An exported `compose` result ran from declarations | Amended by D449 | 10, 13, 26, 27, Appendices |
+| D426 | Declaration emit keeps a call's data provenance with `AsData<T>` | An exported `compose` result ran from declarations | Superseded by D458 | 10, 13, 26, 27, Appendices |
 | D427 | Two installed copies of one package version are one type and two classes; a class arm needs one copy | A private brand did not separate copies |  | 3, 14, 26, 28 |
 | D428 | A class arm covers only what its test is guaranteed to accept | An arm over an open class counted as total |  | 3, 28 |
 | D429 | Four stale statements follow their rules | Chapters 1, 2, 4, and 24 contradicted rules in force |  | 1, 2, 4, 24 |
@@ -406,7 +406,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D446 | A plain function's plain form is reached through its hoisted declaration before its module's body runs; an Effect-contract function's variant falls back to the current fiber | D442 ran a program at a module's top level, where no fiber runs, and passed an Effect form to `map` |  | 13, 15, 26, 27, 30 |
 | D447 | The list of places a type decides says that a function value's form decides what the receiver's call of it does | The list denied a difference rule F makes |  | 13 |
 | D448 | A `const` or import alias that names a function keeps its own form; any other function value takes its type's form, read as rule R reads a call of it | `const g = double` had one form from source and another from declarations |  | 13, 14, Appendices |
-| D449 | Rule R reads a type parameter by who declares it: a class's, an interface's, or an alias's uninstantiated, a function's as the completed call that returned the signature bound it | `Effect.fn(name)(body, pipeline)` functions returned their Effect as data |  | 10, 13, 26, 30, Appendices |
+| D449 | Rule R reads a type parameter by who declares it: a class's, an interface's, or an alias's uninstantiated, a function's as the completed call that returned the signature bound it | `Effect.fn(name)(body, pipeline)` functions returned their Effect as data | Amended by D458 | 10, 13, 26, 30, Appendices |
 | D450 | A literal's own form is read once, with the parameter types TypeScript assigns; EK1021 where candidates would type it differently and take different forms | TypeScript never types a literal per candidate | Amended by D457 | 13, 27, 28, 30, Appendices |
 | D451 | `using`'s mask records the interruptibility it replaced, and the runtime's interruptible acquisitions run with it | Effect's `restore` is the identity under an outer mask |  | 6, 21, 24, 26, 30 |
 | D452 | `fork(x)`, `join(x)`, and `await.all(x)` are calls in shape; a runtime namespace member of a keyword or hatch is EK4410 | `fork(x).y` had two parse trees |  | 7, 10, 13, 28, 30, Appendices |
@@ -415,6 +415,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D455 | EK2130, EK2128, EK4838, and EK1001 cover what their rules meant | Silent shadowing, a continuation moved by `fork`, a fiber bound through a conditional, two codes for one failure |  | 7, 9, 16, 28, 30 |
 | D456 | Statements that contradicted rules or facts | Appendix C and Chapters 3, 10, 12, 13, 15, 24, 27, 28, and 30 |  | 3, 10, 12, 13, 15, 24, 27, 28, 30, Appendices |
 | D457 | Candidates that accept a call's other arguments must type each function literal they reach alike; EK1021 otherwise, whatever forms their destinations accept | Destinations that accept both forms let overload order pick a callback's form |  | 13, 27, 28, 30 |
+| D458 | Rule R reads a type parameter as TypeScript shows it for the call, except one the callee's own signature declares; `AsData<T>` is withdrawn | An alias, an interface, or a class ran differently from the same type written inline |  | 10, 13, 26, 27, 28, 30, Appendices |
 
 #### Rules of the runtime and compiler
 
