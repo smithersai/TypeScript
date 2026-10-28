@@ -1483,6 +1483,26 @@ Language server, `scripts/bench/lsp.mjs` on the chain shape (open the last modul
 
 **The fix:** `isPlainFunction` (plain.go) explored the transitive closure of a function's callees before deciding, even when the function's own body ruled it out, such as a `provide` block or a `throw` outside a `try`. The CLI pays that once per program, but the language server's checkers start empty, so the first hover in a module walked every function the call graph reached, through each module's `run` into the one before it. It now stops at a body that rules itself out and stops walking a body at the first call that rules it out; verdicts are unchanged. `TestPlainFunctionStopsAtItsOwnBody` pins it: deciding the last of 50 throwing functions decides only that one (before the fix, all 50). What remains of the first-diagnostics gap is parsing the effect root's declaration files (55% of the server's CPU in a 400-module session).
 
+### Cold start through the loaders
+
+`scripts/bench/register.mjs` measures what `vibelang/register` spends compiling when a program loads `.vibe` modules from many workspace packages, each with its own `tsconfig.json`, and nothing is cached yet:
+
+```sh
+sh scripts/build-vibelang.sh
+node scripts/bench/register.mjs --runs 3
+```
+
+It writes 12 packages of 24 `.vibe` modules, each beside an Effect TypeScript module, where each package calls the one below it through its package name, and times one `vibelang -p --noEmit` of the top package (`check`, every package checked once), a one-module package's compile (`start`), and `node --import vibelang/register` with an empty cache (`cold`) and again with that cache (`warm`). It fails when (cold - warm - 12 * start) / (check - start), the hook's compile time in checks of the workspace, exceeds 4.5.
+
+Measured 2026-10-28 on the build server under a load of 22 to 33 (medians of 3 runs, two rounds each):
+
+| | cold | warm | ratio |
+| --- | ---: | ---: | ---: |
+| `main` at `cf8cede6` | 9.9 to 10.3 s | 1.0 to 1.1 s | 7.0 to 8.0 |
+| A loader's compile checks only its own files | 6.2 to 6.3 s | 1.1 s | 2.4 to 2.8 |
+
+A compile that checked the source of every package its program imports checked the top package's whole chain, then the chain below it, and so on: about 6.5 checks of the workspace at 12 packages. Each compile now checks its own files, and still parses and binds every package below it for their types, so the ratio keeps growing slowly with the depth of the package graph. In the Smithers migration that reported it, a program that loads 22 workspace packages took 29 to 43 s to start cold on the build server, against 10 s without VibeLang, and 20 to 25 s after the fix. The compiler's own time for its 22 projects fell from 24 s to 12 s, which splits into about 5 s parsing, 4 s checking, 2 s binding and 1 s emitting. Sharing parsed declaration files across a process's compiles, as `vibelang -b` does, is what remains.
+
 Region lowering preserves the enclosing function's `arguments`, including through `using`, block-owned forks and lowered arrows (case `arguments-through-regions`). The LSP smoke suite verifies `serverInfo.name === "vibelang"` and the compiler version.
 
 ## What it cannot do yet

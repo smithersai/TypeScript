@@ -240,6 +240,7 @@ Effect 4.0.6 defect-precedence and interruption migration.
 - A missing package-manager executable could produce an unhelpful spawn error. The starter now names the missing executable.
 - The starter's next-step `cd` command could break on spaces or shell characters. It now quotes the directory path.
 - An npm-created project's README could tell you to run Bun commands. It now uses the selected package manager.
+- A program that loads `.vibe` modules from many workspace packages through `vibelang/register`, `vibelang/bun` or a bundler plugin was slow to start with an empty cache: each package's compile type-checked the sources of every workspace package it imports, so a package was checked again for each package that imports it, and a 22-package program took 30 to 40 s to start, against 10 s without VibeLang. Each compile now checks only its own project's files, and the packages it imports only supply types to it, so that program starts in 20 to 25 s. A type error in an imported package's file now stops the import of that package's `.vibe` modules instead of the importer's.
 
 #### Docs
 

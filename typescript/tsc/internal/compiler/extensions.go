@@ -7,6 +7,7 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 	"github.com/microsoft/TypeScript/tsc/internal/transformers"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
 // ScriptTransformerHook returns a transformer for sourceFile, or nil to leave
@@ -120,4 +121,25 @@ func RegisterEmbeddedModuleScriptHook(hook EmbeddedModuleScriptHook) {
 
 func embeddedModuleEmitsScript(resolver printer.EmitResolver, options *core.CompilerOptions, module *ast.SourceFile) bool {
 	return embeddedModuleScriptHook == nil || embeddedModuleScriptHook(resolver, options, module)
+}
+
+var loaderRoot string
+
+// SetLoaderRoot makes every program type-check and emit only the files under
+// root, an absolute directory, for a module loader's compile: vibelang
+// --loader-root, which packages/compiler/project.mjs passes. A loader serves
+// only the JavaScript of the modules under its project's directory, and
+// compiles a module of another workspace package with that package's own
+// project, so the program's other files, such as the sources of the workspace
+// packages it imports, only supply types. An empty root checks and emits every
+// file. Call it from the command's entry point before compiling; it is not
+// synchronized.
+func SetLoaderRoot(root string) {
+	loaderRoot = root
+}
+
+// outsideLoaderRoot reports whether a loader's compile leaves file unchecked
+// and unemitted.
+func outsideLoaderRoot(file *ast.SourceFile, caseSensitivity tspath.CaseSensitivity) bool {
+	return loaderRoot != "" && !tspath.ContainsPath(loaderRoot, string(file.FileName()), caseSensitivity)
 }

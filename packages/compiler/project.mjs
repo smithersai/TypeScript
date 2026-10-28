@@ -164,11 +164,15 @@ export function formatDiagnostic(diagnostic) {
 // The compile emits from the filesystem root, not from root: a project may
 // hold sources above its directory, as a test project whose tsconfig sets
 // rootDir to the repository does, and a narrower --rootDir than the project's
-// own fails it with TS6059. Only root's .vibe outputs are collected.
+// own fails it with TS6059. Only root's .vibe outputs are collected, so
+// --loader-root checks and emits only the files under root: the sources of
+// another workspace package the project imports only supply types, and are
+// checked by that package's own compile.
 const emitRoot = (root) => parse(resolve(root)).root
 
 const emitArgs = (project, root, out) => [
-  "--project", project, "--pretty", "false", "--listFiles", "true", "--rootDir", emitRoot(root),
+  "--project", project, "--loader-root", resolve(root),
+  "--pretty", "false", "--listFiles", "true", "--rootDir", emitRoot(root),
   "--outDir", out, "--sourceMap", "true", "--inlineSources", "true",
   "--inlineSourceMap", "false", "--sourceRoot", slash(emitRoot(root)).replace(/\/?$/, "/"), "--declaration", "false", "--declarationMap", "false",
   "--noEmit", "false", "--emitDeclarationOnly", "false", "--noEmitOnError", "true",

@@ -149,7 +149,9 @@ a source, a tsconfig, an installed package, or the compiler changes. Set
 `VIBELANG_CACHE_DIR` to move the cache and `VIBELANG_DISABLE_CACHE=1` to turn it
 off, and `VIBELANG_REGISTER_DEBUG=1` to print how long each project's compile
 took, stage by stage. A type error stops the import with the compiler's
-diagnostics, and a stack trace names `.vibe` lines.
+diagnostics, and a stack trace names `.vibe` lines. A workspace package the
+project imports as source is checked by that package's own compile, when one of
+its `.vibe` modules loads.
 
 ## Run sources with Bun
 

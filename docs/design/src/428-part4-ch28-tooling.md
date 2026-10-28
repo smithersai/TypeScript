@@ -108,6 +108,8 @@ only `.vibe` sources; imported `.ts` integrations join the program too.
 
 A `.vibe` file that belongs to another package, such as a workspace package a project imports as source, compiles with that package's own VibeLang settings, its trusted packages and diagnostic categories, as its own build would compile it (D297).
 
+A loader's compile, for `vibelang/register`, `vibelang/bun`, or a bundler plugin, type-checks and emits only the files under its project's directory (`vibelang --loader-root`). Another workspace package's source in that program supplies types, and that package's own compile checks it, so a cold start checks each package once instead of once for each package that imports it.
+
 The starter tests source files through the Vite plugin:
 
 ```ts ts

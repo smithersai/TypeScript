@@ -67,7 +67,10 @@ node --import vibelang/register src/main.ts
 TypeScript entry point, a script, or a test that spawns `node` needs no `dist/`.
 The first `.vibe` import compiles the whole project in the nearest
 `tsconfig.json` above the module, once per process; every `.vibe` module of that
-project comes from that compile. Set `VIBELANG_PROJECT` to a tsconfig path to
+project comes from that compile. The compile type-checks the project's own
+files, those under its directory. A workspace package the project imports as
+source only supplies types to it; that package's own compile checks it when
+one of its `.vibe` modules loads. Set `VIBELANG_PROJECT` to a tsconfig path to
 choose another project, such as `tsconfig.test.json` for an example beside a
 library; it compiles the modules in its directory, and a module of another
 workspace package, such as a dependency linked to its source, still compiles
@@ -152,7 +155,9 @@ the module's JavaScript, its source map, and its project's diagnostics, for a
 `main.vibe.text.js` beside `main.vibe`, which `moduleDeclarationSource(path)`
 recognizes;
 `invalidate()` makes every project compile again on its next load, or load from
-the cache when nothing changed. `compileProjectSync`, `projectBackend`, and
+the cache when nothing changed. A compile runs `vibelang -p <tsconfig>
+--loader-root <root>`, which type-checks and emits only the files under `root`,
+the modules it serves. `compileProjectSync`, `projectBackend`, and
 `projects` take `cache: false` to turn the cache off, or `cache: { directory }`
 to move it.
 

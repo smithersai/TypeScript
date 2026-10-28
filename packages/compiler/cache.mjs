@@ -26,8 +26,9 @@ import { createRequire } from "node:module"
 import { tmpdir, userInfo } from "node:os"
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path"
 
-// Bump when an entry's shape or meaning changes.
-const format = 1
+// Bump when an entry's shape or meaning changes. 2: a compile checks only
+// its project's own files (vibelang --loader-root).
+const format = 2
 const version = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version
 
 // A file whose timestamp is this close to a compile's start may have changed

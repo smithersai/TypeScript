@@ -884,6 +884,7 @@ func (p *Program) GetIncludeProcessorDiagnostics(sourceFile *ast.SourceFile) []*
 
 func (p *Program) SkipTypeChecking(sourceFile *ast.SourceFile, ignoreNoCheck bool) bool {
 	return (!ignoreNoCheck && p.Options().NoCheck.IsTrue()) ||
+		outsideLoaderRoot(sourceFile, p.caseSensitivity) ||
 		p.Options().SkipLibCheck.IsTrue() && sourceFile.IsDeclarationFile ||
 		p.Options().SkipDefaultLibCheck.IsTrue() && p.IsSourceFileDefaultLibrary(sourceFile.PathKey()) ||
 		p.IsSourceFromProjectReference(sourceFile.PathKey()) ||
@@ -1934,6 +1935,10 @@ func (p *Program) Emit(ctx context.Context, options EmitOptions) *EmitResult {
 	forceDtsEmit := options.EmitOnly == EmitOnlyBuilderSignature || options.ForceEmit && options.EmitOnly == EmitOnlyDts
 	forceJsEmit := options.ForceEmit && options.EmitOnly == EmitOnlyJs
 	sourceFiles := p.getSourceFilesToEmit(options.TargetSourceFiles, forceDtsEmit, forceJsEmit)
+	if loaderRoot != "" {
+		// VibeLang: a module loader's compile emits only the modules it serves (SetLoaderRoot).
+		sourceFiles = core.Filter(sourceFiles, func(file *ast.SourceFile) bool { return !outsideLoaderRoot(file, p.caseSensitivity) })
+	}
 
 	for _, sourceFile := range sourceFiles {
 		emitter := &emitter{

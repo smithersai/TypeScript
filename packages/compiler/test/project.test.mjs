@@ -175,6 +175,32 @@ test("a module outside root compiles with its own package's project, once per re
   assert.deepEqual(compiles().slice(2), [join(root, "dep/tsconfig.json")], "a new revision compiles only the project asked for")
 })
 
+test("a project's compile checks its own files; an imported workspace package's source only supplies types", { skip }, async (t) => {
+  // Each module holds one warning (EK2004), which a check of that module reports.
+  // Checking every imported package in each project's compile checked a
+  // package once per project that imports it.
+  const { root, app, compiler, compiles } = workspace(t)
+  const unreachable = (name) => `export function ${name}(): number {\n  try { return 1 } catch (e) { return 2 }\n}\n`
+  for (const [path, text] of Object.entries({
+    "dep/src/lib.vibe": unreachable("fromLib") + "export function shout(text: string): string { return text.toUpperCase() }\n",
+    "app/src/main.vibe": "import { shout } from \"../../dep/src/lib.vibe\"\n" + unreachable("fromMain") + "export const fromApp: string = shout(\"app\")\n"
+  })) {
+    writeFileSync(join(root, path), text)
+    utimesSync(join(root, path), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000))
+  }
+  const compile = (dir) => projectBackend({ root: dir, compiler, cache: false }).compile(join(dir, "tsconfig.json"))
+  const warnings = (result) => result.warnings.map(({ file, code }) => [file, code])
+  const main = await compile(app)
+  assert.deepEqual(main.errors, [])
+  assert.deepEqual(warnings(main), [[join(app, "src/main.vibe"), "EK2004"]])
+  assert.match(main.outputs.get(join(app, "src/main.vibe")).code, /shout\("app"\)/)
+  assert.ok(main.inputs.includes(join(root, "dep/src/lib.vibe")), "the package's source still supplies its types")
+  const lib = await compile(join(root, "dep"))
+  assert.deepEqual(lib.errors, [])
+  assert.deepEqual(warnings(lib), [[join(root, "dep/src/lib.vibe"), "EK2004"]])
+  assert.deepEqual(compiles(), [join(app, "tsconfig.json"), join(root, "dep/tsconfig.json")])
+})
+
 test("a module of a package nested inside root compiles with that package's own project", { skip }, async (t) => {
   const { app, compiler, compiles } = workspace(t)
   const modules = projects({ root: app, project: join(app, "tsconfig.json"), compiler, cache: false })

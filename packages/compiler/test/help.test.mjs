@@ -22,6 +22,7 @@ for (const args of [["--help"], ["--help", "--all"]]) {
       ["stdio", /Use standard input and output/],
       ["estree", /Parse.*stdin.*ESTree JSON/],
       ["write-dprint-plugin", /Write the dprint process plugin/],
+      ["loader-root", /Type-check and emit only the files under a directory, as a module loader's compile does/],
       ["vibelang", /Configure diagnostics, tracing and trusted packages in tsconfig.json/]
     ]) {
       const section = sections.find((text) => new RegExp(`^\\s*--${flag}\\b`).test(text))

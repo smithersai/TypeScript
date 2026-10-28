@@ -247,9 +247,13 @@ test("a changed dependency recompiles: its types decide the emitted code", { ski
 })
 
 test("a changed tsconfig of a workspace package whose .vibe source the project reads recompiles", { skip }, async (t) => {
-  // The checker checks the package's .vibe source with the package's own
-  // settings (D297), so its tsconfig decides this project's compile too.
-  const { root, app, run, compiles } = await fixture(t, { "src/greet.ts": "export { greeting } from \"@acme/dep\"\n" })
+  // The package's .vibe source supplies types to this project's compile with
+  // the package's own settings (D297), so its tsconfig decides this compile
+  // too. The package's own compile checks that source.
+  const { root, app, run, compiles } = await fixture(t, {
+    "src/greet.ts": "export { greeting } from \"@acme/dep\"\n",
+    "src/greet-main.ts": "import { Effect } from \"effect\"\nimport { greeting } from \"./greet.ts\"\nconsole.log(Effect.runSync(greeting()))\n"
+  })
   write(root, {
     "dep/package.json": JSON.stringify({ name: "@acme/dep", type: "module", exports: { ".": "./src/greeting.vibe" } }),
     "dep/tsconfig.json": tsconfig({ vibelang: { trustedPackages: ["@acme/dep"] } }),
@@ -265,10 +269,13 @@ test("a changed tsconfig of a workspace package whose .vibe source the project r
   writeFileSync(join(root, "dep/tsconfig.json"), tsconfig())
   await settle()
   const result = run()
-  assert.notEqual(result.status, 0, "a cached compile would hide the untrusted call")
-  assert.match(result.stderr, /dep\/tsconfig\.json changed/)
-  assert.match(result.stderr, /greeting\.vibe:4:\d+ - error EK4401/)
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stderr, /app\/tsconfig\.json in \d+ms \(.*dep\/tsconfig\.json changed\)/)
   assert.equal(compiles(), 2)
+  const loaded = run("src/greet-main.ts")
+  assert.notEqual(loaded.status, 0, "a cached compile would hide the untrusted call")
+  assert.match(loaded.stderr, /greeting\.vibe:4:\d+ - error EK4401/)
+  assert.equal(compiles(), 3, "the package's module compiles with the package's own project")
 })
 
 test("a different or rebuilt compiler recompiles", { skip }, async (t) => {

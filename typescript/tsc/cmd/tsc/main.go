@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/microsoft/TypeScript/tsc/internal/compiler"
 	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/execute"
 	"github.com/microsoft/TypeScript/tsc/internal/osutil"
@@ -38,6 +40,11 @@ func runMain() int {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	sys := newSystem()
+	args, loaderRoot, err := vibelang.LoaderRootArguments(args, sys.GetCurrentDirectory())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "vibelang:", err)
+		return 1
+	}
 	if rest, fix := vibelang.FixArguments(args); fix {
 		rest, options := vibelang.FixOptionsArguments(rest)
 		// vibelang --fix applies the safe quick fixes, then compiles (D291).
@@ -46,6 +53,8 @@ func runMain() int {
 		}
 		args = rest
 	}
+	// After --fix, whose own compile checks the whole project.
+	compiler.SetLoaderRoot(loaderRoot)
 	result := execute.CommandLine(ctx, sys, args, nil)
 	return int(result.Status)
 }
