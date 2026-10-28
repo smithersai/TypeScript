@@ -1,5 +1,6 @@
 import { Cause, Context, Deferred, Effect, Exit, Fiber, Scope } from "effect"
 import * as Runtime from "vibelang-runtime"
+import { catchExpected } from "vibelang-runtime/kernel"
 
 type Reason = { tag: "Fail" | "Die" | "Interrupt"; value: number }
 type Release = { label: number; reason: "success" | "Fail" | "Die"; value: number }
@@ -51,7 +52,7 @@ export function programArbitrary(fc: typeof import("fast-check")) {
     .program as import("fast-check").Arbitrary<Program>
 }
 
-function runtime(program: Program, trace: Trace, catchExpected: typeof Runtime.$catch): Run {
+function runtime(program: Program, trace: Trace): Run {
   const visit = (p: Program): Run => Effect.suspend(() => {
     switch (p.op) {
       case "success": return Effect.succeed(p.value)
@@ -154,15 +155,12 @@ function observation(exit: Exit.Exit<unknown, unknown>, trace: Trace) {
 
 export async function runProgram(program: Program, engine: "runtime" | "effect") {
   const trace: Trace = []
-  // Load the kernel after the public CommonJS bridge: Bun 1.4.1 races their version-guard imports.
-  const { catchExpected } = await import("vibelang-runtime/kernel")
-  const effect = engine === "runtime" ? runtime(program, trace, catchExpected) : reference(program, trace)
+  const effect = engine === "runtime" ? runtime(program, trace) : reference(program, trace)
   return observation(await Effect.runPromiseExit(Effect.provideService(effect, Value, 0)), trace)
 }
 
 export async function runInterrupted(input: { body: Program; masked: boolean }, engine: "runtime" | "effect") {
   const trace: Trace = []
-  const { catchExpected } = await import("vibelang-runtime/kernel")
   const exit = await Effect.runPromise(Effect.gen(function*() {
     const entered = yield* Deferred.make<void>()
     const gate = yield* Deferred.make<void>()
@@ -170,7 +168,7 @@ export async function runInterrupted(input: { body: Program; masked: boolean }, 
       yield* Deferred.succeed(entered, undefined)
       yield* Deferred.await(gate)
       trace.push("past-gate")
-      return yield* (engine === "runtime" ? runtime(input.body, trace, catchExpected) : reference(input.body, trace, previous))
+      return yield* (engine === "runtime" ? runtime(input.body, trace) : reference(input.body, trace, previous))
     })
     const masked = input.masked ? engine === "runtime" ? Runtime.uninterruptible(body()) : Effect.uninterruptibleMask(previous => body(previous)) : body()
     const cleanup = Effect.andThen(Effect.yieldNow, Effect.sync(() => { trace.push("interrupted-finalizer") }))

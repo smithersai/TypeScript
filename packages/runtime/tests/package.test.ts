@@ -22,6 +22,28 @@ const fixture = (version: string) => {
   return dir
 }
 
+for (const kernelFirst of [false, true]) {
+  test(`package: static runtime and kernel imports (${kernelFirst ? "kernel first" : "runtime first"})`, () => {
+    const dir = fixture("4.0.6")
+    try {
+      const imports = [
+        'import { Effect, $bind } from "vibelang-runtime";',
+        'import { catchExpected } from "vibelang-runtime/kernel";'
+      ]
+      if (kernelFirst) imports.reverse()
+      writeFileSync(join(dir, "main.js"), imports.join("\n") + '\nconsole.log(Effect.runSync($bind(42)), typeof catchExpected)\n')
+      for (const executable of ["node", process.execPath]) {
+        const result = Bun.spawnSync([executable, "main.js"], { cwd: dir, timeout: 10_000 })
+        expect(result.stderr.toString()).toBe("")
+        expect(result.exitCode).toBe(0)
+        expect(result.stdout.toString().trim()).toBe("42 function")
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+}
+
 for (const version of ["4.0.6", "4.0.5", "4.0.7", "3.99.0"]) {
   test(`package: Node, Bun, and browser bundles check effect@${version}`, async () => {
     const dir = fixture(version)
@@ -55,6 +77,12 @@ for (const version of ["4.0.6", "4.0.5", "4.0.7", "3.99.0"]) {
     }
   }, 30_000)
 }
+
+test("package: the ES-module and CommonJS guards pin the same Effect version", () => {
+  const pin = (file: string) => readFileSync(join(packageDir, "src", file), "utf8").match(/PINNED_EFFECT_VERSION = "([0-9.]+)"/)?.[1]
+  expect(pin("version.ts")).toBeDefined()
+  expect(pin("version-guard.cts")).toBe(pin("version.ts"))
+})
 
 test("package: emitted declarations resolve and retain helper types", () => {
   const result = Bun.spawnSync(["bun", "x", "--no-install", "tsc", "-p", "tests/tsconfig.json"], {
