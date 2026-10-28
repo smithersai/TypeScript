@@ -1,4 +1,4 @@
-// expect: EK4838
+// expect: EK4613 EK4838
 import "vibelang/platform/node"
 export function main() {
   const f = fork sleep("1 minute")

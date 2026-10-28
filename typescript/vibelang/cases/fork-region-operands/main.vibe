@@ -8,11 +8,11 @@ function work(n: number) {
 export function main() {
   const f = fork work(1)
   const g = fork work(2)
-  const all = await.all [f, g]
-  const record = await.all { f, g }
-  const settled = await.allSettled [f, g]
+  const all = await.all [join f, join g]
+  const record = await.all { f: join f, g: join g }
+  const settled = await.allSettled [join f, join g]
   const raced = await.race [join f, do { sleep("1 second"); 0 }]
-  const any = await.any [f]
+  const any = await.any [join f]
   const waiter = fork (join f)
   const forked = join waiter
   const pending = fork sleep("1 minute")
