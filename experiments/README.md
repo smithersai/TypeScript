@@ -12,6 +12,8 @@ bun bench/perform.ts        # operation costs
 cd reference-machine && bun install && bun test   # independent strategy-B machine, ~17 s
 ```
 
+A watchdog (`scripts/test-watchdog.ts`, preloaded by `bunfig.toml`) ends a run when one test runs past `KERNEL_TEST_STALL_SECONDS` (120 by default, `0` turns it off) and prints the file, the test's position in it and its probable name. bun's per-test timeout can't stop a test that spins in synchronous code.
+
 | Path | Contents |
 | --- | --- |
 | `../packages/runtime/src/kernel/kernel.ts` | The continuation kernel: operations, evidence, `handle`, `perform`, `resume`, `resumeWith`, `abandon`, `transfer`, root `suspend` with bounded wake-ups, `handoff` |

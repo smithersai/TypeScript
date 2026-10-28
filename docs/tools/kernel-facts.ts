@@ -4,12 +4,16 @@ import { join, resolve } from "node:path"
 export function kernelFacts(): Record<string, string> {
   const repo = resolve(import.meta.dir, "../..")
   const experiments = join(repo, "experiments")
-  const suite = Bun.spawnSync(["bun", "test", "--timeout=30000"], { cwd: experiments, stdout: "pipe", stderr: "pipe" })
+  // The suite's watchdog ends a run that one test stalls; this deadline backs it up.
+  const deadline = 15 * 60 * 1000
+  const started = Date.now()
+  const suite = Bun.spawnSync(["bun", "test", "--timeout=30000"], { cwd: experiments, stdout: "pipe", stderr: "pipe", timeout: deadline })
   const suiteOutput = suite.stdout.toString() + suite.stderr.toString()
   const ran = /Ran (\d+) tests? across (\d+) files?/.exec(suiteOutput)
   const failed = /(\d+) fail/.exec(suiteOutput)
   if (suite.exitCode !== 0 || ran === null || failed === null || failed[1] !== "0") {
     console.error(suiteOutput.split("\n").slice(-30).join("\n"))
+    if (Date.now() - started >= deadline) throw new Error(`the kernel law suite in experiments/ ran past ${deadline / 60000} minutes; refusing to build the docs site`)
     throw new Error("the kernel law suite in experiments/ failed; refusing to build the docs site")
   }
   const lineCount = (path: string) => readFileSync(join(repo, path), "utf8").split("\n").length - 1
