@@ -27,7 +27,7 @@ service Users {
 - **A service is a key, not a base class.** `extends Users` (EK3002), `new Users()` (EK3003), `instanceof Users` (EK3004), and a generic service class (EK3005) are errors. Implement a service with an object literal or a class that `implements Users`, which checks the class against the service's shape.
 
 ```text
-error EK3002: a class cannot extend a service.
+error EK3002: A class cannot extend a service.
   users-memory.vibe:1:28   class UsersInMemory extends Users {
   Implement it instead:  class UsersInMemory implements Users { … }
 ```
@@ -281,7 +281,7 @@ error EK3101: UsersAudited.find looks up Audit each time it is called, but
   allows no call-time requirements.
   users-audited.vibe:5:7   Audit.record(`users.find ${id}`)
   Capture it once:      const audit = Audit()   …   audit.record(…)
-  or declare it:        abstract find(id: string): Effect<User, UserNotFound, Audit>
+  Or declare it:        abstract find(id: string): Effect<User, UserNotFound, Audit>
 ```
 
 Either fix is honest: capturing makes `Audit` a requirement of building the layer; declaring it makes every caller of `Users.find` provide `Audit`.
@@ -303,10 +303,10 @@ const AppLive = wire(UsersLive, MailerLive, DatabaseLive, DatabaseConfigLive)
 `wire` reads each provider's inputs and outputs from its `Layer<Out, E, In>` type, orders them, and generates the composition on the left; the argument expressions still run in the order written, each once. Its value is the errors: today Effect reports a missing provider only as a leftover requirement where you run the program, silently picks one of two providers for the same service, and hangs on some cycles. `wire` reports all three at compile time:
 
 ```text
-error EK3201: no provider for Smtp.
+error EK3201: Nothing provides Smtp, which this program needs.
   welcome → Mailer.send → MailerLive needs Smtp
-error EK3202: two providers for Users: UsersLive (src/users.vibe:12) and UsersTest (test/fakes.vibe:3). Pass one.
-error EK3203: providers form a cycle: SessionsLive → Database → DatabaseLive → Sessions → SessionsLive
+error EK3202: Two providers for Users: UsersLive (src/users.vibe:12) and UsersTest (test/fakes.vibe:3). Pass one.
+error EK3203: These providers form a cycle: SessionsLive → Database → DatabaseLive → Sessions → SessionsLive.
 ```
 
 The contract is bounded by what Layer types say [Rule]:

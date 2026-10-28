@@ -123,11 +123,11 @@ function startHeartbeat() {
 ```
 
 ```text
-error EK4838: this fiber is owned by startHeartbeat's body, which interrupts it on exit,
+error EK4838: This fiber is owned by startHeartbeat's body, which interrupts it on exit,
   but it is returned from that body.
   heartbeat.vibe:2:10   return fork heartbeat()
   Give it the caller's lifetime:   return Effect.forkScoped(() => heartbeat())
-  or no owner:                     return detach(() => heartbeat())
+  Or give it no owner:             return detach(() => heartbeat())
 ```
 
 `join` waits for a `Fiber`, or an array or object of fibers, keeping the shape (`Fiber.join`). Its operand's type must be a `Fiber`, an array or tuple of them, or an object type whose every property and index signature has a `Fiber` type; anything else is EK4611. It reads its operand once, and each element of an array or object once, and joins exactly the fibers it read. It adopts each fiber's Exit: a fiber that failed, died, or was interrupted makes `join` fail with that fiber's whole cause. When one fiber fails, `join` interrupts the others still running, under the rule above, and propagates the failure, failing fast like `Effect.all`. A `Deferred` waits with its method, `d.await()` (D227):

@@ -121,7 +121,8 @@ func checkPlatformImports(c *checker.Checker, file *ast.SourceFile) {
 		case first == nil:
 			first = platform
 		case platform != first:
-			report(c, statement.AsImportDeclaration().ModuleSpecifier, EK3206, first.name, platform.name)
+			d := report(c, statement.AsImportDeclaration().ModuleSpecifier, EK3206, first.name, platform.name)
+			note(d, "Keep one platform import in this file, and start a separate entry file for each platform.")
 		}
 	}
 }

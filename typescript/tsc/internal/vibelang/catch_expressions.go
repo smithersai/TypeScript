@@ -20,7 +20,7 @@ import (
 
 var (
 	// EK2114: a catch expression inside a hatch body, which is plain TypeScript.
-	EK2114 = message(2114, errorCategory, "a catch expression is VibeLang syntax, but a hatch body is plain TypeScript.")
+	EK2114 = message(2114, errorCategory, "A catch expression is VibeLang syntax, but a hatch body is plain TypeScript.")
 	// deadCatchExpression is EK2004's text for a catch expression whose left
 	// side cannot fail. {0} is the left side.
 	deadCatchExpression = EK2004.With("{0} has no expected errors; defects pass through this catch.")

@@ -213,7 +213,7 @@ function firstAdmin(users: ReadonlyArray<User>) {
 ```
 
 ```text
-warning EK2004: this try block runs Effects but has no expected errors; defects pass through this catch.
+warning EK2004: This try block runs Effects but has no expected errors; defects pass through this catch.
   admins.vibe:4:12   return Option.fromNullishOr(users.find(isAdmin)).getOrThrow()
                                                                       ^^^^^^^^^^^^ its exceptions are defects
   Use a form that can fail:   return users.find(isAdmin) ?? guest
@@ -280,7 +280,7 @@ function message(e: PaymentError) {
 ```
 
 ```text
-error EK4701: this match has no default, but PaymentError is an open family: any file may extend it.
+error EK4701: This match has no default, but PaymentError is an open family: any file may extend it.
   payments.vibe:6:10   return match (e) {
   Add a default arm:                      default: "payment failed";
   or narrow the subject to what you handle:   function message(e: Declined | Expired)

@@ -232,7 +232,7 @@ func (a *analyzer) blockRunsEffects(block *ast.Node) bool {
 
 // deadCatch is EK2004's text for a catch whose try block runs no Effect and
 // fails with no expected error (D282).
-var deadCatch = EK2004.With("this catch can never run: nothing in its try block fails with an expected error, and a JavaScript exception passes through it as a defect.")
+var deadCatch = EK2004.With("This catch can never run: nothing in its try block fails with an expected error, and a JavaScript exception passes through it as a defect.")
 
 // checkDeadCatches reports EK2004 when a try block's E is never (D260, D282):
 // the catch receives typed failures only, so defects, JavaScript exceptions
@@ -275,7 +275,7 @@ func checkDeadCatches(c *checker.Checker, file *ast.SourceFile) {
 
 // passingCatch is EK2004's text for a call in a plain function's try block
 // whose exception passes through the catch (passingCall). {0} is the callee.
-var passingCatch = EK2004.With("this catch receives expected failures only, so an exception that {0} throws passes through it as a defect.")
+var passingCatch = EK2004.With("This catch receives expected failures only, so an exception that {0} throws passes through it as a defect.")
 
 // compilesPlain reports whether fn compiles to plain JavaScript, where a catch
 // written in TypeScript received every exception its try block threw.

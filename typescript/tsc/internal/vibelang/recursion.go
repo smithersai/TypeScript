@@ -405,7 +405,7 @@ func (a *analyzer) checkRecursiveCatch(clause *ast.Node) {
 	if typed == c.GetUnionType(a.tryBlockFlow(clause.Parent.AsTryStatement().TryBlock).errors) {
 		return
 	}
-	d := report(c, declaration, EK2102.With("this catch handles failures from a call cycle, which were not known when its variable was typed, so the cycle needs a written contract."))
+	d := report(c, declaration, EK2102.With("This catch handles failures from a call cycle, which were not known when its variable was typed, so the cycle needs a written contract."))
 	note(d, "Write the contract of the function this try block calls on the cycle, such as Effect<A, E, infer R>.")
 	if d != nil {
 		cover(c, clause) // TypeScript's errors about the variable's early type

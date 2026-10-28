@@ -102,7 +102,7 @@ var (
 	// plain_failures.go names the call or the throw when it can.
 	EK2003 = message(2003, errorCategory, "{0} can't run Effects: its return annotation, {1}, makes it a plain function, which runs no Effects.")
 	// EK2004: an Effect try block with E = never; defects pass through.
-	EK2004 = message(2004, warningCategory, "this try block runs Effects but has no expected errors; defects pass through this catch.")
+	EK2004 = message(2004, warningCategory, "This try block runs Effects but has no expected errors; defects pass through this catch.")
 	// EK2005: a resumeWith program that needs a service or fails outside the operation's contract. {0} is what it needs.
 	EK2005 = message(2005, errorCategory, "resumeWith runs this code at the perform site, inside the handled program, where the clause's providers are not in scope. It needs {0}.")
 	// EK2006: a return, break, or continue that leaves a finally block. {0} is the statement's keyword.
@@ -142,34 +142,34 @@ var (
 	EK2115 = message(2115, errorCategory, "{0} returns a program, so its body runs when {0} is called and cannot run {1}.")
 	EK2116 = message(2116, errorCategory, "{0} returns a program on one path, so every path must return one; {1} does not.")
 	// EK3001: two services share a key. {0} is the key.
-	EK3001 = message(3001, errorCategory, "two services share the key {0}.")
+	EK3001 = message(3001, errorCategory, "Two services share the key {0}.")
 	// EK3002: a class extends a service.
-	EK3002 = message(3002, errorCategory, "a class cannot extend a service.")
+	EK3002 = message(3002, errorCategory, "A class cannot extend a service.")
 	// EK3003: new on a service. {0} is the service.
 	EK3003 = message(3003, errorCategory, "{0} is a service: get its implementation with {0}(), or implement it with an object literal or a class that implements it.")
 	// EK3004: instanceof on a service. {0} is the service.
 	EK3004 = message(3004, errorCategory, "instanceof {0} is always false: a service is a Context key, not a base class.")
 	// EK3005: a generic service class.
-	EK3005 = message(3005, errorCategory, "a generic abstract class cannot be a service: one Context key cannot carry type parameters.")
+	EK3005 = message(3005, errorCategory, "A generic abstract class cannot be a service: one Context key cannot carry type parameters.")
 	// EK3006: a static member with the same name as a service member. {0} is the name.
-	EK3006 = message(3006, errorCategory, "the static member {0} has the same name as a service member.")
+	EK3006 = message(3006, errorCategory, "The static member {0} has the same name as a service member.")
 	// EK3101: a provider looks a service up per call where the contract allows no requirements. {0} is the member, {1} the service, {2} the contract.
 	EK3101 = message(3101, errorCategory, "{0} looks up {1} each time it is called, but {2} allows no call-time requirements.")
 	// EK3201: no provider for a required service. {0} is the service.
-	EK3201 = message(3201, errorCategory, "no provider for {0}.")
+	EK3201 = message(3201, errorCategory, "Nothing provides {0}, which this program needs.")
 	// EK3202: two providers for one service. {0} is the service, {1} the providers.
-	EK3202 = message(3202, errorCategory, "two providers for {0}: {1}. Pass one.")
+	EK3202 = message(3202, errorCategory, "Two providers for {0}: {1}. Pass one.")
 	// EK3203: providers form a cycle. {0} is the cycle.
-	EK3203 = message(3203, errorCategory, "providers form a cycle: {0}")
+	EK3203 = message(3203, errorCategory, "These providers form a cycle: {0}.")
 	// EK3204: a wire argument whose type does not name its outputs. {0} is the argument.
 	EK3204 = message(3204, errorCategory, "{0} does not name its outputs in its type, so wire cannot place it.")
 	// EK3205: an entry module's main needs a service that nothing provides when the host starts the module (D135, D122). {0} is the service.
 	EK3205 = message(3205, warningCategory, "main needs {0}, which nothing provides when the host starts this module.")
 	// EK3206: a file names a second, different platform with a platform import (D312). {0} is the platform it names first, {1} the second.
-	EK3206 = message(3206, errorCategory, "this file already names the {0} platform, so it cannot also name {1}.")
+	EK3206 = message(3206, errorCategory, "This file already names the {0} platform, so it cannot also name {1}.")
 
 	// EK3207: a provider cannot promise a layer, Context, or non-empty list (D362).
-	EK3207 = message(3207, errorCategory, "this provider is not a layer, a non-empty list of layers, or a Context. Provide a layer, a non-empty tuple of layers, a Context, or Key = value.")
+	EK3207 = message(3207, errorCategory, "This provider is not a layer, a non-empty list of layers, or a Context. Provide a layer, a non-empty tuple of layers, a Context, or Key = value.")
 
 	// EK4201: a control operation inside a combinator that runs it on another fiber. {0} is the operation, {1} the combinator, {2} the operation's control.
 	EK4201 = message(4201, errorCategory, "{0} is a control operation, and {1} runs it on other fibers, where the {2} handler on this fiber cannot be reached.")

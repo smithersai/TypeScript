@@ -99,7 +99,7 @@ func checkServiceDeclaration(c *checker.Checker, class *ast.Node) {
 		return
 	}
 	if reference := serviceShapeSelfReference(c, class); reference != nil {
-		d := report(c, serviceShape(class), EK2103.With("a service's shape cannot refer to the service itself."))
+		d := report(c, serviceShape(class), EK2103.With("A service's shape cannot refer to the service itself."))
 		note(d, "Name the implementation's type instead of the service key {0}.", class.Name().Text())
 		cover(c, reference)
 		return

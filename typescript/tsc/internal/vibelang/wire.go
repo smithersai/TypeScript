@@ -362,7 +362,8 @@ func checkWire(c *checker.Checker, call *ast.Node) {
 				}
 			}
 		}
-		report(c, call, EK3203, strings.Join(steps, " → "))
+		d := report(c, call, EK3203, strings.Join(steps, " → "))
+		note(d, "Build the services on the cycle in one layer, or drop a need on it: a layer cannot need, through others, a service it provides.")
 	}
 }
 
@@ -615,11 +616,11 @@ func checkProgram(c *checker.Checker, program *ast.Node, accepted *checker.Type,
 	case len(paths) > 0:
 		note(d, "Add a provider of {0} to wire.", namesText)
 	case site == runnerTest:
-		note(d, "Provide it to the test with Effect.provide(() => …, layer), or register the test inside layer(…).")
+		note(d, "Provide it inside the test with provide layer { … }, or register the test inside layer(…).")
 	case site == runnerEntry:
 		noteEntryLayers(c, d, missing)
 	default:
-		note(d, "Provide it to the program with Effect.provide(() => …, layer).")
+		note(d, "Provide it inside the program with provide layer { … }, or at this runner with Effect.provide(() => …, layer).")
 	}
 	if site != runnerEntry {
 		coverArgument(c, program)

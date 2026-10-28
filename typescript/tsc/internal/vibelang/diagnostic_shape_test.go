@@ -145,6 +145,18 @@ func TestDiagnosticTextsUseUserWords(t *testing.T) {
 	}
 }
 
+// A diagnostic's text is a sentence: one that starts with an English word,
+// rather than with code such as a keyword or a placeholder, starts with a
+// capital letter, as TypeScript's own messages do.
+func TestDiagnosticTextsStartAsSentences(t *testing.T) {
+	lowercase := regexp.MustCompile(`^(a|an|the|this|these|that|two|no|every|each|one|it|its|there|use|write|move|add|call|remove|or|and|but)\b`)
+	for _, text := range diagnosticTexts(t) {
+		if match := lowercase.FindString(text.text); match != "" {
+			t.Errorf("%s: %q starts with %q in lower case", text.at, text.text, match)
+		}
+	}
+}
+
 // Every code that Chapter 28's registry has not retired suggests a repair.
 func TestRegistryRowsSuggestRepairs(t *testing.T) {
 	spec, err := os.ReadFile("../../../../docs/design/src/428-part4-ch28-tooling.md")
