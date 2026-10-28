@@ -162,7 +162,7 @@ runs on Effect's fiber, Context, and Scope and adds no scheduler. It checks for
 | `$region`, `$using`, `$fork` | Block-owned scopes, resources, and children |
 | `$service`, `$reference`, `$control` | Service keys, defaults, and control operations |
 | `$trusted`, `$trustedPlain` | Classify listed foreign exceptions |
-| `$plainOf` | The plain form of a value whose type is `Plain<F, C>`: `v[$direct]` once its module has attached it, and before that the plain form recorded on the program its hoisted Effect form returns (D268, D446, D483) |
+| `$plainOf` | The plain form of a value whose type is `Plain<F, C>`: `v[$direct]` where the value has it, and otherwise a function that calls the value with the same receiver and arguments and calls the plain form that the returned program records, which a module cycle (D446), a bound function, and a wrapper typed as returning its argument's type reach; a value that is neither fails at the call with a defect naming the function and the plain signature its type records (D268, D483, D495) |
 | `handle`, `resume`, `$tailResume` | Continuation handling |
 | `$produce`, `$yield`, `$forOf`, `$forStream` | Producers: a producer value is a `Stream` whose channel is the adapter and whose `$produce` property is its program (D402) |
 | `acquireRelease`, `acquireDisposable` | Effect's acquisitions, which also record the value whose release they registered, so `using` adds no second release (D401); a `.vibe` reference to Effect's own denotes these |
@@ -246,7 +246,19 @@ against it may rely on [Rule] (D366).
    consumer of the declaration calls a named method as a trusted plain call;
    a method not named is an Effect method or foreign code, by its declared
    type (D431). A named method of a class is plain JavaScript, and its
-   declared signature is its plain call signature. A `trusted(impl,
+   declared signature is its plain call signature. An eligible unannotated
+   export's `Plain<F, C>` is inferred from its body, so its plain form is
+   part of its package's public types, as an inferred return type is part
+   of a TypeScript package's [Rule] (D495): a later version whose body loses
+   eligibility, as one that adds a log call does, changes its declared type,
+   a breaking change. A consumer compiled against the earlier declaration
+   whose plain call reaches a function with no plain form fails at that
+   call with a defect naming the function and the plain signature its
+   declaration recorded; it never runs the Effect form in its place. A
+   package that wants only written forms in its declarations sets
+   TypeScript's `isolatedDeclarations`, under which every exported function
+   writes its return type (TS9007), and a written return type decides the
+   form (rule F). A `trusted(impl,
    [Errors])` value's type is the runtime's `Trusted\<F, Errors>`, which
    records its plain call signature and its listed error classes (D400). No
    generated function, such as a direct variant, a region, or a helper, is a

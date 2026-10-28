@@ -446,6 +446,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D492 | A function value's form reads its written type; D430 reads a member by its declaration on both sides, at an object literal's member destination, and in D397's test | An extracted method changed form across a declaration; an Effect method passed through `Source<number!!>` to a plain caller |  | 10, 13, 14, 27, 30, Appendices |
 | D493 | D430 reads what an existing object or array holds: a member, element, or type argument of type `Plain<F, C>` is `C`, EK4301 where TypeScript would call it as plain | `runAll(fs)` over a `const` array of a pure helper ticked 0 times |  | 10, 13, 14, 28, 30 |
 | D494 | A function argument is typed as TypeScript types it, from the overload it picks and, through inference, the call's contextual type; the rough edge covers both; D488's reading of a result-context type parameter as not an Effect is withdrawn | An annotation on the receiving binding changed a callback's form through `keep<T>`'s inferred parameter type, against the principle's wording |  | 2, 13, 27, 30 |
+| D495 | An inferred plain form is part of a package's public type; `$plainOf` reaches it through a bound or wrapping function, and fails with a defect where there is none; a union of plain members is a plain call | A patch release that added a log line left dependents' `$plainOf` undefined; `bind` and `once` kept `Plain` with no `[$direct]` |  | 13, 15, 26, 27, 30 |
 
 #### Rules of the runtime and compiler
 
