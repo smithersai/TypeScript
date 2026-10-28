@@ -402,7 +402,7 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D442 | A plain call in a module cycle before its variant exists runs the Effect form | `f[$direct]` was not yet attached | Superseded by D446 | 26 |
 | D443 | `fork` and `join` are keywords only before an operand; `match`'s brace shares its line | `fork as T` and the `match` row | Amended by D452 | Appendices |
 | D444 | Wording that contradicted rules in force | Chapters 3, 4, 5, 7, 13, 15, 17, 18, 28 and the log |  | 3, 4, 5, 7, 13, 15, 17, 18, 28 |
-| D445 | A call of a plain function, or of a `trusted` value, is a plain call of its plain form, wherever it stands; an Effect-contract function's call runs, plain variant or not | Rule R forbade in plain code the calls Chapter 15, D65, and D442 allowed |  | 2, 10, 13, 15, 16, 23, 26, 27, 28, 30, Appendices |
+| D445 | A call of a plain function, or of a `trusted` value, is a plain call of its plain form, wherever it stands; an Effect-contract function's call runs, plain variant or not | Rule R forbade in plain code the calls Chapter 15, D65, and D442 allowed | Amended by D460, D480 | 2, 10, 13, 15, 16, 23, 26, 27, 28, 30, Appendices |
 | D446 | A plain function's plain form is reached through its hoisted declaration before its module's body runs; an Effect-contract function's variant falls back to the current fiber | D442 ran a program at a module's top level, where no fiber runs, and passed an Effect form to `map` |  | 13, 15, 26, 27, 30 |
 | D447 | The list of places a type decides says that a function value's form decides what the receiver's call of it does | The list denied a difference rule F makes |  | 13 |
 | D448 | A `const` or import alias that names a function keeps its own form; any other function value takes its type's form, read as rule R reads a call of it | `const g = double` had one form from source and another from declarations | Amended by D460 | 13, 14, Appendices |
@@ -420,13 +420,14 @@ D57 supplies decision 2's partial-annotation spelling: explicit `infer Name` slo
 | D460 | An object literal's methods take a function literal's own form and carry their plain form as `m[$direct]`; a namespace import's member and an anonymous default export keep a function's own form; a `let` does not | Chapters 10, 14 and the function-kinds table called object methods Effect methods; no plain form or signature was stated for them |  | 10, 13, 14, 27, 30, Appendices |
 | D461 | A destination reaches both operands of `??` and `\|\|` and the right operand of `&&` | TypeScript types the left operand of `\|\|` and `??` by the destination too |  | 13, 30 |
 | D462 | A parenthesized await operation's literal operand is deferred; `join`'s operand is evaluated, never deferred | The grammar note evaluated `await.all([a(), b()])`'s elements; rule H called `join`'s operand deferred |  | 13, 30, Appendices |
-| D463 | EK4802 covers an Effect-form callback that returns a program where an Effect-returning callback is expected | Adding a log line to `(v) => cached` silently stopped `cached` from running |  | 13, 28, 30 |
+| D463 | EK4802 covers an Effect-form callback that returns a program where an Effect-returning callback is expected | Adding a log line to `(v) => cached` silently stopped `cached` from running | Amended by D480 | 13, 28, 30 |
 | D464 | `do` blocks and `match` arms own no fibers; `await f` of an owned fiber is EK4609 alone; a capture inside a `fork` operand is EK4838 | The ownership and escape rules left these edges unstated |  | 7, 28, 30 |
 | D465 | An `error` declaration's declaration carries `#private` and a merged-namespace `$error` marker; `effect`'s error classes are those extending `YieldableError` | A declaration consumer could not tell a closed `error` from an open class |  | 3, 14, 26, 27, 30, Appendices |
 | D466 | A service's emitted declaration imports `ServiceBrand` and uses `ServiceKey` or `ReferenceKey`; "only identifiers in R" is assignability | The emitted shape and the R rule's diagnostic were unstated |  | 4, 27, 30 |
 | D467 | A handler's answer type adds `undefined` only for a completion other than by returning | "Ends another way" was loose |  | 9 |
 | D468 | Statements that contradicted rules or facts | Chapters 2, 5, 6, 10, 13, 15, 27, 28, 30 and the appendices kept text the rules had replaced |  | 2, 5, 6, 10, 13, 15, 27, 28, 30, Intro, Appendices |
 | D469 | A fiber may sit in a literal its region holds only to join it | D409's "a collection" rejected `Fiber.joinAll(fibers)` |  | 7, 28 |
+| D480 | A call whose type is an Effect runs, whatever its callee compiles to; an Effect-form function that returns an Effect value is EK4802 wherever it stands; a program is held by a function written where an Effect type is declared | A plain function returning a program ran by one rule and returned data by four others |  | 13, 15, 28, 30, Appendices |
 
 #### Rules of the runtime and compiler
 
@@ -453,7 +454,7 @@ Proposed in the first draft as P1-P22; adopted by D29. A row marked **revised** 
 | P17 | A declaration without a body states its full contract; a bare return type there is an error, never `never` | Settled decision 2 | 14 |
 | P18 | **Revised** as D17: `resumeWith` may raise only the operation's declared E, and its R is `never` | Settled decision 3; `tests/runtime-boundaries.test.ts` | 9 |
 | P19 | A finalizer's control operations must be handled inside the finalizer | I06, I11 | 17, 23 |
-| P20 | Programs start only at runners; calls never create fibers; a module's top level cannot run a program (EK1001), and a call of a plain function there calls its plain form, which runs none (D445). **Revised**: runners are called only where no fiber runs the code (EK1005, D38) | Runner regression tests | 13, 23 |
+| P20 | Programs start only at runners; calls never create fibers; a module's top level cannot run a program (EK1001), and a call of a plain function there calls its plain form, which runs none, unless that form returns a program, which the call would run, EK1001 (D445, D480). **Revised**: runners are called only where no fiber runs the code (EK1005, D38) | Runner regression tests | 13, 23 |
 | P21 | `for...of` over a producer is internal iteration; pulling from outside uses `transfer` | T10, T16 | 8, 26 |
 | P22 | **Revised** as D18: a clause whose last action is `resume`, outside any region of the clause, compiles to `return tailResume(k, v)` and iterates in constant stack. The first draft's evidence, T17, covered only a `flatMap`-shaped clause | K11a-K11d; `tests/runtime-boundaries.test.ts` | 20, 26 |
 
