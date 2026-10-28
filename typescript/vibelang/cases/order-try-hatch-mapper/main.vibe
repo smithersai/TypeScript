@@ -8,7 +8,7 @@ export function main() {
   const trace: string[] = []
   function makeMapper() {
     trace.push("mapper")
-    return (reason: unknown) => new Bad({ reason })
+    return (reason: unknown): Bad => new Bad({ reason })
   }
   function input() {
     trace.push("input")

@@ -44,6 +44,20 @@ func (a *analyzer) noteReturnTypeFix(d *ast.Diagnostic, helper *ast.Node) {
 	note(d, "{0} has no return annotation, so it is an Effect function. Its quick fix writes its return type, {1}, which makes it plain; vibelang --fix applies every such fix in the project.", functionDisplayName(helper), ": "+a.returnTypeText(helper))
 }
 
+// effectTypedValue is EK4301's text for a function value whose type returns
+// an Effect, such as a plain function annotated `: infer _` that returns its
+// program: as a value it has its type's form (D511).
+var effectTypedValue = EK4301.With("{0} returns an Effect, so as a value it is an Effect function, but {1} calls it synchronously.")
+
+// rejectedValueMessage chooses EK4301's text for node, a function value that
+// conversion rejected where only a plain function fits.
+func (a *analyzer) rejectedValueMessage(node *ast.Node) *Message {
+	if fn := esFunctionOf(a.checker, node); fn != nil && (a.isEffect(fn) || a.isFactory(fn) || a.isSplittable(fn)) {
+		return effectFunctionCallback
+	}
+	return effectTypedValue
+}
+
 // mixedFormCallee is EK4301's text for a call of a union of functions some of
 // which return a definitely-Effect type and some another (D454, D500).
 var mixedFormCallee = EK4301.With("{0} is a plain function or an Effect function, so this call would build the Effect function's program and never run it.")
@@ -156,15 +170,17 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 			}
 		case ast.IsCallExpression(node) && a.hasMixedFormCallee(node):
 			report(c, node.Expression(), mixedFormCallee, nodeText(file, node.Expression()))
-		case node.Kind == ast.KindIdentifier:
+		case a.conversions[node] != nil:
 			if a.finalConversion(node) == convertRejected {
 				call, _ := ownerCall(node)
 				// S10-21 covers named callbacks as well as inline lambdas.
 				if reportTracedCallback(c, file, call, node) {
 					break
 				}
-				d := report(c, node, effectFunctionCallback, node.Text(), calleeName(c, file, call))
-				a.noteReturnTypeFix(d, a.unannotatedHelperAt(node))
+				d := report(c, node, a.rejectedValueMessage(node), nodeText(file, node), calleeName(c, file, call))
+				if ast.IsIdentifier(node) || ast.IsPropertyAccessExpression(node) {
+					a.noteReturnTypeFix(d, a.unannotatedHelperAt(node))
+				}
 				note(d, "Use {0} or a for...of loop.", forEachFix(c, file, call, node))
 			}
 		}

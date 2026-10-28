@@ -214,12 +214,24 @@ func (a *analyzer) convert(node *ast.Node, t *checker.Type, position valuePositi
 		fn := esFunctionOf(a.checker, node)
 		switch {
 		case fn == nil:
+			// A function value known only by its type has the form its type
+			// gives (D492, D511): one that returns an Effect is an Effect
+			// function's value.
+			if mayReturnEffect(a.checker, t) {
+				return convertRejected, t
+			}
 		case a.isFactory(fn):
 			return convertRejected, t
 		case isProducer(fn):
 			// Calling a producer runs none of it: it is a plain function.
 		case a.isPlainFunction(fn) && !a.isSplittable(fn):
-			// Annotated with a plain return type: the function itself is plain.
+			// Annotated with a plain return type: the function itself is
+			// plain, but as a value it has its type's form, so one whose
+			// return type is an Effect, as pick(p: number!!): infer _ has, is
+			// an Effect function's value (D511).
+			if mayReturnEffect(a.checker, t) {
+				return convertRejected, t
+			}
 		case a.isEffect(fn) || a.isPlainFunction(fn):
 			return convertRejected, t
 		}
@@ -266,6 +278,22 @@ func (a *analyzer) convert(node *ast.Node, t *checker.Type, position valuePositi
 		}
 	}
 	return convertNone, t
+}
+
+// mayReturnEffect reports whether t, a function value's type, has a call
+// signature whose return type is definitely an Effect: a value of the Effect
+// form, which no plain function type accepts (D430, D511).
+func mayReturnEffect(c *checker.Checker, t *checker.Type) bool {
+	if t == nil || isPlaceholderNever(t) {
+		return false
+	}
+	for _, signature := range c.GetSignaturesOfType(t, checker.SignatureKindCall) {
+		returned := c.GetReturnTypeOfSignature(signature)
+		if isEffectType(c, returned) {
+			return true
+		}
+	}
+	return false
 }
 
 // isPlaceholderNever reports whether t is the never that the checker gives a

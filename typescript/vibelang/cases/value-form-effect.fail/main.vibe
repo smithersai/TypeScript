@@ -1,0 +1,22 @@
+// expect: EK4301
+// A function value has the form its type gives (D511): a plain function whose
+// return type is an Effect is an Effect function as a value, so a plain
+// callback position rejects it, as it rejects an Effect function.
+import { passThrough } from "./helpers.ts"
+
+function pick(p: number!!): infer _ {
+  return p
+}
+
+export function fromSource(xs: Array<number!!>) {
+  return xs.map(pick)
+}
+
+export function fromTypeScript(xs: Array<number!!>) {
+  return xs.map(passThrough)
+}
+
+// A literal collects the programs as data.
+export function asData(xs: Array<number!!>) {
+  return xs.map((p): infer _ => p)
+}
