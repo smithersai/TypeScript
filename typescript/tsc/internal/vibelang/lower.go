@@ -160,9 +160,6 @@ func (tx *lowering) visitSource(node *ast.Node) *ast.Node {
 	if ref := tx.plan.directRefs[node]; ref != nil {
 		return tx.visitDirectReference(node, ref)
 	}
-	if signature := tx.plan.plainUnionCalls[node]; signature != "" {
-		return tx.visitPlainUnionCall(node, signature)
-	}
 	if conversion := tx.plan.conversionOf(node); conversion != convertNone {
 		return tx.convert(node, conversion)
 	}

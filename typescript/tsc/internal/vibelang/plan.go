@@ -22,9 +22,8 @@ type plan struct {
 	heldPrograms               map[*ast.Node]bool       // held values in by-name result positions
 	returns                    map[*ast.Node]bool       // returned Effect subtypes executed at an Effect return boundary
 	converts                   map[*ast.Node]conversion // function values converted where they are passed
-	plainUnionCalls            map[*ast.Node]string
-	prelude                    []string           // prelude names the file uses as values (prelude.go)
-	intrinsics                 map[*ast.Node]bool // intrinsics a source binding would capture, reached through the lowering's own import (prelude.go)
+	prelude                    []string                 // prelude names the file uses as values (prelude.go)
+	intrinsics                 map[*ast.Node]bool       // intrinsics a source binding would capture, reached through the lowering's own import (prelude.go)
 	servicePlan
 	plainPlan
 	joinPlan
@@ -57,7 +56,6 @@ func (p *plan) conversionOf(node *ast.Node) conversion { return p.converts[node]
 func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 	p := &plan{effects: map[*ast.Node]bool{}, programs: map[*ast.Node]bool{}, runs: map[*ast.Node]bool{}, heldPrograms: map[*ast.Node]bool{}, converts: map[*ast.Node]conversion{}, servicePlan: newServicePlan(), plainPlan: newPlainPlan(), trustedPlan: newTrustedPlan(), tracingPlan: newTracingPlan(), scopePlan: newScopePlan()}
 	p.parameterWrites = map[*ast.Node]bool{}
-	p.plainUnionCalls = map[*ast.Node]string{}
 	p.returns = map[*ast.Node]bool{}
 	p.fieldlessErrorConstructors = map[*ast.Node]bool{}
 	p.handlerPlan = newHandlerPlan()
@@ -148,9 +146,6 @@ func planFile(resolver printer.EmitResolver, file *ast.SourceFile) *plan {
 				p.planPipe(a, node)
 			}
 			p.planPlain(a, node)
-			if plain := a.plainUnionCalls[node]; plain != nil {
-				p.plainUnionCalls[node] = c.TypeToString(plain)
-			}
 			p.planJoins(a, node) // D340 (joined.go)
 			p.planServiceNode(c, node)
 			if p.wireOrders[node] != nil || fiberHelper(node) == "$forConcurrent" {
@@ -236,8 +231,6 @@ type analyzer struct {
 	factories     map[factoryKey]fnState
 	factoryActive map[*ast.Node]bool
 	contracts     map[*ast.Node]*contract // see contractOf
-
-	plainUnionCalls map[*ast.Node]*checker.Type
 
 	// Lambda forms (forms.go).
 	lambdas         map[*ast.Node]*lambdaState
@@ -374,9 +367,6 @@ func (a *analyzer) runs(call *ast.Node) bool {
 	sig := a.callSignature(call)
 	if sig == nil {
 		return false
-	}
-	if a.plainUnionCalls[call] != nil {
-		return callRunsResult(a.checker, call, a.checker.GetReturnTypeOfSignature(sig))
 	}
 	if fn := implementationOf(sig.Declaration()); fn != nil && isLowerable(fn) {
 		if isProducer(fn) {

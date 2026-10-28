@@ -13,7 +13,7 @@ import (
 // file (plain.go). Every other call keeps its type.
 func callExpressionType(c *checker.Checker, call *ast.Node, t *checker.Type) *checker.Type {
 	t = providedCallType(c, call, t)
-	if !isInvocation(call) || holdsProgram(c, call) || !inLowerableBody(call) && analyzerFor(c).directCallee(call) == nil && analyzerFor(c).plainUnionCalls[call] == nil {
+	if !isInvocation(call) || holdsProgram(c, call) || !inLowerableBody(call) && analyzerFor(c).directCallee(call) == nil {
 		return t
 	}
 	if isExitMarkerCall(call) {
