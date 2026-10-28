@@ -1,0 +1,8 @@
+import { count, type Text } from "./vibe.vibe"
+
+export interface Shelf {
+  readonly titles: ReadonlyArray<Text>
+}
+
+export const shelf = (titles: ReadonlyArray<Text>): Shelf => ({ titles })
+export const size = (value: Shelf): number => count(value.titles)

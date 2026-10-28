@@ -233,8 +233,21 @@ export default tseslint.config({
 ```
 
 Rules that need type information don't run on `.vibe` files;
-`vibelang --noEmit` checks types. The
-[Devtools page](https://vibelang.sh/getting-started/012-devtools) lists the node types of VibeLang's own forms.
+`vibelang --noEmit` checks types. For typed lint of `.ts` files that import
+`.vibe` modules, pass typescript-eslint the program `typedProgram` builds, in
+which each `.vibe` module reads as its declaration:
+
+```js
+import { typedProgram } from "vibelang/eslint"
+
+const parserOptions = {
+  programs: [typedProgram({ project: "tsconfig.json", tsconfigRootDir: import.meta.dirname })]
+}
+```
+
+The
+[Devtools page](https://vibelang.sh/getting-started/012-devtools) lists the node types of VibeLang's own forms
+and shows the whole configuration.
 
 ## How the package finds the native compiler
 

@@ -395,6 +395,31 @@ export default tseslint.config({
 
 Reports, fixes, and `// eslint-disable-next-line` comments land on the `.vibe` text. Rules that need type information, such as `@typescript-eslint/no-unnecessary-type-assertion`, cannot run on a `.vibe` file, since no TypeScript program loads one: enable them for `.ts` files only and check types with `vibelang --noEmit`. EK4801-EK4825 stay in the compiler and the language server. To see the tree a rule reads, run `vibelang --estree main.vibe < main.vibe`.
 
+Typed lint of `.ts` files needs the types of the `.vibe` modules they import. typescript-eslint builds its program with the `typescript` it installs, which cannot read a `.vibe` file, so a type from one, imported directly or through a `.ts` barrel, is unresolved there, and type-aware rules report code that `vibelang -p` accepts, such as a non-null assertion the compiler needs. Give typescript-eslint the program `typedProgram` builds instead of `project` or `projectService`:
+
+```js
+// eslint.config.js
+import tseslint from "typescript-eslint"
+import vibelang, { typedProgram } from "vibelang/eslint"
+
+export default tseslint.config(
+  {
+    files: ["src/**/*.ts"],
+    extends: [tseslint.configs.recommendedTypeChecked],
+    languageOptions: {
+      parserOptions: { programs: [typedProgram({ project: "tsconfig.json", tsconfigRootDir: import.meta.dirname })] }
+    }
+  },
+  {
+    files: ["src/**/*.vibe"],
+    extends: [tseslint.configs.recommended],
+    languageOptions: { parser: vibelang }
+  }
+)
+```
+
+`typedProgram` returns the project's TypeScript program, from the `typescript` the project resolves, in which each `.vibe` module reads as the declaration `vibelang` writes for it. A module of another workspace package compiles with that package's `tsconfig.json`, as the loaders compile it. It runs `vibelang` once per project, the first time the program reads one of its modules, and throws when a project does not compile, since typed lint would then have no types for its modules.
+
 Forms whose TypeScript long form would mislead a rule have their own node types, which rules and `no-restricted-syntax` selectors can name:
 
 | Form | ESTree node |

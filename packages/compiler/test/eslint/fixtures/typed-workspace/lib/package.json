@@ -1,0 +1,9 @@
+{
+  "name": "@typed/lib",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./Library": "./src/Library.ts",
+    "./Title": "./src/Title.vibe"
+  }
+}

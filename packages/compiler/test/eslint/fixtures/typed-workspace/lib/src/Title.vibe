@@ -1,0 +1,2 @@
+export type Title = string
+export const titleOf = (value: string): Title => value.trim()

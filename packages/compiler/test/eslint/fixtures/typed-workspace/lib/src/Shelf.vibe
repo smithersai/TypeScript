@@ -1,0 +1,7 @@
+import { titleOf, type Title } from "./Title.vibe"
+
+export interface Shelf {
+  readonly titles: ReadonlyArray<Title>
+}
+
+export const shelf = (titles: ReadonlyArray<string>): Shelf => ({ titles: titles.map(titleOf) })

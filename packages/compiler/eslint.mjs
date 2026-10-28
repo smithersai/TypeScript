@@ -12,11 +12,15 @@
 // @typescript-eslint/scope-manager's, resolved from the typescript-eslint the
 // project installs. There is no TypeScript program, so rules that need type
 // information do not run on .vibe files; `vibelang -p` type-checks them.
+// typedProgram gives typed lint of a project's .ts files the types of the
+// .vibe modules they import.
 import { spawnSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs"
 import { createRequire } from "node:module"
-import { dirname, join, resolve } from "node:path"
+import { tmpdir } from "node:os"
+import { basename, dirname, join, parse as parsePath, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { workspaceProject } from "./project.mjs"
 
 const manifest = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"))
 
@@ -249,6 +253,153 @@ function literal(node) {
   } else if (node.value === null && node.raw !== "null") {
     node.value = Number(node.raw.replaceAll("_", ""))
   }
+}
+
+/**
+ * Builds the TypeScript program typed lint reads a project's `.ts` files
+ * with, for typescript-eslint's `parserOptions.programs`. typescript-eslint
+ * builds its program with the `typescript` it installs, which cannot read a
+ * `.vibe` file: a type a `.ts` file imports from one, directly or through a
+ * `.ts` barrel, is unresolved, so type-aware rules judge the code against
+ * error types. This program reads each `.vibe` module's declaration instead,
+ * as `vibelang` writes it, so a `.ts` file sees the types `vibelang -p` sees.
+ *
+ *     import { typedProgram } from "vibelang/eslint"
+ *     parserOptions: { programs: [typedProgram({ project: "tsconfig.json", tsconfigRootDir: import.meta.dirname })] }
+ *
+ * The program is the project's own, from the `typescript` the project
+ * resolves, as typescript-eslint's would be; only its `.vibe` imports differ.
+ * A `.vibe` module's declaration stands at `x.d.vibe.ts` beside `x.vibe`,
+ * where TypeScript looks for an arbitrary extension's declarations, and a
+ * declaration's `./x.js` import of another `.vibe` module resolves to the
+ * same file, so each module has one identity. As the loaders compile it
+ * (project.mjs), a module compiles with its own package's project: the
+ * linted project for its own files, the nearest tsconfig.json above it for
+ * another workspace package's. Each project compiles once, when the program
+ * first reads one of its modules.
+ *
+ * @param {{ project?: string, tsconfigRootDir?: string, compiler?: string }} [options]
+ *   `project` is the tsconfig, relative to `tsconfigRootDir` (default: the
+ *   working directory); it defaults to `tsconfig.json`. `compiler` is as for
+ *   the loaders: a vibelang command, else VIBELANG_BINARY, else the installed
+ *   compiler.
+ */
+export function typedProgram(options = {}) {
+  const root = resolve(options.tsconfigRootDir ?? process.cwd())
+  const project = resolve(root, options.project ?? "tsconfig.json")
+  const ts = projectTypeScript(project)
+  const parsed = ts.getParsedCommandLineOfConfigFile(project, {}, {
+    ...ts.sys,
+    onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
+      throw new Error(`vibelang/eslint: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")}`)
+    }
+  })
+  const compiler = options.compiler ? resolve(root, options.compiler) : nativeCompiler()
+  const projectRoot = dirname(project)
+  const compiled = new Map() // tsconfig -> Map(declaration path -> text)
+  // The declaration of the .vibe module or module declaration at path, from
+  // its own project's compile, or undefined.
+  // A workspace package's file is asked for by its path through
+  // node_modules; the compile names it by its real path.
+  const virtual = (fileName) => {
+    const path = resolve(fileName)
+    const listed = vibeSourceOf(path)
+    if (listed === undefined || !existsSync(listed)) return undefined
+    const source = realpathSync(listed)
+    const owner = workspaceProject(source, projectRoot, project)
+    if (owner === undefined) return undefined
+    if (!compiled.has(owner)) compiled.set(owner, vibeDeclarations(compiler, owner, owner === project ? projectRoot : dirname(owner)))
+    return compiled.get(owner).get(join(dirname(source), basename(path)))
+  }
+  const compilerOptions = { ...parsed.options, allowArbitraryExtensions: true, noEmit: true }
+  const host = ts.createCompilerHost(compilerOptions, true)
+  const { fileExists, readFile, getSourceFile } = host
+  host.fileExists = (fileName) => virtual(fileName) !== undefined || fileExists.call(host, fileName)
+  host.readFile = (fileName) => virtual(fileName) ?? readFile.call(host, fileName)
+  host.getSourceFile = (fileName, languageVersion, onError, shouldCreate) => {
+    const text = virtual(fileName)
+    return text === undefined
+      ? getSourceFile.call(host, fileName, languageVersion, onError, shouldCreate)
+      : ts.createSourceFile(fileName, text, languageVersion, true)
+  }
+  const cache = ts.createModuleResolutionCache(host.getCurrentDirectory(), host.getCanonicalFileName, compilerOptions)
+  host.resolveModuleNameLiterals = (literals, containingFile, redirected, resolutionOptions, containingSourceFile) =>
+    literals.map((literal) => {
+      const mode = ts.getModeForUsageLocation(containingSourceFile, literal, resolutionOptions)
+      const resolved = ts.resolveModuleName(literal.text, containingFile, resolutionOptions, host, cache, redirected, mode)
+      if (resolved.resolvedModule !== undefined) return resolved
+      // A declaration names another .vibe module by its JavaScript, ./x.js.
+      const declaration = vibeDeclarationFor(literal.text, containingFile)
+      return declaration !== undefined && host.fileExists(declaration)
+        ? { ...resolved, resolvedModule: { resolvedFileName: declaration, extension: ts.Extension.Dts, isExternalLibraryImport: false } }
+        : resolved
+    })
+  return ts.createProgram({ rootNames: parsed.fileNames, options: compilerOptions, host, projectReferences: parsed.projectReferences })
+}
+
+// projectTypeScript loads the typescript the project resolves, which is the
+// one typescript-eslint loads for it.
+function projectTypeScript(project) {
+  for (const base of [project, join(process.cwd(), "package.json"), fileURLToPath(import.meta.url)]) {
+    try {
+      return createRequire(base)("typescript")
+    } catch {
+      continue
+    }
+  }
+  throw new Error("vibelang/eslint: typedProgram needs typescript: install it beside typescript-eslint.")
+}
+
+// vibeSourceOf returns the .vibe file whose declaration the program reads at
+// path: x.vibe for x.d.vibe.ts, and x.vibe for a module declaration's
+// x.vibe.text.d.ts (D403). Anything else is undefined.
+function vibeSourceOf(path) {
+  if (path.endsWith(".d.vibe.ts")) return path.slice(0, -".d.vibe.ts".length) + ".vibe"
+  return /^(.+\.vibe)\.[^./\\]+\.d\.ts$/.exec(path)?.[1]
+}
+
+// vibeDeclarations compiles project once and returns the declaration of each
+// of its .vibe modules by the path the program reads it at: x.d.vibe.ts
+// beside x.vibe, and a module declaration's file, such as x.vibe.text.d.ts,
+// at its own name. As a loader's compile does, --loader-root checks and emits
+// only the files under root; another package's modules compile with their
+// own project.
+function vibeDeclarations(compiler, project, root) {
+  const out = mkdtempSync(join(tmpdir(), "vibelang-eslint-"))
+  try {
+    const result = spawnSync(compiler, [
+      "--project", project, "--loader-root", root, "--pretty", "false",
+      "--noEmit", "false", "--declaration", "--emitDeclarationOnly", "--declarationMap", "false",
+      "--composite", "false", "--incremental", "false", "--noEmitOnError", "false",
+      "--outDir", out, "--rootDir", parsePath(root).root, "--listEmittedFiles"
+    ], { cwd: root, encoding: "utf8", maxBuffer: 1024 * 1024 * 1024 })
+    if (result.error) throw new Error(`vibelang/eslint: cannot run the compiler: ${result.error.message}`)
+    const declarations = new Map()
+    for (const line of result.stdout.split("\n")) {
+      if (!line.startsWith("TSFILE: ")) continue
+      const emitted = line.slice("TSFILE: ".length).trim()
+      if (!emitted.endsWith(".d.ts")) continue
+      const base = resolve(parsePath(root).root, relative(out, emitted)).slice(0, -".d.ts".length)
+      const path = existsSync(base + ".vibe") ? base + ".d.vibe.ts" : base + ".d.ts"
+      if (vibeSourceOf(path) !== undefined) declarations.set(path, readFileSync(emitted, "utf8"))
+    }
+    if (result.status !== 0 && declarations.size === 0) {
+      throw new Error(`vibelang/eslint: ${project} did not compile, so typed lint has no types for its .vibe modules:\n${(result.stdout + result.stderr).trim().slice(0, 4000)}`)
+    }
+    return declarations
+  } finally {
+    rmSync(out, { recursive: true, force: true })
+  }
+}
+
+// vibeDeclarationFor returns the declaration path of the .vibe module that a
+// relative specifier names by its JavaScript (./x.js) or without an
+// extension, or undefined.
+function vibeDeclarationFor(specifier, containingFile) {
+  if (!specifier.startsWith("./") && !specifier.startsWith("../")) return undefined
+  const target = resolve(dirname(containingFile), specifier)
+  const base = target.endsWith(".js") ? target.slice(0, -".js".length) : target
+  return existsSync(base + ".vibe") ? base + ".d.vibe.ts" : undefined
 }
 
 export default { meta, parse, parseForESLint }
