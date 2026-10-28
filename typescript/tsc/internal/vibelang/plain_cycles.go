@@ -22,17 +22,17 @@ type plainEdge struct {
 }
 
 // plainEdgesOf returns the calls in fn's own body that run the $direct
-// variant of a splittable plain function.
+// variant of a splittable plain function, or a plain-annotated function of
+// fn's file, whose own name is its plain form (D412).
 func (a *analyzer) plainEdgesOf(fn *ast.Node) []plainEdge {
 	if edges, ok := a.plainEdges[fn]; ok {
 		return edges
 	}
 	var edges []plainEdge
 	a.forEachRunningCallInBody(fn, func(call *ast.Node) bool {
-		if a.directCallee(call) != nil {
-			if callee := esFunctionOf(a.checker, ast.GetInvokedExpression(call)); callee != nil {
-				edges = append(edges, plainEdge{call, callee})
-			}
+		callee := esFunctionOf(a.checker, ast.GetInvokedExpression(call))
+		if callee != nil && (a.directCallee(call) != nil || a.ownCycleReference(call) != nil) {
+			edges = append(edges, plainEdge{call, callee})
 		}
 		return false
 	})
@@ -62,13 +62,13 @@ func (a *analyzer) plainReaches(from, to *ast.Node) bool {
 }
 
 // onPlainCycle reports whether fn is a splittable plain function whose
-// $direct variant can call itself again, so that it compiles to an Effect
-// generator.
+// $direct variant can call itself again, or a plain-annotated function that
+// can (D412), so that it compiles to an Effect generator as well.
 func (a *analyzer) onPlainCycle(fn *ast.Node) bool {
 	if cyclic, ok := a.plainCycles[fn]; ok {
 		return cyclic
 	}
-	cyclic := a.isSplittable(fn) && a.isPlainFunction(fn) && a.plainReaches(fn, fn)
+	cyclic := (a.isSplittable(fn) || a.isAnnotatedPlain(fn)) && a.isPlainFunction(fn) && a.plainReaches(fn, fn)
 	a.plainCycles[fn] = cyclic
 	return cyclic
 }
@@ -151,4 +151,31 @@ func (a *analyzer) forwardsPlainBudget(fn *ast.Node) bool {
 		}
 	}
 	return false
+}
+
+// isAnnotatedPlain reports whether fn is a plain candidate with a plain
+// return annotation: its own name is its plain form, which TypeScript and
+// .vibe callers call directly, and on a plain call cycle it recurses as an
+// unannotated cycle does, on the JavaScript stack and then, past the depth
+// budget, on heap frames (D412).
+func (a *analyzer) isAnnotatedPlain(fn *ast.Node) bool {
+	return isPlainCandidate(fn) && !a.isFactory(fn) && fn.Type() != nil && !a.isEffectAnnotation(fn.Type())
+}
+
+// ownCycleReference returns how call, a call by name in a .vibe file of a
+// plain-annotated function of the same file, reaches its plain form, the
+// function itself, or nil.
+func (a *analyzer) ownCycleReference(call *ast.Node) *directReference {
+	if !isVibeLangFile(ast.GetSourceFileOfNode(call)) || inHatch(call) || holdsProgram(a.checker, call) {
+		return nil
+	}
+	callee := ast.GetInvokedExpression(call)
+	fn := esFunctionOf(a.checker, callee)
+	if !ast.IsIdentifier(callee) || fn == nil || ast.GetSourceFileOfNode(fn) != ast.GetSourceFileOfNode(call) || !a.isAnnotatedPlain(fn) || !a.isPlainFunction(fn) {
+		return nil
+	}
+	if symbol := a.checker.GetResolvedSymbol(callee); symbol == nil || !slices.Contains(symbol.Declarations(), fn) {
+		return nil
+	}
+	return &directReference{name: callee.Text(), own: true}
 }

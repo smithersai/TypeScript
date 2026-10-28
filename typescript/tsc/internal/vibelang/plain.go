@@ -223,6 +223,7 @@ func isUsingList(list *ast.Node) bool {
 // directReference describes how code in the callee expression's file reaches
 // the $direct variant of a plain function.
 type directReference struct {
+	own       bool      // the function is its own plain form: a plain-annotated cycle member (D412)
 	name      string    // the source name the reference reaches the function by: its own name, the local name of its import, or the member name after a namespace
 	property  string    // through an import or a namespace, the name the module exports the variant under, such as "double$direct" (variantExportName)
 	access    *ast.Node // for M.double through a namespace import, the access expression
@@ -349,6 +350,7 @@ type plainPlan struct {
 	budgetDirects   map[*ast.Node]bool             // acyclic helpers with a private budget-forwarding entry
 	directs         map[*ast.Node]bool             // function declarations split into a $direct variant and an Effect wrapper
 	cyclicDirects   map[*ast.Node]bool             // plain functions on a cycle, split into an Effect generator and a $direct variant that runs it (plain_cycles.go)
+	ownCycles       map[*ast.Node]bool             // the plain-annotated ones, whose own name is the plain variant (D412)
 	fastRefs        map[*directReference]bool      // cycle entries that can forward a hidden eager budget
 	rawRefs         map[*directReference]bool      // references to cycle members with an original JS body
 	cycleRefs       map[*ast.Node]*directReference // cycle calls: direct in the eager body, yield* in the heap body
@@ -383,11 +385,20 @@ func (p *plainPlan) planPlain(a *analyzer, node *ast.Node) {
 			p.directs[node] = true
 			p.budgetDirects[node] = a.forwardsPlainBudget(node)
 		}
+	} else if a.isAnnotatedPlain(node) && a.onPlainCycle(node) {
+		// Its own name stays its plain form (D412).
+		if p.ownCycles == nil {
+			p.ownCycles = map[*ast.Node]bool{}
+		}
+		p.cyclicDirects[node], p.ownCycles[node] = true, true
 	}
 	var ref *directReference
 	switch {
 	case isInvocation(node) && a.isCycleCall(node):
 		ref = a.directCallee(node)
+		if ref == nil {
+			ref = a.ownCycleReference(node)
+		}
 		if ref != nil {
 			p.cycleRefs[node] = ref
 			p.rawRefs[ref] = true

@@ -1,0 +1,28 @@
+// A plain-annotated function's plain call cycles recurse as an unannotated
+// cycle's do (D412): on the JavaScript stack, then past the depth budget on
+// heap frames that run to completion before the outermost call returns, so
+// deep recursion completes where JavaScript's stack overflowed. Callers, a
+// TypeScript one included, still call the function itself.
+export function sumTo(n: number): number {
+  return n === 0 ? 0 : n + sumTo(n - 1)
+}
+
+export function isEven(n: number): boolean {
+  return n === 0 ? true : isOdd(n - 1)
+}
+
+function isOdd(n: number): boolean {
+  return n === 0 ? false : isEven(n - 1)
+}
+
+// A cycle through an unannotated function.
+export function countDown(n: number): number {
+  return n === 0 ? 0 : 1 + step(n - 1)
+}
+
+function step(n: number) {
+  return countDown(n)
+}
+
+// Module initialization is plain code too.
+export const atLoad = sumTo(100000)

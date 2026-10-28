@@ -145,6 +145,15 @@ func (tx *lowering) visitSource(node *ast.Node) *ast.Node {
 	if ref := tx.plan.cycleRefs[node]; ref != nil && !tx.inEffect {
 		return tx.visitDirectReference(node, ref)
 	}
+	if call := node.Parent; tx.inEffect && ast.IsIdentifier(node) && call != nil && ast.IsCallExpression(call) && call.Expression() == node {
+		if ref := tx.plan.cycleRefs[call]; ref != nil && ref.own {
+			// A heap body's cycle call runs a plain-annotated member's Effect form (D412).
+			effect := tx.Factory().NewIdentifier(tx.freshName(ref.name + "$effect"))
+			tx.EmitContext().SetOriginal(effect, node)
+			effect.Loc = node.Loc
+			return effect
+		}
+	}
 	if ref := tx.plan.directRefs[node]; ref != nil {
 		return tx.visitDirectReference(node, ref)
 	}

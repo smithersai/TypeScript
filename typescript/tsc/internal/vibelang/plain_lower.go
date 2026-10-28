@@ -86,10 +86,18 @@ func (tx *lowering) visitPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 // Once that budget is exhausted the Effect body continues on heap frames.
 // A synchronous callback cannot yield; its original JS body is retained as
 // $stack, so crossing that boundary does not nest synchronous Effect runners.
+//
+// A plain-annotated member (D412) keeps its own name, with its modifiers, for
+// the plain entry that TypeScript and .vibe callers call, and its Effect form
+// takes a fresh name, name$effect, which its heap body's cycle calls run.
 func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Node {
 	f := tx.Factory()
 	name := node.Name().Text()
-	directText, stackText := tx.directName(name), tx.freshName(name+"$stack")
+	own := tx.plan.ownCycles[node]
+	effectText, directText, stackText := name, tx.directName(name), tx.freshName(name+"$stack")
+	if own {
+		effectText, directText = tx.freshName(name+"$effect"), name
+	}
 	savedCallbacks := tx.rawCallbacks
 	tx.rawCallbacks = true
 	effect := tx.visitEffectFunctionDeclaration(node)
@@ -107,8 +115,8 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 				heapMethod := func(method string, args ...*ast.Node) *ast.Node {
 					return f.NewCallExpression(f.NewPropertyAccessExpression(tx.runtimeMember("$eager"), nil, f.NewIdentifier(method), ast.NodeFlagsNone), nil, nil, f.NewNodeList(args), ast.NodeFlagsNone)
 				}
-				cache := heapMethod("getHeap", f.NewIdentifier(name))
-				install := heapMethod("setHeap", f.NewIdentifier(name), apply.Expression())
+				cache := heapMethod("getHeap", f.NewIdentifier(effectText))
+				install := heapMethod("setHeap", f.NewIdentifier(effectText), apply.Expression())
 				factory := f.NewParenthesizedExpression(f.NewBinaryExpression(nil, cache, nil, f.NewToken(ast.KindQuestionQuestionToken), install))
 				call := f.NewCallExpression(f.NewPropertyAccessExpression(factory, nil, apply.Name(), ast.NodeFlagsNone), nil, nil, invoke.ArgumentList(), ast.NodeFlagsNone)
 				body := f.NewBlock(f.NewNodeList(append(append([]*ast.Node{}, statements[:len(statements)-1]...), f.NewReturnStatement(call))), true)
@@ -127,7 +135,7 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 		method := func(key string, args ...*ast.Node) *ast.Node {
 			return f.NewCallExpression(f.NewPropertyAccessExpression(tx.runtimeMember("$eager"), nil, f.NewIdentifier(key), ast.NodeFlagsNone), nil, nil, f.NewNodeList(args), ast.NodeFlagsNone)
 		}
-		cachedFactory := f.NewParenthesizedExpression(f.NewBinaryExpression(nil, method("getHeap", f.NewIdentifier(name)), nil, f.NewToken(ast.KindQuestionQuestionToken), method("setHeap", f.NewIdentifier(name), factory)))
+		cachedFactory := f.NewParenthesizedExpression(f.NewBinaryExpression(nil, method("getHeap", f.NewIdentifier(effectText)), nil, f.NewToken(ast.KindQuestionQuestionToken), method("setHeap", f.NewIdentifier(effectText), factory)))
 		invoke := f.NewCallExpression(f.NewPropertyAccessExpression(cachedFactory, nil, f.NewIdentifier("apply"), ast.NodeFlagsNone), nil, nil, f.NewNodeList([]*ast.Node{f.NewThisExpression(), f.NewIdentifier("arguments")}), ast.NodeFlagsNone)
 		var statements []*ast.Node
 		for _, statement := range effect.Body().Statements() {
@@ -161,13 +169,32 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 	statementsWithGuard = append(statementsWithGuard, eagerGuard)
 	statementsWithGuard = append(statementsWithGuard, effectStatements[prologue:]...)
 	// Plain functions previously exposed a rest-only Effect wrapper (length
-	// zero). The heap generator still binds the original parameters.
-	effect = f.UpdateFunctionDeclaration(effect.AsFunctionDeclaration(), effect.Modifiers(), nil, effect.Name(), nil, f.NewNodeList(nil), nil, nil,
+	// zero). The heap generator still binds the original parameters. A
+	// plain-annotated member's Effect form is private, under its fresh name.
+	modifiersOfEffect, nameOfEffect := effect.Modifiers(), effect.Name()
+	if own {
+		modifiersOfEffect, nameOfEffect = nil, f.NewIdentifier(effectText)
+	}
+	effect = f.UpdateFunctionDeclaration(effect.AsFunctionDeclaration(), modifiersOfEffect, nil, nameOfEffect, nil, f.NewNodeList(nil), nil, nil,
 		f.NewBlock(f.NewNodeList(statementsWithGuard), true))
 
 	tx.rawCallbacks = savedCallbacks
 
 	modifiers, export := tx.variantExport(node, directText)
+	if own {
+		// Fresh modifiers of the same kinds, so the source's comments are
+		// written once, before the Effect form.
+		var kinds []*ast.Node
+		if list := node.Modifiers(); list != nil {
+			for _, modifier := range list.Nodes {
+				kinds = append(kinds, f.NewModifier(modifier.Kind))
+			}
+		}
+		modifiers, export = nil, nil
+		if len(kinds) > 0 {
+			modifiers = f.NewModifierList(kinds)
+		}
+	}
 	savedEffect, savedPlain, savedRaw := tx.inEffect, tx.plain, tx.rawPlain
 	tx.inEffect, tx.plain = false, true
 	parameters := tx.EmitContext().VisitParameters(node.ParameterList(), tx.Visitor())
@@ -217,8 +244,8 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 		// The heap call stands at the top of a body that binds the source
 		// parameters and declarations, which may shadow the function's name:
 		// it then reaches the function through a forwarder of fresh name.
-		target := name
-		if ownNameShadowed(node) {
+		target := effectText
+		if !own && ownNameShadowed(node) {
 			target = tx.freshName(name + "$effect")
 			forward := f.NewReturnStatement(call(member(f.NewIdentifier(name), "apply"), f.NewThisExpression(), f.NewIdentifier("arguments")))
 			extra = append(extra, f.NewFunctionDeclaration(nil, nil, f.NewIdentifier(target), nil, f.NewNodeList(nil), nil, nil, f.NewBlock(f.NewNodeList([]*ast.Node{forward}), true)))
@@ -229,7 +256,7 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 			heapCall = call(f.NewIdentifier(target), args...)
 		}
 	} else {
-		heapCall = call(member(f.NewIdentifier(name), "apply"), f.NewThisExpression(), f.NewIdentifier("arguments"))
+		heapCall = call(member(f.NewIdentifier(effectText), "apply"), f.NewThisExpression(), f.NewIdentifier("arguments"))
 		eagerText := tx.freshName(name + "$eager")
 		eager := f.NewFunctionDeclaration(nil, nil, f.NewIdentifier(eagerText), nil, parameters, nil, nil, eagerBody)
 		extra = append(extra, eager)
@@ -298,6 +325,9 @@ func (tx *lowering) visitCyclicPlainFunctionDeclaration(node *ast.Node) *ast.Nod
 		registration = append(registration, f.NewIdentifier(tx.freshName(name+"$recur")))
 	}
 	statements = append(statements, f.NewExpressionStatement(call(member(budget, "register"), registration...)))
+	if own {
+		return f.NewSyntaxList(statements) // its own name is its plain form; nothing to mark
+	}
 	return f.NewSyntaxList(append(statements, tx.directMarker(node)...))
 }
 
@@ -452,6 +482,8 @@ func (tx *lowering) directExpression(node *ast.Node, ref *directReference) *ast.
 		expression = f.NewPropertyAccessExpression(receiver, nil /*questionDotToken*/, f.NewIdentifier(ref.property), ast.NodeFlagsNone)
 	case ref.specifier != nil && tx.commonJS:
 		expression = tx.importedVariant(ref.specifier)
+	case ref.own:
+		expression = f.NewIdentifier(ref.name) // a plain-annotated cycle member is its own plain form (D412)
 	default:
 		expression = f.NewIdentifier(tx.directName(ref.name))
 	}
