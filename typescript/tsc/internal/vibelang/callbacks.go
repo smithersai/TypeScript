@@ -26,6 +26,24 @@ func init() {
 // such as "run find(id), an Effect", and {1} names the callee.
 var pausingCallback = EK4301.With("This callback can't {0}: {1} calls it synchronously, as a plain function.")
 
+// effectFunctionCallback is EK4301's text for an Effect function passed by
+// name where only a plain function fits (D430, D500).
+var effectFunctionCallback = EK4301.With("{0} is an Effect function, but {1} calls it synchronously.")
+
+// callsEffectFunction is EK4301's text for a callback that calls an Effect
+// function whose body runs no Effect, which is an Effect function only for
+// want of a return annotation (D500).
+var callsEffectFunction = EK4301.With("this callback calls the Effect function {0}, but {1} calls it synchronously.")
+
+// noteReturnTypeFix notes on d the return type returnTypeFix writes for
+// helper, when it writes one.
+func (a *analyzer) noteReturnTypeFix(d *ast.Diagnostic, helper *ast.Node) {
+	if helper == nil || a.plainHelperGroup(helper) == nil {
+		return
+	}
+	note(d, "{0} has no return annotation, so it is an Effect function. Its quick fix writes its return type, {1}, which makes it plain; vibelang --fix applies every such fix in the project.", functionDisplayName(helper), ": "+a.returnTypeText(helper))
+}
+
 // effectAnnotatedCallback is EK4301's text for a literal whose Effect
 // annotation makes it an Effect function where only a plain function fits
 // (D500).
@@ -67,7 +85,15 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 				if pause := a.pauseWhat(file, node); pause != "" {
 					call, _ := ownerCall(node)
 					if !reportTracedCallback(c, file, call, node) {
-						d := report(c, node, pausingCallback, pause, calleeName(c, file, call))
+						message := pausingCallback
+						first := a.firstPause(node)
+						if first != nil && a.runsVariant(first) {
+							message = callsEffectFunction
+						}
+						d := report(c, node, message, pause, calleeName(c, file, call))
+						if message == callsEffectFunction {
+							a.noteReturnTypeFix(d, a.unannotatedHelperAt(first))
+						}
 						note(d, pausingCallbackFix(c, file, call, node))
 						if call != nil && !ast.IsExpressionStatement(ast.WalkUpParenthesizedExpressions(call).Parent) {
 							if sig := a.candidateOf(call); sig != nil {
@@ -105,7 +131,8 @@ func checkCallbacks(c *checker.Checker, file *ast.SourceFile) {
 				if reportTracedCallback(c, file, call, node) {
 					break
 				}
-				d := report(c, node, EK4301, node.Text(), calleeName(c, file, call))
+				d := report(c, node, effectFunctionCallback, node.Text(), calleeName(c, file, call))
+				a.noteReturnTypeFix(d, a.unannotatedHelperAt(node))
 				note(d, "Use {0} or a for...of loop.", forEachFix(c, file, call, node))
 			}
 		}
