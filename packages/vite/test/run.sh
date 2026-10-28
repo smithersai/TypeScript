@@ -45,4 +45,5 @@ ln -s "$runtime" "$modules/vibelang-runtime"
 ln -s "$repo/packages/compiler" "$package/node_modules/vibelang"
 
 cd "$package"
+# Includes plugin.property.test.mjs; FC_* controls property selection and replay.
 exec node --test "$@" test/*.test.mjs
