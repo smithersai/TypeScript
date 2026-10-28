@@ -1,4 +1,4 @@
-// expect-result: {"names":["ADA","anon"],"next":[2,null],"sizes":[3,0],"values":[5,null],"labels":["HI",""]}
+// expect-result: {"names":["ADA","anon"],"next":[2,null],"sizes":[3,0],"values":[5,null],"labels":["HI",""],"fives":[true,false]}
 // An Option pipeline whose every stage is a function of the Option module
 // draws EK4840 (D473), whose quick fix writes it with Option's methods.
 // tsforms-option-fixed is what vibelang --fix writes.
@@ -17,6 +17,14 @@ export const label = (o: Option.Option<string>) =>
     Option.getOrElse(() => ""),
   )
 
+// A stage whose argument is a call keeps the pipe: the chain would evaluate
+// five() after the stage before it runs. The warning stays, without a fix.
+function five() {
+  return 5
+}
+
+export const hasFive = (o: Option.Option<number>) => pipe(o, Option.contains(five()))
+
 export function main() {
   return {
     names: [name(Option.some(" ada ")), name(Option.none())],
@@ -24,5 +32,6 @@ export function main() {
     sizes: [size("abc"), size(null)],
     values: [value(Option.some(5)), value(Option.none())],
     labels: [label(Option.some("hi")), label(Option.none())],
+    fives: [hasFive(Option.some(5)), hasFive(Option.none())],
   }
 }

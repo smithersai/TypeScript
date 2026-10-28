@@ -1,4 +1,4 @@
-// expect-result: {"labels":["Idle","Other busy"],"areas":[12,9],"events":["open","closed: done"],"kinds":["token text","oauth","numbered"],"sizes":[3,2],"counts":["one","many"]}
+// expect-result: {"labels":["Idle","Other busy"],"areas":[12,9],"events":["open","closed: done"],"kinds":["token text","oauth","numbered"],"sizes":[3,2],"counts":["one","many"],"sizes2":["big","small"]}
 // A choice written with Effect's Match functions draws EK4839 (D472), whose
 // quick fix writes a match expression with the same arms and type.
 // tsforms-match-fixed is what vibelang --fix writes.
@@ -53,6 +53,9 @@ export function count(n: number) {
   return word
 }
 
+// A predicate is no match pattern, so this chain keeps its warning and has no fix.
+export const scale = (n: number) => Match.value(n).pipe(Match.when((x) => x > 9, () => "big"), Match.orElse(() => "small"))
+
 export function main() {
   return {
     labels: [label("idle"), label("busy")],
@@ -61,5 +64,6 @@ export function main() {
     kinds: [kind({ method: "token", value: "t" }), kind({ method: "oauth", value: 1 }), kind({ method: "token", value: 2 })],
     sizes: [size(3), size("ab")],
     counts: [count(1), count(5)],
+    sizes2: [scale(10), scale(1)],
   }
 }
