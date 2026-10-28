@@ -28,24 +28,24 @@ func TestSchemaAliasMissingInitializer(t *testing.T) {
 	}
 }
 
-// D474: EK4841's quick fix writes a schema constant and the type alias just
-// before it as one schema alias, which the parser writes back into the same
+// D474, D501: EK4841's quick fix writes a schema constant and the type alias
+// just after it as one schema alias, which the parser writes back into the same
 // two declarations.
 func TestSchemaAliasQuickFixes(t *testing.T) {
 	for _, test := range []struct{ name, source, want string }{
-		{"literals", "export type Kind = typeof Kind.Type\nexport const Kind = Schema.Literals([\"persistent\", \"incognito\"])\nexport const k: Kind = \"incognito\"\n",
+		{"literals", "export const Kind = Schema.Literals([\"persistent\", \"incognito\"])\nexport type Kind = typeof Kind.Type\nexport const k: Kind = \"incognito\"\n",
 			"export schema Kind = \"persistent\" | \"incognito\"\nexport const k: Kind = \"incognito\"\n"},
-		{"a keyword schema", "export type Id = typeof Id.Type\nexport const Id = Schema.String\n",
+		{"a keyword schema", "export const Id = Schema.String\nexport type Id = typeof Id.Type\n",
 			"export schema Id = string\n"},
-		{"a union of other schemas", "schema A { a: string }\ntype AB = typeof AB.Type\nconst AB = Schema.Union([A, Schema.Number, Schema.Null])\nexport const ab: AB = null\n",
+		{"a union of other schemas", "schema A { a: string }\nconst AB = Schema.Union([A, Schema.Number, Schema.Null])\ntype AB = typeof AB.Type\nexport const ab: AB = null\n",
 			"schema A { a: string }\nschema AB = A | number | null\nexport const ab: AB = null\n"},
-		{"an array of tuples", "export type Pairs = typeof Pairs.Type\nexport const Pairs = Schema.Array(Schema.Tuple([Schema.String, Schema.Number]))\n",
+		{"an array of tuples", "export const Pairs = Schema.Array(Schema.Tuple([Schema.String, Schema.Number]))\nexport type Pairs = typeof Pairs.Type\n",
 			"export schema Pairs = [string, number][]\n"},
-		{"a record", "export type Counts = typeof Counts.Type\nexport const Counts = Schema.Record(Schema.String, Schema.Number)\n",
+		{"a record", "export const Counts = Schema.Record(Schema.String, Schema.Number)\nexport type Counts = typeof Counts.Type\n",
 			"export schema Counts = Record<string, number>\n"},
-		{"a named schema", "export type Count = typeof Count.Type\nexport const Count = Schema.FiniteFromString\n",
+		{"a named schema", "export const Count = Schema.FiniteFromString\nexport type Count = typeof Count.Type\n",
 			"export schema Count = Schema.FiniteFromString\n"},
-		{"comments outside", "// The kinds.\nexport type Kind = typeof Kind.Type\nexport const Kind = Schema.Literals([\"a\", \"b\"]) // two\n",
+		{"comments outside", "// The kinds.\nexport const Kind = Schema.Literals([\"a\", \"b\"]) // two\nexport type Kind = typeof Kind.Type\n",
 			"// The kinds.\nexport schema Kind = \"a\" | \"b\" // two\n"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -67,20 +67,20 @@ func TestSchemaAliasQuickFixes(t *testing.T) {
 // module's declaration file, EK4841 says nothing.
 func TestSchemaAliasNotReported(t *testing.T) {
 	for _, test := range []struct{ name, source string }{
-		// The declaration file lists an alias's type first.
-		{"the constant before its type", "export const Kind = Schema.Literals([\"a\", \"b\"])\nexport type Kind = typeof Kind.Type\n"},
-		{"a statement between", "export type Kind = typeof Kind.Type\nexport const other = 1\nexport const Kind = Schema.Literals([\"a\", \"b\"])\n"},
-		{"JSDoc on the constant", "export type Kind = typeof Kind.Type\n/** The kinds. */\nexport const Kind = Schema.Literals([\"a\", \"b\"])\n"},
-		{"JSDoc on the type", "/** The kinds. */\nexport type Kind = typeof Kind.Type\nexport const Kind = Schema.Literals([\"a\", \"b\"])\n"},
-		{"another spelling of the type", "export type Kind = Schema.Schema.Type<typeof Kind>\nexport const Kind = Schema.Literals([\"a\", \"b\"])\n"},
-		{"another export", "type Kind = typeof Kind.Type\nexport const Kind = Schema.Literals([\"a\", \"b\"])\nexport const k: Kind = \"a\"\n"},
+		// The declaration file lists an alias's constant first (D501).
+		{"the type before its constant", "export type Kind = typeof Kind.Type\nexport const Kind = Schema.Literals([\"a\", \"b\"])\n"},
+		{"a statement between", "export const Kind = Schema.Literals([\"a\", \"b\"])\nexport const other = 1\nexport type Kind = typeof Kind.Type\n"},
+		{"JSDoc on the constant", "/** The kinds. */\nexport const Kind = Schema.Literals([\"a\", \"b\"])\nexport type Kind = typeof Kind.Type\n"},
+		{"JSDoc on the type", "export const Kind = Schema.Literals([\"a\", \"b\"])\n/** The kinds. */\nexport type Kind = typeof Kind.Type\n"},
+		{"another spelling of the type", "export const Kind = Schema.Literals([\"a\", \"b\"])\nexport type Kind = Schema.Schema.Type<typeof Kind>\n"},
+		{"another export", "export const Kind = Schema.Literals([\"a\", \"b\"])\ntype Kind = typeof Kind.Type\nexport const k: Kind = \"a\"\n"},
 		{"no type alias", "export const Kind = Schema.Literals([\"a\", \"b\"])\n"},
 		// No schema alias writes the schema.
-		{"a struct", "export type User = typeof User.Type\nexport const User = Schema.Struct({ id: Schema.String })\n"},
-		{"a transformation", "export type Name = typeof Name.Type\nexport const Name = Schema.NullOr(Schema.String)\n"},
-		{"a pipe", "export type Id = typeof Id.Type\nexport const Id = Schema.String.pipe(Schema.brand(\"Id\"))\n"},
-		{"a comment inside", "export type Kind = typeof Kind.Type\nexport const Kind = Schema.Literals([\"a\", /* the other */ \"b\"])\n"},
-		{"an annotation", "export type Kind = typeof Kind.Type\nexport const Kind: Schema.Literals<readonly [\"a\", \"b\"]> = Schema.Literals([\"a\", \"b\"])\n"},
+		{"a struct", "export const User = Schema.Struct({ id: Schema.String })\nexport type User = typeof User.Type\n"},
+		{"a transformation", "export const Name = Schema.NullOr(Schema.String)\nexport type Name = typeof Name.Type\n"},
+		{"a pipe", "export const Id = Schema.String.pipe(Schema.brand(\"Id\"))\nexport type Id = typeof Id.Type\n"},
+		{"a comment inside", "export const Kind = Schema.Literals([\"a\", /* the other */ \"b\"])\nexport type Kind = typeof Kind.Type\n"},
+		{"an annotation", "export const Kind: Schema.Literals<readonly [\"a\", \"b\"]> = Schema.Literals([\"a\", \"b\"])\nexport type Kind = typeof Kind.Type\n"},
 		{"a schema alias already", "export schema Kind = \"a\" | \"b\"\n"},
 	} {
 		t.Run(test.name, func(t *testing.T) {

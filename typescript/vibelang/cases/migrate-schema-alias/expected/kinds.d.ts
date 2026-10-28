@@ -1,11 +1,11 @@
 import { Schema } from "effect";
-export type Kind = typeof Kind.Type;
 export declare const Kind: Schema.Literals<readonly ["persistent", "incognito"]>;
-export type Id = typeof Id.Type;
+export type Kind = typeof Kind.Type;
 export declare const Id: Schema.Union<readonly [Schema.String, Schema.Number]>;
-export type Tags = typeof Tags.Type;
+export type Id = typeof Id.Type;
 export declare const Tags: Schema.$Array<Schema.String>;
-export declare const Mode: Schema.Literals<readonly ["light", "dark"]>;
+export type Tags = typeof Tags.Type;
 export type Mode = typeof Mode.Type;
+export declare const Mode: Schema.Literals<readonly ["light", "dark"]>;
 export type Name = typeof Name.Type;
 export declare const Name: Schema.NullOr<Schema.String>;

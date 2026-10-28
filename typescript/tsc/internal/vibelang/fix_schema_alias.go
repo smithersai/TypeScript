@@ -27,18 +27,17 @@ import (
 // annotation and no modifier but export.
 //
 // The rewrite also keeps the module's declaration file, which a migration
-// must leave as it was. The parser lists an alias's type before its constant
-// and gives both the constant's JSDoc (decl-schema-comments), so the warning
-// applies only where the source already says the same: the type alias, type
-// Kind = typeof Kind.Type with the constant's export, is the statement just
-// before the constant, neither has JSDoc, and the rewrite leaves every import
-// in place. A constant written before its type, as most code writes it,
-// keeps its form and draws nothing until the declaration order matches. So
-// do a Schema.Struct constant, which is EK4832's; a refinement or a
+// must leave as it was. A schema alias's declaration file lists its constant,
+// then its type (D501, schemas_declarations.go), so the warning applies only
+// where the source already says the same: the type alias, type Kind = typeof
+// Kind.Type with the constant's export, is the statement just after the
+// constant, neither has JSDoc, and the rewrite leaves every import in place.
+// A type written before its constant keeps its form and draws nothing. So do
+// a Schema.Struct constant, which is EK4832's; a refinement or a
 // transformation, such as a pipe, a check, an annotation, Schema.NullOr or a
 // brand, which no type writes (D133); and a schema with a comment inside.
 
-// EK4841 (D474): a schema constant after its type alias. {0} is the name, {1} the declaration that writes both.
+// EK4841 (D474, D501): a schema constant just before its type alias. {0} is the name, {1} the declaration that writes both.
 var EK4841 = message(4841, warningCategory, "{0} holds a schema and its type alias names its type; a schema alias writes both: {1}.")
 
 func init() {
@@ -102,7 +101,7 @@ func schemaAliasRewrite(c *checker.Checker, file *ast.SourceFile, name *ast.Node
 		return nil
 	}
 	typeText, ok := schemaTypeText(c, file, schema, lineIndent(text, nodeStart(file, statement)))
-	if !ok || !aliasTypeBefore(file, statement, name.Text()) {
+	if !ok || !aliasTypeAfter(file, statement, name.Text()) {
 		return nil
 	}
 	edits, ok := schemaTypeEdits(c, file, statement, name, ast.HasSyntacticModifier(statement, ast.ModifierFlagsExport))
@@ -122,20 +121,20 @@ func schemaAliasRewrite(c *checker.Checker, file *ast.SourceFile, name *ast.Node
 	return rewrite
 }
 
-// aliasTypeBefore reports whether the statement just before statement, in
-// its block, is the type alias type name = typeof name.Type, the order in
-// which a schema alias's declaration file lists the two.
-func aliasTypeBefore(file *ast.SourceFile, statement *ast.Node, name string) bool {
+// aliasTypeAfter reports whether the statement just after statement, in its
+// block, is the type alias type name = typeof name.Type, the order in which a
+// schema alias's declaration file lists the two (D501).
+func aliasTypeAfter(file *ast.SourceFile, statement *ast.Node, name string) bool {
 	if statement.Parent == nil || !statement.Parent.CanHaveStatements() {
 		return false
 	}
 	statements := statement.Parent.Statements()
 	for i, s := range statements {
 		if s == statement {
-			if i == 0 || !ast.IsTypeAliasDeclaration(statements[i-1]) {
+			if i+1 == len(statements) || !ast.IsTypeAliasDeclaration(statements[i+1]) {
 				return false
 			}
-			alias := statements[i-1]
+			alias := statements[i+1]
 			return alias.TypeParameters() == nil && alias.Name().Text() == name &&
 				strings.Join(strings.Fields(expressionText(file, alias.Type())), "") == "typeof"+name+".Type"
 		}
