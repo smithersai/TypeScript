@@ -54,7 +54,7 @@ function requireSetting(name: string) {
 }
 
 function startup() {
-  return Effect.orDie(requireSetting("region"))
+  return Effect.orDie(() => requireSetting("region"))
 }
 // void!!
 
@@ -76,7 +76,7 @@ true
 
 ```vibe
 function inspectStartup() {
-  const outcome = Effect.exit(startup())
+  const outcome = Effect.exit(() => startup())
   if (outcome.isFailure()) {
     return outcome.cause.hasDies() ? "startup defect" : "startup stopped"
   }
@@ -118,7 +118,7 @@ disabled
 
 ```vibe
 function decoderBoundary(opcode: number) {
-  const outcome = exit(decodeOpcode(opcode))
+  const outcome = exit(() => decodeOpcode(opcode))
   if (outcome is Exit.Success(let value)) return value
   const cause = outcome.cause
   if (cause.hasInterrupts()) return Effect.failCause(cause)

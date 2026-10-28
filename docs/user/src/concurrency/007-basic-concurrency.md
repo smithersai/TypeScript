@@ -13,7 +13,7 @@ function task(id: number) {
 }
 
 function runTasks() {
-  const sequential = all([task(1), task(2)])
+  const sequential = all([() => task(1), () => task(2)])
   const bounded = forEach([1, 2, 3, 4], (id) => task(id), {
     concurrency: 2
   })
@@ -56,7 +56,7 @@ function cancelWork() {
 ```vibe
 // run: cancelWithCleanup(); Console.log("interrupt returned")
 function cancelWithCleanup() {
-  const worker = fork(Effect.onInterrupt(() => {
+  const worker = fork(() => Effect.onInterrupt(() => {
     try {
       sleep("1 minute")
     } finally {
@@ -110,7 +110,7 @@ function answer(label: string, delay: Duration.Input) {
 function raceExamples() {
   const firstSuccess = race(
     () => { throw "unavailable" },
-    answer("replica", "20 millis")
+    () => answer("replica", "20 millis")
   )
   const anySuccess = await.any [
     answer("west", "40 millis"),
@@ -134,7 +134,7 @@ The await operations (TC39 await operations proposal) behave as the same-named `
 // run: const result = inspectRace(); Console.log(result.outcome.isFailure()); Console.log(JSON.stringify(result.winners))
 function inspectRace() {
   const winners: number[] = []
-  const outcome = Effect.result(Effect.raceFirst(
+  const outcome = Effect.result(() => Effect.raceFirst(
     () => { throw "primary offline" },
     () => {
       sleep("1 second")

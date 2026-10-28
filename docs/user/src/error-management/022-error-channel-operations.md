@@ -119,12 +119,12 @@ A failing observation can change the resulting cause, so observe with code that 
 ```vibe
 // run: Console.log(JSON.stringify(inspectQuantity(2))); Console.log(JSON.stringify(inspectQuantity(0))); Console.log(quantityOrErrorValue(2)); const value = quantityOrErrorValue(0); Console.log(typeof value === "number" ? value : value._tag)
 function inspectQuantity(value: number) {
-  const result = Effect.result(quantity(value))
+  const result = Effect.result(() => quantity(value))
   const summary = result.match({
     onFailure: () => "Rejected",
     onSuccess: (count) => `Accepted ${count}`
   })
-  const exit = Effect.exit(quantity(value))
+  const exit = Effect.exit(() => quantity(value))
   return { summary, completed: exit.isSuccess() }
 }
 

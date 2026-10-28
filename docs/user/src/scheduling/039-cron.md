@@ -9,7 +9,7 @@
 const weekdayReport = Schedule.cron("45 7 * * 1-5", "UTC")
 
 function reportJob() {
-  Effect.schedule(Console.log("generating daily report"), weekdayReport)
+  Effect.schedule(() => Console.log("generating daily report"), weekdayReport)
 }
 // Output: waiting for Monday morning
 // Output: generating daily report
@@ -74,7 +74,7 @@ function preview() {
 function runApplication() {
   const rule = Effect.fromResult(Cron.parse("*/10 * * * *", "UTC"))
   const reports = fork(() => Effect.schedule(
-    Console.log("report tick"),
+    () => Console.log("report tick"),
     Schedule.cron(rule)
   ))
 

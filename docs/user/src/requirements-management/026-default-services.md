@@ -39,7 +39,7 @@ function configuredPort() {
 ```vibe
 // run: Console.log(fixedRandomSample())
 function fixedRandomSample() {
-  return Effect.provideService(Random.next(), Random.Random, {
+  return Effect.provideService(() => Random.next(), Random.Random, {
     nextDoubleUnsafe: () => 0.25,
     nextIntUnsafe: () => 12
   })

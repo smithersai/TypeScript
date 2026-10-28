@@ -45,7 +45,7 @@ function sendRequest(): string!RequestRejected! {
 }
 
 function sendTransient() {
-  return retry(sendRequest(), {
+  return retry(() => sendRequest(), {
     times: 4,
     while: (error) => error.transient
   })
@@ -63,7 +63,7 @@ false
 ```vibe
 // run: Console.log(Effect.flip(() => sendWithBackoff())._tag); Console.log(Effect.flip(() => sendThreeMoreTimes())._tag)
 function sendWithBackoff() {
-  return retry(sendRequest(), {
+  return retry(() => sendRequest(), {
     times: 4,
     while: (error) => error.transient,
     schedule: Schedule.exponential("150 millis")
@@ -71,7 +71,7 @@ function sendWithBackoff() {
 }
 
 function sendThreeMoreTimes() {
-  return retry(sendRequest(), Schedule.recurs(3))
+  return retry(() => sendRequest(), Schedule.recurs(3))
 }
 ```
 
@@ -107,4 +107,4 @@ Queued for later
 
 ## Coming from Effect
 
-`retry(sendRequest(), policy)` and `Effect.retry(() => sendRequest(), policy)` both pass the request as a program; the first passes the call by name because the parameter expects an Effect. Each attempt reruns the call. When an attempt needs several statements, use a callback or block.
+`retry(() => sendRequest(), policy)` and `Effect.retry(() => sendRequest(), policy)` both pass the request as a program, so each attempt reruns the call. Passing the call itself, `retry(sendRequest(), policy)`, still compiles but is being retired. When an attempt needs several statements, use a callback or block.

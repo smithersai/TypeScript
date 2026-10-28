@@ -99,7 +99,7 @@ function greeting(name: Option.Option<string>) {
 }
 
 function report(id: string) {
-  const outcome = exit(getUser(id))
+  const outcome = exit(() => getUser(id))
   return match (outcome) {
     when Exit.Success(let user): user.name;
     when Exit.Failure(let cause): Cause.pretty(cause);
@@ -209,7 +209,7 @@ In an `if` or `while` condition, joined by `&&`, the pattern can bind names, sco
 ```vibe
 // run: Console.log(firstFailure("ada")); Console.log(firstFailure("").includes("NotFound"))
 function firstFailure(id: string) {
-  const outcome = exit(getUser(id))
+  const outcome = exit(() => getUser(id))
   if (outcome is Exit.Failure(let cause) && Cause.hasFails(cause)) {
     return Cause.pretty(cause)
   }

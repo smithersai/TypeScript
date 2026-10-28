@@ -58,8 +58,8 @@ Running a fiber under an existing key interrupts that key's previous fiber: late
 // run: Console.log(waitForAllTracked())
 function waitForAllTracked() {
   using workers = FiberSet.make<void>()
-  FiberSet.run(workers, sleep("10 millis"))
-  FiberSet.run(workers, sleep("20 millis"))
+  FiberSet.run(workers, () => sleep("10 millis"))
+  FiberSet.run(workers, () => sleep("20 millis"))
   FiberSet.awaitEmpty(workers)
   return FiberSet.size(workers) // 0
 }

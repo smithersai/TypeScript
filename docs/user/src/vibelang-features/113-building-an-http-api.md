@@ -53,7 +53,7 @@ export function createUser() {
   }
 }
 
-export const Routes = HttpRouter.add("POST", "/users", createUser())
+export const Routes = HttpRouter.add("POST", "/users", () => createUser())
 export const App = HttpRouter.provideRequest(UsersLive)(Routes)
 // Output: [201,409,400]
 ```
@@ -62,7 +62,7 @@ The JSON decoder runs at the call and returns the validated body. A repeated nam
 
 `catch` sees expected failures only, not defects or interruption. Keep error-to-status mapping explicit so a programming defect cannot become a successful response.
 
-`HttpRouter.add` receives `createUser()` by name, as a program that runs on each request. `HttpRouter.provideRequest` supplies `Users` to route execution, so `HttpRouter.toHttpEffect` in a test uses the same service implementation as the server.
+`HttpRouter.add` receives `() => createUser()`, a program that runs on each request. `HttpRouter.provideRequest` supplies `Users` to route execution, so `HttpRouter.toHttpEffect` in a test uses the same service implementation as the server.
 
 ## Start the Node server
 

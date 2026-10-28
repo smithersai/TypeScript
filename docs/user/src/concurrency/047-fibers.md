@@ -201,14 +201,14 @@ Forked fibers inherit the current services and tracing context. Control-operatio
 ```vibe
 // run: const scope = Scope.make(); const background = inCallerScope(scope); Scope.close(scope, Exit.succeed(undefined)); const stopped = Fiber.await(background); Console.log(stopped.isFailure() && Cause.hasInterrupts(stopped.cause)); detachedExample(); Console.log("detached finished")
 function inCallerScope(scope: Scope) {
-  const background = forkIn(scope, sleep("1 minute"))
+  const background = forkIn(scope, () => sleep("1 minute"))
   sleep("20 millis")
   // Closing scope interrupts background.
   return background
 }
 
 function detachedExample() {
-  const independent = detach(sleep("50 millis"))
+  const independent = detach(() => sleep("50 millis"))
   join independent
 }
 // Output: true

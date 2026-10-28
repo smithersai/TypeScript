@@ -577,7 +577,7 @@ function cancellable() {
 
 ## Calls
 
-A tagged template is a call of its tag. If `sql` returns an Effect, the statement ``sql`CREATE TABLE example (id TEXT)` `` runs it, and ``const rows = sql`SELECT * FROM example` `` gets its success value. Plain tags keep JavaScript behavior. Discarding a structured Effect subtype, such as SQL Statement, is EK4301: call the result explicitly, or annotate the tag as returning `Effect<A, E, R>`. A program parameter takes an Effectful template by name, as it takes a call.
+A tagged template is a call of its tag. If `sql` returns an Effect, the statement ``sql`CREATE TABLE example (id TEXT)` `` runs it, and ``const rows = sql`SELECT * FROM example` `` gets its success value. Plain tags keep JavaScript behavior. Discarding a structured Effect subtype, such as SQL Statement, is EK4301: call the result explicitly, or annotate the tag as returning `Effect<A, E, R>`. To pass one as a program, write ``() => sql`...` ``, as for a call.
 
 **No imports from `effect` or its subpath packages**.
 

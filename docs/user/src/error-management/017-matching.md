@@ -16,7 +16,7 @@ function itemCount(raw: number) {
 }
 
 function countLabel(raw: number) {
-  return Effect.match(itemCount(raw), {
+  return Effect.match(() => itemCount(raw), {
     onFailure: () => "Count unavailable",
     onSuccess: (count) => `${count} items`
   })
@@ -63,7 +63,7 @@ Count unavailable
 ```vibe
 // run: Console.log(outcomeLabel()); Console.log(reportOutcome())
 function outcomeLabel() {
-  return Effect.matchCause(die(new Error("index invariant")), {
+  return Effect.matchCause(() => die(new Error("index invariant")), {
     onFailure: (cause) => cause.hasDies() ? "Index defect" : "Index stopped",
     onSuccess: () => "Index ready"
   })
@@ -93,7 +93,7 @@ Unavailable
 ```vibe
 // run: ignoreRejectedCount(); discardBoundaryOutcome()
 function ignoreRejectedCount() {
-  Effect.ignore(itemCount(-2))
+  Effect.ignore(() => itemCount(-2))
 }
 // void!!
 

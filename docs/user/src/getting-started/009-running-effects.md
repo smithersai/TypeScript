@@ -48,7 +48,7 @@ function subtotal() {
   return 7 * 8
 }
 
-const total = Effect.runSync(subtotal())
+const total = Effect.runSync(() => subtotal())
 // total: number, 56
 // Output: 56
 ```
@@ -96,7 +96,7 @@ An `Exit` is a success with a value or a failure with a `Cause`, which keeps exp
 ```vibe
 // run: Console.log(Exit.isFailure(Fiber.await(running)))
 function heartbeat() {
-  repeat(log("alive"), Schedule.spaced("200 millis"))
+  repeat(() => log("alive"), Schedule.spaced("200 millis"))
 }
 
 const running = Effect.runFork(Effect.provide(heartbeat(), Logger.layer([])))

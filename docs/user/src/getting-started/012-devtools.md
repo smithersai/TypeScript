@@ -408,7 +408,7 @@ The other forms keep the TypeScript the checker reads: a block param is an arrow
 ```vibe
 // run: Console.log(tracedSample())
 function tracedSample() {
-  return withSpan(sample(), "sample")
+  return withSpan(() => sample(), "sample")
 }
 // Output: sample
 ```

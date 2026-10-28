@@ -15,7 +15,7 @@ function buildPreview() {
 }
 
 function previewWithDeadline() {
-  return timeout(buildPreview(), "500 millis")
+  return timeout(() => buildPreview(), "500 millis")
 }
 // string!Cause.TimeoutError!
 ```
@@ -26,7 +26,7 @@ Rendered preview
 TimeoutError
 ```
 
-`Effect.timeout` adds `Cause.TimeoutError` to `E`. A timely success keeps its value, and a domain failure before the deadline keeps its error. The parameter expects an Effect, so the source call passes by name and the timer surrounds the work itself; an explicit `() => buildPreview()` also works.
+`Effect.timeout` adds `Cause.TimeoutError` to `E`. A timely success keeps its value, and a domain failure before the deadline keeps its error. Pass the work as a program, `() => buildPreview()`, so the timer surrounds the work itself; passing the call itself still compiles but is being retired.
 
 ```vibe
 // run: Console.log(previewLabel())
@@ -69,7 +69,7 @@ No preview yet
 ```vibe
 // run: Console.log(previewOrPlaceholder()); Console.log(Effect.flip(() => requiredPreview("doc-1")).documentId)
 function previewOrPlaceholder() {
-  return Effect.timeoutOrElse(buildPreview(), {
+  return Effect.timeoutOrElse(() => buildPreview(), {
     duration: "500 millis",
     orElse: () => "Static placeholder"
   })
@@ -80,7 +80,7 @@ error PreviewDeadline {
 }
 
 function requiredPreview(documentId: string) {
-  return Effect.timeoutOrElse(buildPreview(), {
+  return Effect.timeoutOrElse(() => buildPreview(), {
     duration: "500 millis",
     orElse: () => { throw new PreviewDeadline({ documentId }) }
   })
@@ -101,7 +101,7 @@ The alternative runs lazily, after the timer wins, and can use services, fail, o
 // run: Console.log(Effect.flip(() => protectedPreview())._tag)
 function protectedPreview() {
   return timeout(
-    () => Effect.uninterruptible(buildPreview()),
+    () => Effect.uninterruptible(() => buildPreview()),
     "500 millis"
   )
 }

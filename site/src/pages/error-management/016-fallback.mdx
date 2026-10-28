@@ -109,7 +109,7 @@ A chain of catch expressions also tries alternatives in order, because `catch` a
 
 ## Coming from Effect
 
-An argument where an Effect is expected passes by name: `Effect.firstSuccessOf([latestTitle(), cachedTitle()])` runs each call only when its alternative is tried. Explicit programs such as `() => fetchTitle()` also work. Elsewhere, a call runs where it appears.
+Pass each alternative as a program, `Effect.firstSuccessOf([() => latestTitle(), () => cachedTitle()])`, so each call runs only when its alternative is tried. A call runs where it appears.
 
 ---
 

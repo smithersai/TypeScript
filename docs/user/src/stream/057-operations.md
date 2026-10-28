@@ -170,8 +170,8 @@ function partitionReadings() {
   using branches = Stream.range(10, 19).partition(Filter.fromPredicate((n: number) => n % 2 === 0), { capacity: 2 })
   const [even, odd] = branches
   return all([
-    even.runCollect(),
-    odd.runCollect()
+    () => even.runCollect(),
+    () => odd.runCollect()
   ], { concurrency: 2 })
 }
 // Output: [[10,12,14,16,18],[11,13,15,17,19]]
@@ -245,8 +245,8 @@ function shareReadings() {
   using copies = Stream.range(1, 12).broadcastN({ n: 2, capacity: 3 })
   const [totals, audit] = copies
   return all([
-    totals.runSum(),
-    audit.runForEach((n) => {
+    () => totals.runSum(),
+    () => audit.runForEach((n) => {
       sleep("10 millis")
       Console.log(`audit ${n}`)
     })

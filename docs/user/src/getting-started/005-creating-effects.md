@@ -25,7 +25,7 @@ The compiler records the returned object in `A` and `Unavailable` in `E`. `Effec
 ```vibe
 // run: Console.log(attemptReservation("notebook", false))
 function attemptReservation(item: string, available: boolean) {
-  const outcome = Effect.result(reserve(item, available))
+  const outcome = Effect.result(() => reserve(item, available))
   if (outcome.isFailure()) return outcome.failure.item
   return outcome.success.item
 }

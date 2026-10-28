@@ -8,7 +8,7 @@ A schedule decides when work runs again and when it stops. `Schedule` values wor
 // run: provide TestClock.layer() { const worker = fork heartbeat(); TestClock.adjust("46 seconds"); worker.interrupt() }
 function heartbeat() {
   repeat(
-    Console.log("worker available"),
+    () => Console.log("worker available"),
     Schedule.spaced("15 seconds")
   )
 }
@@ -48,7 +48,7 @@ The initial check is separate from the seven permitted repetitions, so the loop 
 // run: provide TestClock.layer() { const worker = fork delayedCleanup(); Console.log("before first sweep"); TestClock.adjust("60 minutes"); worker.interrupt() }
 function delayedCleanup() {
   Effect.schedule(
-    Console.log("sweeping expired sessions"),
+    () => Console.log("sweeping expired sessions"),
     Schedule.spaced("30 minutes")
   )
 }

@@ -42,9 +42,9 @@ function concurrentLookup() {
     }
   })
   const values = all([
-    Cache.get(cache, "north"),
-    Cache.get(cache, "north"),
-    Cache.get(cache, "north")
+    () => Cache.get(cache, "north"),
+    () => Cache.get(cache, "north"),
+    () => Cache.get(cache, "north")
   ], { concurrency: 3 })
   return { values, calls }
 }

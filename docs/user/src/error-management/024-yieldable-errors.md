@@ -78,7 +78,7 @@ Give distinct error cases distinct tags. Tag-based matching compares strings, so
 ```vibe
 // run: Console.log(displayTitle("")); Console.log(editableTitle("")); Console.log(displayTitle("Draft")); Console.log(editableTitle("Draft")); Console.log(Effect.flip(() => displayTitle("x".repeat(81)))._tag); Console.log(Effect.flip(() => editableTitle("x".repeat(81)))._tag)
 function displayTitle(text: string) {
-  return Effect.catchTag(title(text), "EmptyTitle", () => "Untitled")
+  return Effect.catchTag(() => title(text), "EmptyTitle", () => "Untitled")
 }
 // string!TitleTooLong!
 
