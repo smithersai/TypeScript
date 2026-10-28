@@ -744,8 +744,8 @@ func withoutUnusedEffectImports(name tspath.RootedFilePath, original, text strin
 	if len(names) == 0 {
 		return "", false
 	}
-	_, used := identifierUses(before, names, nil)
-	_, still := identifierUses(after, names, nil)
+	_, used := identifierUses(before, nil, names, nil)
+	_, still := identifierUses(after, nil, names, nil)
 	gone := map[string]int{}
 	for name := range names {
 		if used[name] > 0 && still[name] == 0 {

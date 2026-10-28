@@ -270,29 +270,68 @@ func importBindingsOf(file *ast.SourceFile) []importBinding {
 
 // identifierUses counts, for each name in names, the identifiers of file
 // outside import declarations, split by whether they lie in replaced. A
-// synthesized identifier, such as the Effect of an A!E!R type, counts where
-// it stands.
-func identifierUses(file *ast.SourceFile, names map[string]bool, replaced []core.TextRange) (inside, outside map[string]int) {
+// rewrite candidate asks once per fix, so the identifiers come from index,
+// which lists them once per file; a nil index walks file.
+func identifierUses(file *ast.SourceFile, index identifierIndex, names map[string]bool, replaced []core.TextRange) (inside, outside map[string]int) {
+	if index == nil {
+		index = indexIdentifiers(file)
+	}
 	inside, outside = map[string]int{}, map[string]int{}
 	in := func(pos int) bool {
 		return slices.ContainsFunc(replaced, func(r core.TextRange) bool { return r.Pos() <= pos && pos < r.End() })
 	}
+	for name := range names {
+		for _, at := range index[name] {
+			if in(at.pos) || in(at.start) {
+				inside[name]++
+			} else {
+				outside[name]++
+			}
+		}
+	}
+	return inside, outside
+}
+
+// An identifierIndex lists, by text, where the identifiers of one file stand
+// outside its import declarations.
+type identifierIndex map[string][]identifierAt
+
+// identifierAt is where one identifier stands: its pos, and its start after
+// leading trivia.
+type identifierAt struct{ pos, start int }
+
+// indexIdentifiers walks file once and returns its identifierIndex.
+func indexIdentifiers(file *ast.SourceFile) identifierIndex {
+	index := identifierIndex{}
 	var visit func(node *ast.Node) bool
 	visit = func(node *ast.Node) bool {
 		if ast.IsImportDeclaration(node) {
 			return false
 		}
-		if ast.IsIdentifier(node) && names[node.Text()] {
-			if in(node.Pos()) || in(nodeStart(file, node)) {
-				inside[node.Text()]++
-			} else {
-				outside[node.Text()]++
-			}
+		if ast.IsIdentifier(node) {
+			index[node.Text()] = append(index[node.Text()], identifierAt{node.Pos(), nodeStart(file, node)})
 		}
 		return node.ForEachChild(visit)
 	}
 	file.AsNode().ForEachChild(visit)
-	return inside, outside
+	return index
+}
+
+type identifierIndexKey struct{}
+
+// identifierIndexOf returns file's identifierIndex, built once per checker,
+// or nil without a checker.
+func identifierIndexOf(c *checker.Checker, file *ast.SourceFile) identifierIndex {
+	if c == nil {
+		return nil
+	}
+	indexes := c.ExtensionState(identifierIndexKey{}, func() any { return map[*ast.SourceFile]identifierIndex{} }).(map[*ast.SourceFile]identifierIndex)
+	if index, ok := indexes[file]; ok {
+		return index
+	}
+	index := indexIdentifiers(file)
+	indexes[file] = index
+	return index
 }
 
 // unusedImportEdits returns the edits that remove each import binding of file
@@ -315,7 +354,7 @@ func importRemovalEdits(c *checker.Checker, file *ast.SourceFile, replaced []cor
 	for _, b := range bindings {
 		names[b.name] = true
 	}
-	inside, outside := identifierUses(file, names, replaced)
+	inside, outside := identifierUses(file, identifierIndexOf(c, file), names, replaced)
 	for name := range names {
 		// A name the rewrite writes again, such as one in an argument it
 		// keeps, stays used.
