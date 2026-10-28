@@ -21,7 +21,7 @@ function greeting(id: string) {
 // string!UserNotFound!Users
 ```
 
-`add` performs no Effect operation and cannot fail, so VibeLang callers call a plain JavaScript copy of it: `add(1, 2)` costs what any JavaScript call costs (Chapter 15), and TypeScript still sees `(a: number, b: number) => Effect<number>`. `greeting` can fail and needs `Users`, so it compiles to an Effect function only.
+`add` performs no Effect operation and cannot fail, so it is a plain function: VibeLang callers call a plain JavaScript copy of it wherever the call stands, a module's top level and a `map` callback included, and `add(1, 2)` costs what any JavaScript call costs (Chapters 13 and 15), while TypeScript still sees `(a: number, b: number) => Effect<number>`. `greeting` can fail and needs `Users`, so it compiles to an Effect function only.
 
 #### Calling runs the function
 
