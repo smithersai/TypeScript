@@ -160,8 +160,8 @@ async function wireTarget(config, log) {
     mkdirSync(local, { recursive: true })
     for (const file of Object.values(toolchain.packages)) copyFileSync(join(toolchain.dir, file), join(local, file))
   }
-  const specsFor = (pkg) => (toolchain
-    ? Wire.toolchainSpecs(pkg.dir, toolchain.packages)
+  const specsFor = (dir) => (toolchain
+    ? Wire.toolchainSpecs(dir, toolchain.packages)
     : { vibelang: config.toolchain.version, "vibelang-runtime": config.toolchain.version, "vibelang-vite": config.toolchain.version })
   let effect = toolchain?.effect
   if (!effect) {
@@ -195,21 +195,22 @@ async function wireTarget(config, log) {
   const warnings = []
   for (const { pkg, path, json } of pkgJson) {
     let next = pkg.dir === "." ? root : json
-    next = Wire.addVibeLang(Wire.pinDependencies(next, pins), specsFor(pkg))
+    next = Wire.addVibeLang(Wire.pinDependencies(next, pins), specsFor(pkg.dir))
     next.scripts = Wire.replaceTsc(next.scripts)
     writeIfChanged(path, readFileSync(path, "utf8"), JSON.stringify(next, null, 2) + "\n")
     const dir = join(t, pkg.dir)
-    const vite = ["vitest.config.ts", "vitest.config.mts", "vitest.config.js", "vitest.config.mjs", "vite.config.ts", "vite.config.mts", "vite.config.js", "vite.config.mjs"].find((f) => existsSync(join(dir, f)))
-    if (vite) writeIfChanged(join(dir, vite), readFileSync(join(dir, vite), "utf8"), Wire.addVitePlugin(readFileSync(join(dir, vite), "utf8")))
-    else warnings.push(`${pkg.dir}: no Vite or Vitest config, so the tests load no .vibe module unless their runner is set up for VibeLang`)
     for (const tsconfig of new Set([pkg.tsconfig, pkg.dtsTsconfig])) {
       const file = join(dir, tsconfig)
       writeIfChanged(file, readFileSync(file, "utf8"), Wire.addCompilerOptions(readFileSync(file, "utf8"), { rewriteRelativeImportExtensions: true }))
     }
   }
+  // The plugin goes into the config the tests load: the shared one the test command names, else each package's.
+  const vite = Wire.wireVite({ root: t, packages: config.packages, test: config.test, ts: typeScriptOf(config), specsFor })
+  changed.push(...vite.changed.filter((file) => !changed.includes(file)))
+  warnings.push(...vite.warnings)
   const install = config.install ?? Wire.installCommand(manager)
   await must(install, { cwd: t, log: join(log, "install.log") })
-  return { manager, effect, pins, specs: Object.fromEntries(config.packages.map((pkg) => [pkg.dir, specsFor(pkg)])), changed, warnings, install }
+  return { manager, effect, pins, specs: Object.fromEntries(config.packages.map((pkg) => [pkg.dir, specsFor(pkg.dir)])), viteConfigs: vite.configs, changed, warnings, install }
 }
 
 /** setup: wire the toolchain, install, record the baseline tests, compile, declarations and inventory, and commit. */

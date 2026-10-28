@@ -3,7 +3,10 @@
 // version the runtime requires, tsc replaced by vibelang in scripts, the
 // vibelang-vite plugin in the Vitest or Vite config, and the compiler option
 // that lets .vibe files import local modules by their source names. Each
-// keeps the file's own formatting outside the lines it changes.
+// keeps the file's own formatting outside the lines it changes. wireVite
+// applies the plugin edit to the config files the tests load.
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import { join, posix } from "node:path"
 
 /** Whether an @effect/* package is released with effect itself, judged by its pinned version matching effect's. */
 export const lockstep = (name, version, effectVersion) =>
@@ -75,30 +78,122 @@ export function pinDependencies(pkg, pins) {
 
 /** Adds the VibeLang packages: the runtime as a dependency, the compiler and plugin as dev dependencies. */
 export function addVibeLang(pkg, specs) {
-  const next = structuredClone(pkg)
+  const next = addVibeLangPlugin(pkg, specs)
   next.dependencies = { ...next.dependencies, "vibelang-runtime": specs["vibelang-runtime"] }
+  return next
+}
+
+/** Adds the compiler and the Vite plugin, which needs it, as dev dependencies: what a package that owns a Vite config needs. */
+export function addVibeLangPlugin(pkg, specs) {
+  const next = structuredClone(pkg)
   next.devDependencies = { ...next.devDependencies, vibelang: specs.vibelang, "vibelang-vite": specs["vibelang-vite"] }
   return next
 }
 
 /**
  * Adds `vibelang()` from vibelang-vite to a Vite or Vitest config that calls
- * defineConfig with an object literal, first in its plugins. Returns the text
- * unchanged when the plugin is already there; throws when the config has a
- * shape this edit does not know, so a person wires it instead.
+ * defineConfig with an object literal, first in that object's own plugins,
+ * never in a nested option's (a `lint: { plugins: [...] }`). ts is
+ * TypeScript's compiler API. Returns the text unchanged when the plugin is
+ * already there; throws when the config has a shape this edit does not know,
+ * so a person wires it instead.
  */
-export function addVitePlugin(text) {
+export function addVitePlugin(text, ts) {
   if (/from\s+['"]vibelang-vite['"]/.test(text)) return text
+  const source = ts.createSourceFile("vite.config.ts", text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  let config
+  const find = (node) => {
+    if (config) return
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "defineConfig" && node.arguments[0] && ts.isObjectLiteralExpression(node.arguments[0])) config = node.arguments[0]
+    else ts.forEachChild(node, find)
+  }
+  find(source)
+  if (!config) throw new Error("the config does not call defineConfig({ ... }); add vibelang() from vibelang-vite to its plugins by hand")
+  const plugins = config.properties.find((p) => p.name && (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name)) && p.name.text === "plugins")
+  let plugin
+  if (plugins) {
+    if (!ts.isPropertyAssignment(plugins) || !ts.isArrayLiteralExpression(plugins.initializer)) throw new Error("the config's plugins is not an array literal; add vibelang() from vibelang-vite to it by hand")
+    const list = plugins.initializer
+    plugin = list.elements.length ? { at: list.elements[0].getStart(source), text: "vibelang(), " } : { at: list.getStart(source) + 1, text: "vibelang()" }
+  } else {
+    const at = config.getStart(source) + 1
+    const indent = /\n([ \t]+)\S/.exec(text.slice(at))?.[1] ?? "  "
+    plugin = { at, text: `\n${indent}plugins: [vibelang()],` }
+  }
+  // The import goes on the line after the last import, in the file's quote and semicolon style.
+  const lastImport = source.statements.filter((s) => ts.isImportDeclaration(s)).at(-1)
   const quote = /from\s+'/.test(text) ? "'" : '"'
-  const lastImport = [...text.matchAll(/^import\s[\s\S]*?from\s+['"][^'"]+['"][^\S\n]*\n/gm)].at(-1)
-  const at = lastImport ? lastImport.index + lastImport[0].length : 0
-  const out = text.slice(0, at) + `import vibelang from ${quote}vibelang-vite${quote}\n` + text.slice(at)
-  if (/\bplugins\s*:\s*\[/.test(out)) return out.replace(/\bplugins\s*:\s*\[/, (m) => `${m}vibelang(), `)
-  const call = /defineConfig\(\s*\{/.exec(out)
-  if (!call) throw new Error("the config does not call defineConfig({ ... }); add vibelang() from vibelang-vite to its plugins by hand")
-  const after = call.index + call[0].length
-  const indent = /\n([ \t]+)\S/.exec(out.slice(after))?.[1] ?? "  "
-  return out.slice(0, after) + `\n${indent}plugins: [vibelang()],` + out.slice(after)
+  const semicolon = lastImport && text.slice(lastImport.getStart(source), lastImport.end).trimEnd().endsWith(";") ? ";" : ""
+  const lineEnd = lastImport ? text.indexOf("\n", lastImport.end) : -1
+  const importAt = lastImport ? (lineEnd < 0 ? text.length : lineEnd + 1) : 0
+  const line = `${lastImport && lineEnd < 0 ? "\n" : ""}import vibelang from ${quote}vibelang-vite${quote}${semicolon}\n`
+  let out = text
+  for (const edit of [{ at: importAt, text: line }, plugin].sort((a, b) => b.at - a.at)) out = out.slice(0, edit.at) + edit.text + out.slice(edit.at)
+  return out
+}
+
+const viteConfigNames = ["vitest.config.ts", "vitest.config.mts", "vitest.config.js", "vitest.config.mjs", "vite.config.ts", "vite.config.mts", "vite.config.js", "vite.config.mjs"]
+
+/**
+ * The config file a test command names with --config or -c, as written, or
+ * null. A package-manager command that runs a script (`pnpm test`, `npm run
+ * test:unit`, `bun run test`) is read through that script of scripts.
+ */
+export function testConfigArgument(command, scripts = {}) {
+  const script = /^\s*(?:(?:pnpm|npm|yarn)(?:\s+run)?|bun\s+run)\s+([\w:.-]+)\s*$/.exec(command)
+  const text = script && scripts[script[1]] ? scripts[script[1]] : command
+  const m = /(?:^|\s)(?:--config|-c)(?:=|\s+)(?:'([^']+)'|"([^"]+)"|([^\s'"]+))/.exec(text)
+  return m ? (m[1] ?? m[2] ?? m[3]) : null
+}
+
+/**
+ * Adds the vibelang-vite plugin to the Vite or Vitest config the tests load:
+ * the one the test command names with --config, such as a monorepo's shared
+ * root config, else each package's own. root is the repository; packages are
+ * { dir } with repository-relative dirs; test is { command, cwd }; ts is
+ * TypeScript's compiler API; specsFor(dir) gives a package's VibeLang
+ * specifiers. The package that owns the config, the nearest one above it,
+ * gets the compiler and the plugin as dev dependencies, so the config's
+ * import resolves. Returns the repository-relative files changed and the
+ * warnings for packages whose tests load no config.
+ */
+export function wireVite({ root, packages, test, ts, specsFor }) {
+  const changed = []
+  const warnings = []
+  const write = (file, before, after) => {
+    if (before === after) return
+    writeFileSync(join(root, file), after)
+    changed.push(file)
+  }
+  const wire = (file) => {
+    const text = readFileSync(join(root, file), "utf8")
+    write(file, text, addVitePlugin(text, ts))
+    let owner = posix.dirname(file)
+    while (owner !== "." && !existsSync(join(root, owner, "package.json"))) owner = posix.dirname(owner)
+    const manifest = posix.join(owner, "package.json")
+    const before = readFileSync(join(root, manifest), "utf8")
+    write(manifest, before, JSON.stringify(addVibeLangPlugin(JSON.parse(before), specsFor(owner)), null, 2) + "\n")
+  }
+  const testCwd = join(root, test.cwd)
+  const scripts = existsSync(join(testCwd, "package.json")) ? JSON.parse(readFileSync(join(testCwd, "package.json"), "utf8")).scripts : undefined
+  const named = testConfigArgument(test.command, scripts)
+  if (named) {
+    const file = posix.normalize(posix.isAbsolute(named) ? posix.relative(root, named) : posix.join(test.cwd, named))
+    if (file.startsWith("../") || !existsSync(join(root, file))) throw new Error(`the test command's config ${named} (from ${test.cwd}) is not a file of the target`)
+    wire(file)
+    return { changed, warnings, configs: [file] }
+  }
+  const configs = []
+  for (const pkg of packages) {
+    const name = viteConfigNames.find((f) => existsSync(join(root, pkg.dir, f)))
+    if (!name) {
+      warnings.push(`${pkg.dir}: no Vite or Vitest config, so the tests load no .vibe module unless their runner is set up for VibeLang`)
+      continue
+    }
+    configs.push(posix.join(pkg.dir, name))
+    wire(posix.join(pkg.dir, name))
+  }
+  return { changed, warnings, configs }
 }
 
 /**

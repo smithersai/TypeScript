@@ -1,6 +1,14 @@
 import assert from "node:assert/strict"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { test } from "node:test"
-import { addCompilerOptions, addVibeLang, addVitePlugin, effectPins, installCommand, packageManager, pinDependencies, replaceTsc, setIgnoreLine, setJsonOverrides, setYamlOverrides, toolchainSpecs } from "../lib/wire.mjs"
+import { fileURLToPath } from "node:url"
+import { loadTypeScript } from "../lib/declarations.mjs"
+import { addCompilerOptions, addVibeLang, addVitePlugin, effectPins, installCommand, packageManager, pinDependencies, replaceTsc, setIgnoreLine, setJsonOverrides, setYamlOverrides, testConfigArgument, toolchainSpecs, wireVite } from "../lib/wire.mjs"
+
+// The runtime package's TypeScript (bun install in packages/runtime) has the compiler API.
+const ts = loadTypeScript([fileURLToPath(new URL("../../../../packages/runtime/", import.meta.url))])
 
 test("effectPins moves effect and its lockstep packages, not separately versioned ones", () => {
   assert.deepEqual(effectPins({ effect: "4.0.0", "@effect/platform-browser": "4.0.0", "@effect/vitest": "^4.0.0", "@effect/tsgo": "0.50.0", "@effect/platform-node": "4.0.0" }, "4.0.6"), {
@@ -66,7 +74,7 @@ export default defineConfig({
 `
 
 test("addVitePlugin adds the plugin first and once, in the file's quote style", () => {
-  const out = addVitePlugin(vitestConfig)
+  const out = addVitePlugin(vitestConfig, ts)
   assert.equal(out, `import { defineConfig } from 'vitest/config'
 import vibelang from 'vibelang-vite'
 
@@ -77,9 +85,92 @@ export default defineConfig({
   },
 })
 `)
-  assert.equal(addVitePlugin(out), out)
-  assert.ok(addVitePlugin('import react from "@vitejs/plugin-react"\nexport default defineConfig({ plugins: [react()] })\n').includes("plugins: [vibelang(), react()]"))
-  assert.throws(() => addVitePlugin("export default { test: {} }\n"), /defineConfig/)
+  assert.equal(addVitePlugin(out, ts), out)
+  assert.ok(addVitePlugin('import react from "@vitejs/plugin-react"\nexport default defineConfig({ plugins: [react()] })\n', ts).includes("plugins: [vibelang(), react()]"))
+  assert.throws(() => addVitePlugin("export default { test: {} }\n", ts), /defineConfig/)
+})
+
+// A monorepo's shared config, shaped like t3code's: its lint options have a
+// plugins list of their own, which is not Vite's.
+const sharedConfig = `import "vite-plus/test/config";
+import { defineConfig } from "vite-plus";
+
+export default defineConfig({
+  test: {
+    environment: "node",
+  },
+  lint: {
+    plugins: ["eslint", "oxc"],
+  },
+});
+`
+
+test("addVitePlugin adds the config's own plugins, never a nested option's, with the file's semicolons", () => {
+  assert.equal(addVitePlugin(sharedConfig, ts), `import "vite-plus/test/config";
+import { defineConfig } from "vite-plus";
+import vibelang from "vibelang-vite";
+
+export default defineConfig({
+  plugins: [vibelang()],
+  test: {
+    environment: "node",
+  },
+  lint: {
+    plugins: ["eslint", "oxc"],
+  },
+});
+`)
+  assert.equal(addVitePlugin("export default defineConfig({ plugins: [] })\n", ts), 'import vibelang from "vibelang-vite"\nexport default defineConfig({ plugins: [vibelang()] })\n')
+  assert.throws(() => addVitePlugin("export default defineConfig({ plugins })\n", ts), /not an array literal/)
+})
+
+test("testConfigArgument reads --config and -c from the command or the package script it runs", () => {
+  assert.equal(testConfigArgument("vp test run --config ../../vite.config.ts --dir ."), "../../vite.config.ts")
+  assert.equal(testConfigArgument("vitest run --config=vitest.shared.ts"), "vitest.shared.ts")
+  assert.equal(testConfigArgument("vitest run -c 'configs/vitest.ts'"), "configs/vitest.ts")
+  assert.equal(testConfigArgument("pnpm test", { test: "vp test run --config ../../vite.config.ts --dir ." }), "../../vite.config.ts")
+  assert.equal(testConfigArgument("bun run test:unit", { "test:unit": "vitest run -c ../shared.ts" }), "../shared.ts")
+  assert.equal(testConfigArgument("pnpm exec vitest run", { test: "vitest run --config other.ts" }), null)
+  assert.equal(testConfigArgument("bun test"), null)
+})
+
+// t3code: packages/contracts runs its tests with the repository's shared
+// config, so the package itself has no config to wire.
+test("wireVite wires the shared config the test command names, and gives its package the plugin", () => {
+  const root = mkdtempSync(join(tmpdir(), "migrate-vite-"))
+  try {
+    mkdirSync(join(root, "packages/contracts"), { recursive: true })
+    writeFileSync(join(root, "package.json"), JSON.stringify({ name: "monorepo", private: true, devDependencies: { "vite-plus": "1.4.0" } }, null, 2) + "\n")
+    writeFileSync(join(root, "vite.config.ts"), sharedConfig)
+    writeFileSync(join(root, "packages/contracts/package.json"), JSON.stringify({ name: "contracts", scripts: { test: "vp test run --config ../../vite.config.ts --dir ." } }, null, 2) + "\n")
+    const specsFor = (dir) => toolchainSpecs(dir, { vibelang: "vibelang-0.0.11.tgz", "vibelang-vite": "vibelang-vite-0.0.11.tgz" })
+    const packages = [{ dir: "packages/contracts" }]
+    for (const command of ["vp test run --config ../../vite.config.ts --dir . --maxWorkers=8", "pnpm test"]) {
+      writeFileSync(join(root, "vite.config.ts"), sharedConfig)
+      const wired = wireVite({ root, packages, test: { command, cwd: "packages/contracts" }, ts, specsFor })
+      assert.deepEqual(wired.configs, ["vite.config.ts"])
+      assert.deepEqual(wired.warnings, [])
+      assert.ok(readFileSync(join(root, "vite.config.ts"), "utf8").includes('defineConfig({\n  plugins: [vibelang()],\n  test:'))
+      assert.deepEqual(JSON.parse(readFileSync(join(root, "package.json"), "utf8")).devDependencies, {
+        "vite-plus": "1.4.0",
+        vibelang: "file:./.vibelang-toolchain/vibelang-0.0.11.tgz",
+        "vibelang-vite": "file:./.vibelang-toolchain/vibelang-vite-0.0.11.tgz"
+      })
+    }
+    assert.throws(() => wireVite({ root, packages, test: { command: "vitest run --config missing.ts", cwd: "packages/contracts" }, ts, specsFor }), /missing.ts .* is not a file of the target/)
+
+    // Without --config, each package's own config is wired, and a package without one is named.
+    writeFileSync(join(root, "packages/contracts/vitest.config.ts"), vitestConfig)
+    mkdirSync(join(root, "packages/other"))
+    writeFileSync(join(root, "packages/other/package.json"), "{}\n")
+    const own = wireVite({ root, packages: [...packages, { dir: "packages/other" }], test: { command: "vitest run", cwd: "." }, ts, specsFor })
+    assert.deepEqual(own.configs, ["packages/contracts/vitest.config.ts"])
+    assert.deepEqual(own.changed, ["packages/contracts/vitest.config.ts", "packages/contracts/package.json"])
+    assert.match(own.warnings[0], /^packages\/other: no Vite or Vitest config/)
+    assert.equal(JSON.parse(readFileSync(join(root, "packages/contracts/package.json"), "utf8")).devDependencies.vibelang, "file:../../.vibelang-toolchain/vibelang-0.0.11.tgz")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })
 
 test("addCompilerOptions adds to compilerOptions, or creates it, and keeps options already set", () => {

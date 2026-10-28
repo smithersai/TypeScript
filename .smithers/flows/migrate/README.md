@@ -61,6 +61,8 @@ $step next --run <run>                        # what to run next
 
 `--agent "<command>"` on `plan` or `repair` runs an agent instead: the command gets the prompt on stdin and its path in `MIGRATE_PROMPT`, runs in the target's root, and for `plan` writes its JSON answer to `MIGRATE_OUTPUT`. Any coding agent with a non-interactive mode fits; the flow has no code for any particular one. `revert --file <path.vibe> --reason "<text>"` returns one file of the current batch to its `.ts` source, and points every import the codemod rewrote to `.vibe` back at the `.ts` file.
 
+Setup adds the `vibelang-vite` plugin to the Vite or Vitest config the tests load. When the test command, or the package script it runs (`pnpm test`), names one with `--config`, such as a monorepo's shared `../../vite.config.ts`, setup wires that file, and the package that owns it gets `vibelang` and `vibelang-vite` as dev dependencies. Otherwise it wires each package's own config.
+
 `setup` takes `--base` and `--bookmark` (above), `--package` and `--source` more than once, `--tsconfig` (default `tsconfig.json`, the project the tests check), `--dts-tsconfig` (default `tsconfig.build.json` when it exists: the project whose declarations are the public API), `--install`, `--no-wire` for a target that already has VibeLang, `--max-files` and `--max-lines` per batch (6 and 900), and `--allow-dirty`.
 
 ### As a Smithers flow
