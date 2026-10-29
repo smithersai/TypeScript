@@ -1,6 +1,8 @@
 package vibelang
 
 import (
+	"slices"
+
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
@@ -125,12 +127,19 @@ func (a *analyzer) returnedProgram(node *ast.Node) *checker.Type {
 		return program
 	}
 	if isInvocation(node) {
-		if sig := a.checker.GetResolvedSignature(node); sig != nil {
+		if sig := a.callSignature(node); sig != nil {
 			callee := implementationOf(sig.Declaration())
 			// These calls already yield their success under the call rule.
 			// Do not request their inferred return rows while a call cycle's
 			// fixpoint is being collected (D52).
 			if callee != nil && isLowerable(callee) && (a.hasContract(callee) || isPlainCandidate(callee) && a.isSplittable(callee)) {
+				return nil
+			}
+			// A do or throw expression whose return type the checker is
+			// inferring, and which completes with primitive values only,
+			// returns no program; typing its call here would be a cycle
+			// (callReturnType).
+			if isProgramArrow(callee) && a.checker.IsResolvingReturnTypeOf(sig) && isPrimitiveOnly(a.callReturnType(sig)) {
 				return nil
 			}
 		}
@@ -160,4 +169,12 @@ func (a *analyzer) hasProgramReturn(fn *ast.Node) bool {
 // tagged template, possibly parenthesized.
 func pipeEndsInCall(node *ast.Node) bool {
 	return isPipe(node) && isInvocation(ast.SkipParentheses(node.AsBinaryExpression().Right))
+}
+
+// isPrimitiveOnly reports whether every member of t is a primitive or never,
+// so no value of t is a program.
+func isPrimitiveOnly(t *checker.Type) bool {
+	return t != nil && !slices.ContainsFunc(t.Distributed(), func(member *checker.Type) bool {
+		return member.Flags()&(checker.TypeFlagsPrimitive|checker.TypeFlagsNever) == 0
+	})
 }

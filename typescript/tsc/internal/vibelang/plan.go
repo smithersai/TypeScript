@@ -328,7 +328,7 @@ func (a *analyzer) runs(call *ast.Node) bool {
 	if inHatch(call) || holdsProgram(a.checker, call) {
 		return false // hatches and declared program positions keep the Effect value
 	}
-	sig := a.checker.GetResolvedSignature(call)
+	sig := a.callSignature(call)
 	if sig == nil {
 		return false
 	}
@@ -349,7 +349,54 @@ func (a *analyzer) runs(call *ast.Node) bool {
 		// A plain factory can return a cold Effect stored in a local. The
 		// callee's form does not decide whether that returned program runs.
 	}
-	return callRunsResult(a.checker, call, a.checker.GetReturnTypeOfSignature(sig))
+	return callRunsResult(a.checker, call, a.callReturnType(sig))
+}
+
+// callSignature is the signature call resolves to. The call of a do or throw
+// expression's function, while the checker infers that function's return
+// type, gives the function's own signature: resolving the call again there
+// would type the function again, a cycle (TS7022, TS7024). A catch binding of
+// a try block that holds `return do { ... }` reaches it that way, typed while
+// a written contract decides the return's contextual type.
+func (a *analyzer) callSignature(call *ast.Node) *checker.Signature {
+	if sig := a.resolvingProgramCall(call); sig != nil {
+		return sig
+	}
+	return a.checker.GetResolvedSignature(call)
+}
+
+// resolvingProgramCall returns the signature of the function call invokes
+// when call is a do or throw expression whose return type the checker is
+// inferring, and nil otherwise.
+func (a *analyzer) resolvingProgramCall(call *ast.Node) *checker.Signature {
+	if call.Kind != ast.KindCallExpression || len(call.Arguments()) != 0 {
+		return nil
+	}
+	fn := ast.SkipParentheses(call.Expression())
+	if !isProgramArrow(fn) {
+		return nil
+	}
+	if sig := a.checker.GetSignatureFromDeclaration(fn); a.checker.IsResolvingReturnTypeOf(sig) {
+		return sig
+	}
+	return nil
+}
+
+// callReturnType is the return type of sig. A do or throw expression's
+// function, whose return type the checker is inferring right now, gives the
+// union of the values it completes with instead (callSignature).
+func (a *analyzer) callReturnType(sig *checker.Signature) *checker.Type {
+	fn := sig.Declaration()
+	if !isProgramArrow(fn) || !a.checker.IsResolvingReturnTypeOf(sig) {
+		return a.checker.GetReturnTypeOfSignature(sig)
+	}
+	var values []*checker.Type
+	factoryReturns(fn, func(expr *ast.Node) {
+		if expr != nil {
+			values = append(values, a.checker.GetTypeAtLocation(expr))
+		}
+	})
+	return a.checker.GetUnionType(values)
 }
 
 // implementationOf returns the function body that decl resolves to, which

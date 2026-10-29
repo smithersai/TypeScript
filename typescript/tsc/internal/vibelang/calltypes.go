@@ -147,7 +147,13 @@ func programChannelType(c *checker.Checker, t *checker.Type, name string) *check
 // D24 still decides from the present branch's exact type, never from a
 // structural Effect subtype or a union containing data (D270).
 func runningCallResult(c *checker.Checker, call *ast.Node, sig *checker.Signature) *checker.Type {
-	t := providedCallType(c, call, c.GetReturnTypeOfSignature(sig))
+	return runningCallResultOf(c, call, c.GetReturnTypeOfSignature(sig))
+}
+
+// runningCallResultOf is runningCallResult for a call whose callee returns
+// returned.
+func runningCallResultOf(c *checker.Checker, call *ast.Node, returned *checker.Type) *checker.Type {
+	t := providedCallType(c, call, returned)
 	if !ast.IsOptionalChain(call) {
 		return t
 	}

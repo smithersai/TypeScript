@@ -36,10 +36,6 @@ FuzzSpecVariants  compile:TS7024/hatch-promise         compiler  Ch 2 Writing th
 FuzzSpecVariants  feature:pipe-self-call               compiler  Ch 5, Ch 13 rule E6, Ch 14 Recursion (D57, D272): `x |> rec0(%)` inside rec0, annotated `number!E` with R left to the fixpoint, is EK2102 ("its contract must write every channel"), while the call `rec0(x)` it means compiles
 FuzzSpecVariants  compile:EK2102/pipe-self-call        compiler  Ch 5, Ch 13 rule E6, Ch 14 (D57): a pipe into the function's own call, `((p0 - 1) |> rec0(%))`, is EK2102 where the call it means is not
 FuzzSpecVariants  corpus:pipe-self-call                compiler  Ch 5, Ch 13 rule E6, Ch 14 (D57): the pipe variant of rec0, `((p0 - 1) |> rec0(%))`, is EK2102
-FuzzSpecVariants  feature:annot-try-do                 compiler  Ch 2 Writing the contract yourself, Ch 14 (D71): writing the inferred contract `number!!` on `function d(p0: number) { try { if (p0 > 0) throw new E1(); return do { const v: number = bump(p0); 0 } } catch (e) { return e._tag.length } }` makes it TS7022 (e is circular) and TS7024, though the function compiles without the annotation
-FuzzSpecVariants  compile:TS7022/annot-try-do          compiler  Ch 2, Ch 14 (D71): with the inferred contract written, a catch binding of a try block that returns a do block is circular (TS7022)
-FuzzSpecVariants  compile:TS7024/annot-try-do          compiler  Ch 2, Ch 14 (D71): with the inferred contract written, a function whose try block returns a do block has an implicit any return type (TS7024)
-FuzzSpecVariants  corpus:annot-try-do                  compiler  Ch 2, Ch 14 (D71): the annot-bang variant writes the inferred number!! on a function whose try block returns a do block, and draws TS7022 and TS7024
 
 # Additional code spans in the Forms table that the generator does not write.
 FuzzSpecPrograms feature:timeout-retry programs not generated: Ch 5: retry is generated, but whether a deadline around it fires depends on the wall clock against the work's own speed, since the worker runs no test clock; a deadline that cannot fire leaves retry's result as it is

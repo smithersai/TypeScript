@@ -40,6 +40,11 @@ func (a *analyzer) flowOf(node *ast.Node) *effectInfo {
 		case n.Kind == ast.KindThrowStatement:
 			n.ForEachChild(visit)
 			info.addError(a.thrownType(n), n.Expression()) // a typed failure everywhere outside a hatch (D282)
+		case n.Kind == ast.KindCallExpression && a.resolvingProgramCall(n) != nil:
+			// A do or throw expression being typed: it looks up no service
+			// and has no trusted failures (callSignature).
+			n.ForEachChild(visit)
+			a.addCall(info, n)
 		case n.Kind == ast.KindCallExpression && a.getsScope(n):
 			n.ForEachChild(visit)
 			a.addScoped(info, n) // a fork or acquisition in a Scope region (scopes.go)
@@ -153,7 +158,7 @@ func (a *analyzer) addCall(info *effectInfo, call *ast.Node) {
 	if !a.runs(call) {
 		return
 	}
-	sig := a.checker.GetResolvedSignature(call)
+	sig := a.callSignature(call)
 	// A call to a generic .vibe function, such as one whose callback accepts any
 	// contract (D12), adds the callee's E and R as this call instantiates
 	// them, so it reads its instantiated return type; the callee's own body
@@ -171,7 +176,7 @@ func (a *analyzer) addCall(info *effectInfo, call *ast.Node) {
 	// D269 declared factories and S3-3 plain factories read returned channels.
 	// A plain factory returns an existing program: its E/R belong to that
 	// program's type, not to the JavaScript body that constructs it.
-	t := runningCallResult(a.checker, call, sig)
+	t := runningCallResultOf(a.checker, call, a.callReturnType(sig))
 	if e := channelType(a.checker, t, "_E"); e != nil {
 		info.addError(e, call)
 	}

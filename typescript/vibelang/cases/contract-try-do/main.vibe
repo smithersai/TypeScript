@@ -1,0 +1,61 @@
+// expect-result: {"bumped":[2,0],"plain":[2,0],"thrown":[2,1],"beside":[0,1,2],"unwritten":[2,0]}
+
+// A written contract on a function whose try block returns a do block, or a
+// throw expression beside a match, types the catch binding from the try
+// block's failures, as the same function without the contract does.
+error E1 { n: number }
+
+function bump(n: number) { return n + 1 }
+
+function bumped(p0: number): number!! {
+  try {
+    if (p0 > 0) throw new E1({ n: 0 })
+    return do { const v: number = bump(p0); 0 }
+  } catch (e) {
+    return e._tag.length
+  }
+}
+
+function plain(p0: number): number!! {
+  try {
+    if (p0 > 0) throw new E1({ n: 0 })
+    return do { 0 }
+  } catch (e) {
+    return e._tag.length
+  }
+}
+
+function thrown(p0: number): number!! {
+  try {
+    return do { if (p0 > 0) throw new E1({ n: 2 }); bump(p0) }
+  } catch (e) {
+    return e.n
+  }
+}
+
+function beside(p0: number): number!! {
+  try {
+    return p0 < 0 ? throw new E1({ n: 0 }) : match (p0) { when 0: 1; default: 2 }
+  } catch (e) {
+    return e.n
+  }
+}
+
+function unwritten(p0: number) {
+  try {
+    if (p0 > 0) throw new E1({ n: 0 })
+    return do { const v: number = bump(p0); 0 }
+  } catch (e) {
+    return e._tag.length
+  }
+}
+
+export function main() {
+  return {
+    bumped: [bumped(1), bumped(0)],
+    plain: [plain(1), plain(0)],
+    thrown: [thrown(1), thrown(0)],
+    beside: [beside(-1), beside(0), beside(5)],
+    unwritten: [unwritten(1), unwritten(0)]
+  }
+}

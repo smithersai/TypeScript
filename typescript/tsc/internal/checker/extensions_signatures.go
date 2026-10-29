@@ -50,6 +50,14 @@ func (c *Checker) IsResolvingTypeOf(symbol *ast.Symbol) bool {
 	return c.findResolutionCycleStartIndex(symbol, TypeSystemPropertyNameType) >= 0
 }
 
+// IsResolvingReturnTypeOf reports whether the return type of signature is
+// being inferred from its body. Asking for it there is TypeScript's
+// circularity error (TS7024), and the function that encloses the cycle gets
+// an implicit any, as its catch bindings do (TS7022).
+func (c *Checker) IsResolvingReturnTypeOf(signature *Signature) bool {
+	return c.isResolvingReturnTypeOfSignature(signature)
+}
+
 // ExcludeType returns Exclude<source, excluded>, as lib.es5.d.ts declares it,
 // or source when no such alias is in reach. Effect.provide leaves
 // Exclude<R, I> of a requirement R that is a type parameter.
