@@ -1,0 +1,2 @@
+go test fuzz v1
+string("-- main.vibe --\nmatch (1) { default: 0; }\n")

@@ -321,9 +321,9 @@ var ruleInjections = []*ruleInjection{
 	{Code: 3206, Name: "two-platforms", Quote: "A file names a second, different platform with a platform import", Slots: []string{slotFile},
 		Text: "import \"vibelang/platform/node\"\nimport \"vibelang/platform/browser\"\n\nexport function main() {\n  Console.log(\"two\");\n}"},
 	{Code: 3207, Name: "string-provider", Quote: "A provider that is not a layer, a non-empty list of layers, a `Context`, or `Key = value`", Slots: effectOnly,
-		Text: "const notALayer$$ = \"x\";\nprovide notALayer$$ {\n  log(\"inside\");\n}"},
+		Text: "const notALayer$$ = \"x\";\nprovide notALayer$$ {\n  Console.log(\"inside\");\n}"},
 	{Code: 3207, Name: "any-provider", Quote: "or `any`", Slots: effectOnly,
-		Text: "const anything$$: any = 1;\nprovide anything$$ {\n  log(\"inside\");\n}"},
+		Text: "const anything$$: any = 1;\nprovide anything$$ {\n  Console.log(\"inside\");\n}"},
 
 	// Chapters 8, 9 and 16: handlers cover their own fiber (D402).
 	{Code: 4201, Name: "forked-operation", Quote: "A control operation inside a combinator that runs it on another fiber", Slots: top,
@@ -683,19 +683,22 @@ type ruleAllowed struct {
 }
 
 var allowedForms = []*ruleAllowed{
-	// Chapter 10: a hatch's first argument is plain TypeScript (D396).
+	// Chapter 10: a hatch's first argument is plain TypeScript (D396). A hatch
+	// is an Effect that runs, so a statement holding one goes only where a
+	// function runs Effects: in a plain function it is EK2003, "A plain
+	// annotation on a function or method whose body runs an Effect".
 	{Name: "hatch-clock", Chapter: "110-part1-ch10-typescript.md", Quote: "platform APIs and clock reads are allowed (no EK4401, EK4402, or EK4403)",
-		Slots: stmt, Text: "const now$$ = sync(() => Date.now());"},
+		Slots: effectOnly, Text: "const now$$ = sync(() => Date.now());"},
 	{Name: "hatch-random-expression", Chapter: "110-part1-ch10-typescript.md", Quote: "or a single expression evaluated when the hatch runs, `sync(crypto.randomUUID())`",
-		Slots: stmt, DOM: true, Text: "const id$$ = sync(crypto.randomUUID());"},
+		Slots: effectOnly, DOM: true, Text: "const id$$ = sync(crypto.randomUUID());"},
 	{Name: "hatch-console", Chapter: "110-part1-ch10-typescript.md", Quote: "platform APIs and clock reads are allowed (no EK4401, EK4402, or EK4403)",
-		Slots: stmt, DOM: true, Text: "sync(() => console.log(\"hello\"));"},
+		Slots: effectOnly, DOM: true, Text: "sync(() => console.log(\"hello\"));"},
 	{Name: "hatch-throw", Chapter: "110-part1-ch10-typescript.md", Quote: "`throw`, `async`, and `await` keep their JavaScript meaning",
-		Slots: stmt, Text: "const checked$$ = sync((n: number) => {\n  if (n < 0) throw new Error(\"negative\");\n  return n;\n}, 1);"},
+		Slots: effectOnly, Text: "const checked$$ = sync((n: number) => {\n  if (n < 0) throw new Error(\"negative\");\n  return n;\n}, 1);"},
 	{Name: "hatch-async-await", Chapter: "110-part1-ch10-typescript.md", Quote: "`throw`, `async`, and `await` keep their JavaScript meaning",
-		Slots: stmt, Text: "const waited$$ = sync(async () => {\n  const n = await Promise.resolve(1);\n  return n + 1;\n});"},
+		Slots: effectOnly, Text: "const waited$$ = sync(async () => {\n  const n = await Promise.resolve(1);\n  return n + 1;\n});"},
 	{Name: "hatch-input", Chapter: "110-part1-ch10-typescript.md", Quote: "A value reaches it as an input (D230), an argument after the function that fills the function's first parameters",
-		Slots: stmt, Text: "const base$$ = 2;\nconst sum$$ = sync((n) => n + 1, base$$);"},
+		Slots: effectOnly, Text: "const base$$ = 2;\nconst sum$$ = sync((n) => n + 1, base$$);"},
 	{Name: "hatch-statements-clock", Chapter: "110-part1-ch10-typescript.md", Quote: "platform APIs and clock reads are allowed (no EK4401, EK4402, or EK4403)",
 		Slots: []string{slotHatch, slotAsyncHatch}, Text: "const now$$ = Date.now() + Math.random();"},
 	{Name: "hatch-statements-platform", Chapter: "110-part1-ch10-typescript.md", Quote: "platform APIs and clock reads are allowed (no EK4401, EK4402, or EK4403)",

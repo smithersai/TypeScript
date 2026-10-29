@@ -58,3 +58,24 @@ export function fails() { return nameOf("7") }
 		t.Errorf("unsafe names survived: %v", got)
 	}
 }
+
+// TestDecodedUTF16Len holds DecodedUTF16Len to the lengths Node's
+// TextDecoder gives the same bytes.
+func TestDecodedUTF16Len(t *testing.T) {
+	for _, test := range []struct {
+		text string
+		want int
+	}{
+		{"0\xe4\x91", 2},        // a truncated three-byte sequence is one U+FFFD
+		{"\xed\xa0\x80", 3},     // a surrogate's lead byte starts no maximal subpart
+		{"\xf0\x9f\x98\x80", 2}, // a valid emoji is a surrogate pair
+		{"\xf0\x9f\x98", 1},     // a truncated emoji
+		{"\xc0\x80", 2},         // an overlong lead byte
+		{"a\xffb\xe0\x80", 5},   // 0xe0 continues only with a0-bf
+		{"\xef\xbf\xbd\x80", 2}, // an encoded U+FFFD, then a stray continuation
+	} {
+		if got := DecodedUTF16Len(test.text); got != test.want {
+			t.Errorf("DecodedUTF16Len(%q) = %d, want %d", test.text, got, test.want)
+		}
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -89,6 +90,9 @@ func NewWorkspace(tb testing.TB) *Workspace {
 	if _, err := os.Stat(filepath.Join(runtime, "dist/index.d.ts")); err != nil {
 		Missing(tb, "vibelang-runtime is not built at %s: run (cd packages/runtime && bun install && bun run build)", runtime)
 	}
+	if _, err := os.Stat(filepath.Join(runtime, "node_modules", platformNode, "package.json")); err != nil {
+		Missing(tb, "%s is not installed in %s/node_modules: run (cd packages/runtime && bun install)", platformNode, runtime)
+	}
 	dir := tb.TempDir()
 	if err := installPackages(dir, effect, runtime); err != nil {
 		tb.Fatal(err)
@@ -106,10 +110,16 @@ func Missing(tb testing.TB, format string, args ...any) {
 	tb.Skipf(format, args...)
 }
 
+// platformNode is the package the entry statement of a main that names the
+// Node platform provides (D312, Chapter 11: it "names @effect/platform-node's
+// bundle"), and the runtime's experimental platform-node module imports.
+const platformNode = "@effect/platform-node"
+
 // installPackages links effect and copies the runtime's published files, as
 // the smoke harness does: linking the runtime's checkout would resolve its
 // peers through its development node_modules, and Node would load a second
-// copy of effect.
+// copy of effect. It then installs platformNode from the runtime's
+// node_modules, where its development install puts it.
 func installPackages(dir, effect, runtime string) error {
 	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"type":"module"}`), 0o600); err != nil {
 		return err
@@ -153,6 +163,55 @@ func installPackages(dir, effect, runtime string) error {
 			}
 		}
 		if err != nil {
+			return err
+		}
+	}
+	return installPackage(modules, filepath.Join(runtime, "node_modules"), platformNode, false)
+}
+
+// installPackage installs the package name from the node_modules
+// directory from into modules, with what it needs. Node resolves a linked
+// package's imports from its real path, so a package that imports effect, a
+// peer dependency, is copied instead, and resolves the one effect in modules;
+// its dependencies and its other peers, such as @effect/platform-node's
+// redis, are installed the same way. Any other package is linked. A peer
+// (peer is true) that from does not hold is optional, and is left out.
+func installPackage(modules, from, name string, peer bool) error {
+	target := filepath.Join(modules, filepath.FromSlash(name))
+	if _, err := os.Lstat(target); err == nil {
+		return nil
+	}
+	source := filepath.Join(from, filepath.FromSlash(name))
+	manifest, err := os.ReadFile(filepath.Join(source, "package.json"))
+	if peer && os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var pkg struct {
+		Dependencies     map[string]string `json:"dependencies"`
+		PeerDependencies map[string]string `json:"peerDependencies"`
+	}
+	if err := json.Unmarshal(manifest, &pkg); err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return err
+	}
+	if _, ok := pkg.PeerDependencies["effect"]; !ok {
+		return os.Symlink(source, target)
+	}
+	if err := os.CopyFS(target, os.DirFS(source)); err != nil {
+		return err
+	}
+	for _, dependency := range slices.Sorted(maps.Keys(pkg.Dependencies)) {
+		if err := installPackage(modules, from, dependency, false); err != nil {
+			return err
+		}
+	}
+	for _, dependency := range slices.Sorted(maps.Keys(pkg.PeerDependencies)) {
+		if err := installPackage(modules, from, dependency, true); err != nil {
 			return err
 		}
 	}

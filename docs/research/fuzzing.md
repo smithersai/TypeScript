@@ -187,7 +187,7 @@ The same change set adds what the first results argued for:
 | `FuzzSplice`: splices statements, expressions, types, members, match arms and declarations between the acceptance cases and doc snippets, then applies the parse and compile oracles | A `.vibe` file holding only its platform import emits an empty `.d.ts`, which a TypeScript consumer rejects with TS2306 (Chapter 27 rule 4) |
 | `FuzzEditorConsistency`: references, highlights, rename to a fresh name, Organize Imports, call hierarchy, selection ranges and symbols must agree (LSP 3.17, D372) | 29 gaps, among them rename missing `extends Base`, a service's `Shape` and `from` of a module block, and Organize Imports breaking module-block imports. `internal/ls` coverage rose from 35.7% to 42.1% |
 | 15 more generated runtime forms: joined fiber literals, detached, scoped and scope-held forks, Cause values, interruptible regions, held fibers interrupted inside `try`/`finally` with `using`, failures beside defects | VibeLang and Effect agreed on every seed. `yield` in a producer's `do` block is TS1163, and writing the inferred contract on a function holding an async hatch is TS7024 |
-| `nightly.sh`: every target against the latest `main` each night on the build host, the race detector on Sundays | Its first test run found the formatter refusing a field comma (EK1013), recorded in `tools.txt` |
+| `nightly.sh`: every seed, then every target's campaign, against the latest `main` each night on the build host, the race detector on Sundays | Its first test run found the formatter refusing a field comma (EK1013), recorded in `tools.txt` |
 
 ## Independent review
 

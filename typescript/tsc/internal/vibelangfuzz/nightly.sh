@@ -8,6 +8,8 @@
 # the inputs each campaign found interesting in its build cache, so the next
 # night continues where this one stopped. On Sundays it also runs the seed
 # corpus under the race detector, which found the declaration-emit race.
+# Before the campaigns it runs every seed once, as the campaigns add them, and
+# the report lists the seeds that fail first.
 #
 # Install it once, as the build host's ubuntu user:
 #
@@ -80,6 +82,13 @@ npm install --prefix "$src/packages/ts-mapper/test/.cache/typescript-$ts7_versio
 export EFFECT_NODE_MODULES=$src/experiments/node_modules
 
 status=0
+# A campaign starts by running its seeds, every one, where the gate's -short
+# seed run samples a few (toolsSample, -short); a seed that fails there ends
+# the campaign before it fuzzes, and the report shows it only in that
+# target's log. This run reports every seed failure first, on its own.
+seeds=passed
+(cd "$src/typescript/tsc" && VIBELANG_FUZZ_REQUIRE=1 VIBELANG_FUZZ_SEEDS=all nice -n 15 go test -count=1 -timeout 3h ./internal/vibelangfuzz/) > "$out/seeds.log" 2>&1 || { seeds=failed; status=1; }
+
 CAMPAIGN_OUT=$out CAMPAIGN_PARALLEL=${NIGHTLY_PARALLEL:-8} \
 	nice -n 15 sh "$src/typescript/tsc/internal/vibelangfuzz/campaign.sh" "${NIGHTLY_TARGET_TIME:-20m}" > "$out/campaign.txt" 2>&1 || status=$?
 
@@ -92,8 +101,20 @@ fi
 {
 	echo "# Fuzz campaigns, $day"
 	echo
-	echo "main $sha. Campaign exit status $status; race detector $race."
+	echo "main $sha. Seed run $seeds; exit status $status; race detector $race."
 	echo
+	if [ "$seeds" = failed ]; then
+		echo "## Seed run"
+		echo
+		echo "Every seed, as a campaign adds them (VIBELANG_FUZZ_SEEDS=all, without -short); seeds.log has the rest."
+		echo
+		echo '```text'
+		grep -E '^ *--- FAIL' "$out/seeds.log" | head -60 || true
+		echo
+		grep -m 20 -E -A 8 '^ +[a-z_]+_test\.go:[0-9]+: Fuzz|^panic:' "$out/seeds.log" || true
+		echo '```'
+		echo
+	fi
 	echo '```text'
 	sed -n '/^Campaign (/,$p' "$out/campaign.txt"
 	echo '```'

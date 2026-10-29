@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/diagnostics"
@@ -361,6 +362,47 @@ func UTF16Len(text string) int {
 	n := 0
 	for _, r := range text {
 		n += len(utf16.Encode([]rune{r}))
+	}
+	return n
+}
+
+// DecodedUTF16Len returns the length in UTF-16 code units of the string
+// Node reads from text's bytes. Node decodes a file as the Encoding Standard's
+// UTF-8 decoder does (section 8.1.1, https://encoding.spec.whatwg.org/#utf-8-decoder),
+// which replaces each maximal subpart of an invalid sequence with one U+FFFD:
+// "\xe4\x91" is one unit, where UTF16Len counts one per invalid byte.
+func DecodedUTF16Len(text string) int {
+	n := 0
+	for i := 0; i < len(text); {
+		if r, size := utf8.DecodeRuneInString(text[i:]); r != utf8.RuneError || size > 1 {
+			n += len(utf16.Encode([]rune{r}))
+			i += size
+			continue
+		}
+		// The bytes a valid sequence with this lead byte may continue with.
+		need, low, high := 0, byte(0x80), byte(0xbf)
+		switch lead := text[i]; {
+		case lead >= 0xc2 && lead <= 0xdf:
+			need = 1
+		case lead == 0xe0:
+			need, low = 2, 0xa0
+		case lead == 0xed:
+			need, high = 2, 0x9f
+		case lead >= 0xe1 && lead <= 0xef:
+			need = 2
+		case lead == 0xf0:
+			need, low = 3, 0x90
+		case lead == 0xf4:
+			need, high = 3, 0x8f
+		case lead >= 0xf1 && lead <= 0xf3:
+			need = 3
+		}
+		i++
+		for ; need > 0 && i < len(text) && text[i] >= low && text[i] <= high; need-- {
+			i++
+			low, high = 0x80, 0xbf
+		}
+		n++
 	}
 	return n
 }

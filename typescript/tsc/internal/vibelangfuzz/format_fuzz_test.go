@@ -62,7 +62,7 @@ func FuzzFormat(f *testing.F) {
 			var once string
 			var err error
 			toolsRun(t, "FuzzFormat", "format", source, nil, func() { once, err = vibelangfmt.Format("main.vibe", source, formatter) })
-			if syntax := toolsSyntaxError("main.vibe", source); syntax != "" {
+			if syntax := formatSyntaxError(source); syntax != "" {
 				// D276: "so does a file with a syntax error": it fails.
 				if err == nil && once != source {
 					Gap(t, "FuzzFormat", "format:syntax-error", "a file with a syntax error (%s) was formatted:\n%s\nto:\n%s", syntax, source, once)
@@ -246,4 +246,34 @@ func toolsSlug(message string) string {
 		}
 	}
 	return b.String()
+}
+
+// formatSyntaxError returns the first syntax error of a .vibe source, or "".
+// `provide` is a statement whose block is code of the enclosing function
+// (Chapter 4: "`return` returns from the function"), so in expression
+// position it has no grammar: EK1017, "`provide` used as an expression
+// instead of a statement". The parser recovers it as an error node,
+// $patternError(1017), which the checker reports, rather than as a parse
+// diagnostic, and the formatter has no TypeScript form for it (D276 writes a
+// provide block as a labeled block, a statement).
+func formatSyntaxError(source string) string {
+	if syntax := toolsSyntaxError("main.vibe", source); syntax != "" {
+		return syntax
+	}
+	at := -1
+	var visit ast.Visitor
+	visit = func(node *ast.Node) bool {
+		if ast.IsCallExpression(node) && node.Expression().Flags&ast.NodeFlagsVibeLangIntrinsic != 0 && node.Expression().Text() == "$patternError" {
+			if arguments := node.Arguments(); len(arguments) > 0 && arguments[0].Text() == "1017" {
+				at = node.Pos()
+				return true
+			}
+		}
+		return node.ForEachChild(visit)
+	}
+	toolsParse("main.vibe", source).AsNode().ForEachChild(visit)
+	if at >= 0 {
+		return fmt.Sprintf("%d: EK1017, provide used as an expression", at)
+	}
+	return ""
 }

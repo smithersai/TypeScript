@@ -188,7 +188,8 @@ func CheckParity(t *testing.T, w *Workspace, tsc, target, archive string) {
 	}
 
 	// D266 preserves diagnostic ends too. The CLI prints only starts; the
-	// installed stock compiler's API supplies complete UTF-16 spans.
+	// installed stock compiler's API supplies complete UTF-16 spans, into the
+	// text Node decoded from the file's bytes.
 	var sourceNames []string
 	for name := range project.Files {
 		if isTypeScript(name) && fork.SourceFile(name) != nil {
@@ -216,8 +217,8 @@ func CheckParity(t *testing.T, w *Workspace, tsc, target, archive string) {
 			span.File, _ = filepath.Rel(fork.Dir, string(d.File().FileName()))
 			span.File = filepath.ToSlash(span.File)
 			text := d.File().Text()
-			span.Start = UTF16Len(text[:d.Pos()])
-			span.End = UTF16Len(text[:d.End()])
+			span.Start = DecodedUTF16Len(text[:d.Pos()])
+			span.End = DecodedUTF16Len(text[:d.End()])
 		}
 		forkSpans = append(forkSpans, span)
 	}
