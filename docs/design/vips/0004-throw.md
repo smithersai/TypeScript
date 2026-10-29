@@ -1,0 +1,56 @@
+# VIP-4: `throw`, and calls that may throw
+
+**Status:** accepted by Will, 2026-10-28.
+
+## Decision
+
+```ts
+function parse(s) { if (!s) throw new Error("empty"); return s }   // may throw Error (inferred)
+function add(a, b) { return a + b }                                 // doesn't throw
+async get(url) { return Promise.reject(new Error("no")) }           // allowed, as in TypeScript
+
+effect load(id) {
+  if (!user) throw new NotFound(id)            // fails the Effect with NotFound, a typed error
+  add(1, 2)                                    // ok: doesn't throw
+  parse(s)                                     // error: may throw, so wrap it
+  await Effect.try(() => parse(s))             // ok
+  await Effect.tryPromise(() => fetch(url))    // a Promise is always wrapped (VIP-1)
+}
+```
+
+- `throw` and `Promise.reject` are allowed:
+  - in a plain or `async` function, `throw` is JavaScript's throw;
+  - in an `effect` function, `throw e` fails the Effect with `e`, a typed error.
+- The type system tracks whether a function may throw, and what it throws.
+  - A `.vibe` function's throws are inferred from its body: an uncaught `throw`, or an unwrapped call of a function that may throw. Koka infers its `exn` effect the same way.
+  - A plain function may call a function that may throw, and then may throw itself.
+- An `effect` function may call a function that may throw only through an Effect wrapper. Today that's `Effect.try`; a `try` keyword will replace it in a later VIP.
+  - It always wraps a Promise, whether or not the Promise can reject.
+  - It calls a function that does not throw directly.
+- Library and global functions say what they throw with the JSDoc tag `@throws {ErrorType}`. A function with no `@throws` is assumed to throw `unknown`.
+  - JavaScript's globals carry no such tags; `lib.d.ts` doesn't say that `JSON.parse` throws.
+  - VibeLang ships its own annotations for the globals, so that `JSON.parse` throws `SyntaxError` and `Math.max` is known not to throw.
+- A call given a callback that may throw may itself throw. Swift calls this `rethrows`.
+- Implicit throws, such as reading a property of `undefined` or a stack overflow, are not tracked. They are defects, as in `Effect.sync`.
+
+## Prior art
+
+- Swift: `throws` in the type, `try` at each call, `rethrows`.
+- Koka: the inferred `exn` effect.
+- Java's checked exceptions, the cautionary tale: they were declared by hand, whereas VibeLang infers them.
+- TypeScript's long-standing request for `throws` types.
+
+## Will's words
+
+> "Ok we can allow throw and we can allow Promise.reject. But here is the catch. Our type system pays attention to if a function is known to throw. And we do NOT allow you to call a function that may throw without properly wrapping it in an effect. Promises you have to wrap always even if they don't throw but sync functions that do not throw are allowed to be called without wrapping"
+
+> "this is exactly right but later we will make try a keyword instead of Effect.try(). … Any javascript globals like JSON.parse must have no annotation. We add this annotation via @throws {ErrorType} in jsdoc. [Anything] that doesn't have this automatically throws unknown. But for globals like Math.max we can go through and self annotate it ourselves so that this language experience is great."
+
+## Supersedes
+
+R8 (2026-10-28, "no throw in .vibe"), and the form rules that made `throw` an Effect form (D550).
+
+## Later VIPs
+
+- A `try` keyword in place of `Effect.try`.
+- "Effectify the universe": replace non-Effect functions such as `Array.map` with Effect-aware versions. Will: "a very complex and controversial one that we might not even do and won't be in our initial release". It will be proposed, but not accepted right away.
