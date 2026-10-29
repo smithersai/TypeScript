@@ -1,0 +1,5 @@
+{
+  "name": "single-string-cr-escaped",
+  "source": "'\\\r'",
+  "accepted": true
+}

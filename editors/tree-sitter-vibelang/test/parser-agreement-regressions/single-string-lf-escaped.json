@@ -1,0 +1,5 @@
+{
+  "name": "single-string-lf-escaped",
+  "source": "'\\\n'",
+  "accepted": true
+}

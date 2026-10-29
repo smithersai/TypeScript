@@ -102,6 +102,20 @@ const VibeLang = grammar(TypeScript, {
   ]),
 
   rules: {
+    // Quoted strings cannot skip extras before their closing quote. A bare
+    // LF or CR terminates the token; only an escaped line continuation is
+    // allowed by TypeScript's string syntax (D419).
+    string: $ => choice(
+      seq('"', repeat(choice(
+        alias($.unescaped_double_string_fragment, $.string_fragment),
+        $.escape_sequence,
+      )), token.immediate('"')),
+      seq("'", repeat(choice(
+        alias($.unescaped_single_string_fragment, $.string_fragment),
+        $.escape_sequence,
+      )), token.immediate("'")),
+    ),
+
     // ---------------------------------------------------------- Modules
 
     // module text { ... } at a file's top level (D283, vibelang_modules.go).

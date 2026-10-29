@@ -177,6 +177,9 @@ In other editors, configure the LSP client for `.vibe` and `.ts` with
 the project. For GitHub highlighting, add `*.vibe linguist-language=TypeScript`
 to `.gitattributes`.
 
+The tree-sitter grammar follows TypeScript's quoted-string syntax: an unescaped
+line break is a syntax error; an escaped line continuation is allowed.
+
 Editor features (TypeScript files keep TypeScript's hover behavior):
 
 - Hover shows a running call's success value as "Runs here and returns `T`",

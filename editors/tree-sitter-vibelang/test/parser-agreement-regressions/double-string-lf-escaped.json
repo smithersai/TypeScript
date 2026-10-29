@@ -1,0 +1,5 @@
+{
+  "name": "double-string-lf-escaped",
+  "source": "\"\\\n\"",
+  "accepted": true
+}

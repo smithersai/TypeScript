@@ -9,7 +9,6 @@
   "numRuns": 1,
   "numShrinks": 0,
   "id": "unescaped-string-newline",
-  "knownFailure": true,
   "input": {
     "source": "\"\n\"",
     "strictKnownFailures": true

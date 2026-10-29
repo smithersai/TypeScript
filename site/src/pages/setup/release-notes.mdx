@@ -96,6 +96,8 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 ### Bugs fixed since 0.0.10
 
+- Tree-sitter accepted unescaped line breaks inside quoted strings; it now rejects them as the compiler does, while preserving escaped line continuations.
+
 - The original editor syntax property tests now check the seven repaired tree-sitter disagreements as passing regressions instead of leaving them marked as expected failures.
 
 - Neovim's editor smoke test rejected an intentionally malformed LSP fixture; it now checks that fixture's expected parse error and keeps checking valid fixtures for clean syntax.

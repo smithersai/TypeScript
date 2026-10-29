@@ -1,0 +1,5 @@
+{
+  "name": "single-string-cr",
+  "source": "'\r'",
+  "accepted": false
+}

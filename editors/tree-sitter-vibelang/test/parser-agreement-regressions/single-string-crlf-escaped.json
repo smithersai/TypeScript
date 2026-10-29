@@ -1,0 +1,5 @@
+{
+  "name": "single-string-crlf-escaped",
+  "source": "'\\\r\n'",
+  "accepted": true
+}
