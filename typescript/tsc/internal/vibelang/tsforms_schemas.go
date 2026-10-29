@@ -30,7 +30,10 @@ import (
 // alias becomes an interface. Anything else, a check, an annotation, a pipe,
 // Schema.optionalKey, a spread, a computed key, a comment, or a declaration
 // with a type annotation or more than one binding, keeps the constant and
-// draws no warning: no schema declaration says the same. EK4841
+// draws no warning: no schema declaration says the same. So does an exported
+// constant with no type of its name in a project that emits declarations:
+// the declaration would add the type to the declaration file, which the
+// TypeScript did not export (D501). EK4841
 // (fix_schema_alias.go, D474) writes a constant of another schema with D280's
 // alias form, schema Name = type.
 
@@ -113,7 +116,7 @@ func schemaConstantRewrite(c *checker.Checker, file *ast.SourceFile, name *ast.N
 	}
 	exported := ast.HasSyntacticModifier(statement, ast.ModifierFlagsExport)
 	edits, ok := schemaTypeEdits(c, file, statement, name, exported)
-	if !ok {
+	if !ok || exported && len(edits) == 0 && c.CompilerOptions().GetEmitDeclarations() {
 		return nil
 	}
 	start := nodeStart(file, statement)
