@@ -5,15 +5,15 @@
 ## Decision
 
 ```ts
-effect function load(id) { return await fetchUser(id) }  // an Effect function
-effect load(id) { return await fetchUser(id) }           // shorthand
-effect (id) => await fetchUser(id)                       // arrow
+effect function load(id) { return try fetchUser(id) }   // an Effect function
+effect load(id) { return try fetchUser(id) }            // shorthand
+effect (id) => try fetchUser(id)                        // arrow
 
-async function get(url) { return await fetch(url) }      // a Promise function, as in TypeScript
-async get(url) { return await fetch(url) }               // shorthand
+async function get(url) { return await fetch(url) }     // a Promise function, as in TypeScript
+async get(url) { return await fetch(url) }              // shorthand
 
 class Users {
-  effect find(id) { … }                                   // method
+  effect find(id) { … }                                  // method
   async load() { … }
 }
 
@@ -21,22 +21,17 @@ const c = (id) => fetchUser(id)   // neither keyword: plain JavaScript; returns 
 ```
 
 - `effect` marks an Effect function, and `async` marks a Promise function. Each may appear wherever TypeScript allows `async`, and also in the declaration shorthand (`effect load()`, `async get()`). Outside those positions `effect` is an ordinary identifier, so `Layer.effect` and `const effect = …` still work.
-- `await` unwraps both:
-  - inside an `effect` function, `await e` runs the Effect `e`, as `yield*` does in `Effect.gen`;
-  - inside an `async` function, `await` keeps its JavaScript meaning.
-- Awaiting the wrong kind is an error:
-  - `await` on a Promise inside an `effect` function;
-  - `await` on an Effect inside an `async` function;
-  - `await` inside a function with neither keyword, as in JavaScript.
+- Inside an `effect` function, `try` runs an Effect (VIP-5). Inside an `async` function, `await` waits for a Promise, exactly as in JavaScript. Either keyword used in the other kind of function is an error.
 - Calling an `effect` function returns its Effect unrun, just as calling an `async` function returns a Promise.
-- An `effect` function's return type is an Effect, just as an `async` function's is a Promise. Like any function's return type, it can be written or left out, in which case it is inferred. An inferred type takes its success from what the function returns, and its errors and requirements from the Effects its body awaits, as `Effect.gen` infers them.
+- An `effect` function's return type is an Effect, just as an `async` function's is a Promise. Like any function's return type, it can be written or left out, in which case it is inferred. An inferred type takes its success from what the function returns, and its errors and requirements from the Effects its body runs, as `Effect.gen` infers them.
 
   ```ts
-  effect load(id): Effect<User, NotFound, Users> { return await fetchUser(id) }   // written
-  effect load(id) { return await fetchUser(id) }                                  // inferred: the same type
-  async get(url): Promise<Response> { return await fetch(url) }                   // as in TypeScript
+  effect load(id): Effect<User, NotFound, Users> { return try fetchUser(id) }   // written
+  effect load(id) { return try fetchUser(id) }                                  // inferred: the same type
+  async get(url): Promise<Response> { return await fetch(url) }                 // as in TypeScript
   ```
-- To cross between them, use Effect's existing APIs: `Effect.promise` or `Effect.tryPromise` inside an `effect` function, and `Effect.runPromise` inside an `async` function. A shorter syntax is left to a later VIP.
+
+- A Promise used inside an `effect` function is wrapped into an Effect (VIP-6). An Effect used inside an `async` function goes through `Effect.runPromise`.
 
 ## Prior art
 
@@ -53,12 +48,14 @@ const c = (id) => fetchUser(id)   // neither keyword: plain JavaScript; returns 
 
 > "obviously the return type of an effect function is an Effect. Just update VIP-1 to include this detail. Mention also that like any other function it can be inferred" (added 2026-10-28)
 
+*Updated by VIP-5 (2026-10-28): `try`, not `await`, runs an Effect, and `await` means only what it means in JavaScript.*
+
 ## Supersedes
 
 D550 (a function's kind inferred from `await` in its body), D541, the form rules of D500, and D456's "`async` only in a hatch".
 
 ## Left to later VIPs
 
-- A shorter syntax for crossing between Promises and Effects.
-- What `using`, `for await`, `try`/`catch` and `throw` mean inside each kind of function.
+- A concise wrapper for Promises and throwing calls (VIP-6).
+- What `using` and Stream iteration mean inside an `effect` function. (`throw` is VIP-4, and `try`/`catch` is VIP-5.)
 - Top-level `await` and `main`.

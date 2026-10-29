@@ -6,11 +6,10 @@
 
 ```ts
 const p = effect { console.log("hi"); return 1 }   // an Effect, not yet run
-await p                                            // prints "hi", gives 1
-await p                                            // prints "hi" again: each run reruns the block
+try p                                              // prints "hi", gives 1
+try p                                              // prints "hi" again: each run reruns the block
 
-await retry(effect { await save(await fetchUser(id)) }, policy)
-await.race [effect { … }, effect { … }]
+try retry(effect { try save(try fetchUser(id)) }, policy)
 Layer.effect(Users, effect { … })
 
 const x = do { const a = 1; a + 1 }                // TC39 do expression: runs now, x = 2
@@ -18,9 +17,9 @@ const x = do { const a = 1; a + 1 }                // TC39 do expression: runs n
 
 - `effect { … }` is an expression. It builds an Effect from the block without running it, and each time the Effect runs, the block runs again.
   - It is Effect TS's `Effect.gen(function* () { … })`, and the same as `(effect () => { … })()`.
-  - Inside it, `await` runs Effects, as in an `effect` function (VIP-1).
+  - Inside it, `try` runs Effects, as in an `effect` function (VIP-5).
 - `effect` before a function makes a function that returns an Effect (VIP-1). `effect` before a block makes the Effect itself.
-- `do { … }` is exactly TC39's do expression, everywhere, with no exceptions. It runs now and gives its last statement's value, like an IIFE. As TC39 specifies, `await` inside `do` belongs to the enclosing function.
+- `do { … }` is exactly TC39's do expression, everywhere, with no exceptions. It runs now and gives its last statement's value, like an IIFE. As TC39 specifies, `await` inside `do` belongs to the enclosing function, and so does `try`.
 - No other syntax builds a program. A function literal never turns into a program because the parameter it's passed to expects an Effect.
 
 ## Prior art
@@ -35,6 +34,8 @@ const x = do { const a = 1; a + 1 }                // TC39 do expression: runs n
 > "No no exceptions do should just be shorthand for an iiffe and have exact same spec as tc39 proposal"
 
 > "Ok I approve this one"
+
+*Updated by VIP-5 (2026-10-28): examples use `try` to run Effects.*
 
 ## Supersedes
 
