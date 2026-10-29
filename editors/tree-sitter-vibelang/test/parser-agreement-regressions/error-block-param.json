@@ -1,0 +1,6 @@
+{
+  "name": "error-block-param",
+  "source": "error{}",
+  "accepted": true,
+  "shape": "call_expression"
+}

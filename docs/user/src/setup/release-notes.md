@@ -91,6 +91,8 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 ### Bugs fixed since 0.0.10
 
+- Tree-sitter rejected block-param calls named `error`, such as `error{}`; it now accepts them as the compiler does.
+
 - Tree-sitter accepted unescaped line breaks inside quoted strings; it now rejects them as the compiler does, while preserving escaped line continuations.
 
 - The original editor syntax property tests now check the seven repaired tree-sitter disagreements as passing regressions instead of leaving them marked as expected failures.

@@ -1,0 +1,6 @@
+{
+  "name": "error-declaration-preserved",
+  "source": "error Again {}",
+  "accepted": true,
+  "shape": "error_declaration"
+}

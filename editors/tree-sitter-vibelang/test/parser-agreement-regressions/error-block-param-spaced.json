@@ -1,0 +1,6 @@
+{
+  "name": "error-block-param-spaced",
+  "source": "error { return 1 }",
+  "accepted": true,
+  "shape": "call_expression"
+}

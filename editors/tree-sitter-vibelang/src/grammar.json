@@ -4197,6 +4197,15 @@
                     {
                       "type": "SYMBOL",
                       "name": "member_expression"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "error"
+                      },
+                      "named": true,
+                      "value": "identifier"
                     }
                   ]
                 }
@@ -14589,6 +14598,15 @@
                       },
                       "named": true,
                       "value": "member_expression"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "error"
+                      },
+                      "named": true,
+                      "value": "identifier"
                     }
                   ]
                 }

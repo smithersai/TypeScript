@@ -535,7 +535,9 @@ const VibeLang = grammar(TypeScript, {
         field('block', alias($._block, $.statement_block)),
       )),
       prec('block_param', seq(
-        field('function', choice($.identifier, $.member_expression)),
+        // error starts a declaration only before a binding name; before
+        // a block it remains a contextual identifier (D419, D188).
+        field('function', choice($.identifier, $.member_expression, alias('error', $.identifier))),
         field('block', alias($._block, $.statement_block)),
       )),
       // try(fn, ...), the boundary hatch (D148, vibelang_hatches.go).

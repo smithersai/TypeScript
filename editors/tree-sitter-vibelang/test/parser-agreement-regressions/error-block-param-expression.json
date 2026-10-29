@@ -1,0 +1,6 @@
+{
+  "name": "error-block-param-expression",
+  "source": "const x = error { return 1 }",
+  "accepted": true,
+  "shape": "call_expression"
+}

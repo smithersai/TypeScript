@@ -9,7 +9,6 @@
   "numRuns": 4,
   "numShrinks": 2,
   "id": "error-block-param",
-  "knownFailure": true,
   "input": {
     "source": "error{}",
     "strictKnownFailures": true
