@@ -17,3 +17,9 @@ Will decides each VibeLang language decision as a VIP, one at a time. The most f
 | VIP | Title | Status |
 | --- | --- | --- |
 | [8](0008-scoped-keyword-denied.md) | A `scoped` keyword | denied 2026-10-28 |
+
+## Denied
+
+| VIP | Title | Status |
+| --- | --- | --- |
+| [8](0008-using-denied.md) | Special syntax for Effect resources (`using`, a `scoped` keyword) | denied 2026-10-28 |
