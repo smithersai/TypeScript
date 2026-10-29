@@ -31,7 +31,7 @@ const c = (id) => fetchUser(id)   // neither keyword: plain JavaScript; returns 
   async get(url): Promise<Response> { return await fetch(url) }                 // as in TypeScript
   ```
 
-- A Promise used inside an `effect` function is wrapped into an Effect (VIP-6). An Effect used inside an `async` function goes through `Effect.runPromise`.
+- A Promise used inside an `effect` function is wrapped with `tryPromise` or `promise`. An Effect used inside an `async` function goes through `runPromise`. All three are VIP-6 globals.
 
 ## Prior art
 
@@ -56,6 +56,5 @@ D550 (a function's kind inferred from `await` in its body), D541, the form rules
 
 ## Left to later VIPs
 
-- A concise wrapper for Promises and throwing calls (VIP-6).
 - What `using` and Stream iteration mean inside an `effect` function. (`throw` is VIP-4, and `try`/`catch` is VIP-5.)
 - Top-level `await` and `main`.

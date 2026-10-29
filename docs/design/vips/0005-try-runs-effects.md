@@ -21,7 +21,7 @@ effect load(id) {
 
 - `try e` runs the Effect `e` inside an `effect` function or block and gives its success value. A failure propagates to the enclosing Effect, as Zig's `try x` means `x catch |e| return e`.
 - `e catch y` runs `e`, and on a failure evaluates `y`, which is either a value or a function of the error. As in Zig, you write `try x` or `x catch y`, never both.
-- `try` is only for Effects. A call that may throw, and a Promise, is first wrapped into an Effect (VIP-6), then run with `try`.
+- `try` is only for Effects. A call that may throw, and a Promise, is first wrapped into an Effect with Effect's own functions (VIP-6: `Effect.try`, `tryPromise`), then run with `try`.
 - An `effect` function has no `try`/`catch` statement. It handles failures with `catch` and `match`.
 - `await` keeps exactly JavaScript's meaning and belongs only to `async` functions:
   - `await` inside an `effect` function is an error;

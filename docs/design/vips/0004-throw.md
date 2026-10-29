@@ -13,8 +13,8 @@ effect load(id) {
   if (!user) throw new NotFound(id)            // the same as failing with Effect.fail(new NotFound(id))
   add(1, 2)                                    // ok: doesn't throw
   parse(s)                                     // error: may throw, so wrap it and run it with try
-  try Effect.try(() => parse(s))               // ok until VIP-6's wrapper
-  try Effect.tryPromise(() => fetch(url))      // a Promise is always wrapped
+  try Effect.try(() => parse(s))               // ok: Effect.try (a reserved word, so not a global)
+  try tryPromise(() => fetch(url))             // a Promise is always wrapped (VIP-6 global)
 }
 ```
 
@@ -24,7 +24,7 @@ effect load(id) {
 - The type system tracks whether a function may throw, and what it throws.
   - A `.vibe` function's throws are inferred from its body: an uncaught `throw`, or an unwrapped call of a function that may throw. Koka infers its `exn` effect the same way.
   - A plain function may call a function that may throw, and then may throw itself.
-- An `effect` function may call a function that may throw only through an Effect wrapper. The wrapped call is then run with `try` (VIP-5). Today the wrapper is `Effect.try`; VIP-6 gives a concise one.
+- An `effect` function may call a function that may throw only through an Effect wrapper. The wrapped call is then run with `try` (VIP-5). The wrappers are Effect's own functions, which VIP-6 makes global: `Effect.try` for sync code, and `tryPromise` for a Promise.
   - It always wraps a Promise, whether or not the Promise can reject.
   - It calls a function that does not throw directly.
 - Library and global functions say what they throw with the JSDoc tag `@throws {ErrorType}`. A function with no `@throws` is assumed to throw `unknown`.
@@ -48,7 +48,7 @@ effect load(id) {
 
 > "this is exactly right but later we will make try a keyword instead of Effect.try(). … Any javascript globals like JSON.parse must have no annotation. We add this annotation via @throws {ErrorType} in jsdoc. [Anything] that doesn't have this automatically throws unknown. But for globals like Math.max we can go through and self annotate it ourselves so that this language experience is great."
 
-*Updated by VIP-5 (2026-10-28): wrapped calls run with `try`.*
+*Updated by VIP-5 and VIP-6 (2026-10-28): wrapped calls run with `try`, and the wrappers are Effect's own functions.*
 
 ## Supersedes
 
@@ -56,5 +56,4 @@ R8 (2026-10-28, "no throw in .vibe"), and the form rules that made `throw` an Ef
 
 ## Later VIPs
 
-- A concise wrapper in place of `Effect.try` and `Effect.tryPromise` (VIP-6).
 - "Effectify the universe": replace non-Effect functions such as `Array.map` with Effect-aware versions. Will: "a very complex and controversial one that we might not even do and won't be in our initial release". It will be proposed, but not accepted right away.
