@@ -1,0 +1,45 @@
+name: VibeLang Windows tarball proof
+on:
+  push:
+    branches: ["windows-proof-*"]
+permissions:
+  contents: read
+jobs:
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Install release tarballs and run the real compiler, runtime, loader and fixer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'vibe space # %'
+          New-Item -ItemType Directory -Force $root | Out-Null
+          '{"name":"windows-local-proof","private":true,"type":"module","overrides":{"@effect/platform-node-shared":"4.0.6"}}' | Set-Content (Join-Path $root 'package.json')
+          $tarballs = Join-Path $env:GITHUB_WORKSPACE 'windows-proof-tarballs'
+          $arch = node -p 'process.arch'
+          $version = node -p 'require("./packages/compiler/package.json").version'
+          Push-Location $root
+          npm install --ignore-scripts --no-audit --no-fund "$tarballs/vibelang-$version.tgz" "$tarballs/vibelang-runtime-$version.tgz" "$tarballs/vibelang-cli-win32-$arch-$version.tgz" "$tarballs/vibelang-vite-$version.tgz" effect@4.0.6 @effect/platform-node@4.0.6 @effect/vitest@4.0.6 vite@8.3.5 vitest@5.0.5
+          if ($LASTEXITCODE) { throw 'local tarball installation failed' }
+          & ./node_modules/.bin/vibelang.cmd --version
+          if ($LASTEXITCODE) { throw 'npm Windows command shim failed' }
+          node "$env:GITHUB_WORKSPACE/scripts/release/windows-smoke.mjs" $root
+          if ($LASTEXITCODE) { throw 'Windows smoke failed' }
+          Pop-Location
+          # Vite itself does not support a project root containing #. Keep the
+          # CLI/Node proof above, then exercise Vitest in a path with spaces.
+          $vitestRoot = Join-Path $env:RUNNER_TEMP 'vibe vitest space'
+          Move-Item $root $vitestRoot
+          Push-Location $vitestRoot
+          node "$env:GITHUB_WORKSPACE/scripts/release/windows-smoke.mjs" $vitestRoot --vitest
+          if ($LASTEXITCODE) { throw 'Windows Vitest smoke failed' }
+          Pop-Location
