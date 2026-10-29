@@ -534,6 +534,8 @@ var ruleInjections = []*ruleInjection{
 	{Code: 4831, Name: "context-service", Quote: "a `Context.Service<Self, Shape>()(key)` class whose shape is an object type", Slots: top,
 		Text: "class Named$$ extends Context.Service<Named$$, {\n  read(): string!!\n}>()(\"app/Named$$\") {}"},
 	{Code: 4832, Name: "struct-constant", Quote: "a `const` that holds a `Schema.Struct` a `schema` declaration writes", Slots: top,
+		Text: "const User$$ = Schema.Struct({ id: Schema.String });"},
+	{Code: 4832, Name: "exported-struct-constant", Quote: "a `const` that holds a `Schema.Struct` a `schema` declaration writes", Slots: top,
 		Text: "export const User$$ = Schema.Struct({ id: Schema.String });"},
 	{Code: 4833, Name: "effect-dot-effect", Quote: "`Effect.Effect<A, E, R>`, which the `!` form writes in fewer tokens", Slots: top,
 		Text: "type Program$$ = Effect.Effect<number, never, never>;"},

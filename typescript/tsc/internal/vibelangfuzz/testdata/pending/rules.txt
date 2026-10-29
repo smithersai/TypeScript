@@ -37,6 +37,7 @@ FuzzSpecRules  ek:EK3208/wire-value  compiler  D363: const w = wire draws nothin
 FuzzSpecRules  ek:EK4410/hatch-value  compiler  D330, D432, D452: const run = sync draws nothing
 FuzzSpecRules  ek:EK4411/hatch-function-expression  compiler  D396: sync(Math.random) draws nothing
 FuzzSpecRules  ek:EK4613/unrun-element  compiler  D394, D433: an await.all element that is a function value, job = () => load(), which the operation would give back unrun, draws nothing
+FuzzSpecRules  ek:EK4832/exported-struct-constant  compiler  D286: an exported Schema.Struct constant without its type draws no EK4832 where declarations emit; the compiler follows D501, which main's specification does not have
 #
 # The minimal reproduction of each gap above, in testdata/fuzz/FuzzSpecRules/. Its line
 # marks it for XPASS: once the compiler meets the rule there, the input fails until both
@@ -64,3 +65,4 @@ FuzzSpecRules  corpus:ek4802-returned-arm  compiler  D321: EK4802 for a returned
 FuzzSpecRules  corpus:ek4802-returned-program  compiler  D321: EK4802 is reported as a warning; Chapter 28 makes it an error by default
 FuzzSpecRules  corpus:ek4836-effect-provide  compiler  D290: const provided = Effect.provide(Region.name(), RegionLive) in an Effect function draws no EK4836; D290 refuses the fix in an initializer, and Chapter 28 says the warning then stays without a fix
 FuzzSpecRules  corpus:ek4838-stored-fiber  compiler  D353, D386: an owned fiber passed to a call or stored in a collection, fibers.push(fiber), draws no EK4838
+FuzzSpecRules  corpus:ek4832-exported-struct-constant  compiler  D286: an exported Schema.Struct constant without its type draws no EK4832 where declarations emit; the compiler follows D501, which main's specification does not have
