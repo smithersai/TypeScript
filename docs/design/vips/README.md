@@ -10,3 +10,4 @@ Will decides each VibeLang language decision as a VIP, one at a time. The most f
 | [4](0004-throw.md) | `throw`, and calls that may throw | accepted 2026-10-28 |
 | [5](0005-try-runs-effects.md) | `try` runs an Effect; `await` is only for Promises | accepted 2026-10-28 |
 | [6](0006-effect-globals.md) | Effect's functions are globals | accepted 2026-10-28 |
+| [7](0007-match.md) | `match` is TC39 pattern matching, plus a compile-time exhaustiveness check | accepted 2026-10-28 |

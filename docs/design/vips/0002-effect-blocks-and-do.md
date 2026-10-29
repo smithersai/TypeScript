@@ -19,7 +19,7 @@ const x = do { const a = 1; a + 1 }                // TC39 do expression: runs n
   - It is Effect TS's `Effect.gen(function* () { … })`, and the same as `(effect () => { … })()`.
   - Inside it, `try` runs Effects, as in an `effect` function (VIP-5).
 - `effect` before a function makes a function that returns an Effect (VIP-1). `effect` before a block makes the Effect itself.
-- `do { … }` is exactly TC39's do expression, everywhere, with no exceptions. It runs now and gives its last statement's value, like an IIFE. As TC39 specifies, `await` inside `do` belongs to the enclosing function, and so does `try`.
+- `do { … }` is exactly TC39's do expression, pinned to a dated snapshot of the proposal (moved deliberately, as VIP-7 does for `match`), everywhere, with no exceptions. It runs now and gives its last statement's value, like an IIFE. As TC39 specifies, `await` inside `do` belongs to the enclosing function, and so does `try`.
 - No other syntax builds a program. A function literal never turns into a program because the parameter it's passed to expects an Effect.
 
 ## Prior art
@@ -35,7 +35,7 @@ const x = do { const a = 1; a + 1 }                // TC39 do expression: runs n
 
 > "Ok I approve this one"
 
-*Updated by VIP-5 (2026-10-28): examples use `try` to run Effects.*
+*Updated by VIP-5 (2026-10-28): examples use `try` to run Effects. Updated by VIP-7: the proposal is pinned to a dated snapshot.*
 
 ## Supersedes
 
