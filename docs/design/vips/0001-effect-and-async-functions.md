@@ -1,4 +1,4 @@
-# LIP-1: `effect` and `async` functions
+# VIP-1: `effect` and `async` functions
 
 **Status:** accepted by Will, 2026-10-28.
 
@@ -29,7 +29,14 @@ const c = (id) => fetchUser(id)   // neither keyword: plain JavaScript; returns 
   - `await` on an Effect inside an `async` function;
   - `await` inside a function with neither keyword, as in JavaScript.
 - Calling an `effect` function returns its Effect unrun, just as calling an `async` function returns a Promise.
-- To cross between them, use Effect's existing APIs: `Effect.promise` or `Effect.tryPromise` inside an `effect` function, and `Effect.runPromise` inside an `async` function. A shorter syntax is left to a later LIP.
+- An `effect` function's return type is an Effect, just as an `async` function's is a Promise. Like any function's return type, it can be written or left out, in which case it is inferred. An inferred type takes its success from what the function returns, and its errors and requirements from the Effects its body awaits, as `Effect.gen` infers them.
+
+  ```ts
+  effect load(id): Effect<User, NotFound, Users> { return await fetchUser(id) }   // written
+  effect load(id) { return await fetchUser(id) }                                  // inferred: the same type
+  async get(url): Promise<Response> { return await fetch(url) }                   // as in TypeScript
+  ```
+- To cross between them, use Effect's existing APIs: `Effect.promise` or `Effect.tryPromise` inside an `effect` function, and `Effect.runPromise` inside an `async` function. A shorter syntax is left to a later VIP.
 
 ## Prior art
 
@@ -44,13 +51,14 @@ const c = (id) => fetchUser(id)   // neither keyword: plain JavaScript; returns 
 
 > "Going between effect and async already has existing support in promise if you are suggesting we should have more concise syntax for that keep that in mind but for another proposal."
 
+> "obviously the return type of an effect function is an Effect. Just update VIP-1 to include this detail. Mention also that like any other function it can be inferred" (added 2026-10-28)
+
 ## Supersedes
 
 D550 (a function's kind inferred from `await` in its body), D541, the form rules of D500, and D456's "`async` only in a hatch".
 
-## Left to later LIPs
+## Left to later VIPs
 
 - A shorter syntax for crossing between Promises and Effects.
 - What `using`, `for await`, `try`/`catch` and `throw` mean inside each kind of function.
-- Return annotations.
 - Top-level `await` and `main`.
