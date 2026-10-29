@@ -18,20 +18,17 @@ FuzzEditorConsistency consistency:rename:ModuleDeclaration:diagnostics:EK4407 co
 FuzzEditorConsistency corpus:rename-module-block compiler the minimal reproduction of consistency:rename:ModuleDeclaration:diagnostics:EK4407
 FuzzEditorConsistency consistency:rename:InterfaceDeclaration:diagnostics:EK4407 compiler LSP 3.17, D372, D283: renaming an imported type `Other` that a module declaration `module Other { }` shares a name with breaks `import { n } from Other`, which adds EK4407
 FuzzEditorConsistency consistency:rename:FunctionDeclaration:diagnostics:TS2304 compiler LSP 3.17, D372: renaming a function leaves its call inside a retired `select` arm unrenamed (references miss it, as hover does there, D77), which adds TS2304
-FuzzEditorConsistency consistency:rename:VariableDeclaration:diagnostics:TS2304 compiler LSP 3.17, D372: renaming the binding of `when let other and if (other.length > 3): ...` leaves a use of it unrenamed, which adds TS2304
 FuzzEditorConsistency consistency:rename:VariableDeclaration:diagnostics:TS2339 compiler LSP 3.17, D372: renaming the binding of the pattern `when Option.Some { let value }` writes `{ let fresh }`, which reads the property `fresh` instead of `value` (TypeScript writes `value: fresh` for a shorthand binding), adding TS2339
-FuzzEditorConsistency consistency:rename:Parameter:diagnostics:TS2304 compiler LSP 3.17, D372: renaming the parameter of `(error) => error is ItemMissing` leaves the operand of `is` unrenamed, which adds TS2552
 FuzzEditorConsistency consistency:call-hierarchy:incoming-missing:ClassDeclaration compiler LSP 3.17: the outgoing calls of `error Sub extends Base` hold a call of Base at Sub's name, from the constructor the declaration synthesizes, which Base's incoming calls do not hold; the Effect reading's class has no such call (D32)
 FuzzEditorConsistency consistency:call-hierarchy:incoming-missing:FunctionDeclaration compiler LSP 3.17: a call inside a retired `select` arm is among its function's outgoing calls but not among the callee's incoming calls, whose references miss it (D32, D77)
 FuzzEditorConsistency consistency:document-symbols:selection-outside:Block compiler LSP 3.17 (selectionRange "Must be contained by the `range`"): the document symbol of the temporary `$is1` that `outcome is Exit.Success(let value)` synthesizes selects bytes outside its range (D32)
-FuzzEditorConsistency consistency:range:document-symbols compiler LSP 3.17: in `export function main() { return 1 catch }` a document symbol's range ends before it starts (1:40-1:39)
 FuzzEditorConsistency corpus:calls-error-extends compiler the minimal reproduction of consistency:call-hierarchy:incoming-missing:ClassDeclaration
 FuzzEditorConsistency corpus:calls-select compiler the minimal reproduction of consistency:call-hierarchy:incoming-missing:FunctionDeclaration
 FuzzEditorConsistency corpus:organize-module-named compiler the minimal reproduction of consistency:organize-imports:error:TS2307
 FuzzEditorConsistency corpus:organize-module-side-effect compiler the minimal reproduction of consistency:organize-imports:error:TS2882
 FuzzEditorConsistency corpus:rename-imported-type-module compiler the minimal reproduction of consistency:rename:InterfaceDeclaration:diagnostics:EK4407
-FuzzEditorConsistency corpus:rename-is-parameter compiler the minimal reproduction of consistency:rename:Parameter:diagnostics:TS2304
-FuzzEditorConsistency corpus:rename-match-guard compiler the minimal reproduction of consistency:rename:VariableDeclaration:diagnostics:TS2304
+FuzzEditorConsistency consistency:rename:Parameter:written-not-a-reference compiler LSP 3.17, D372: references at the parameter of `(fuzzFresh0: unknown) => fuzzFresh0 is E` (or `instanceof E`) hold its use but not its declaration, so a rename's written name is not among the new name's references; with a one-letter name they hold both
+FuzzEditorConsistency corpus:rename-is-parameter compiler the minimal reproduction of consistency:rename:Parameter:written-not-a-reference
 FuzzEditorConsistency corpus:rename-match-property compiler the minimal reproduction of consistency:rename:VariableDeclaration:diagnostics:TS2339
 FuzzEditorConsistency corpus:rename-select-call compiler the minimal reproduction of consistency:rename:FunctionDeclaration:diagnostics:TS2304
 FuzzEditorConsistency corpus:selection-arrow-catch compiler the minimal reproduction of consistency:selection-ranges:nesting:vibelang
@@ -40,5 +37,4 @@ FuzzEditorConsistency corpus:selection-data compiler the minimal reproduction of
 FuzzEditorConsistency corpus:selection-match-binding compiler the minimal reproduction of consistency:selection-ranges:nesting:vibelang
 FuzzEditorConsistency corpus:selection-property-catch compiler the minimal reproduction of consistency:selection-ranges:nesting:vibelang
 FuzzEditorConsistency corpus:selection-schema compiler the minimal reproduction of consistency:selection-ranges:nesting:vibelang
-FuzzEditorConsistency corpus:symbols-incomplete-catch compiler the minimal reproduction of consistency:range:document-symbols
 FuzzEditorConsistency corpus:symbols-is-binding compiler the minimal reproduction of consistency:document-symbols:selection-outside:Block

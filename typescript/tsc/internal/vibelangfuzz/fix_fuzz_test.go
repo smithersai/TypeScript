@@ -228,9 +228,16 @@ func toolsInvalidOutcome(outcome Outcome) bool {
 
 type toolsRunnable struct{ file, name string }
 
+// toolsEffectType matches a declaration file's type that is an Effect, such
+// as `Effect.Effect<A, E, R>` or `import("effect/Effect").Effect<A>`.
+var toolsEffectType = regexp.MustCompile(`^(?:import\("[^"]*"\)\.)?(?:Effect\.)?Effect\s*<`)
+
 // toolsRunnableExports finds exported functions requiring no arguments whose
 // declaration promises an Effect. Chapter 14's contracts identify programs;
 // an expect-result comment is not a prerequisite of D372's equivalence rule.
+// The declared return type itself is the Effect: a plain function that
+// returns an Effect function, such as `() => <A>(e: Effect<A>) => Effect<A>`,
+// returns a function, which has no Effect exit to compare.
 func toolsRunnableExports(r *Result) []toolsRunnable {
 	var entries []toolsRunnable
 	for name, text := range r.Outputs {
@@ -250,8 +257,8 @@ func toolsRunnableExports(r *Result) []toolsRunnable {
 				if len(fn.Parameters()) != 0 || fn.Type() == nil {
 					return
 				}
-				typ := text[fn.Type().Pos():fn.Type().End()]
-				if regexp.MustCompile(`\bEffect(?:\.Effect)?\s*<`).MatchString(typ) {
+				typ := strings.TrimSpace(text[fn.Type().Pos():fn.Type().End()])
+				if toolsEffectType.MatchString(typ) {
 					entries = append(entries, toolsRunnable{module + ".js", name})
 				}
 			}
@@ -335,7 +342,14 @@ func toolsUnappliedFixes(t *testing.T, w *Workspace, r *Result, codes []int32, r
 	for _, u := range toolsUnpermitted(t, w, r, codes, refused) {
 		d := u.diagnostic
 		rel := strings.TrimPrefix(d.File().FileName().AsString(), filepath.ToSlash(r.Dir)+"/")
-		Gap(t, "FuzzFix", fmt.Sprintf("fix:unapplied:EK%d", d.Code()), "D291/D372: after --fix, %s still reports %s without a permitted refusal (no --fix refusal; explanation %v; quick fix offered %v):\n%s", rel, d.String(), u.explains, u.offered, archive)
+		// The key says whether the language service offers the quick fix
+		// that --fix left unapplied, or offers none, so that a known code
+		// with no fix does not switch the oracle off for one that --fix skips.
+		state := "no-fix"
+		if u.offered {
+			state = "offered"
+		}
+		Gap(t, "FuzzFix", fmt.Sprintf("fix:unapplied:EK%d:%s", d.Code(), state), "D291/D372: after --fix, %s still reports %s without a permitted refusal (no --fix refusal; explanation %v; quick fix offered %v):\n%s", rel, d.String(), u.explains, u.offered, archive)
 	}
 }
 

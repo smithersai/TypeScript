@@ -232,10 +232,10 @@ func TestToolsOutcomes(t *testing.T) {
 		t.Error("value was ignored")
 	}
 	entries := toolsRunnableExports(&Result{Outputs: map[string]string{
-		"out/other.d.ts": "export declare function run(): Effect.Effect<number, never, never>;\nexport declare const arrow: () => Effect.Effect<string>;\nexport declare function plain(): number;\nexport declare function needs(n: number): Effect.Effect<number>;",
+		"out/other.d.ts": "export declare function run(): Effect.Effect<number, never, never>;\nexport declare const arrow: () => Effect.Effect<string>;\nexport declare function plain(): number;\nexport declare function needs(n: number): Effect.Effect<number>;\nexport declare const maker: () => <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>;\nexport declare function imported(): import(\"effect/Effect\").Effect<number>;",
 		"out/other.js":   "",
 	}})
-	if !slices.Equal(entries, []toolsRunnable{{"out/other.js", "arrow"}, {"out/other.js", "run"}}) {
+	if !slices.Equal(entries, []toolsRunnable{{"out/other.js", "arrow"}, {"out/other.js", "imported"}, {"out/other.js", "run"}}) {
 		t.Fatalf("runnable exports = %v", entries)
 	}
 }

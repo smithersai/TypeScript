@@ -405,7 +405,17 @@ func (e *toolsEditor) verifyQuickFix(title string, code int32, d *lsproto.Diagno
 	fixed := toolsCompile(e.t, e.w, "FuzzEditor", files)
 	defer fixed.Remove()
 	if added := toolsAddedErrors(e.r, fixed); len(added) > 0 {
-		Gap(e.t, "FuzzEditor", fmt.Sprintf("editor:quickfix-error:EK%d", code), "the quick fix %q of EK%d adds errors: %s\n%s\nfixed:\n%s", title, code, strings.Join(added, "\n"), e.archive, Archive(files))
+		// The key names the codes the fix adds, such as
+		// editor:quickfix-error:EK4834:EK2116, so that one known gap of a
+		// fix does not switch the oracle off for every error it may add.
+		var codes []string
+		for _, line := range added {
+			if _, code, ok := strings.Cut(line, ": "); ok && !strings.HasPrefix(line, " ") && !slices.Contains(codes, code) {
+				codes = append(codes, code)
+			}
+		}
+		slices.Sort(codes)
+		Gap(e.t, "FuzzEditor", fmt.Sprintf("editor:quickfix-error:EK%d:%s", code, strings.Join(codes, "+")), "the quick fix %q of EK%d adds errors: %s\n%s\nfixed:\n%s", title, code, strings.Join(added, "\n"), e.archive, Archive(files))
 	}
 	file := fixed.SourceFile(e.main)
 	for _, after := range fixed.Diagnostics {
