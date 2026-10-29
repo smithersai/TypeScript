@@ -114,6 +114,13 @@ fi
 			echo '```text'
 			grep -v '^fuzz: elapsed' "$out/$target.log" | grep -m 3 -E -A 12 'failure while|--- FAIL|panic:|hang' || true
 			echo '```'
+			# What a worker that died wrote (campaign.sh), such as a hang panic.
+			if grep -q -E '^(panic|fatal error):' "$out/$target.workers.log" 2> /dev/null; then
+				echo
+				echo '```text'
+				grep -m 2 -E -A 12 '^(panic|fatal error):' "$out/$target.workers.log" | cut -c1-300
+				echo '```'
+			fi
 		done
 	fi
 	if [ "$race" = failed ]; then

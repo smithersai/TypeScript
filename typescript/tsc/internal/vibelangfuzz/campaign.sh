@@ -77,6 +77,7 @@ command -v timeout > /dev/null 2>&1 || { echo "campaign: timeout is required" >&
 coverpkg=./internal/vibelang,./internal/vibelangfmt,./internal/vibelangestree,./internal/vibelangmapper,./internal/parser,./internal/checker,./internal/ls,./internal/format,./internal/printer
 out=${CAMPAIGN_OUT:-$(mktemp -d "${TMPDIR:-/tmp}/vibelangfuzz-campaign.XXXXXX")}
 mkdir -p "$out"
+out=$(cd "$out" && pwd) # the workers run in the package's directory
 
 targets=$*
 if [ -z "$targets" ]; then
@@ -102,7 +103,11 @@ for spec in $targets; do
 	before=$(ls "$corpus" 2>/dev/null | sort || true)
 	echo "== $target for $time (-parallel $parallel; timeout $limit)" >&2
 	status=0
-	GOFLAGS= timeout -s QUIT -k 60 "$limit" go test -run '^$' -fuzz "^$target\$" -fuzztime "$time" -parallel "$parallel" "$pkg" > "$out/$target.log" 2>&1 || status=$?
+	# The fuzz engine discards its workers' standard error; each worker
+	# appends it to $target.workers.log instead (main_test.go), so a worker
+	# that dies of a hang or a fatal error leaves its reason there.
+	: > "$out/$target.workers.log"
+	VIBELANG_FUZZ_WORKER_LOG="$out/$target.workers.log" GOFLAGS= timeout -s QUIT -k 60 "$limit" go test -run '^$' -fuzz "^$target\$" -fuzztime "$time" -parallel "$parallel" "$pkg" > "$out/$target.log" 2>&1 || status=$?
 	last=$(grep -E '^fuzz: elapsed' "$out/$target.log" | tail -1 || true)
 	after=$(ls "$corpus" 2>/dev/null | sort || true)
 	new=$(printf '%s\n' "$after" | grep -vxF -e "$before" -e '' || true)
@@ -117,7 +122,11 @@ for spec in $targets; do
 			echo "  new crasher: $out/crashers/$target/$file"
 			mkdir -p "$out/crashers/$target" && mv "$corpus/$file" "$out/crashers/$target/"
 		done
-		if [ "$status" -ne 0 ]; then failed=1; grep -m 5 -E '^\s+--- FAIL|Failing input|panic:|hang:' "$out/$target.log" | sed 's/^/  /' || true; fi
+		if [ "$status" -ne 0 ]; then
+			failed=1
+			grep -m 5 -E '^\s+--- FAIL|Failing input|panic:|hang:' "$out/$target.log" | sed 's/^/  /' || true
+			grep -m 3 -E '^(panic|fatal error):' "$out/$target.workers.log" | cut -c1-300 | sed 's/^/  worker: /' || true
+		fi
 	} >> "$summary"
 done
 

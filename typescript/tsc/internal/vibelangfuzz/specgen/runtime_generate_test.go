@@ -2,6 +2,9 @@ package specgen
 
 import (
 	"math/rand/v2"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -51,6 +54,43 @@ func TestRuntimeDeeperRegions(t *testing.T) {
 	ss := g.stmt(gctx{fn: &Func{}, plain: true, depth: 4, mult: 1})
 	if _, ok := ss[0].(*If); !ok {
 		t.Fatalf("depth four cannot produce a nested condition: %T", ss[0])
+	}
+}
+
+// TestDoBlocksStopAtTheNestingLimit keeps a do block, whose statements start
+// expressions of their own depth, from nesting in do blocks without bound:
+// the nightly campaign of 2026-10-29 found inputs of 3.5 kB whose do blocks
+// nested more than 150 deep (TestProgramsGrowWithTheirInput).
+func TestDoBlocksStopAtTheNestingLimit(t *testing.T) {
+	for b := range 256 {
+		g := &generator{p: &Program{Enabled: map[string]bool{"do-block": true}, Used: map[string]bool{}}, c: chooser{data: []byte{byte(b), 0, 0, 0}}}
+		if x, ok := g.expr(gctx{fn: &Func{}, depth: nestingLimit, mult: 1}, 2).(*Do); ok {
+			t.Fatalf("choice %d writes a do block past the nesting limit: %v", b, x)
+		}
+	}
+}
+
+// TestProgramsGrowWithTheirInput bounds what the campaign's inputs write. The
+// Effect reading indents each nested do block's Effect.gen a level deeper, so
+// it grows with the square of the nesting: unbounded do blocks made 3.5 kB
+// write a reading of 2 MB and 3.1 MB, whose compiles outlasted the hang limit.
+// Bounded, each byte writes about 25.
+func TestProgramsGrowWithTheirInput(t *testing.T) {
+	for _, corpus := range []string{"FuzzSpecPrograms/do-nesting-unbounded", "FuzzSpecVariants/do-nesting-unbounded"} {
+		contents, err := os.ReadFile(filepath.Join("..", "testdata", "fuzz", filepath.FromSlash(corpus)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		line := strings.TrimSpace(strings.TrimPrefix(string(contents), "go test fuzz v1\n"))
+		data, err := strconv.Unquote(strings.TrimSuffix(strings.TrimPrefix(line, "[]byte("), ")"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := Generate([]byte(data), nil)
+		vibe, effect := len(PrintVibe(p, VibeOptions{})), len(PrintEffect(p))
+		if vibe > 100*len(data) || effect > 100*len(data) {
+			t.Errorf("%s: %d bytes write %d bytes of VibeLang and %d of its Effect reading", corpus, len(data), vibe, effect)
+		}
 	}
 }
 

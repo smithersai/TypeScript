@@ -24,6 +24,19 @@ func closeOnExec(fds ...int) error {
 	return nil
 }
 
+// logStderr appends what the process writes to standard error to the file
+// at path. The fuzz engine starts its workers with standard error discarded,
+// so without it a worker that dies of a hang panic or a fatal runtime error
+// leaves only "terminated unexpectedly: exit status 2" behind.
+func logStderr(path string) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return unix.Dup2(int(file.Fd()), 2)
+}
+
 // children holds started process groups until Wait has reaped their leaders.
 var children = struct {
 	sync.Mutex

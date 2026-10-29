@@ -913,7 +913,12 @@ func (g *generator) expr(ctx gctx, depth int) Expr {
 		{g.on("match-option"), func() Expr { return g.feature1(ctx, "match-option", depth) }},
 		{g.on("match-data") && len(ctx.datas) > 0, func() Expr { return g.feature1(ctx, "match-data", depth) }},
 		{g.on("match-exit") && effect && !ctx.quiet, func() Expr { return g.feature1(ctx, "match-exit", depth) }},
-		{g.on("do-block"), func() Expr { return g.feature1(ctx, "do-block", depth) }},
+		// A do block's statements start expressions of their own depth, so
+		// only the nesting limit stops do blocks nesting in do blocks: without
+		// it 3.5 kB of input nested them 150 deep, and the Effect reading,
+		// which indents each level, grew to megabytes whose compile outlasted
+		// the hang limit.
+		{g.on("do-block") && ctx.depth < nestingLimit, func() Expr { return g.feature1(ctx, "do-block", depth) }},
 		{g.on("pipe") && len(fns) > 0, func() Expr { return g.feature1(ctx, "pipe", depth) }},
 		{g.on("throw-expression") && effect, func() Expr { return g.feature1(ctx, "throw-expression", depth) }},
 		{g.on("hatch-sync") && effect, func() Expr { return g.feature1(ctx, "hatch-sync", depth) }},
