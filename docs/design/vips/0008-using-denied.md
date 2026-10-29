@@ -70,6 +70,9 @@ addFinalizer((exit) => cleanup)
 
 > "Ok we should deny this. Deny it by keeping the proposal info about what we talked about and appending it to the end as a denied VIP"
 
-## Supersedes
+## Footnote: old VibeLang
 
-D14, D25, D47's `using` clause, D94, D95, D342, D343, D344, D401, D425, D451, D459, D481, D490 and D553: the `using` rules for Effect resources.
+Old VibeLang is a reference only; nothing in it is part of the language unless a VIP adds it. For implementers, this VIP replaces:
+
+
+D14, D25, D94, D95, D342, D343, D344, D401, D425, D451, D459, D481, D490 and D553: the `using` rules for Effect resources.

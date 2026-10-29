@@ -50,7 +50,10 @@ effect load(id) {
 
 *Updated by VIP-5 and VIP-6 (2026-10-28): wrapped calls run with `try`, and the wrappers are Effect's own functions.*
 
-## Supersedes
+## Footnote: old VibeLang
+
+Old VibeLang is a reference only; nothing in it is part of the language unless a VIP adds it. For implementers, this VIP replaces:
+
 
 R8 (2026-10-28, "no throw in .vibe"), and the form rules that made `throw` an Effect form (D550).
 

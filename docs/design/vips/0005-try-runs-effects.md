@@ -20,7 +20,7 @@ effect load(id) {
 ```
 
 - `try e` runs the Effect `e` inside an `effect` function or block and gives its success value. A failure propagates to the enclosing Effect, as Zig's `try x` means `x catch |e| return e`.
-- `e catch y` runs `e`, and on a failure evaluates `y`, which is either a value or a function of the error. As in Zig, you write `try x` or `x catch y`, never both.
+- `e catch y` runs `e`, and on a failure evaluates `y`, which is either a value (`fetchUser(id) catch guest`) or a function of the error (`fetchUser(id) catch (e) => fallback(e)`), as Zig's `catch` takes a value or `|err|`. As in Zig, you write `try x` or `x catch y`, never both.
 - `try` is only for Effects. A call that may throw, and a Promise, is first wrapped into an Effect with Effect's own functions (VIP-6: `Effect.try`, `tryPromise`), then run with `try`.
 - An `effect` function has no `try`/`catch` statement. It handles failures with `catch` and `match`.
 - `await` keeps exactly JavaScript's meaning and belongs only to `async` functions:
@@ -43,13 +43,18 @@ effect load(id) {
 
 > "Ok I accept that VIP"
 
-## Supersedes
+> "for 2 yea it works pretty much like zig" (on `catch` taking a value or a function of the error)
+
+## Footnote: old VibeLang
+
+Old VibeLang is a reference only; nothing in it is part of the language unless a VIP adds it. For implementers, this VIP replaces:
+
 
 - VIP-1's "await unwraps both". VIP-1 has been updated to match this VIP.
 - D540's `await`, which ran Effects.
 - The `try`/`catch` statement in Effect code.
 
-It keeps D236's inline `catch`.
+
 
 ## Later VIPs
 

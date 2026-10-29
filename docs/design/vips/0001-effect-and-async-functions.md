@@ -50,7 +50,10 @@ const c = (id) => fetchUser(id)   // neither keyword: plain JavaScript; returns 
 
 *Updated by VIP-5 (2026-10-28): `try`, not `await`, runs an Effect, and `await` means only what it means in JavaScript.*
 
-## Supersedes
+## Footnote: old VibeLang
+
+Old VibeLang is a reference only; nothing in it is part of the language unless a VIP adds it. For implementers, this VIP replaces:
+
 
 D550 (a function's kind inferred from `await` in its body), D541, the form rules of D500, and D456's "`async` only in a hatch".
 

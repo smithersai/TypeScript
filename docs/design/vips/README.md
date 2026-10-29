@@ -1,6 +1,6 @@
 # VibeLang improvement proposals
 
-Will decides each VibeLang language decision as a VIP, one at a time. The most fundamental decisions come first, and the most controversial come next. Each accepted VIP is recorded here with Will's words. Where an accepted VIP disagrees with the specification, the VIP wins until the specification is rewritten to match it. VIPs never contradict each other: a later VIP that changes an earlier one also updates it.
+Will decides each VibeLang language decision as a VIP, one at a time. Nothing is part of the language until a VIP adds it; old VibeLang is only a reference. The most fundamental decisions come first, and the most controversial come next. Each accepted VIP is recorded here with Will's words. Where an accepted VIP disagrees with the specification, the VIP wins until the specification is rewritten to match it. VIPs never contradict each other: a later VIP that changes an earlier one also updates it.
 
 | VIP | Title | Status |
 | --- | --- | --- |
@@ -11,15 +11,13 @@ Will decides each VibeLang language decision as a VIP, one at a time. The most f
 | [5](0005-try-runs-effects.md) | `try` runs an Effect; `await` is only for Promises | accepted 2026-10-28 |
 | [6](0006-effect-globals.md) | Effect's functions are globals | accepted 2026-10-28 |
 | [7](0007-match.md) | `match` is TC39 pattern matching, plus a compile-time exhaustiveness check | accepted 2026-10-28 |
+| [9](0009-service-declarations.md) | `service` declarations | accepted 2026-10-28 |
 
-## Denied
-
-| VIP | Title | Status |
-| --- | --- | --- |
-| [8](0008-scoped-keyword-denied.md) | A `scoped` keyword | denied 2026-10-28 |
 
 ## Denied
 
 | VIP | Title | Status |
 | --- | --- | --- |
 | [8](0008-using-denied.md) | Special syntax for Effect resources (`using`, a `scoped` keyword) | denied 2026-10-28 |
+| [10](0010-service-call-shorthand-denied.md) | The `Users.find(id)` shorthand | denied 2026-10-28 |
+| [11](0011-trailing-blocks-denied.md) | Trailing blocks | denied 2026-10-28 |

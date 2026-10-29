@@ -37,8 +37,11 @@ const x = do { const a = 1; a + 1 }                // TC39 do expression: runs n
 
 *Updated by VIP-5 (2026-10-28): examples use `try` to run Effects. Updated by VIP-7: the proposal is pinned to a dated snapshot.*
 
-## Supersedes
+## Footnote: old VibeLang
+
+Old VibeLang is a reference only; nothing in it is part of the language unless a VIP adds it. For implementers, this VIP replaces:
+
 
 - D322's exception, under which a `do { }` element of an await operation became a program.
 - D551's conversion of a function literal at an `Effect` parameter. This follows from VIP-1's "syntax decides".
-- The function-literal conversion of D480 and D188's block-after-call program form, where the parameter's type decided.
+- The function-literal conversion of D480, where the parameter's type decided.

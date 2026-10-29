@@ -28,6 +28,9 @@ Zig's error unions write `NotFound!User`, error first. VibeLang writes the succe
 
 > "Keep it but get rid of that complexity where we can infer R. It's simply an alias for Effect<...> and should work the exact same as if we wrote it the long form way"
 
-## Supersedes
+## Footnote: old VibeLang
+
+Old VibeLang is a reference only; nothing in it is part of the language unless a VIP adds it. For implementers, this VIP replaces:
+
 
 The part of D127 and D309 under which an omitted slot was inferred on a function with a body.

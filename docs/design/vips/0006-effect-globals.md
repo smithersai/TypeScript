@@ -33,10 +33,12 @@ Rust's prelude, Elixir's `Kernel`, Kotlin's top-level `launch` and `delay`, Pyth
 
 > "Ok these are global varaibles. There should be a config option to turn off globals. Anything that clashes must be accessed via Effect.* instead of globally if it clashes with either a javascript global or it clashes with a keyword we end up adding. If we add the keyword in future we will also remove it (like in case of provide and service)"
 
-## Supersedes
+## Footnote: old VibeLang
+
+Old VibeLang is a reference only; nothing in it is part of the language unless a VIP adds it. For implementers, this VIP replaces:
+
 
 - D151's hand-picked list of prefix-free functions, widened here to every `Effect` export.
 - D148's hatches (`sync`, `try`, `callback` as special prelude forms) and D229's no-capture rule.
-- D179, under which `interrupt` and `yieldNow` were bare functions. They are Effect's own values, `interrupt` and `yieldNow`.
 
 D146, under which `effect`'s modules such as `Stream` and `Schema` are in scope without an import, is untouched; no VIP has decided it.

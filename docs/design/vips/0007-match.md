@@ -41,6 +41,9 @@ The TC39 pattern-matching proposal; Effect's `Match.exhaustive`; Rust's and Swif
 
 > "Ok I accept it."
 
-## Supersedes
+## Footnote: old VibeLang
+
+Old VibeLang is a reference only; nothing in it is part of the language unless a VIP adds it. For implementers, this VIP replaces:
+
 
 D207's subset. D206, D209, D515 and D531 are restated here on TC39's terms.
