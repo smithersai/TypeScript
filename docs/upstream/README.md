@@ -2,7 +2,7 @@
 
 Every entry is **drafted, not filed** (D59). Nothing in this directory
 authorizes filing an issue, opening a pull request, or contacting maintainers.
-The behavior below is pinned to `effect@4.0.5`; the drafts make no claim about
+The behavior below is pinned to `effect@4.0.5`, or to the version a draft names; the drafts make no claim about
 later releases or the current state of upstream issues.
 
 | Draft | Target | Summary | Status |
@@ -16,6 +16,7 @@ later releases or the current state of upstream issues.
 | [Support same-fiber delimited continuations](effect-prompt-primitive.md) | Effect runtime | Expose a supported prompt or stack-segment API with one-shot ownership and abandonment. | drafted, not filed |
 | [Prototype segmented continuation storage](effect-segmented-stack.md) | Effect runtime | Avoid quadratic copying when capturing at every depth; benchmark before changing the stack representation. | drafted, not filed |
 | [Explain repeated interruption reasons](effect-interrupt-reasons.md) | Effect runtime | Tracing adds several Interrupt reasons for one interruptor; preserve trace information without misleading counts. | drafted, not filed |
+| [Ship custom matchers](effect-custom-matchers.md) | Effect data types | `Option`, `Exit`, `Result` and tagged errors get TC39 `Symbol.customMatcher` methods, so VibeLang can drop its fixed `match` checks (D208, VIP-7). | drafted, not filed |
 
 Each draft contains a minimal reproduction, the expected behavior or proposed
 contract, the VibeLang impact, and a suggested fix. Runtime observations
