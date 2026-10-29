@@ -1086,13 +1086,27 @@ func (p *Parser) inlinePattern(pat *pattern, path matchPath, ctx *matchCompile) 
 	return p.joinTests(tests, ast.KindAmpersandAmpersandToken, pat.anchor)
 }
 
-// joinTests joins tests with operator, left to right.
+// joinTests joins tests with operator, left to right. Each join spans at
+// and the source its tests hold, so that the language service finds a name in
+// a later test inside it, such as NotFound in `when NotFound and { _tag }`.
 func (p *Parser) joinTests(tests []*ast.Node, operator ast.Kind, at core.TextRange) *ast.Node {
 	result := tests[0]
 	for _, t := range tests[1:] {
-		result = p.mBinary(result, operator, t, at)
+		span := testsSpan(at, result, t)
+		result = p.vibelangSpanning(p.factory.NewBinaryExpression(nil, result, nil, p.mToken(operator, at), t), span)
 	}
 	return result
+}
+
+// testsSpan returns at extended to the end of each test that holds source,
+// one the parser did not synthesize.
+func testsSpan(at core.TextRange, tests ...*ast.Node) core.TextRange {
+	for _, test := range tests {
+		if test.Flags&ast.NodeFlagsReparsed == 0 && test.End() > at.End() {
+			at = core.NewTextRange(at.Pos(), test.End())
+		}
+	}
+	return at
 }
 
 // emitSteps writes steps as statements: each run of tests becomes an if
@@ -1117,14 +1131,15 @@ func (p *Parser) emitSteps(steps []matchStep, success []*ast.Node, at core.TextR
 	// The if and its block span the statements they hold, such as an arm's
 	// return of its value, so that a position in the value is inside them
 	// and the language service can find the value's tokens there.
-	span := at
+	test := p.joinTests(tests, ast.KindAmpersandAmpersandToken, at)
+	span := testsSpan(at, test)
 	for _, statement := range inner {
 		if statement.End() > span.End() {
 			span = core.NewTextRange(at.Pos(), statement.End())
 		}
 	}
 	then := p.mBlock(inner, span)
-	return append(out, p.vibelangSpanning(p.factory.NewIfStatement(p.joinTests(tests, ast.KindAmpersandAmpersandToken, at), then, nil), span))
+	return append(out, p.vibelangSpanning(p.factory.NewIfStatement(test, then, nil), span))
 }
 
 // isExpression writes subject is pattern, a pattern without bindings, as a

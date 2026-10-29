@@ -202,6 +202,39 @@ func TestEditorHoverOnByNameArgumentBeforeCheck(t *testing.T) {
 	}
 }
 
+// Chapter 28's editor answers hover at a name a .vibe file declares or
+// references, as TypeScript does: the base of an error's extends clause
+// hovers as that error.
+func TestEditorHoverOnErrorBase(t *testing.T) {
+	_, file, service, _ := editorProgram(t, "error A {}\nerror B extends A {}\n")
+	hover := hoverText(t, service, lsconv.FileNameToDocumentURI(file.FileName()), lsproto.Position{Line: 1, Character: 16})
+	if !strings.Contains(hover, "A") {
+		t.Fatalf("hover at the base of error B = %q, want error A", hover)
+	}
+}
+
+// A name in a later test of a match arm's pattern is a reference, as it is
+// in the arm's only test: renaming NotFound renames it in
+// `when NotFound and { _tag }` (Chapter 28, D372).
+func TestEditorReferencesInMatchAndPattern(t *testing.T) {
+	source := "error NotFound {}\nfunction d(e: NotFound) {\n  return match (e) {\n    when NotFound and { _tag }: 1;\n  }\n}\n"
+	_, file, service, _ := editorProgram(t, source)
+	uri := lsconv.FileNameToDocumentURI(file.FileName())
+	response, err := service.ProvideReferences(t.Context(), &lsproto.ReferenceParams{TextDocument: lsproto.TextDocumentIdentifier{Uri: uri}, Position: lsproto.Position{Line: 0, Character: 7}, Context: &lsproto.ReferenceContext{IncludeDeclaration: true}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lines []uint32
+	if response.Locations != nil {
+		for _, location := range *response.Locations {
+			lines = append(lines, location.Range.Start.Line)
+		}
+	}
+	if !slices.Equal(lines, []uint32{0, 1, 3}) {
+		t.Fatalf("references of NotFound on lines %v, want 0, 1 and 3", lines)
+	}
+}
+
 func TestEditorDirectiveCompletions(t *testing.T) {
 	for _, source := range []string{"// @vibe", "// @vibelang-diagnostics ", "// @vibelang-diagnostics-next-line EK2004:off EK44"} {
 		program, file, _, _ := editorProgram(t, source)

@@ -1,0 +1,3 @@
+go test fuzz v1
+string("-- main.vibe --\nerror NotFound {}\nfunction d(e: NotFound) {\n  return match (e) {\n    when NotFound and { _tag }: 1;\n  }\n}\n")
+[]byte("\x00\x00")

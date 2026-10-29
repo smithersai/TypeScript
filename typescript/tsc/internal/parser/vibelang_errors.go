@@ -197,7 +197,15 @@ func (p *Parser) parseErrorDeclaration(pos int, jsdoc jsdocScannerInfo, modifier
 	if d.hasBody {
 		membersLoc = core.NewTextRange(scanner.SkipTrivia(p.sourceText, d.body.Pos())+1, max(d.body.Pos(), d.body.End()-1))
 	}
-	result := p.factory.NewClassDeclaration(modifiers, d.name, d.typeParameters, p.newNodeList(d.body, heritage), p.newNodeList(membersLoc, members))
+	// The clauses' list spans each clause written in the source, so the
+	// language service finds the base in `extends Base` inside it.
+	heritageLoc := d.body
+	for _, clause := range heritage {
+		if clause.Flags&ast.NodeFlagsReparsed == 0 && clause.Pos() < heritageLoc.Pos() {
+			heritageLoc = core.NewTextRange(clause.Pos(), heritageLoc.End())
+		}
+	}
+	result := p.factory.NewClassDeclaration(modifiers, d.name, d.typeParameters, p.newNodeList(heritageLoc, heritage), p.newNodeList(membersLoc, members))
 	p.finishNode(result, pos)
 	p.withJSDoc(result, jsdoc)
 	return result
