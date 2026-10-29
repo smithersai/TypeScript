@@ -1,9 +1,9 @@
 import { strict as assert } from "node:assert"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { homedir, tmpdir } from "node:os"
+import { join, resolve } from "node:path"
 import { test } from "node:test"
-import { pathToFileURL } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import fc from "fast-check"
 import { checkProperty } from "../../../scripts/testing/property.mjs"
 
@@ -29,6 +29,31 @@ test("property helper shrinks, records bounded evidence, saves files and replays
     env: { ...env, FC_PROPERTY: "helper", FC_PATH: failure.counterexamplePath }
   }), /property helper failed/)
   assert.equal(JSON.parse(readFileSync(join(directory, "helper/failure.json"), "utf8")).input, failure.input)
+})
+
+test("property helper replaces local paths in saved evidence and the thrown message", async t => {
+  const directory = mkdtempSync(join(tmpdir(), "vibelang-property-paths-"))
+  t.after(() => rmSync(directory, { recursive: true, force: true }))
+  const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)))
+  const home = homedir()
+  const evidence = `${root}/plain.mjs\n${pathToFileURL(join(root, "url.mjs"))}:1:2\n${home}/plain.mjs\n${pathToFileURL(join(home, "url.mjs"))}:3:4`
+  const error = new Error("property failed")
+  error.stack = `Error: property failed\n${evidence}`
+  let message
+  await assert.rejects(checkProperty(fc, {
+    ...base, arbitrary: fc.constant(0), check: () => { throw error }, diagnostics: () => evidence,
+    env: { FC_RUNS: "1", FC_SEED: "42", FC_ARTIFACT_DIR: directory }
+  }), error => { message = error.message; return true })
+  const saved = readFileSync(join(directory, "helper/failure.json"), "utf8")
+  const failure = JSON.parse(saved)
+  for (const text of [saved, failure.error, failure.diagnostics, message]) {
+    assert.ok(text.includes("<repo>/plain.mjs"))
+    assert.ok(text.includes("file:///<repo>/url.mjs"))
+    assert.ok(text.includes("<home>/plain.mjs"))
+    assert.ok(text.includes("file:///<home>/url.mjs"))
+    assert.ok(!text.includes(root))
+    assert.ok(!text.includes(home))
+  }
 })
 
 test("property helper scopes replay paths and validates run controls", async () => {

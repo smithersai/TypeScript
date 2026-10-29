@@ -1,8 +1,15 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { homedir } from "node:os"
 import { join, resolve } from "node:path"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
+const root = resolve(fileURLToPath(new URL("../..", import.meta.url)))
+const home = homedir()
+const portable = (value) => String(value ?? "")
+  .replaceAll(pathToFileURL(root).href, "file:///<repo>").replaceAll(root, "<repo>")
+  .replaceAll(pathToFileURL(home).href, "file:///<home>").replaceAll(home, "<home>")
 const quote = (text) => `'${String(text).replaceAll("'", "'\\''")}'`
-const bounded = (value) => String(value ?? "").slice(-12000)
+const bounded = (value) => portable(value).slice(-12000)
 
 function integer(env, name, fallback, min, max) {
   if (env[name] === undefined) return fallback
@@ -61,6 +68,6 @@ export async function checkProperty(fc, {
       writeFileSync(target, contents)
     }
   }
-  throw new Error(`property ${name} failed; saved ${directory}/failure.json\nReplay from ${process.cwd()}:\n${replay}\n${record.error}\n${record.diagnostics}`,
+  throw new Error(portable(`property ${name} failed; saved ${directory}/failure.json\nReplay from ${process.cwd()}:\n${replay}\n${record.error}\n${record.diagnostics}`),
     { cause: result.errorInstance })
 }
