@@ -343,3 +343,15 @@ func TestFixArguments(t *testing.T) {
 		t.Fatal("found --fix in a command line without it")
 	}
 }
+
+// Chapter 28 makes --fix a VibeLang flag, including when it is repeated.
+func TestFixArgumentsRepeated(t *testing.T) {
+	args := []string{"--fix", "-p", "tsconfig.json", "--FIX", "--noEmit", "--Fix"}
+	rest, ok := FixArguments(args)
+	if !ok || !slices.Equal(rest, []string{"-p", "tsconfig.json", "--noEmit"}) {
+		t.Fatalf("FixArguments = %v, %v", rest, ok)
+	}
+	if !slices.Equal(args, []string{"--fix", "-p", "tsconfig.json", "--FIX", "--noEmit", "--Fix"}) {
+		t.Fatalf("FixArguments changed its input: %v", args)
+	}
+}

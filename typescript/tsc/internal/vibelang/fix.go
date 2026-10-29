@@ -77,13 +77,13 @@ func FixOptionsArguments(args []string) ([]string, FixOptions) {
 	return rest, options
 }
 
-// FixArguments returns args without --fix, and whether it held one.
+// FixArguments returns args without any --fix flags, and whether it held one.
 func FixArguments(args []string) ([]string, bool) {
 	index := slices.IndexFunc(args, func(arg string) bool { return strings.EqualFold(arg, FixFlag) })
 	if index < 0 {
 		return args, false
 	}
-	return slices.Delete(slices.Clone(args), index, index+1), true
+	return slices.DeleteFunc(slices.Clone(args), func(arg string) bool { return strings.EqualFold(arg, FixFlag) }), true
 }
 
 // Fix applies the safe quick fixes to the project that args, a command line
