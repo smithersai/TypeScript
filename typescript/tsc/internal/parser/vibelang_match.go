@@ -791,11 +791,17 @@ func dottedName(expr *ast.Node) string {
 
 // matcherTest writes $is(matcher, subject) for pat, a variable or variant
 // pattern. The call spans the matcher, so that the language service finds
-// a dotted matcher's names in it.
+// a dotted matcher's names in it, and the subject of `subject is P`, a
+// source node before the matcher, for the same reason: the language
+// service searches a node's children inside its range.
 func (p *Parser) matcherTest(pat *pattern, path matchPath) *ast.Node {
 	at := pat.anchor
+	subject := path()
 	span := core.NewTextRange(at.Pos(), max(at.End(), pat.expr.End()))
-	return p.mCall(p.vibelangIntrinsic("$is", at), []*ast.Node{pat.expr, path()}, span)
+	if subject.Flags&ast.NodeFlagsReparsed == 0 && subject.Pos() < span.Pos() {
+		span = core.NewTextRange(subject.Pos(), span.End())
+	}
+	return p.mCall(p.vibelangIntrinsic("$is", at), []*ast.Node{pat.expr, subject}, span)
 }
 
 // compilePattern appends the steps that match pat against path to steps.
@@ -827,7 +833,9 @@ func (p *Parser) compilePattern(pat *pattern, path matchPath, steps *[]matchStep
 		}
 		*steps = append(*steps, matchStep{decl: p.mConst(pat.name, pat.bindFlags, path(), pat.name.Loc)})
 	case patternGuard:
-		test(p.mParens(pat.expr, at))
+		// The parentheses span the guard's expression, so that the language
+		// service finds its names.
+		test(p.mParens(pat.expr, core.NewTextRange(at.Pos(), max(at.End(), pat.expr.End()))))
 	case patternArray:
 		test(p.mCall(p.mProperty(p.mIdent("Array", at), "isArray", at), []*ast.Node{path()}, at))
 		p.compileList(pat, path, len(pat.items), func(i int) matchPath {

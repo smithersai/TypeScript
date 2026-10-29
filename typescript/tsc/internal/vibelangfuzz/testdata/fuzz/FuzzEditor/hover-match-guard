@@ -1,0 +1,3 @@
+go test fuzz v1
+string("-- main.vibe --\nfunction f(input: { a: number }) {\n  return match (input) {\n    when { a: let n } and if (n >= 3): \"x\";\n    default: \"y\";\n  }\n}\n")
+[]byte("")

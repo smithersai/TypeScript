@@ -24,7 +24,7 @@ import (
 func inferredActions(t *testing.T, files map[string]string) ([]*lsproto.CodeAction, inferredEmit) {
 	t.Helper()
 	fs := inferredFileSystem(files)
-	parsed, errors := tsoptions.GetParsedCommandLineOfConfigFile("/Users/x/src/tsconfig.json", &core.CompilerOptions{}, nil, fs, nil)
+	parsed, errors := tsoptions.GetParsedCommandLineOfConfigFile("/src/tsconfig.json", &core.CompilerOptions{}, nil, fs, nil)
 	if len(errors) != 0 {
 		t.Fatalf("config: %v", errors)
 	}
@@ -32,8 +32,8 @@ func inferredActions(t *testing.T, files map[string]string) ([]*lsproto.CodeActi
 	converters := lsconv.NewConverters(lsproto.PositionEncodingKindUTF16, func(name tspath.RootedFilePath) *lsconv.LSPLineMap {
 		return lsconv.ComputeLSPLineStarts(files[string(name)])
 	})
-	service := ls.NewLanguageService(nil, p, trustedFixHost{converters: converters}, "/Users/x/src/main.vibe")
-	file := p.GetSourceFile("/Users/x/src/main.vibe")
+	service := ls.NewLanguageService(nil, p, trustedFixHost{converters: converters}, "/src/main.vibe")
+	file := p.GetSourceFile("/src/main.vibe")
 	var actions []*lsproto.CodeAction
 	// Compiler collections must stay free of the editor-only resolver, even
 	// when the editor warning is configured as an error.
@@ -144,43 +144,43 @@ func TestInferredFormFix(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			files := map[string]string{
-				"/Users/x/src/tsconfig.json":                              `{"compilerOptions":{"strict":true,"target":"ESNext","declaration":true},"files":["main.vibe","host.ts"]}`,
-				"/Users/x/src/host.ts":                                    `import type { Effect } from "effect/Effect"; export declare const host: any; export declare function work(x: number): Effect<number,never,never>; export declare function get(x: number): Effect<number,never,never>; export declare function takesProgram(p: Effect<number,never,never>): Effect<number,never,never>; export declare function takesFn(f:(x:number)=>Effect<number,never,never>): Effect<number,never,never>`,
-				"/Users/x/src/main.vibe":                                  `import { work } from "./host"; ` + test.source,
-				"/Users/x/src/node_modules/vibelang-runtime/package.json": `{"name":"vibelang-runtime","types":"index.d.ts"}`,
-				"/Users/x/src/node_modules/vibelang-runtime/index.d.ts":   `export * as Effect from "effect/Effect"; import type { Effect } from "effect/Effect"; export declare function $awaitAll<A,E,R>(xs: readonly Effect<A,E,R>[]): Effect<A[],E,R>; export declare function sync<A>(f:()=>A, mapper?: (error: unknown)=>unknown): A`,
-				"/Users/x/src/node_modules/effect/package.json":           `{"name":"effect","types":"index.d.ts"}`,
-				"/Users/x/src/node_modules/effect/index.d.ts":             `export * as Effect from "./Effect"`,
-				"/Users/x/src/node_modules/effect/Effect.d.ts":            `export interface Effect<A,E=never,R=never> { readonly "~effect/Effect": { readonly _A: (_:never)=>A; readonly _E: (_:never)=>E; readonly _R: (_:never)=>R } }`,
+				"/src/tsconfig.json": `{"compilerOptions":{"strict":true,"target":"ESNext","declaration":true},"files":["main.vibe","host.ts"]}`,
+				"/src/host.ts":       `import type { Effect } from "effect/Effect"; export declare const host: any; export declare function work(x: number): Effect<number,never,never>; export declare function get(x: number): Effect<number,never,never>; export declare function takesProgram(p: Effect<number,never,never>): Effect<number,never,never>; export declare function takesFn(f:(x:number)=>Effect<number,never,never>): Effect<number,never,never>`,
+				"/src/main.vibe":     `import { work } from "./host"; ` + test.source,
+				"/src/node_modules/vibelang-runtime/package.json": `{"name":"vibelang-runtime","types":"index.d.ts"}`,
+				"/src/node_modules/vibelang-runtime/index.d.ts":   `export * as Effect from "effect/Effect"; import type { Effect } from "effect/Effect"; export declare function $awaitAll<A,E,R>(xs: readonly Effect<A,E,R>[]): Effect<A[],E,R>; export declare function sync<A>(f:()=>A, mapper?: (error: unknown)=>unknown): A`,
+				"/src/node_modules/effect/package.json":           `{"name":"effect","types":"index.d.ts"}`,
+				"/src/node_modules/effect/index.d.ts":             `export * as Effect from "./Effect"`,
+				"/src/node_modules/effect/Effect.d.ts":            `export interface Effect<A,E=never,R=never> { readonly "~effect/Effect": { readonly _A: (_:never)=>A; readonly _E: (_:never)=>E; readonly _R: (_:never)=>R } }`,
 			}
 			if strings.HasPrefix(test.name, "symlinked ") {
 				// The package's real path is outside every ancestor node_modules,
 				// as in linked workspaces and the smoke/docs harnesses.
 				for name, text := range files {
-					if strings.HasPrefix(name, "/Users/x/src/node_modules/effect/") {
+					if strings.HasPrefix(name, "/src/node_modules/effect/") {
 						delete(files, name)
-						files[strings.Replace(name, "/Users/x/src/node_modules/effect/", "/external/experiments/node_modules/effect/", 1)] = text
+						files[strings.Replace(name, "/src/node_modules/effect/", "/external/experiments/node_modules/effect/", 1)] = text
 					}
 				}
 				files["/external/experiments/node_modules/effect/package.json"] = `{"name":"effect","type":"module","exports":{".":{"types":"./index.d.ts"},"./Effect":{"types":"./dist/Effect.d.ts"}}}`
 				files["/external/experiments/node_modules/effect/dist/Effect.d.ts"] = files["/external/experiments/node_modules/effect/Effect.d.ts"]
 				delete(files, "/external/experiments/node_modules/effect/Effect.d.ts")
 				files["/external/experiments/node_modules/effect/index.d.ts"] = `export * as Effect from "./dist/Effect.js"`
-				files["/Users/x/src/host.ts"] = `export { work } from "vibelang-runtime"`
+				files["/src/host.ts"] = `export { work } from "vibelang-runtime"`
 				for name, text := range files {
-					if strings.HasPrefix(name, "/Users/x/src/node_modules/vibelang-runtime/") {
+					if strings.HasPrefix(name, "/src/node_modules/vibelang-runtime/") {
 						delete(files, name)
 						if strings.HasSuffix(name, "/index.d.ts") {
 							text += `; export declare function work(x: number): Effect<number,never,never>`
 						}
-						files[strings.Replace(name, "/Users/x/src/node_modules/vibelang-runtime/", "/external/runtime/", 1)] = text
+						files[strings.Replace(name, "/src/node_modules/vibelang-runtime/", "/external/runtime/", 1)] = text
 					}
 				}
-				files["/Users/x/src/package.json"] = `{"type":"module"}`
-				files["/Users/x/src/tsconfig.json"] = `{"compilerOptions":{"strict":true,"target":"ESNext","module":"NodeNext","declaration":true},"files":["main.vibe","host.ts"]}`
-				files["/Users/x/src/main.vibe"] = strings.ReplaceAll(files["/Users/x/src/main.vibe"], `"./host"`, `"./host.js"`)
+				files["/src/package.json"] = `{"type":"module"}`
+				files["/src/tsconfig.json"] = `{"compilerOptions":{"strict":true,"target":"ESNext","module":"NodeNext","declaration":true},"files":["main.vibe","host.ts"]}`
+				files["/src/main.vibe"] = strings.ReplaceAll(files["/src/main.vibe"], `"./host"`, `"./host.js"`)
 			}
-			source := files["/Users/x/src/main.vibe"]
+			source := files["/src/main.vibe"]
 			count := func(text string) int {
 				n := 0
 				for _, d := range vibelangmapper.Project(text, vibelangmapper.FileContext{}).Diagnostics {
@@ -206,11 +206,11 @@ func TestInferredFormFix(t *testing.T) {
 			for step := 0; step < test.choices; step++ {
 				actions, _ := inferredActions(t, files)
 				if len(actions) == 0 {
-					t.Fatalf("no fix at step %d: %s", step, files["/Users/x/src/main.vibe"])
+					t.Fatalf("no fix at step %d: %s", step, files["/src/main.vibe"])
 				}
 				applyTrustedAction(t, files, actions[0])
 			}
-			fixed := files["/Users/x/src/main.vibe"]
+			fixed := files["/src/main.vibe"]
 			if test.name == "failure and requirement" && !strings.Contains(fixed, ": number!Bad!Env") {
 				t.Fatalf("lost inferred channels: %s", fixed)
 			}
@@ -241,17 +241,17 @@ func TestInferredFormFix(t *testing.T) {
 			for k, v := range files {
 				consumer[k] = v
 			}
-			consumer["/Users/x/src/before.d.ts"] = before.DTS
-			consumer["/Users/x/src/after.d.ts"] = after.DTS
-			consumer["/Users/x/src/consumer.ts"] = `import * as before from "./before"; import * as after from "./after"; const beforeContract: typeof before = after; const afterContract: typeof after = before; export { beforeContract, afterContract }`
-			consumer["/Users/x/src/tsconfig.json"] = `{"compilerOptions":{"strict":true,"skipLibCheck":false},"files":["consumer.ts"]}`
+			consumer["/src/before.d.ts"] = before.DTS
+			consumer["/src/after.d.ts"] = after.DTS
+			consumer["/src/consumer.ts"] = `import * as before from "./before"; import * as after from "./after"; const beforeContract: typeof before = after; const afterContract: typeof after = before; export { beforeContract, afterContract }`
+			consumer["/src/tsconfig.json"] = `{"compilerOptions":{"strict":true,"skipLibCheck":false},"files":["consumer.ts"]}`
 			if strings.HasPrefix(test.name, "symlinked ") {
-				consumer["/Users/x/src/consumer.ts"] = strings.ReplaceAll(consumer["/Users/x/src/consumer.ts"], `"./before"`, `"./before.js"`)
-				consumer["/Users/x/src/consumer.ts"] = strings.ReplaceAll(consumer["/Users/x/src/consumer.ts"], `"./after"`, `"./after.js"`)
-				consumer["/Users/x/src/tsconfig.json"] = `{"compilerOptions":{"strict":true,"skipLibCheck":false,"module":"NodeNext"},"files":["consumer.ts"]}`
+				consumer["/src/consumer.ts"] = strings.ReplaceAll(consumer["/src/consumer.ts"], `"./before"`, `"./before.js"`)
+				consumer["/src/consumer.ts"] = strings.ReplaceAll(consumer["/src/consumer.ts"], `"./after"`, `"./after.js"`)
+				consumer["/src/tsconfig.json"] = `{"compilerOptions":{"strict":true,"skipLibCheck":false,"module":"NodeNext"},"files":["consumer.ts"]}`
 			}
 			fs := inferredFileSystem(consumer)
-			config, errs := tsoptions.GetParsedCommandLineOfConfigFile("/Users/x/src/tsconfig.json", &core.CompilerOptions{}, nil, fs, nil)
+			config, errs := tsoptions.GetParsedCommandLineOfConfigFile("/src/tsconfig.json", &core.CompilerOptions{}, nil, fs, nil)
 			if len(errs) > 0 {
 				t.Fatal(errs)
 			}
@@ -273,9 +273,38 @@ func inferredFileSystem(files map[string]string) vfs.FS {
 		entries[name] = text
 	}
 	if _, linked := files["/external/experiments/node_modules/effect/package.json"]; linked {
-		entries["/Users/x/src/node_modules/effect"] = vfstest.Symlink("/external/experiments/node_modules/effect")
-		entries["/Users/x/src/node_modules/vibelang-runtime"] = vfstest.Symlink("/external/runtime")
+		entries["/src/node_modules/effect"] = vfstest.Symlink("/external/experiments/node_modules/effect")
+		entries["/src/node_modules/vibelang-runtime"] = vfstest.Symlink("/external/runtime")
 		entries["/external/runtime/node_modules/effect"] = vfstest.Symlink("/external/experiments/node_modules/effect")
 	}
 	return bundled.WrapFS(vfstest.FromMap(entries, tspath.CaseInsensitive))
+}
+
+// TestInferredFormFixDeclinesPausingPlainCallback checks that the fix offers
+// no plain annotation for a callback whose body pauses where a plain
+// function fits: EK4301 reports it, and the annotation would add EK2003
+// (Chapter 28, Rewrites keep meaning, D372).
+func TestInferredFormFixDeclinesPausingPlainCallback(t *testing.T) {
+	files := map[string]string{
+		"/src/tsconfig.json": `{"compilerOptions":{"strict":true,"target":"ESNext","declaration":true},"files":["main.vibe","host.ts"]}`,
+		"/src/host.ts":       `import type { Effect } from "effect/Effect"; export declare function work(x: number): Effect<number,never,never>; export declare function takesPlain(f: (x: number) => number): number`,
+		"/src/main.vibe":     `import { work, takesPlain } from "./host"; export function run() { return takesPlain((x: number) => { work(x); return x }) }`,
+		"/src/node_modules/vibelang-runtime/package.json": `{"name":"vibelang-runtime","types":"index.d.ts"}`,
+		"/src/node_modules/vibelang-runtime/index.d.ts":   `export * as Effect from "effect/Effect"`,
+		"/src/node_modules/effect/package.json":           `{"name":"effect","types":"index.d.ts"}`,
+		"/src/node_modules/effect/index.d.ts":             `export * as Effect from "./Effect"`,
+		"/src/node_modules/effect/Effect.d.ts":            `export interface Effect<A,E=never,R=never> { readonly "~effect/Effect": { readonly _A: (_:never)=>A; readonly _E: (_:never)=>E; readonly _R: (_:never)=>R } }`,
+	}
+	choices := 0
+	for _, d := range vibelangmapper.Project(files["/src/main.vibe"], vibelangmapper.FileContext{}).Diagnostics {
+		if d.Code == 9100 {
+			choices++
+		}
+	}
+	if choices == 0 {
+		t.Fatal("the projector asks for no annotation, so this case tests nothing")
+	}
+	if actions, _ := inferredActions(t, files); len(actions) != 0 {
+		t.Fatalf("offered %q", actions[0].Title)
+	}
 }

@@ -1,0 +1,3 @@
+go test fuzz v1
+string("-- main.vibe --\nclass Shape {\n  sizeValue = 1\n  get size() { return this.sizeValue }\n  set size(value: number) { this.sizeValue = value }\n}\nclass Square extends Shape {\n  grow() {\n    super.size = 2\n  }\n}\n")
+[]byte("")

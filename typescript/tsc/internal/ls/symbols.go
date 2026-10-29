@@ -296,7 +296,9 @@ const maxLength = 150
 func (l *LanguageService) newDocumentSymbol(node *ast.Node, name *ast.Node, children []*lsproto.DocumentSymbol) *lsproto.DocumentSymbol {
 	result := new(lsproto.DocumentSymbol)
 	file := ast.GetSourceFileOfNode(node)
-	nodeStartPos := scanner.SkipTrivia(file.Text(), node.Pos())
+	// A node a VibeLang form synthesizes can be empty, such as the fallback
+	// of `x catch` with its operand missing: its start never passes its end.
+	nodeStartPos := min(scanner.SkipTrivia(file.Text(), node.Pos()), node.End())
 	if name == nil {
 		name = ast.GetNameOfDeclaration(node)
 	}

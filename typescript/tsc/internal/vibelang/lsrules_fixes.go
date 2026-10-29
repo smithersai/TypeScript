@@ -679,6 +679,12 @@ var inferredFormFix = &ls.CodeFixProvider{
 				f = formEffect
 			}
 		}
+		// A plain form whose body pauses is EK4301's conflict, not a choice:
+		// a plain annotation there adds EK2003, so no annotation keeps the
+		// program (Chapter 28, Rewrites keep meaning, D372).
+		if (f == formPlain || f == formNone) && a.firstPause(fn) != nil {
+			return nil, nil
+		}
 		printType := func(t *checker.Type) string {
 			return c.TypeToStringEx(t, fn, checker.TypeFormatFlagsNoTruncation|checker.TypeFormatFlagsUseFullyQualifiedType, nil)
 		}
@@ -748,10 +754,11 @@ var inferredReceiverFix = &ls.CodeFixProvider{
 	Source:     diagnosticSource,
 	ErrorCodes: []int32{9101},
 	GetCodeActions: func(ctx context.Context, fix *ls.CodeFixContext) ([]*ls.CodeAction, error) {
-		var receiver *ast.Node
+		var access, receiver *ast.Node
 		var visit func(*ast.Node) bool
 		visit = func(n *ast.Node) bool {
 			if ast.IsPropertyAccessExpression(n) && nodeStart(fix.SourceFile, n) == fix.Span.Pos() && n.End() == fix.Span.End() {
+				access = n
 				receiver = ast.SkipParentheses(n.Expression())
 				for ast.IsPropertyAccessExpression(receiver) {
 					receiver = ast.SkipParentheses(receiver.Expression())
@@ -762,6 +769,12 @@ var inferredReceiverFix = &ls.CodeFixProvider{
 		}
 		fix.SourceFile.AsNode().ForEachChild(visit)
 		if receiver == nil {
+			return nil, nil
+		}
+		// An automatic change keeps the program (Chapter 28, D372). super
+		// takes no assertion, and `(this as T).x = …` hides a constructor's
+		// assignment from definite assignment (TS2564).
+		if receiver.Kind == ast.KindSuperKeyword || receiver.Kind == ast.KindThisKeyword && ast.IsAssignmentTarget(access) {
 			return nil, nil
 		}
 		c, done := fix.Program.GetTypeCheckerForFile(ctx, fix.SourceFile)
@@ -782,6 +795,14 @@ var inferredReceiverFix = &ls.CodeFixProvider{
 		}
 		declaration := symbol.ValueDeclaration()
 		if declaration == nil || !ast.IsVariableDeclaration(declaration) && !ast.IsParameterDeclaration(declaration) || declaration.Type() != nil || !ast.IsIdentifier(declaration.Name()) || ast.GetSourceFileOfNode(declaration) != fix.SourceFile {
+			return nil, nil
+		}
+		// Only a declaration written as one takes an annotation: the binding
+		// of a for-of or for-in loop (TS2483) and of a catch clause cannot,
+		// and the parser synthesizes the initializer of a VibeLang form's
+		// binding, such as `finally (exit)`, whose source has no place for one.
+		if ast.IsVariableDeclaration(declaration) && (declaration.Parent != nil && ast.IsForInOrOfStatement(declaration.Parent.Parent) || ast.IsCatchClause(declaration.Parent) ||
+			declaration.Initializer() != nil && declaration.Initializer().Flags&ast.NodeFlagsReparsed != 0) {
 			return nil, nil
 		}
 		annotation := c.TypeToStringEx(c.GetTypeAtLocation(declaration.Name()), declaration, checker.TypeFormatFlagsNoTruncation|checker.TypeFormatFlagsUseFullyQualifiedType, nil)

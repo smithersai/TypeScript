@@ -213,6 +213,94 @@ func TestEditorHoverOnErrorBase(t *testing.T) {
 	}
 }
 
+// Chapter 28's editor answers hover at a name a .vibe file references inside
+// a desugared form: the subject of `is` and a name in a match arm's guard.
+func TestEditorHoverInIsSubjectAndGuard(t *testing.T) {
+	for _, test := range []struct{ source, at, want string }{
+		{"function f() {\n  const outcome = exit(() => 1)\n  if (outcome is Exit.Failure) return 1\n  return 2\n}\n", "(outcome is", "outcome: "},
+		{"function f(input: { a: number }) {\n  return match (input) {\n    when { a: let n } and if (n >= 3): \"x\";\n    default: \"y\";\n  }\n}\n", "(n >=", "n: number"},
+	} {
+		_, file, service, converters := editorProgram(t, test.source)
+		position, _ := converters.ToLSPPosition(file, core.TextPos(strings.Index(test.source, test.at)+1))
+		if hover := hoverText(t, service, lsconv.FileNameToDocumentURI(file.FileName()), position); !strings.Contains(hover, test.want) {
+			t.Errorf("hover at %q = %q, want %q", test.at, hover, test.want)
+		}
+	}
+}
+
+// LSP 3.17: a document symbol's range starts no later than it ends, even for
+// the empty fallback the parser synthesizes for `1 catch` with no operand.
+func TestEditorDocumentSymbolsOfMissingCatchFallback(t *testing.T) {
+	_, file, service, _ := editorProgram(t, "function f() { return 1 catch }\n")
+	response, err := service.ProvideDocumentSymbols(t.Context(), lsconv.FileNameToDocumentURI(file.FileName()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var check func([]*lsproto.DocumentSymbol)
+	check = func(symbols []*lsproto.DocumentSymbol) {
+		for _, symbol := range symbols {
+			if start, end := symbol.Range.Start, symbol.Range.End; start.Line > end.Line || start.Line == end.Line && start.Character > end.Character {
+				t.Errorf("symbol %q has the range %v-%v, which ends before it starts", symbol.Name, start, end)
+			}
+			if symbol.Children != nil {
+				check(*symbol.Children)
+			}
+		}
+	}
+	if response.DocumentSymbols != nil {
+		check(*response.DocumentSymbols)
+	}
+	if response.SymbolInformations != nil {
+		for _, symbol := range *response.SymbolInformations {
+			check([]*lsproto.DocumentSymbol{{Name: symbol.Name, Range: symbol.Location.Range}})
+		}
+	}
+}
+
+// The quick fix of EK9101, "Annotate as the fork infers", offers nothing
+// where an annotation cannot keep the program (Chapter 28, Rewrites keep
+// meaning, D372): super takes no assertion; `(this as T).x = …` hides a
+// constructor's assignment from definite assignment (TS2564); and the binding
+// of a for-of loop (TS2483) or of `finally (exit)` has no place for a type.
+func TestEditorReceiverFixDeclines(t *testing.T) {
+	for _, test := range []struct{ name, source string }{
+		{"super", "class Shape {\n  sizeValue = 1\n  get size() { return this.sizeValue }\n  set size(value: number) { this.sizeValue = value }\n}\nclass Square extends Shape {\n  grow() { super.size = 2 }\n}\n"},
+		{"this assignment", "class M {\n  size: number\n  constructor() { this.size = 1 }\n}\n"},
+		{"for-of binding", "export function f(entries: ReadonlyArray<{ request: { code: string } }>) {\n  for (const entry of entries) Console.log(entry.request.code)\n}\n"},
+		{"finally binding", "function f() {\n  try { return 1 } finally (exit) { Console.log(exit.cause.reasons.map((reason) => reason._tag)) }\n}\n"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, file, service, _ := editorProgram(t, test.source)
+			uri := lsconv.FileNameToDocumentURI(file.FileName())
+			report, err := service.ProvideDiagnostics(t.Context(), uri)
+			if err != nil {
+				t.Fatal(err)
+			}
+			choices := 0
+			for _, d := range report.FullDocumentDiagnosticReport.Items {
+				if d.Code == nil || d.Code.Integer == nil || *d.Code.Integer != 9101 {
+					continue
+				}
+				choices++
+				response, err := service.ProvideCodeActions(t.Context(), &lsproto.CodeActionParams{TextDocument: lsproto.TextDocumentIdentifier{Uri: uri}, Range: d.Range, Context: &lsproto.CodeActionContext{Diagnostics: []*lsproto.Diagnostic{d}}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if response.CommandOrCodeActionArray != nil {
+					for _, action := range *response.CommandOrCodeActionArray {
+						if action.CodeAction != nil && action.CodeAction.Title == "Annotate as the fork infers" {
+							t.Errorf("offered %q at line %d", action.CodeAction.Title, d.Range.Start.Line)
+						}
+					}
+				}
+			}
+			if choices == 0 {
+				t.Fatal("no EK9101, so this case tests nothing")
+			}
+		})
+	}
+}
+
 // A name in a later test of a match arm's pattern is a reference, as it is
 // in the arm's only test: renaming NotFound renames it in
 // `when NotFound and { _tag }` (Chapter 28, D372).
