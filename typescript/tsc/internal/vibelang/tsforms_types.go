@@ -18,7 +18,11 @@ import (
 // them (D127), while a type argument left out of Effect.Effect is never
 // (D308), so there Effect<A, E> and Effect<A, E, never> become A!E!,
 // Effect<A> becomes A!!, and Effect<A, E, infer R> becomes A!E; elsewhere a
-// left-out slot is never, so Effect<A, E> becomes A!E. EK4831's fix uses the
+// left-out slot is never, so Effect<A, E> becomes A!E. In a project that
+// emits declarations, a never written in an exported statement stays
+// written, Effect.Effect<void, never, never> becoming void!never!never, so
+// the declaration file keeps Effect.Effect<void, never, never> as the
+// TypeScript's did (D501). EK4831's fix uses the
 // same rewrite for a service member written with either spelling. Refused:
 // infer in another slot or outside such an annotation, and a reference the !
 // form cannot spell, such as one in JSDoc.
@@ -88,8 +92,9 @@ func effectTypeRewrite(c *checker.Checker, file *ast.SourceFile, reference *ast.
 			return nil
 		}
 	}
+	keepNever := c.CompilerOptions().GetEmitDeclarations() && isExportedStatementPart(reference)
 	slot := func(i int) string {
-		if i >= len(arguments) || arguments[i].Kind == ast.KindNeverKeyword {
+		if i >= len(arguments) || arguments[i].Kind == ast.KindNeverKeyword && !keepNever {
 			return ""
 		}
 		return bangSlot(expressionText(file, arguments[i]), i > 0)
@@ -118,6 +123,17 @@ func effectTypeRewrite(c *checker.Checker, file *ast.SourceFile, reference *ast.
 		text = "(" + text + ")"
 	}
 	return &formRewrite{edits: []sourceEdit{{nodeStart(file, reference), reference.End(), text}}, description: text}
+}
+
+// isExportedStatementPart reports whether node stands in a top-level
+// statement that exports what it declares, whose declaration file prints it.
+func isExportedStatementPart(node *ast.Node) bool {
+	for ; node != nil; node = node.Parent {
+		if node.Parent != nil && ast.IsSourceFile(node.Parent) {
+			return ast.HasSyntacticModifier(node, ast.ModifierFlagsExport)
+		}
+	}
+	return false
 }
 
 // needsBangParentheses reports whether an Effect type in the ! form needs

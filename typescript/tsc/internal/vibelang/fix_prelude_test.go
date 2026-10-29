@@ -20,6 +20,51 @@ import (
 // run finds nothing to fix. The experimental services (D313) shorten the
 // same way: Experimental.Process.Process.hostname() becomes
 // Experimental.Process.hostname().
+// In a project that emits declarations, vibelang --fix keeps what the
+// declaration file writes as the TypeScript did (D501): an import of a
+// module that an export mentions, spelled otherwise than the prelude's
+// import, and a never written in an exported Effect type. What no export
+// mentions shortens as without declarations.
+func TestFixKeepsDeclarations(t *testing.T) {
+	source := `import * as Schema from "effect/Schema"
+import * as Console from "effect/Console"
+import { Option } from "effect"
+
+export const Value: Schema.Codec<unknown> = Schema.Unknown
+export const update = (): Effect.Effect<void, never, never> => Effect.void
+const quiet = (): Effect.Effect<void, never, never> => Console.log("x")
+export const first = (value: Option.Option<number>): number => Option.getOrElse(value, () => 0)
+export const run = () => quiet()
+`
+	want := `import * as Schema from "effect/Schema"
+
+export const Value: Schema.Codec<unknown> = Schema.Unknown
+export const update = (): void!never!never => Effect.void
+const quiet = (): void!! => Console.log("x")
+export const first = (value: Option<number>): number => Option.getOrElse(value, () => 0)
+export const run = () => quiet()
+`
+	_, file, _, _ := editorProgram(t, source)
+	dir := filepath.Dir(file.FileName().AsString())
+	if err := os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte(`{"compilerOptions":{"target":"ES2022","module":"NodeNext","strict":true,"skipLibCheck":true,"declaration":true,"emitDeclarationOnly":true,"outDir":"out"},"files":["main.vibe"]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fs := bundled.WrapFS(osvfs.FS())
+	config, errors := tsoptions.GetParsedCommandLineOfConfigFile(tspath.RootedFilePathFromAbsolute(filepath.ToSlash(filepath.Join(dir, "tsconfig.json"))), &core.CompilerOptions{}, nil, fs, nil)
+	if len(errors) != 0 {
+		t.Fatalf("config: %v", errors)
+	}
+	result := FixProject(t.Context(), fs, bundled.LibPath(), config)
+	fixed := result.Files[file.FileName()]
+	if fixed == nil || fixed.Text != want || len(result.Refused) != 0 {
+		got := ""
+		if fixed != nil {
+			got = fixed.Text
+		}
+		t.Fatalf("--fix wrote\n%s\nwant\n%s\nrefused %+v", got, want, result.Refused)
+	}
+}
+
 func TestFixPreludeRewrites(t *testing.T) {
 	source := `import { FileSystem } from "effect/FileSystem"
 import * as Path from "effect/Path"

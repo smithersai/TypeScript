@@ -30,6 +30,14 @@ import (
 // or through an import this removes, and D311 gives M that meaning. As with
 // the quick fixes, a file's rewrites are kept only when the program then
 // reports no error it did not report before.
+//
+// In a project that emits declarations, an import stays when its spelling
+// is not the one the declaration file would write for the prelude's name and
+// something the file exports mentions the module, so the declaration file
+// keeps the import its TypeScript wrote (D501): with
+// import * as Schema from "effect/Schema" and an export typed Schema.Codec,
+// the declaration keeps import * as Schema from "effect/Schema" rather than
+// import { Schema } from "effect".
 
 // A preludeRewrite is the rewrites of one file: its edits and how many of
 // each kind it makes.
@@ -90,7 +98,7 @@ func preludeRewritesOf(c *checker.Checker, file *ast.SourceFile) preludeRewrite 
 		specifier := statement.ModuleSpecifier().Text()
 		if ast.IsNamespaceImport(clause.NamedBindings) {
 			name := clause.NamedBindings.Name().Text()
-			if preludeModulePath(name) == specifier && !isBuiltinGlobal(c, name) {
+			if preludeModulePath(name) == specifier && !isBuiltinGlobal(c, name) && !importShapesDeclaration(c, file, statement) {
 				gone[clause.NamedBindings] = true
 				removed[name] = true
 			}
@@ -108,7 +116,7 @@ func preludeRewritesOf(c *checker.Checker, file *ast.SourceFile) preludeRewrite 
 			case preludePackageOf(name) == specifier:
 				gone[element] = true
 				removed[name] = true
-			case preludeModulePath(name) == specifier:
+			case preludeModulePath(name) == specifier && !importShapesDeclaration(c, file, statement):
 				// import { FileSystem } from "effect/FileSystem": the module's export.
 				module := c.GetSymbolAtLocation(statement.ModuleSpecifier())
 				export := c.GetSymbolAtLocation(element.Name())
@@ -174,6 +182,20 @@ func preludeRewritesOf(c *checker.Checker, file *ast.SourceFile) preludeRewrite 
 	}
 	file.AsNode().ForEachChild(visit)
 	return r
+}
+
+// importShapesDeclaration reports whether the declaration file of file, in a
+// project that emits one, writes the module that statement imports through
+// statement's own spelling, because something file exports mentions it.
+func importShapesDeclaration(c *checker.Checker, file *ast.SourceFile, statement *ast.Node) bool {
+	if !c.CompilerOptions().GetEmitDeclarations() {
+		return false
+	}
+	module := c.GetSymbolAtLocation(statement.ModuleSpecifier())
+	if module != nil && module.Flags()&ast.SymbolFlagsAlias != 0 {
+		module = c.GetAliasedSymbol(module)
+	}
+	return exportsMentionModule(c, file, module)
 }
 
 // moduleExportUses returns the edits that keep each use of export, a
