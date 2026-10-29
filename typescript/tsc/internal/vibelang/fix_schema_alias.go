@@ -79,9 +79,9 @@ func schemaAliasRewrite(c *checker.Checker, file *ast.SourceFile, name *ast.Node
 	list := declaration.Parent
 	statement := list.Parent
 	if !ast.IsVariableStatement(statement) || list.Flags&ast.NodeFlagsConst == 0 || len(list.AsVariableDeclarationList().Declarations.Nodes) != 1 ||
-		declaration.Type() != nil || declaration.AsVariableDeclaration().ExclamationToken != nil || declaration.Initializer() == nil ||
+		declaration.Type() != nil || declaration.AsVariableDeclaration().ExclamationToken != nil || ast.NodeIsMissing(declaration.Initializer()) ||
 		statement.Flags&ast.NodeFlagsVibeLang != 0 || declaration.Flags&ast.NodeFlagsVibeLang != 0 || len(statement.JSDoc(file)) != 0 {
-		return nil // a schema alias already sets NodeFlagsVibeLang
+		return nil // a schema alias already sets NodeFlagsVibeLang; a missing initializer has no text
 	}
 	for _, modifier := range statement.ModifierNodes() {
 		if modifier.Kind != ast.KindExportKeyword {

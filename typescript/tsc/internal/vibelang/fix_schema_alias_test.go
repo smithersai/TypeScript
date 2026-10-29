@@ -6,6 +6,28 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/diagnostics"
 )
 
+// Chapter 27 requires diagnostics for syntax errors, including a missing
+// initializer whose trivia ends after its zero-width recovery node.
+func TestSchemaAliasMissingInitializer(t *testing.T) {
+	for _, source := range []string{
+		"const A0= ",
+		"const A0= /* missing */ ",
+		"type A0 = typeof A0.Type\nconst A0= \n",
+	} {
+		t.Run(source, func(t *testing.T) {
+			program, file, _, _ := editorProgram(t, source)
+			if len(program.GetSyntacticDiagnostics(t.Context(), file)) == 0 {
+				t.Fatal("missing initializer must report a syntax error")
+			}
+			for _, d := range program.GetSemanticDiagnostics(t.Context(), file) {
+				if d.Source() == diagnosticSource && d.Code() == EK4841.Code {
+					t.Fatalf("missing initializer reports EK4841: %s", d.String())
+				}
+			}
+		})
+	}
+}
+
 // D474: EK4841's quick fix writes a schema constant and the type alias just
 // before it as one schema alias, which the parser writes back into the same
 // two declarations.

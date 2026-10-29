@@ -300,6 +300,9 @@ func patternOf(c *checker.Checker, text string, typeNode *ast.Node) (string, boo
 			return "", false
 		}
 		name := member.AsTypeReferenceNode().TypeName
+		if ast.NodeIsMissing(name) {
+			return "", false // a syntax error's missing type has no text
+		}
 		source := text[scanner.SkipTrivia(text, name.Pos()):name.End()]
 		if !dottedName.MatchString(source) {
 			return "", false

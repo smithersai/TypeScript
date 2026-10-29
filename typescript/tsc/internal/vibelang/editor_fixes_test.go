@@ -133,3 +133,50 @@ func TestEditorQuickFixSkipsUncallableUnion(t *testing.T) {
 		}
 	}
 }
+
+// TestEditorQuickFixSkipsMissingCatchType checks that EK2112's quick fix
+// declines a catch type the parser left missing after a syntax error, which
+// must get diagnostics and never a crash (Chapter 27): the missing name's
+// trivia-skipped start lies past its end.
+func TestEditorQuickFixSkipsMissingCatchType(t *testing.T) {
+	const prefix = "error Gone\nfunction load(): number!Gone { throw new Gone() }\n"
+	for _, source := range []string{
+		"export function r() { try { return load() } catch (e: ) { return 0 } }",
+		"export function r() { try { return load() } catch (e: Gone | ) { return 0 } }",
+		"export function r() { return load() catch (e: ) => 0 }",
+		"export function r() { return load() catch (e: Gone | ) => { return 0 } }",
+	} {
+		t.Run(source, func(t *testing.T) {
+			program, file, service, converters := editorProgram(t, prefix+source)
+			if len(program.GetSyntacticDiagnostics(t.Context(), file)) == 0 {
+				t.Fatal("missing catch type must report a syntax error")
+			}
+			found := false
+			for _, diagnostic := range program.GetSemanticDiagnostics(t.Context(), file) {
+				if diagnostic.Code() != EK2112.Code {
+					continue
+				}
+				found = true
+				d := lsconv.DiagnosticToLSPPush(t.Context(), converters, diagnostic)
+				only := []lsproto.CodeActionKind{lsproto.CodeActionKindQuickFix}
+				response, err := service.ProvideCodeActions(t.Context(), &lsproto.CodeActionParams{
+					TextDocument: lsproto.TextDocumentIdentifier{Uri: lsconv.FileNameToDocumentURI(file.FileName())},
+					Range:        d.Range, Context: &lsproto.CodeActionContext{Diagnostics: []*lsproto.Diagnostic{d}, Only: &only},
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if response.CommandOrCodeActionArray != nil {
+					for _, action := range *response.CommandOrCodeActionArray {
+						if action.CodeAction != nil && strings.HasPrefix(action.CodeAction.Title, "Test the failure") {
+							t.Fatalf("quick fix rewrites a missing type: %s", action.CodeAction.Title)
+						}
+					}
+				}
+			}
+			if !found {
+				t.Fatal("missing EK2112")
+			}
+		})
+	}
+}
