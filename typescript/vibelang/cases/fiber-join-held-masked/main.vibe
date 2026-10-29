@@ -1,0 +1,82 @@
+// expect-result: {"masked":["hold","caught"],"record":["hold","caught"],"held":["hold","caught"]}
+
+// join interrupts the fibers still running when one fails, waits for their
+// cleanup, and then fails (Ch 7). Inside uninterruptible { } the join itself
+// is masked, but the fibers it waits for are interrupted all the same.
+error Bad {}
+
+function bad(n: number) {
+  if (n > 0) throw new Bad()
+  return n
+}
+
+// A fiber that waits until something interrupts it, and traces its finally.
+function hold(ready: Deferred.Deferred<void>, trace: string[]) {
+  try {
+    Deferred.succeed(ready, undefined)
+    Effect.never()
+  } finally {
+    trace.push("hold")
+  }
+}
+
+function masked() {
+  const trace: string[] = []
+  uninterruptible {
+    const ready = Deferred.make<void>()
+    const held = fork hold(ready, trace)
+    ready.await()
+    const failing = fork bad(1)
+    try {
+      join [held, failing]
+    } catch (e) {
+      trace.push("caught")
+    }
+  }
+  return trace
+}
+
+function record() {
+  const trace: string[] = []
+  uninterruptible {
+    const ready = Deferred.make<void>()
+    const held = fork hold(ready, trace)
+    ready.await()
+    const failing = fork bad(1)
+    try {
+      join { held, failing }
+    } catch (e) {
+      trace.push("caught")
+    }
+  }
+  return trace
+}
+
+// The same join outside a mask, with the held fiber waiting in its own restore.
+function held() {
+  const trace: string[] = []
+  const ready = Deferred.make<void>()
+  const fiber = fork {
+    try {
+      uninterruptible {
+        Deferred.succeed(ready, undefined)
+        restore { Effect.never() }
+        trace.push("not interrupted")
+      }
+    } finally {
+      trace.push("hold")
+    }
+  }
+  ready.await()
+  const failing = fork bad(1)
+  try {
+    join [fiber, failing]
+  } catch (e) {
+    trace.push("caught")
+  }
+  return trace
+}
+
+export function main() {
+  return { masked: masked(), record: record(), held: held() }
+}

@@ -99,13 +99,20 @@ function awaitValue(value: unknown): Effect.Effect<unknown, unknown> {
 // The Effect that waits for each element of value, an array or object of
 // Fibers, Deferreds, or arrays or objects of them, keeping its shape. It adds
 // each Fiber it joins to fibers.
+//
+// Effect.all waits for each element in a fiber of its own, which inherits the
+// joining fiber's mask. Inside `uninterruptible { }` such a waiter could not
+// be interrupted when another element fails, so Effect.all would wait for a
+// held fiber forever and never reach the interruptAll above. Each wait is
+// interruptible: it runs no program code, and interrupting it stops only the
+// wait, not the fiber it waits for.
 function joinParts(value: object, fibers: Array<Fiber.Fiber<unknown, unknown>>): Effect.Effect<unknown, unknown> {
   const join = (item: unknown): Effect.Effect<unknown, unknown> => {
     if (Fiber.isFiber(item)) {
       fibers.push(item)
-      return Fiber.join(item)
+      return Effect.interruptible(Fiber.join(item))
     }
-    if (Deferred.isDeferred(item)) return Deferred.await(item)
+    if (Deferred.isDeferred(item)) return Effect.interruptible(Deferred.await(item))
     if (typeof item !== "object" || item === null) return Effect.die(new TypeError("await expects a Fiber, a Deferred, or an array or object of them"))
     return joinParts(item, fibers)
   }
