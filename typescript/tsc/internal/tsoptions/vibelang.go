@@ -80,6 +80,15 @@ func validateVibeLangOptions(value any, valueExpression *ast.Expression, sourceF
 		errors = append(errors, d)
 		return d
 	}
+	notAdjustable := func(node *ast.Node, code string) {
+		// Keep the option path and location, but explain the policy
+		// instead of calling an EK code an unknown compiler option.
+		d := report(node, diagnostics.Unknown_compiler_option_0, "vibelang.diagnostics."+code)
+		d = ast.NewExternalDiagnostic(d.File(), d.Loc(), "", d.Category(), d.Code(), "vibelang.diagnostics."+code+" is not adjustable; its diagnostic category cannot be configured.")
+		errors[len(errors)-1] = d
+		d.AddMessageChain(ast.NewExternalDiagnostic(nil, core.TextRange{}, "", diagnostics.CategoryMessage, 0,
+			"Only these EK codes can be configured: "+strings.Join(vibeLangAdjustableCodes, ", ")+"."))
+	}
 	for key, v := range object.Entries() {
 		property := jsonProperty(valueExpression, key)
 		switch key {
@@ -92,18 +101,15 @@ func validateVibeLangOptions(value any, valueExpression *ast.Expression, sourceF
 			for code, category := range codes.Entries() {
 				codeProperty := jsonProperty(jsonInitializer(property), code)
 				if !slices.Contains(vibeLangAdjustableCodes, code) {
-					// Keep the option path and location, but explain the policy
-					// instead of calling an EK code an unknown compiler option.
-					d := report(jsonName(codeProperty), diagnostics.Unknown_compiler_option_0, "vibelang.diagnostics."+code)
-					d = ast.NewExternalDiagnostic(d.File(), d.Loc(), "", d.Category(), d.Code(), "vibelang.diagnostics."+code+" is not adjustable; its diagnostic category cannot be configured.")
-					errors[len(errors)-1] = d
-					d.AddMessageChain(ast.NewExternalDiagnostic(nil, core.TextRange{}, "", diagnostics.CategoryMessage, 0,
-						"Only these EK codes can be configured: "+strings.Join(vibeLangAdjustableCodes, ", ")+"."))
+					notAdjustable(jsonName(codeProperty), code)
 					continue
 				}
 				if category, ok := category.(string); !ok || !slices.Contains(vibeLangCategories, category) {
 					report(jsonInitializer(codeProperty), diagnostics.Argument_for_0_option_must_be_Colon_1, "vibelang.diagnostics."+code, quoteList(vibeLangCategories))
 				}
+			}
+			for _, name := range jsonEmptyNames(jsonInitializer(property)) {
+				notAdjustable(name, "")
 			}
 		case "trustedPackages":
 			entries, ok := v.([]any)
@@ -134,6 +140,12 @@ func validateVibeLangOptions(value any, valueExpression *ast.Expression, sourceF
 		default:
 			report(jsonName(property), diagnostics.Unknown_compiler_option_0, "vibelang."+key)
 		}
+	}
+	// The JSON conversion drops a property whose name is empty, as stock
+	// TypeScript does in every object, so the entries above never hold one;
+	// "" is no setting of Chapter 28's options table.
+	for _, name := range jsonEmptyNames(valueExpression) {
+		report(name, diagnostics.Unknown_compiler_option_0, "vibelang.")
 	}
 	return errors
 }
@@ -173,6 +185,21 @@ func jsonProperty(object *ast.Node, name string) *ast.Node {
 		}
 	}
 	return nil
+}
+
+// jsonEmptyNames returns the name of each property of a JSON object literal
+// whose name is the empty string.
+func jsonEmptyNames(object *ast.Node) []*ast.Node {
+	if object == nil || !ast.IsObjectLiteralExpression(object) {
+		return nil
+	}
+	var names []*ast.Node
+	for _, property := range object.AsObjectLiteralExpression().Properties.Nodes {
+		if ast.IsPropertyAssignment(property) && property.Name() != nil && ast.IsStringLiteral(property.Name()) && property.Name().Text() == "" {
+			names = append(names, property.Name())
+		}
+	}
+	return names
 }
 
 func jsonName(property *ast.Node) *ast.Node {

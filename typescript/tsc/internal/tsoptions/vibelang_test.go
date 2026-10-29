@@ -71,6 +71,8 @@ func TestVibeLangConfigDiagnosticLocations(t *testing.T) {
 		code                       int32
 	}{
 		{"unknown setting", `{"trace":"all"}`, `"trace"`, "vibelang.trace", 5023},
+		{"empty setting", `{"":{}}`, `""`, "'vibelang.'", 5023},
+		{"empty diagnostic code", `{"diagnostics":{"":"off"}}`, `""`, "vibelang.diagnostics. is not adjustable", 5023},
 		{"soundness diagnostic", `{"diagnostics":{"EK2001":"off"}}`, `"EK2001"`, "vibelang.diagnostics.EK2001", 5023},
 		{"TypeScript diagnostic", `{"diagnostics":{"EK4813":"off"}}`, `"EK4813"`, "vibelang.diagnostics.EK4813", 5023},
 		{"category spelling", `{"diagnostics":{"EK2004":"Warning"}}`, `"Warning"`, "'error', 'warning', 'off'", 6046},
