@@ -13,6 +13,9 @@
 # runs every Fuzz target in the package. Run it on the build host, never on a
 # laptop: a campaign builds the compiler and keeps six workers busy. The host
 # is shared, so a campaign uses -parallel 6 (CAMPAIGN_PARALLEL overrides it).
+# Each target has its duration plus CAMPAIGN_GRACE (default 15m) to finish,
+# including startup and minimization. A timeout dumps the coordinator's
+# goroutines with SIGQUIT, then kills its process group after another minute.
 #
 # The fuzzer writes a new crasher to testdata/fuzz/<target>/; the campaign
 # moves each to $CAMPAIGN_OUT/crashers/<target>/, outside the tree a remote.sh
@@ -23,6 +26,39 @@ set -eu
 # A campaign with a missing dependency fails instead of fuzzing nothing.
 export VIBELANG_FUZZ_REQUIRE=1
 
+# duration_seconds accepts Go duration units and compound durations. Reject
+# anything unrecognized rather than silently choosing an unbounded deadline.
+duration_seconds() {
+	awk -v duration="$1" 'BEGIN {
+		rest = duration
+		if (rest == "0") { print 0; exit }
+		if (substr(rest, 1, 1) == "+") rest = substr(rest, 2)
+		seconds = 0
+		parts = 0
+		while (length(rest)) {
+			if (match(rest, /^([0-9]+([.][0-9]*)?|[.][0-9]+)/) != 1) exit 1
+			number = substr(rest, 1, RLENGTH) + 0
+			rest = substr(rest, RLENGTH + 1)
+			if (match(rest, /^(ns|us|µs|μs|ms|s|m|h)/) != 1) exit 1
+			unit = substr(rest, 1, RLENGTH)
+			rest = substr(rest, RLENGTH + 1)
+			scale = 1
+			if (unit == "h") scale = 3600
+			else if (unit == "m") scale = 60
+			else if (unit == "ms") scale = 0.001
+			else if (unit == "us" || unit == "µs" || unit == "μs") scale = 0.000001
+			else if (unit == "ns") scale = 0.000000001
+			seconds += number * scale
+			parts++
+		}
+		if (!parts) exit 1
+		printf "%.9f\n", seconds
+	}' || {
+		echo "campaign: cannot parse Go duration: $1" >&2
+		return 1
+	}
+}
+
 here=$(cd "$(dirname "$0")" && pwd)
 tsc=$(cd "$here/../.." && pwd)
 cd "$tsc"
@@ -30,6 +66,14 @@ pkg=./internal/vibelangfuzz/
 parallel=${CAMPAIGN_PARALLEL:-6}
 duration=${1:-5m}
 [ $# -gt 0 ] && shift
+grace_seconds=$(duration_seconds "${CAMPAIGN_GRACE:-15m}") || exit 2
+duration_seconds "$duration" > /dev/null || exit 2
+for spec in "$@"; do
+	case "$spec" in
+		*=*) duration_seconds "${spec#*=}" > /dev/null || exit 2 ;;
+	esac
+done
+command -v timeout > /dev/null 2>&1 || { echo "campaign: timeout is required" >&2; exit 2; }
 coverpkg=./internal/vibelang,./internal/vibelangfmt,./internal/vibelangestree,./internal/vibelangmapper,./internal/parser,./internal/checker,./internal/ls,./internal/format,./internal/printer
 out=${CAMPAIGN_OUT:-$(mktemp -d "${TMPDIR:-/tmp}/vibelangfuzz-campaign.XXXXXX")}
 mkdir -p "$out"
@@ -47,18 +91,27 @@ for spec in $targets; do
 	target=${spec%%=*}
 	time=$duration
 	[ "$spec" != "$target" ] && time=${spec#*=}
+	seconds=$(duration_seconds "$time") || exit 2
+	awk -v seconds="$seconds" 'BEGIN { exit !(seconds > 0) }' || {
+		echo "campaign: target duration must be positive: $time" >&2
+		exit 2
+	}
+	limit=$(awk -v seconds="$seconds" -v grace="$grace_seconds" 'BEGIN { printf "%.9fs", seconds + grace }')
 	names="$names${names:+|}$target"
 	corpus="$here/testdata/fuzz/$target"
 	before=$(ls "$corpus" 2>/dev/null | sort || true)
-	echo "== $target for $time (-parallel $parallel)" >&2
+	echo "== $target for $time (-parallel $parallel; timeout $limit)" >&2
 	status=0
-	GOFLAGS= go test -run '^$' -fuzz "^$target\$" -fuzztime "$time" -parallel "$parallel" "$pkg" > "$out/$target.log" 2>&1 || status=$?
-	last=$(grep -E '^fuzz: elapsed' "$out/$target.log" | tail -1)
+	GOFLAGS= timeout -s QUIT -k 60 "$limit" go test -run '^$' -fuzz "^$target\$" -fuzztime "$time" -parallel "$parallel" "$pkg" > "$out/$target.log" 2>&1 || status=$?
+	last=$(grep -E '^fuzz: elapsed' "$out/$target.log" | tail -1 || true)
 	after=$(ls "$corpus" 2>/dev/null | sort || true)
 	new=$(printf '%s\n' "$after" | grep -vxF -e "$before" -e '' || true)
 	[ -z "$before" ] && new=$after
 	{
-		echo "$target  $time  exit $status"
+		case "$status" in
+			124|137) echo "$target  $time  timed out (exit $status; limit $limit)" ;;
+			*) echo "$target  $time  exit $status" ;;
+		esac
 		echo "  ${last:-no progress line; see $out/$target.log}"
 		for file in $new; do
 			echo "  new crasher: $out/crashers/$target/$file"

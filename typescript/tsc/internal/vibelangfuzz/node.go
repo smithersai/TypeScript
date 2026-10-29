@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -28,6 +29,7 @@ var HangLimit = func() time.Duration {
 // bug the specification never allows.
 func Within(stage string, fn func()) {
 	timer := time.AfterFunc(HangLimit, func() {
+		killChildren()
 		stacks := make([]byte, 1<<22)
 		stacks = stacks[:runtime.Stack(stacks, true)]
 		panic(fmt.Sprintf("hang: %s took longer than %v\n%s", stage, HangLimit, stacks))
@@ -140,7 +142,7 @@ func (n *Node) start() error {
 	}
 	n.stdin, n.answerPipe, n.answers = stdin, answers, bufio.NewReaderSize(answers, 1<<20)
 	n.runs = 0
-	err = n.cmd.Start()
+	err = startChild(n.cmd)
 	writer.Close() // The worker holds its own copy; its exit ends the answers.
 	if err != nil {
 		n.stop()
@@ -187,8 +189,8 @@ func (n *Node) stop() {
 		_ = n.answerPipe.Close()
 	}
 	if n.cmd != nil && n.cmd.Process != nil {
-		_ = n.cmd.Process.Kill()
-		_ = n.cmd.Wait()
+		_ = syscall.Kill(-n.cmd.Process.Pid, syscall.SIGKILL)
+		_ = waitChild(n.cmd)
 	}
 	n.cmd, n.stdin, n.answerPipe, n.answers = nil, nil, nil, nil
 }

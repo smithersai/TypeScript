@@ -458,13 +458,13 @@ func cliExec(binary, dir string, args []string, stdin string, project Project) c
 	cmd.Stdout, cmd.Stderr = stdout, stderr
 	cmd.Stdin = strings.NewReader(stdin)
 	run := cliRun{Status: -1}
-	if err := cmd.Start(); err != nil {
+	if err := startChild(cmd); err != nil {
 		run.Hung = "start: " + err.Error()
 		return run
 	}
 	done := make(chan struct{})
 	go func() {
-		_ = cmd.Wait()
+		_ = waitChild(cmd)
 		close(done)
 	}()
 	stage, deadline := "run", time.Now().Add(cliDeadline)
@@ -1032,7 +1032,7 @@ func cliStartSession(binary, dir string, args []string) (*cliSession, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := cmd.Start(); err != nil {
+	if err := startChild(cmd); err != nil {
 		return nil, err
 	}
 	go func() {
@@ -1052,7 +1052,7 @@ func cliStartSession(binary, dir string, args []string) (*cliSession, error) {
 			}
 			s.replies <- message
 		}
-		_ = cmd.Wait()
+		_ = waitChild(cmd)
 		close(s.done)
 	}()
 	return s, nil
