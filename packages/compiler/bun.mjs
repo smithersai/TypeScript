@@ -62,16 +62,19 @@ Bun.plugin({
   name: "vibelang",
   setup(build) {
     // vibelang rewrites a .vibe module's relative imports to the emitted .js
-    // names. From source, a missing ./x.js is the .vibe file beside it, or a
-    // module declaration's output. Bun maps a missing .js to its .ts or .tsx
-    // file itself, except from a module declaration's output.
+    // names, and a TypeScript module imports a .vibe module that replaced its
+    // .ts file by the same .js name. From source, a missing ./x.js is the .vibe
+    // file beside it, or a module declaration's output. Bun maps a missing .js
+    // to its .ts or .tsx file itself, except from a module declaration's output.
     build.onResolve({ filter: /^\.\.?\/.*\.js$/ }, ({ path, importer }) => {
       const fromModule = importer?.startsWith(`${moduleNamespace}:`)
       importer = pathOf(importer)
-      if (!importer?.endsWith(".vibe") && !fromModule) return undefined
+      if (importer === undefined || importer.includes("/node_modules/")) return undefined
       const target = resolve(dirname(importer), path)
       if (existsSync(target)) return fromModule ? { path: target } : undefined
       if (isModuleOutput(target)) return { path: target, namespace: moduleNamespace }
+      // A TypeScript module's own .ts or .tsx file still wins, as without vibelang.
+      if (!importer.endsWith(".vibe") && !fromModule && [".ts", ".tsx"].some((extension) => existsSync(target.slice(0, -".js".length) + extension))) return undefined
       for (const extension of fromModule ? [".vibe", ".ts", ".tsx"] : [".vibe"]) {
         const source = target.slice(0, -".js".length) + extension
         if (existsSync(source)) return { path: source }

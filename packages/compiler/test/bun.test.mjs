@@ -179,6 +179,37 @@ test("names VIBELANG_PROJECT when the nearest tsconfig does not include a module
   assert.equal(accepted.stdout, "42\n")
 })
 
+test("bun resolves a TypeScript module's .js import to the .vibe file that replaced its .ts file", { skip }, (t) => {
+  const bundler = JSON.stringify({
+    compilerOptions: { target: "ESNext", module: "ESNext", moduleResolution: "Bundler", strict: true, types: [], skipLibCheck: true, noEmit: true },
+    include: ["main.ts", "src/**/*"]
+  })
+  const { bun } = project(t, {
+    "tsconfig.json": bundler,
+    "src/value.vibe": "export const value: number = 42\n",
+    "src/other.ts": "export const other = 7\n",
+    "main.ts": "import { value } from \"./src/value.js\"\nimport { other } from \"./src/other.js\"\nconsole.log(value + other)\n"
+  })
+  const result = bun(["--preload", preload, "main.ts"])
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout, "49\n")
+})
+
+test("bun compiles a composite project, which may not turn off declaration emit or incremental compilation", { skip }, (t) => {
+  const composite = JSON.stringify({
+    compilerOptions: { composite: true, target: "ESNext", module: "Preserve", moduleResolution: "Bundler", strict: true, types: [], skipLibCheck: true },
+    include: ["main.ts", "src/**/*"]
+  })
+  const { bun } = project(t, {
+    "tsconfig.json": composite,
+    "src/value.vibe": "export function value(): number { return 1 }\n",
+    "main.ts": "import { value } from \"./src/value.vibe\"\nconsole.log(value())\n"
+  })
+  const result = bun(["--preload", preload, "main.ts"])
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout, "1\n")
+})
+
 test("under Node, vibelang/bun names vibelang/register", async () => {
   await assert.rejects(import(preload), /vibelang\/bun is a Bun preload; under Node, use node --import vibelang\/register/)
 })

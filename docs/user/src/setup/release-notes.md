@@ -91,6 +91,8 @@ Effect 4.0.6 defect-precedence and interruption migration.
 
 ### Bugs fixed since 0.0.10
 
+- Under `bun --preload vibelang/bun`, a TypeScript module that imported `./x.js` failed with `Cannot find module` when `x.ts` had been replaced by `x.vibe`. Bun now loads `x.vibe`; an existing `x.ts` still wins.
+- `vibelang/bun` and `vibelang/register` refused a project with `"composite": true` with `TS6304` and `TS6379`. They now compile it.
 - Tree-sitter rejected block-param calls named `error`, such as `error{}`; it now accepts them as the compiler does.
 
 - Writing a contract such as `number!!` on a function whose `try` block returned a `do` block, or a `throw` expression beside a `match`, reported `TS7024` and `TS7022` on the catch binding, though the same function compiled without the contract. The function now compiles either way, and the catch binding has the try block's error types.

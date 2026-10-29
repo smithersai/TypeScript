@@ -184,7 +184,9 @@ const emitArgs = (project, root, out) => [
   // A project checked with --noEmit may import .ts files without a rewrite of its
   // own; emitting it then needs one (TS5096), and the output imports .js anyway.
   "--rewriteRelativeImportExtensions", "true",
-  "--incremental", "false"
+  // The loaders emit JavaScript alone, which a composite project refuses
+  // (TS6304, TS6379); its references are not built here either.
+  "--composite", "false", "--incremental", "false"
 ]
 
 const realpath = (path) => {
