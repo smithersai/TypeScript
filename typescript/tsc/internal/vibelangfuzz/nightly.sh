@@ -57,6 +57,13 @@ fi
 day=$(date -u +%F)
 out=$root/runs/$day
 mkdir -p "$out"
+# Go builds and tests write under TMPDIR, and a fuzz worker that the hang
+# watchdog or the engine kills leaves its t.TempDir and build directories
+# behind. Each run gets its own, removed at the end, so they cannot fill the
+# shared disk.
+export TMPDIR=$root/tmp
+rm -rf "$TMPDIR"
+mkdir -p "$TMPDIR"
 rm -rf "$root/src"
 if [ -n "${NIGHTLY_SRC:-}" ]; then
 	# A checkout to run instead of main, to test this script.
@@ -156,6 +163,6 @@ fi
 
 ln -sfn "$out" "$root/latest"
 find "$root/runs" -mindepth 1 -maxdepth 1 -type d -mtime +30 -exec rm -rf {} +
-rm -rf "$src"
+rm -rf "$src" "$TMPDIR"
 echo "$(date -u +%FT%TZ) done: $out/report.md (status $status)"
 exit "$status"
