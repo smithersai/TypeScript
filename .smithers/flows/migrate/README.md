@@ -130,6 +130,11 @@ These patterns have no `--fix` rule yet. The counts are from the four first targ
 | A call that builds a program no `yield*` runs, as `yield* load(id).pipe(Effect.retry(policy))` or `Effect.all([a(), b()])` | most of the rest | The call would run where it stands; the call-rule migration (EK1018, EK1023) writes `() =>` |
 | `Match.when` with a predicate or an array pattern, `Match.discriminator`, a handler that builds a program | | No pattern tests the same, or the arm's call would run |
 | An Option stage whose argument is a call, `Option.getOrElse(makeDefault())` | | The chain would evaluate it after the stage before it runs |
+| A redundant `readonly` on an interface or object-type member, `{ readonly id: string }` | 26 (foldkit 22, alchemy 4) | No diagnostic reports it yet, and inside `Readonly<{ … }>` the TypeScript's `readonly` must stay for declaration identity |
+| `Option.match(x, { onNone, onSome })` | 3 (foldkit) | EK4840 rewrites Option pipelines only; a `match` over `Option.None` and `Option.Some(let v)` is the target |
+| A pure exported or callback helper that TypeScript consumers call synchronously, `(xs) => xs.filter(p)` | 20 (foldkit 13, t3code 5, opencode 2) | Before D550 lands, context can make it an Effect function; `: infer _` keeps it plain. Under D550 a function with no Effect form is plain by syntax, and the annotation is moot |
+| `x.pipe(Stream.map(f))` on a Stream value | 1 (foldkit) | EK4840's method rewrite covers Option only |
+| A cold `Effect.map` or `orElseSucceed` program, `Effect.currentParentSpan.pipe(Effect.map(f), Effect.orElseSucceed(() => undefined))` | 2 (alchemy) | The deferred direct-style body depends on each use of the value |
 | A schema constant written before its type alias, `const X = Schema.…` then `type X = typeof X.Type` | 818 of 820 such pairs that are not structs; 1,474 struct pairs | A schema declaration's declaration file lists the type before the constant, so the rewrite would reorder the module's declarations: EK4841 leaves these pairs, and EK4832's rewrite of a struct pair changes the declarations |
 
 ## Tests
