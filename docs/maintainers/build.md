@@ -1,0 +1,110 @@
+# The build graph
+
+VibeLang's checks run as targets of `smthrs`, Smithers' build tool. Each
+`PACKAGE.ts` declares targets; the files, tools and targets a target names are
+its inputs, and their content digests are its key. `smthrs test` runs each
+target whose key changed and replays every other result from the cache in
+`.flows/`. A change reruns the targets that read what it changed, and nothing
+else.
+
+```sh
+sh scripts/ci.sh                                    # install, then smthrs test //... --jobs 8
+sh scripts/ci.sh //typescript/vibelang/... --jobs 8 # the compiler cases only
+.smithers/node_modules/.bin/smthrs targets //...
+.smithers/node_modules/.bin/smthrs explain //typescript/vibelang:await-ops
+```
+
+`scripts/ci.sh` installs what the targets read (`.smithers`, the runtime, the
+compiler package, `experiments`, `docs/tools`) from their lockfiles, then runs
+`smthrs test`. `explain` prints a target's inputs, its key and whether the
+cache holds a result for it.
+
+## Packages
+
+```text
+.smithers/WORKSPACE.ts          toolchain (node, go, bun), cache in .flows/
+//typescript/tsc                the Go module
+  :srcs                         Filegroup: what go build reads (no *_test.go, no testdata/)
+  :go-checker :go-parser        go test, one target per Go package tree
+  :go-format :go-core
+  :vibelang-files ...           Filegroups: one Go package's tests and testdata
+//typescript
+  :compiler                     go build ./cmd/tsc -> typescript/built/local/tsc
+//typescript/vibelang
+  :<case>                       harness.mjs <case>, one target per case (809)
+//packages
+  :runtime-dist                 bun run build -> packages/runtime/dist
+  :runtime-test                 bun test (runtime)
+  :compiler-native              the binary and dprint plugin in packages/compiler
+  :compiler-test                node --test (compiler package)
+//                              checks that read the whole repository
+  :tree                         Filegroup: every file
+  :go-vibelang :go-vibelang-race :go-vibelangmapper :go-vibelangfuzz
+  :release :snippets :tokens :forms :docs-tools :docs-check
+  :site-contrast                exclusive: runs only with --include-exclusive
+```
+
+```text
+:srcs ─► :compiler ─┬─► :<case> x809 ◄─┬─ :runtime-dist ─► :runtime-test
+                    ├─► :compiler-native ─► :compiler-test
+                    └─► :snippets, :docs-tools
+:tree ─► :release :snippets :tokens :forms :docs-tools :docs-check :go-vibelang*
+```
+
+A case's key is the compiler's key, the runtime's `dist/` key, the Effect
+install's lockfiles, the harness files and the digests of the files in that
+case's directory. The compiler's key is the Go module's sources and the `go`
+launcher's bytes. The VibeLang Go tests read cases, docs and installs through
+the repository root, so they and the other repository-wide checks take `:tree`.
+
+## What a change reruns
+
+| Change | Reruns | Replays |
+| --- | --- | --- |
+| A doc page | the `:tree` checks | compiler, runtime, every case, the upstream Go tests |
+| One case's files | that case and the `:tree` checks | compiler, runtime, 808 cases |
+| The runtime's `src/` | `:runtime-*`, every case, the `:tree` checks | compiler, compiler package |
+| A Go source file | `:compiler`, every case, every Go test, the `:tree` checks | runtime |
+| `harness.mjs` | every case and the `:tree` checks | compiler, runtime |
+| A `PACKAGE.ts` | the targets it declares and their dependents | everything else |
+
+The merge queue runs every target except the VibeLang Go tests, which the
+post-merge suite runs; both keep their checkout's `.flows/` between runs.
+
+## Cache contracts
+
+A cached result is only as correct as its key is complete. Each target names:
+
+- **Its toolchain.** Every program a target spawns is a declared host binary
+  (`S.Host.bin("go")`, `"node"`, `"bun"`), and `smthrs` keys the bytes of the
+  binary it resolves. Go's `GOTOOLCHAIN=auto` then selects the release named by
+  `go.mod`'s `go` line, an input of `:srcs`, and verifies it against Go's
+  checksum database.
+- **Its environment.** A target's process gets `HOME`, `PATH` and `LANG`, and
+  `PATH` enters the key. Everything else a target needs is in its command
+  text. `GOCACHE` is set there to `$HOME/.cache/go-build-smthrs`; Go keys its
+  own cache by content, so it is not an input.
+- **Its installs.** `node_modules` trees are installed from lockfiles before
+  `smthrs` runs, as Smithers installs its own. The lockfile and `package.json`
+  are the install's identity and inputs of every target that reads it.
+- **Its outputs.** A build target declares its outputs; `smthrs` digests them
+  after the run and restores them on a cache hit.
+
+## Known gaps
+
+- **Sandboxing.** The targets run with `sandbox: "none"`: the harness writes
+  `out/` and `node_modules/` into each case directory, which a confined test
+  may not write. Unconfined results stay in the local cache and are never
+  published to a remote cache. Making the harness compile a copy of the case
+  under `$TMPDIR` would let the cases run confined.
+- **One cache per checkout.** `.flows/` must live inside the checkout, so each
+  checkout keeps its own cache. Sharing one across checkouts or hosts needs
+  `smthrs`'s remote cache, which accepts only confined results.
+- **`packages/runtime/PACKAGE.ts`.** `smthrs` refuses a declaration whose
+  directory resolves `effect` to a copy other than the CLI's, and the runtime
+  installs its own. Its targets are declared in `packages/PACKAGE.ts`.
+- **`:tree` is coarse.** Any change reruns the repository-wide checks. Naming
+  what each one reads would let a case change skip the docs checks.
+- **Not yet in the graph.** vite, unplugin, ts-mapper, create-vibelang, the
+  editors, the examples, `scripts/e2e.sh` and the LSP smoke test run outside
+  it.

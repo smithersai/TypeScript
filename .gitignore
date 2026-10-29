@@ -4,6 +4,8 @@ node_modules
 *.db-shm
 *.db-wal
 .cache/
+# smthrs result cache and scratch (docs/maintainers/build.md)
+.flows/
 docs/user/site/
 *.tgz
 packages/compiler/native/

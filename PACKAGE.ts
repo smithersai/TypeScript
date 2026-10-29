@@ -1,0 +1,96 @@
+import { Smithers as S } from "@smthrs/targets"
+import { Package as Packages } from "./packages/PACKAGE.ts"
+import { Package as Typescript } from "./typescript/PACKAGE.ts"
+import { Package as Tsc } from "./typescript/tsc/PACKAGE.ts"
+import { Package as Vibelang } from "./typescript/vibelang/PACKAGE.ts"
+
+// The repository-wide checks: each reads files across the whole tree (docs,
+// sources, manifests), so each takes `tree`, every tracked file, as its input
+// and reruns on any change. Targets that read less are declared in their own
+// packages. docs/maintainers/build.md has the graph.
+const tree = S.Filegroup({
+  srcs: [...S.glob(["**", "!.jj/**"]), Packages.tree, Typescript.tree, Tsc.tree, Vibelang.tree]
+})
+
+// The installs these checks read enter their keys as lockfiles, which `tree`
+// holds; smthrs runs after `bun install --frozen-lockfile` in each directory.
+// The Go tests run from typescript/tsc and read the cases' Effect install.
+const effect = "EFFECT_NODE_MODULES=$PWD/../../experiments/node_modules"
+const bun = S.Host.bin("bun")
+const node = S.Host.bin("node")
+const go = S.Host.bin("go")
+
+const check = (summary: string, shell: string, data: ReadonlyArray<unknown>, tools: ReadonlyArray<typeof bun>) =>
+  S.Shell.Test({ summary, shell, data: [tree, ...data] as Array<never>, tools: [...tools], sandbox: "none", timeout: "30m" })
+
+// The VibeLang Go packages' tests read cases, docs and installs through the
+// repository root, so they take `tree` too.
+const goVibelang = (summary: string, shell: string, data: ReadonlyArray<unknown> = []) =>
+  check(summary, `cd typescript/tsc && GOCACHE=$HOME/.cache/go-build-smthrs ${shell}`, [
+    Tsc.srcs,
+    Packages["runtime-dist"],
+    ...data
+  ], [go, node])
+
+const targets = {
+  release: check(
+    "The release and contributor scripts' node tests.",
+    "node --test scripts/release/*.test.mjs scripts/*.test.mjs",
+    [],
+    [node]
+  ),
+  snippets: check(
+    "Compile every code block in the docs.",
+    "bun docs/tools/check-snippets.ts",
+    [Typescript.compiler, Packages["runtime-dist"]],
+    [bun, node]
+  ),
+  tokens: check("Token counts in the docs match a fresh count.", "bun docs/tools/token-counts.ts --check", [], [bun]),
+  forms: check(
+    "The forms table and its decisions match a fresh generation.",
+    "bash scripts/check-forms-table.sh",
+    [],
+    [go, bun, node]
+  ),
+  "docs-tools": check(
+    "docs/tools' bun tests, except the site contrast check.",
+    "cd docs/tools && bun test $(ls *.test.* | grep -v '^site-contrast\\.test\\.')",
+    [Typescript.compiler, Packages["runtime-dist"], Packages["compiler-native"]],
+    [bun, node]
+  ),
+  // It installs the site with `npm ci` and builds it, so it runs only when
+  // selected: `smthrs test //... --include-exclusive` (the post-merge suite).
+  "site-contrast": S.Shell.Test({
+    summary: "The built site's pages have no contrast violations in either theme.",
+    shell: "cd docs/tools && bun test site-contrast.test.ts",
+    data: [tree],
+    tools: [bun, node],
+    sandbox: "none",
+    exclusive: true,
+    timeout: "30m"
+  }),
+  "docs-check": check("Generated docs and tracked-leak checks.", "cd .smithers && bun run docs:check", [], [bun, node]),
+  "go-vibelang": goVibelang(
+    "Go tests of internal/vibelang and its subpackages.",
+    `CGO_ENABLED=0 ${effect} go test -p 8 -timeout 25m -trimpath ./internal/vibelang/...`,
+    [Tsc["vibelang-files"]]
+  ),
+  "go-vibelang-race": goVibelang(
+    "Parallel declaration emit under the race detector.",
+    "CGO_ENABLED=1 go test -race -count=1 -trimpath -run TestDeclarationEmitInParallel ./internal/vibelang/",
+    [Tsc["vibelang-files"]]
+  ),
+  "go-vibelangmapper": goVibelang(
+    "Go tests of internal/vibelangmapper.",
+    `CGO_ENABLED=0 ${effect} go test -p 8 -timeout 25m -trimpath ./internal/vibelangmapper/...`,
+    [Tsc["vibelangmapper-files"]]
+  ),
+  "go-vibelangfuzz": goVibelang(
+    "The fuzz oracles over the seed corpus: cases, snippets and saved reproductions.",
+    `CGO_ENABLED=0 VIBELANG_FUZZ_REQUIRE=1 VIBELANG_FUZZ_HANG=120s ${effect} ` +
+      "go test -short -timeout=20m -trimpath ./internal/vibelangfuzz/...",
+    [Tsc["vibelangfuzz-files"]]
+  )
+}
+
+export const Package = S.Package({ targets: { tree, ...targets } })

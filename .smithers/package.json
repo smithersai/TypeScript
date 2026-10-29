@@ -14,5 +14,9 @@
     "@smthrs/plan": "1.0.0-rc.16",
     "effect": "4.0.6",
     "js-tiktoken": "1.0.21"
+  },
+  "devDependencies": {
+    "@smthrs/cli": "1.0.0-rc.16",
+    "@smthrs/targets": "1.0.0-rc.16"
   }
 }
