@@ -92,6 +92,11 @@ A cached result is only as correct as its key is complete. Each target names:
   are the install's identity and inputs of every target that reads it.
 - **Its outputs.** A build target declares its outputs; `smthrs` digests them
   after the run and restores them on a cache hit.
+- **Its scratch.** `.flows/` and `.smthrs-*` are gitignored. `smthrs` restores
+  an output by writing a sibling `.smthrs-*` tree and renaming it into place,
+  and `jj file list`, which the docs check runs while other targets restore
+  their outputs, snapshots the working copy: an unignored temporary tree is
+  tracked, then vanishes before the check reads it.
 
 ## Known gaps
 

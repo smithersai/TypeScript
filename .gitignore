@@ -4,8 +4,10 @@ node_modules
 *.db-shm
 *.db-wal
 .cache/
-# smthrs result cache and scratch (docs/maintainers/build.md)
+# smthrs result cache and scratch, and the temporary trees it renames outputs
+# through (docs/maintainers/build.md). A jj snapshot must never track either.
 .flows/
+.smthrs-*
 docs/user/site/
 *.tgz
 packages/compiler/native/
