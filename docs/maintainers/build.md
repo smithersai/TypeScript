@@ -2,13 +2,13 @@
 
 VibeLang's checks run as targets of `smthrs`, Smithers' build tool. Each
 `PACKAGE.ts` declares targets; the files, tools and targets a target names are
-its inputs, and their content digests are its key. `smthrs test` runs each
+its inputs, and their content digests are its key. `smthrs ci` runs each
 target whose key changed and replays every other result from the cache in
 `.flows/`. A change reruns the targets that read what it changed, and nothing
 else.
 
 ```sh
-sh scripts/ci.sh                                    # install, then smthrs test //... --jobs 8
+sh scripts/ci.sh                                    # install, then smthrs ci //... --jobs 8
 sh scripts/ci.sh //typescript/vibelang/... --jobs 8 # the compiler cases only
 .smithers/node_modules/.bin/smthrs targets //...
 .smithers/node_modules/.bin/smthrs explain //typescript/vibelang:await-ops
@@ -16,8 +16,8 @@ sh scripts/ci.sh //typescript/vibelang/... --jobs 8 # the compiler cases only
 
 `scripts/ci.sh` installs what the targets read (`.smithers`, the runtime, the
 compiler package, `experiments`, `docs/tools`) from their lockfiles, then runs
-`smthrs test`. `explain` prints a target's inputs, its key and whether the
-cache holds a result for it.
+`smthrs ci`, which runs build and test targets alike. `explain` prints a
+target's inputs, its key and whether the cache holds a result for it.
 
 ## Packages
 
@@ -68,8 +68,11 @@ the repository root, so they and the other repository-wide checks take `:tree`.
 | `harness.mjs` | every case and the `:tree` checks | compiler, runtime |
 | A `PACKAGE.ts` | the targets it declares and their dependents | everything else |
 
-The merge queue runs every target except the VibeLang Go tests, which the
-post-merge suite runs; both keep their checkout's `.flows/` between runs.
+A gate that needs only some checks names their labels, for example
+`sh scripts/ci.sh //packages/... //:docs-check --jobs 8`; a full run is
+`sh scripts/ci.sh //... --include-exclusive --jobs 8`. Each checkout keeps its
+`.flows/` between runs, so a long-lived CI checkout replays everything an
+earlier run already proved.
 
 ## Cache contracts
 

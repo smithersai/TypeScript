@@ -1,9 +1,10 @@
 #!/bin/sh
-# Installs what the build graph's targets read, then runs the graph's tests
-# with the result cache: each target whose inputs changed runs, every other
-# replays. docs/maintainers/build.md describes the graph.
+# Installs what the build graph's targets read, then runs its build and test
+# targets with `smthrs ci` and the result cache: each target whose inputs
+# changed runs, every other replays. docs/maintainers/build.md describes the
+# graph.
 #
-# Usage: scripts/ci.sh [smthrs test arguments]   (default: //... --jobs 8)
+# Usage: scripts/ci.sh [smthrs ci arguments]   (default: //... --jobs 8)
 #
 # Environment:
 #   CI_RESULTS   also write one status per target, as JSON, to this new file
@@ -27,4 +28,4 @@ ts7_cache="packages/ts-mapper/test/.cache/typescript-$ts7_version"
 	npm install --prefix "$ts7_cache" --no-audit --no-fund --silent "typescript@$ts7_version"
 
 [ $# -gt 0 ] || set -- //... --jobs 8
-exec .smithers/node_modules/.bin/smthrs test "$@" --workspace "$root" --ui plain ${CI_RESULTS:+--results-file "$CI_RESULTS"}
+exec .smithers/node_modules/.bin/smthrs ci "$@" --workspace "$root" --ui plain ${CI_RESULTS:+--results-file "$CI_RESULTS"}
