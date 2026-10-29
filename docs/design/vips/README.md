@@ -12,6 +12,7 @@ Will decides each VibeLang language decision as a VIP, one at a time. Nothing is
 | [6](0006-effect-globals.md) | Effect's functions are globals | accepted 2026-10-28 |
 | [7](0007-match.md) | `match` is TC39 pattern matching, plus a compile-time exhaustiveness check | accepted 2026-10-28 |
 | [9](0009-service-declarations.md) | `service` declarations | accepted 2026-10-28 |
+| [12](0012-provide.md) | `provide` blocks | accepted 2026-10-28 |
 
 
 ## Denied
