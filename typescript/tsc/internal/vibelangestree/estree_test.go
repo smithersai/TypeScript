@@ -202,6 +202,19 @@ func TestAModuleDeclarationWithoutANameHasNoID(t *testing.T) {
 	}
 }
 
+// TestAnUnclosedModuleDeclarationReportsTheMissingBrace checks a module whose
+// closing brace is missing: its body runs to its last token, so the error is
+// the missing brace, not one inside a body cut short (or a panic on module {,
+// whose body is empty).
+func TestAnUnclosedModuleDeclarationReportsTheMissingBrace(t *testing.T) {
+	for _, text := range []string{"module {", "module text {\n  export const one = 1\n", "function f() {\n  module inner {\n    export const two = 2"} {
+		_, failure := Parse("/main.vibe", text)
+		if failure == nil || !strings.Contains(failure.Message, "'}' expected") {
+			t.Errorf("Parse(%q) fails with %v, want '}' expected", text, failure)
+		}
+	}
+}
+
 func TestEveryModuleDeclarationConvertsItsBody(t *testing.T) {
 	// Only a top-level declaration, the first of its name, has a source file
 	// of its own; the checker reports the others (EK4408), and ESLint still

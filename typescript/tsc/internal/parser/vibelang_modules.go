@@ -94,10 +94,12 @@ func (p *Parser) parseVibeLangModuleDeclaration(pos int, jsdoc jsdocScannerInfo,
 
 // skipTypeScriptModuleBody parses a module body as TypeScript to find its
 // closing brace and drops what it parsed: the body's own source file reports
-// its syntax errors.
+// its syntax errors. The module block is marked with an error only when its
+// closing brace is missing (ModuleDeclarationBody).
 func (p *Parser) skipTypeScriptModuleBody() {
 	saveTypeScript := p.vibelangTypeScript
 	saveContextFlags := p.contextFlags
+	saveHasParseError := p.hasParseError
 	saveHasAwaitIdentifier := p.statementHasAwaitIdentifier
 	diagnosticsLen := len(p.diagnostics)
 	jsdocInfosLen := len(p.jsdocInfos)
@@ -109,6 +111,7 @@ func (p *Parser) skipTypeScriptModuleBody() {
 	p.contextFlags = saveContextFlags
 	p.statementHasAwaitIdentifier = saveHasAwaitIdentifier
 	p.diagnostics = p.diagnostics[:diagnosticsLen]
+	p.hasParseError = saveHasParseError
 	p.jsdocInfos = p.jsdocInfos[:jsdocInfosLen]
 	p.vibelangSyntaxRewind(syntaxLen)
 }
@@ -176,11 +179,18 @@ func IsVibeLangModuleReference(node *ast.Node) bool {
 }
 
 // ModuleDeclarationBody returns the range of a module declaration's body:
-// everything between its braces.
+// everything between its braces, or after the open brace to the block's end
+// when the closing brace is missing. The parser marks the block with an error
+// only then (skipTypeScriptModuleBody), and its end is the end of the body's
+// last token.
 func ModuleDeclarationBody(file *ast.SourceFile, node *ast.Node) core.TextRange {
 	block := node.Body()
 	open := scanner.SkipTrivia(file.Text(), block.Pos())
-	return core.NewTextRange(open+1, block.End()-1)
+	end := block.End()
+	if block.Flags&ast.NodeFlagsThisNodeHasError == 0 {
+		end-- // the closing brace
+	}
+	return core.NewTextRange(open+1, end)
 }
 
 // attachVibeLangModules gives file, a .vibe file, one supplemental source
